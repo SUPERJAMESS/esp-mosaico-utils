@@ -10,11 +10,17 @@ struct game_t {
 
 bool game_create(const game_config_t *config, game_handle_t *ret_handle)
 {
-    if (!ret_handle) return false;
+    if (!ret_handle) {
+        return false;
+    }
     *ret_handle = NULL;
-    if (!config || !config->width || !config->height) return false;
+    if (!config || !config->width || !config->height) {
+        return false;
+    }
     game_handle_t game = calloc(1, sizeof(*game));
-    if (!game) return false;
+    if (!game) {
+        return false;
+    }
     game->config = *config;
     *ret_handle = game;
     return true;
@@ -27,17 +33,23 @@ void game_delete(game_handle_t game)
 
 void game_reset(game_handle_t game)
 {
-    if (game) game->state = (game_snapshot_t){0};
+    if (game) game->state = (game_snapshot_t) {
+        0
+    };
 }
 
 void game_set_paused(game_handle_t game, bool paused)
 {
-    if (game) game->state.paused = paused;
+    if (game) {
+        game->state.paused = paused;
+    }
 }
 
 void game_set_pointer(game_handle_t game, int32_t x, int32_t y, bool pressed)
 {
-    if (!game) return;
+    if (!game) {
+        return;
+    }
     game->state.pointer_x = x < 0 ? 0 : (x >= game->config.width ? game->config.width - 1 : x);
     game->state.pointer_y = y < 0 ? 0 : (y >= game->config.height ? game->config.height - 1 : y);
     game->state.pointer_down = pressed;
@@ -46,14 +58,18 @@ void game_set_pointer(game_handle_t game, int32_t x, int32_t y, bool pressed)
 
 void game_update(game_handle_t game)
 {
-    if (!game || game->state.paused) return;
+    if (!game || game->state.paused) {
+        return;
+    }
     ++game->state.tick;
     /* Add fixed-step game logic here. */
 }
 
 bool game_render(game_handle_t game)
 {
-    if (!game) return false;
+    if (!game) {
+        return false;
+    }
     BeginDrawing();
     if (!raylib_lite_raylib_frame_available()) {
         EndDrawing();
@@ -67,5 +83,7 @@ bool game_render(game_handle_t game)
 
 game_snapshot_t game_read(game_handle_t game)
 {
-    return game ? game->state : (game_snapshot_t){0};
+    return game ? game->state : (game_snapshot_t) {
+        0
+    };
 }

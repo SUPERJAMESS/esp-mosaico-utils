@@ -49,7 +49,7 @@ esp_err_t board_display_init(esp_display_present_target_config_t *out_target)
 #else
              "off", -1
 #endif
-    );
+            );
     return ESP_OK;
 }
 

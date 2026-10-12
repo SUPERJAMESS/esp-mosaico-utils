@@ -162,7 +162,11 @@ Use `--workspace PATH` to select another workspace explicitly.
 Create a normal application with `python mosaico.py project init my_app`. The consuming
 workspace supplies a JSON template description through `workspace.init_template`;
 there is no implicit template. Sources, file lists, text rules and resource paths
-are maintained by that workspace. Output goes under `workspace.projects_dir`;
+are maintained by that workspace. The creator supplements missing Git and quality
+configuration and initializes an independent Git repository on branch `main`.
+The same setup applies to `game create/new`, including Engine examples. Existing
+template configuration takes precedence; preserved filenames are reported.
+Output goes under `workspace.projects_dir`;
 `default_project` is unchanged. The generic renderer handles path variables,
 validated replacements, exclusive creation and failure cleanup without assuming
 an application layout. See [the template format](../esp-mosaico-recovery/docs/project-template.md).
@@ -170,7 +174,17 @@ an application layout. See [the template format](../esp-mosaico-recovery/docs/pr
 Names use 1–31 ASCII letters, digits or underscores, starting with a letter,
 and cannot be Windows reserved names. Existing destinations are rejected.
 Use `--dry-run` to validate and list files without writing, or `--json` for stable
-output. Initialization needs neither ESP-IDF nor a Gateway or connected device.
+output. Initialization requires Git 2.28+ but needs neither ESP-IDF nor a Gateway
+or connected device. It does not stage files, create a commit, configure a remote
+or install hooks. Enable the pinned checks from the new project directory using
+the commands printed by creation; see its `tools/quality/README.md` for first-run
+staging, formatting fixes and manual C/C++ analysis. The default checks cover
+text, ESP-IDF AStyle formatting, Ruff, configuration syntax, secrets, artifacts,
+file permissions and project component conventions. The Mosaico hooks call the
+shared checker in this utils checkout through relative paths; pin the workspace's
+utils revision alongside other dependencies. Only configuration and policy are
+copied into the project. See [template ownership](templates/README.md) for the
+separation between application templates, shared defaults and executable tools.
 
 When multiple ESP32-S31 devices are already in ROM download mode, select the
 target by its factory eFuse Base MAC. The CLI reads every registered ROM

@@ -7,9 +7,11 @@ no default: a workspace without it can use other commands, but `project init` re
 configuration error. A directory is not a template description.
 
 The workspace owns the application sources **and** the description. The tools
-own only the format, rendering, validation and exclusive output creation. There
-is no predefined file list, application name, source language, README wording or
-shared-script location. Editing a template and its rules requires no tool change.
+own the format, rendering, validation and exclusive output creation. The renderer
+has no predefined application file list, name or source language. After rendering,
+the creator supplements missing files from its shared Git/quality template and
+initializes an independent Git repository on `main`. Editing application template
+sources and rules still requires no tool change.
 
 ## Description format (schema version 1)
 
@@ -56,7 +58,8 @@ Each file entry has:
 Source and destination paths use `/` separators. Absolute paths, traversal,
 Windows reserved names/characters, source symlinks, sources outside the template
 directory, duplicate destinations (including case-only differences) and
-file/directory conflicts are rejected. Only listed files are copied. Without
+file/directory conflicts are rejected. `.git` metadata is forbidden in generated
+paths. Only listed application files are copied. Without
 text rules or `append`, a file is copied byte for byte, including binary files.
 
 Each replacement requires a Python regular expression `pattern` and a literal
@@ -115,3 +118,17 @@ external content is retained and reported in `cleanup_errors`.
 directory. JSON output identifies the description in `template` and returns the
 actual destination file list in `files`. Device commands and the workspace's
 `default_project` are unaffected.
+
+Creation requires Git 2.28+. Missing Git fails before writing; a Git initialization
+failure retains the new source directory and reports a recovery command. No files
+are staged, no commit or remote is created, and hooks are not installed. Templates
+may supply their own management files: exact filenames are preserved, not merged,
+and reported in `quality.preserved_files`. Case-only or file/directory collisions
+with the shared files fail. The JSON result includes `git.status` (`planned` or
+`initialized`), `git.branch`, and the quality guide and setup commands. `files`
+includes the supplemented management files, excluding `.git` internals. Shared
+configuration comes from `mosaico-tools/templates/common/git_quality`, itself a
+schema v1 profile. Generic quality checks live in `mosaico-tools/tools/quality`;
+generated hooks reference that workspace dependency through relative paths.
+Projects retain only their policy, configuration and guide. Keep the workspace's
+utils revision pinned and available when running these hooks.

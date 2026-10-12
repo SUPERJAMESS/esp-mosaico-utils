@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "paths": {
+    "quality_checker": {
+      "base": "tools",
+      "path": "tools/quality/check_project.py",
+      "required": "file"
+    }
+  },
+  "files": [
+    {
+      "source": ".astyle-rules.yml"
+    },
+    {
+      "source": ".editorconfig"
+    },
+    {
+      "source": ".gitattributes"
+    },
+    {
+      "source": ".gitignore"
+    },
+    {
+      "source": ".pre-commit-config.yaml",
+      "replacements": [
+        {
+          "pattern": "@MOSAICO_QUALITY_CHECKER@",
+          "replacement": "{{quality_checker|json}}",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "source": ".ruff.toml"
+    },
+    {
+      "source": "tools/quality/README.md"
+    },
+    {
+      "source": "tools/quality/policy.json"
+    },
+    {
+      "source": "tools/quality/requirements.txt"
+    }
+  ]
+}

@@ -94,12 +94,19 @@ def test_blank_dry_run_and_refusal_to_overwrite(workspace, capsys):
 @pytest.mark.parametrize("option", ["shooter", "sky-hop", "tower-defense"])
 def test_example_selection_uses_engine_creator(workspace, capsys, option, monkeypatch):
     from types import SimpleNamespace
+    import subprocess
     engine = workspace / "engine"
     (engine / "tools").mkdir()
     (engine / "tools/game_cli.py").touch()
     calls = []
+    real_run = subprocess.run
     def create(command, **kwargs):
+        if str(engine / "tools/game_cli.py") not in command:
+            return real_run(command, **kwargs)
         calls.append(command)
+        project = workspace / "projects/demo"
+        project.mkdir(parents=True)
+        (project / "CMakeLists.txt").write_text("# engine example\n")
         return SimpleNamespace(returncode=0, stdout=json.dumps({"project": str(workspace / "projects/demo")}), stderr="")
     monkeypatch.setattr("mosaico_cli.app_commands.subprocess.run", create)
     assert main(["--workspace", str(workspace), "game", "create", "demo", "--template", option, "--json"]) == 0

@@ -51,7 +51,7 @@ static void say_hello(esp_gsp_handle_t ui, const esp_gsp_event_t *event,
         state->celebration_tick = 0;
         /* Allocate before showing the overlay: no stuck celebration on failure. */
         state->timer = esp_gsp_timer_create(ui, CELEBRATION_TICK_MS,
-                                           celebrate_tick, state);
+                                            celebrate_tick, state);
         if (!state->timer) {
             remember_error(state, ESP_GSP_ERR_NO_MEM);
             return;
@@ -75,7 +75,9 @@ esp_gsp_err_t hello_ui_init(esp_gsp_handle_t ui, hello_ui_t *state)
     if (!ui || !state) {
         return ESP_GSP_ERR_INVALID_ARG;
     }
-    *state = (hello_ui_t){0};
+    *state = (hello_ui_t) {
+        0
+    };
     remember_error(state, gsp_hello_count_set_text(ui, "00"));
     remember_error(state, gsp_hello_celebration_set_visible(ui, false));
     for (unsigned i = 0; i < CONFETTI_FRAMES; ++i) {
