@@ -57,6 +57,13 @@ esp_err_t factory_nand_update_request_scan(void);
 esp_err_t factory_nand_update_get_snapshot(
     factory_nand_update_snapshot_t *snapshot);
 
+/* Serialized Ideas worker shares the NAND lease with legacy USB operations. */
+esp_err_t factory_nand_acquire(void);
+void factory_nand_release(void);
+/* Caller holds NAND lease and has verified every package file before writing. */
+esp_err_t factory_nand_install_idea(const char *manifest_path, const char *manifest,
+                                  esp_err_t (*before_commit)(void *), void *ctx);
+
 #ifdef __cplusplus
 }
 #endif

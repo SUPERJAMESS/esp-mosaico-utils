@@ -35,6 +35,7 @@
 #include "freertos/task.h"
 #include "psa/crypto.h"
 #include "spi_nand_flash.h"
+#include "mosaico_boot.h"
 
 #define NAND_UPDATE_SERVICE_ID 0x1201U
 #define NAND_UPDATE_START_METHOD_ID 2U
@@ -643,6 +644,45 @@ static void generate_operation_id(
     }
 }
 
+esp_err_t factory_nand_acquire(void)
+{
+    if (!nand_operation_claim()) return ESP_ERR_INVALID_STATE;
+    esp_err_t err = nand_ensure_mounted();
+    if (err != ESP_OK) nand_operation_release();
+    return err;
+}
+
+void factory_nand_release(void) { nand_operation_release(); }
+
+esp_err_t factory_nand_install_idea(const char *manifest_path, const char *manifest,
+                                  esp_err_t (*before_commit)(void *), void *ctx)
+{
+    if (!manifest_path || !manifest) return ESP_ERR_INVALID_ARG;
+    uint8_t operation[16];
+    generate_operation_id(operation);
+    esp_err_t err = factory_system_update_source_reserve_idea(operation);
+    if (err != ESP_OK) return err;
+    err = factory_system_update_source_prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND,
+            (const uint8_t *)manifest, strlen(manifest), operation);
+    /* A failed/interrupted single-slot install must return to Vibe Mode. */
+    if (err == ESP_OK) err = mosaico_boot_request_recovery();
+    size_t count = factory_system_update_source_component_count(FACTORY_SYSTEM_UPDATE_OWNER_NAND);
+    for (size_t i = 0; err == ESP_OK && i < count; ++i) {
+        esp_iris_system_update_component_t component;
+        char filename[FACTORY_SYSTEM_UPDATE_FILENAME_BYTES], path[FACTORY_SYSTEM_UPDATE_PATH_BYTES];
+        err = factory_system_update_source_component(FACTORY_SYSTEM_UPDATE_OWNER_NAND, i, &component, filename);
+        if (err == ESP_OK) err = component_path(manifest_path, filename, path);
+        if (err == ESP_OK) err = read_component(path, &component);
+    }
+    if (err == ESP_OK && before_commit) err = before_commit(ctx);
+    if (err == ESP_OK) err = factory_system_update_source_commit_deferred(operation);
+    if (err != ESP_OK) {
+        (void)mosaico_boot_request_recovery();
+        factory_system_update_source_abort(FACTORY_SYSTEM_UPDATE_OWNER_NAND, operation, err);
+    }
+    return err;
+}
+
 static void nand_update_task(void *argument)
 {
     nand_update_task_context_t *context = argument;
@@ -860,6 +900,15 @@ esp_err_t factory_system_update_nand_register(void)
 }
 
 #else
+
+esp_err_t factory_nand_acquire(void) { return ESP_ERR_NOT_SUPPORTED; }
+void factory_nand_release(void) {}
+esp_err_t factory_nand_install_idea(const char *path, const char *manifest,
+                                  esp_err_t (*before_commit)(void *), void *ctx)
+{
+    (void)path; (void)manifest; (void)before_commit; (void)ctx;
+    return ESP_ERR_NOT_SUPPORTED;
+}
 
 esp_err_t factory_system_update_start_nand(const char *manifest_path)
 {

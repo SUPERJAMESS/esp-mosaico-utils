@@ -12,11 +12,126 @@
   `idf.py flash monitor` 与默认 Mosaico 更新流程。
 - [软件规格](../../docs/esp-mosaico-recovery-software-spec-zh.md)：完整功能和验收边界。
 
-保留 Wi-Fi、Download Ideas、HTTPS Bridge、NAND、文件、截图、输入及维护自更新。
+保留 Wi-Fi、Download Ideas、HTTPS Bridge 维护后端、NAND、文件、截图、输入及维护自更新。
 高速 USB 使用 console/data 双 CDC；TCP 使用独立端口；控制链支持按需截图。
-Bridge 必须使用 control protocol 2 的独立写入授权，产品 profile 变更为
+历史 Bridge 维护后端必须使用 control protocol 2 的独立写入授权，产品 profile 变更为
 `iris-s31-test-layout-v2`；需要配套远程服务，不回退到旧授权路径。
+Download Ideas 页面使用下文的六位编号直接下载契约。
 System Update 清单使用 `esp-iris-system-update/0.2`，基础包 manifest 使用 schema 3。
+
+### Ideas 下载与开机应用（当前源码）
+
+Download Ideas 输入六位应用编号（字符串，保留前导零），直接解析对应应用的最新发布。
+不注册配对会话，也不后台预取配对码。编号必须由云端永久、唯一地映射到 application ID。
+这部分源码使用下面的新云端契约；现有 Bridge 服务是否实现该契约仍需联调确认。
+
+- **下载**：将固件、清单及展示资源写入 `/nand/ideas/<code>/current/`，不写应用 NOR、
+  不切换启动目标、不重启。每个编号只保留一个完整版本，最多 16 个 Ideas。
+- **检查更新**：以已下载的 application ID、release ID 查询最新发布，只报告是否有新版。
+  “Download latest” 替换 NAND 当前版本，保持 NOR 中原应用及其开机标记。
+- **设为开机应用**：完全离线，从 NAND 重新校验所有文件，然后写 NOR、验证读回、
+  提交分区表和下次启动目标。完成后仍停留在 Vibe Mode，可继续选择另一个 Idea。
+  “Restart now” 启动当前已选的开机应用。界面不显示“已安装”状态。
+- 开机应用身份保存在保留的 `sysmeta` 分区独立 `ideas` 命名空间；标记同时核对
+  实际 NOR 应用与分区表的 SHA-256。它不依赖 NAND 中当前版本是否等于 NOR 版本。
+- 新包先在 `.incoming` 完整下载并校验，再通过目录重命名替换 `current`；`.previous`
+  只用于中断恢复，并在替换完成或下次扫描时删除，不提供历史版本列表。
+
+安装仍遵循单应用槽的断电边界：不是 A/B 回滚。擦写前设置 Vibe Mode 启动意图，
+成功后清除；失败可返回 Vibe Mode 重试。Ideas 不允许更新 bootloader 或保留的
+Vibe Mode 镜像。分区表改变后，普通 USB/TCP OTA 写入须等重启重新加载分区描述；
+Ideas 可继续使用经过验证的新分区表描述重新安装。
+
+#### 云端契约 `mosaico-ideas/download/1`
+
+沿用 `CONFIG_IRIS_FACTORY_BRIDGE_SERVER_URL` 的 HTTPS origin 和
+`CONFIG_IRIS_FACTORY_BRIDGE_BOARD_ID`；语言由 `CONFIG_IRIS_FACTORY_IDEAS_LOCALE`
+指定（默认 `en`）。证书验证开启，不跟随重定向。
+
+`POST /api/v1/ideas/resolve` 请求示例：
+
+```json
+{
+  "code": "042731",
+  "board_id": "esp-mosaico",
+  "locale": "zh-CN",
+  "recovery_abi": 2,
+  "layout_version": 5,
+  "flash_size": 16777216,
+  "application_id": "weather-station",
+  "current_release_id": "weather-20261012-1"
+}
+```
+
+首次下载不发送后两个字段。成功始终返回 HTTP 200 和**完整最新发布描述**；
+无此编号返回 404。设备按 release ID 判断更新，不按版本字符串排序。
+云端按 board、ABI、layout、Flash 容量过滤发布，选择当前语言或明确的回退语言。
+响应结构如下（SHA-256 字段应填写实际 64 位小写十六进制摘要）：
+
+```json
+{
+  "schema": "mosaico-ideas/download/1",
+  "application": {
+    "code": "042731", "id": "weather-station",
+    "release_id": "weather-20261012-2", "version": "1.2.0",
+    "name": "天气站", "description": "今日天气与预报", "locale": "zh-CN"
+  },
+  "system_manifest": {
+    "schema": "esp-iris-system-update/0.2", "release": "1.2.0",
+    "target": {"chip_id": 32, "flash_size": 16777216},
+    "target_layout_sha256": "<partition-table SHA-256>",
+    "components": [
+      {"id": 1, "kind": "partition_table", "target_offset": 32768,
+       "size": 4096, "sha256": "<partition-table SHA-256>", "file": "partition-table.bin"},
+      {"id": 2, "kind": "application", "target_offset": 2162688,
+       "size": 1048576, "sha256": "<application SHA-256>", "file": "app.bin"}
+    ]
+  },
+  "files": [
+    {"name": "partition-table.bin", "path": "/api/v1/ideas/files/table-blob", "size": 4096, "sha256": "<partition-table SHA-256>"},
+    {"name": "app.bin", "path": "/api/v1/ideas/files/app-blob", "size": 1048576, "sha256": "<application SHA-256>"},
+    {"name": "card.gspb", "path": "/api/v1/ideas/files/card-blob", "size": 21648, "sha256": "<presentation SHA-256>"},
+    {"name": "icon.png", "path": "/api/v1/ideas/files/icon-blob", "size": 6105, "sha256": "<icon SHA-256>"}
+  ],
+  "presentation": "card.gspb", "icon": "icon.png"
+}
+```
+
+`GET files[].path` 返回不可变原始文件。只允许同 origin 的
+`/api/v1/ideas/files/<单段标识>`，不接受外部 URL、查询参数或路径穿越。
+固件文件名、长度和摘要必须与 `system_manifest.components` 一一对应；分区表必须
+是第一个组件，且只能有一个 `0x210000` 应用。额外数据组件仍受 Recovery Flash
+策略验证。描述最多 16 KiB，内嵌 system manifest 最多 3 KiB，最多 8 个固件组件、
+10 个文件，总计最多 32 MiB。未被固件或展示字段引用的文件会被拒绝。
+
+#### 固定文字、图标及字体子集
+
+`presentation` 是可选的单场景 deployable GSPB，使用同一个固定卡片模板，包含
+图标、发布时确定的本地化名称/描述及编译后的字形子集，最多 1 MiB。
+“View info” 从 NAND 校验并加载该卡片，左上角 72×72 区域返回 Vibe Mode。
+卡片没有可执行设备操作；离开后释放资源，保留 Vibe Mode 原界面。
+列表图标使用独立 PNG（最多 64 KiB、96×96），缺省使用内置图标。
+Vibe 自身不携带完整多语种字体；列表中超出内置字符集的名称显示编号，
+完整本地化名称与描述在卡片中显示。
+
+发布端使用 `tools/prepare_idea_presentation.py`，提供 `--code`、`--name`、
+`--description`、`--locale`、`--font`、`--icon`、`--output` 和 `--gspc`。
+字体须覆盖该语言。工具用 GSPC 0.5.0 生成 `card.gspb`、64×64 `icon.png` 和
+`presentation.json`（展示元数据及摘要）；云端将这些文件加入发布描述，
+不必下载字体全集。设备重启后仍能从 NAND 查看它们。
+
+2026-10-12 使用本地 HTTPS 解析/文件服务及真实 ESP32-S31、NAND/NOR 完成端到端
+验证：六位编号直接下载、两个 Ideas 共存、中文名称/描述及字形子集显示、独立列表
+图标、按 application/release ID 检查更新、损坏文件拒绝且保留旧版、单版本替换。
+关闭服务后连续安装 `000001 -> 000002 -> 000001`，安装期间保持 Vibe Mode；
+下载 `1.0.1` 后重启仍运行 NOR 中的 `1.0.0`，离线安装后才启动 `1.0.1`，
+通过应用身份、固件摘要和健康 RPC 验证。所有设备操作均经过消费 workspace 的
+`mosaico.py`；本地测试 URL 和 CA 只用于候选构建，没有修改生产默认值。
+
+真机验证修正了 GSP 1.4 在 S31 ROM 上解码 PNG 时缺少线性输出标志的问题，
+并为多行列表显式配置图标槽。卡片预览期间，实体触摸与 USB 输入统一进入卡片，
+避免向暂停的主界面注入事件；见[对应原生回归](../../tests/test_ideas_presentation_host.py)。
+此功能不替换已评审的 `prebuilt/recovery`。生产云端联调和实际断电恢复仍需另行验收。
 
 Vibe Mode 关闭 Wi-Fi modem sleep，优先保证维护传输和控制响应；普通应用自行
 选择省电策略。固定 S31 SDK 曾在 `pm_process_tim` 路径发生看门狗复位，原始

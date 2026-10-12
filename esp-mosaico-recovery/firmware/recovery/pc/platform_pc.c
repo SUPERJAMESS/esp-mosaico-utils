@@ -13,6 +13,9 @@ static vibe_snapshot_t model;
 static unsigned connect_ticks;
 static unsigned connect_attempts, bridge_open_calls;
 static unsigned bridge_prefetch_calls;
+static unsigned download_calls, install_calls, check_calls, restart_calls;
+static vibe_command_t current_job;
+static char last_code[7];
 static bool bridge_active;
 static bool connecting, installing;
 static bool renewed_code;
@@ -62,13 +65,15 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
     FILE *file = fopen(temporary, "w");
     if (!file) return;
     /* Observable test state never contains credentials or pairing tokens. */
-    fprintf(file, "{\"page\":%d,\"password_length\":%u,\"password_visible\":%s,\"pending\":%s,\"bridge_running\":%s,\"network\":%d,\"progress\":%u,\"bridge_open_calls\":%u,\"bridge_prefetch_calls\":%u,\"bridge_active\":%s,\"code_ready\":%s,\"code_length\":%u,\"renewed_code\":%s,\"rate_valid\":%s,\"rate_bps\":%llu,\"component_id\":%u,\"sample_ms\":%llu}\n",
+    fprintf(file, "{\"page\":%d,\"password_length\":%u,\"password_visible\":%s,\"pending\":%s,\"bridge_running\":%s,\"network\":%d,\"progress\":%u,\"bridge_open_calls\":%u,\"bridge_prefetch_calls\":%u,\"bridge_active\":%s,\"code_ready\":%s,\"code_length\":%u,\"renewed_code\":%s,\"rate_valid\":%s,\"rate_bps\":%llu,\"component_id\":%u,\"sample_ms\":%llu,\"idea_code\":\"%s\",\"last_code\":\"%s\",\"download_calls\":%u,\"install_calls\":%u,\"check_calls\":%u,\"restart_calls\":%u,\"boot_first\":%s}\n",
         state.page, (unsigned)strlen(state.password), state.password_visible ? "true" : "false",
         state.download_pending ? "true" : "false", model.bridge_running ? "true" : "false", model.network, model.progress, bridge_open_calls,
         bridge_prefetch_calls, bridge_active ? "true" : "false", model.bridge_code[0] ? "true" : "false",
         (unsigned)strlen(model.bridge_code), renewed_code ? "true" : "false",
         state.rate.valid ? "true" : "false", (unsigned long long)state.rate.bytes_per_second,
-        model.transfer.component_id, (unsigned long long)model.transfer.now_ms);
+        model.transfer.component_id, (unsigned long long)model.transfer.now_ms,
+        state.idea_code, last_code, download_calls, install_calls, check_calls, restart_calls,
+        model.bundles[0].boot ? "true" : "false");
     fclose(file);
 #ifdef _WIN32
     /* The Windows C runtime's rename cannot replace an existing snapshot. */
@@ -99,8 +104,12 @@ static void snapshot(void *ctx, vibe_snapshot_t *out)
         } else if (model.progress >= 1000) {
             installing = false; model.updating = false; model.update_terminal = true;
             ++model.update_revision;
-            snprintf(model.update_title, sizeof(model.update_title), "Update complete");
-            snprintf(model.update_detail, sizeof(model.update_detail), "Simulated images verified");
+            snprintf(model.update_title, sizeof(model.update_title), "%s", current_job == VIBE_INSTALL_NAND ? "Boot application ready" : "Download complete");
+            snprintf(model.update_detail, sizeof(model.update_detail), "%s", current_job == VIBE_INSTALL_NAND ? "Starts on next power-on" : "Saved in My Ideas");
+            if (current_job == VIBE_INSTALL_NAND)
+                for (size_t i = 0; i < model.bundle_count; i++)
+                    model.bundles[i].boot = !strcmp(model.bundles[i].code, last_code);
+            ++model.nand_generation;
         }
         model.transfer.receiving = installing;
     }
@@ -139,7 +148,20 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
     case VIBE_PAUSE_BRIDGE: bridge_active = false; break;
     case VIBE_STOP_BRIDGE: model.bridge_running = false; bridge_active = false; model.bridge_code[0] = 0; break;
     case VIBE_SCAN_NAND: ++model.nand_generation; break;
+    case VIBE_PREVIEW_IDEA: break;
+    case VIBE_START_IDEA: ++restart_calls; break;
+    case VIBE_CHECK_IDEA:
+        ++check_calls;
+        snprintf(last_code, sizeof(last_code), "%s", a);
+        model.update_terminal = true; model.update_failed = false; ++model.update_revision;
+        snprintf(model.update_title, sizeof(model.update_title), "Update available");
+        snprintf(model.update_detail, sizeof(model.update_detail), "Download the latest release from My Ideas");
+        break;
+    case VIBE_DOWNLOAD_IDEA:
     case VIBE_INSTALL_NAND:
+        current_job = cmd;
+        if (cmd == VIBE_DOWNLOAD_IDEA) ++download_calls; else ++install_calls;
+        snprintf(last_code, sizeof(last_code), "%s", a);
         installing = true; model.updating = true; model.update_terminal = false; model.progress = 0;
         model.update_failed = false;
         ++model.update_revision;
@@ -175,7 +197,10 @@ esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
     if (scenario("empty")) model.bundle_count = 0;
     for (size_t i = 0; i < model.bundle_count; ++i) {
         snprintf(model.bundles[i].release, sizeof(model.bundles[i].release), "Demo release %u", (unsigned)i + 1);
-        snprintf(model.bundles[i].path, sizeof(model.bundles[i].path), "/nand/system-update/demo%u/manifest.json", (unsigned)i);
+        snprintf(model.bundles[i].code, sizeof(model.bundles[i].code), "%06u", 42731 + (unsigned)i);
+        snprintf(model.bundles[i].version, sizeof(model.bundles[i].version), "1.0");
+        snprintf(model.bundles[i].description, sizeof(model.bundles[i].description), "A downloaded Idea");
+        model.bundles[i].boot = i == 1;
         model.bundles[i].bytes = 1024 * 1024; model.bundles[i].components = 2;
     }
     const vibe_services_t services = {.snapshot = snapshot, .command = command};

@@ -7,7 +7,7 @@
 #include "vibe_transfer.h"
 
 #define VIBE_AP_MAX 16
-#define VIBE_BUNDLE_MAX 8
+#define VIBE_BUNDLE_MAX 16
 
 typedef enum {
     VIBE_HOME, VIBE_WIFI, VIBE_PASSWORD, VIBE_PAIRING, VIBE_BRIDGE,
@@ -17,10 +17,15 @@ typedef enum { VIBE_NET_OFFLINE, VIBE_NET_CONNECTING, VIBE_NET_CONNECTED, VIBE_N
 typedef enum {
     VIBE_SCAN_WIFI, VIBE_FORGET_WIFI, VIBE_CONNECT_WIFI, VIBE_OPEN_BRIDGE,
     VIBE_STOP_BRIDGE, VIBE_SCAN_NAND, VIBE_INSTALL_NAND,
-    VIBE_PREFETCH_BRIDGE, VIBE_PAUSE_BRIDGE
+    VIBE_PREFETCH_BRIDGE, VIBE_PAUSE_BRIDGE,
+    VIBE_DOWNLOAD_IDEA, VIBE_CHECK_IDEA, VIBE_START_IDEA, VIBE_PREVIEW_IDEA
 } vibe_command_t;
 typedef struct { char ssid[33]; int rssi; bool open; } vibe_ap_t;
-typedef struct { char release[48]; char path[256]; uint64_t bytes; unsigned components; } vibe_bundle_t;
+typedef struct {
+    char release[129], path[256], code[7], version[65], description[513];
+    uint64_t bytes; unsigned components;
+    bool boot, update_available;
+} vibe_bundle_t;
 typedef struct {
     vibe_net_t network;
     bool credentials_saved, scanning, usb_owner, tcp_owner, session;
@@ -50,6 +55,7 @@ typedef struct {
     void *ctx;
     void (*snapshot)(void *ctx, vibe_snapshot_t *out);
     int (*command)(void *ctx, vibe_command_t command, const char *first, const char *second);
+    void *(*icon)(void *ctx, const char *code, size_t *size);
 } vibe_services_t;
 typedef struct {
     esp_gsp_handle_t ui;
@@ -61,6 +67,7 @@ typedef struct {
     bool download_pending, password_visible;
     bool prefetch_attempted;
     char selected_ssid[33], password_projection[65], password[65];
+    char idea_code[7];
     vibe_bundle_t selected_bundle;
     uint32_t acknowledged_update;
     vibe_rate_t rate;

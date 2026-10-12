@@ -73,6 +73,7 @@ typedef struct {
     bool remote_bridge;
     bool preserve_layout;
     bool commit_started;
+    bool defer_restart;
 } factory_update_state_t;
 
 static const char *TAG = "factory_sysupdate";
@@ -93,12 +94,21 @@ static factory_system_update_status_t s_status = {
     },
 };
 static portMUX_TYPE s_state_lock = portMUX_INITIALIZER_UNLOCKED;
+static bool s_layout_needs_reload;
+
+bool factory_system_update_writer_busy(void)
+{
+    taskENTER_CRITICAL(&s_state_lock);
+    bool busy = s_owner != FACTORY_SYSTEM_UPDATE_OWNER_NONE || s_layout_needs_reload;
+    taskEXIT_CRITICAL(&s_state_lock);
+    return busy;
+}
 
 static bool update_owner_claim(factory_system_update_owner_t owner)
 {
     bool claimed = false;
     taskENTER_CRITICAL(&s_state_lock);
-    if (s_owner == FACTORY_SYSTEM_UPDATE_OWNER_NONE) {
+    if (s_owner == FACTORY_SYSTEM_UPDATE_OWNER_NONE && !s_layout_needs_reload) {
         s_owner = owner;
         claimed = true;
     }
@@ -306,6 +316,7 @@ static void update_state_reset(void)
     s_update.remote_bridge = false;
     s_update.preserve_layout = false;
     s_update.commit_started = false;
+    s_update.defer_restart = false;
     s_update.active_partition = NULL;
     s_update.application_received = false;
     s_update.recovery_update = false;
@@ -1510,6 +1521,9 @@ static esp_err_t commit_update(
     }
     if (partition_table != NULL) {
         ESP_LOGI(TAG, "committing partition table");
+        taskENTER_CRITICAL(&s_state_lock);
+        s_layout_needs_reload = true;
+        taskEXIT_CRITICAL(&s_state_lock);
     }
     ESP_RETURN_ON_ERROR(commit_protected_image(
                             partition_table, s_update.partition_table_image),
@@ -1532,8 +1546,16 @@ static esp_err_t commit_update(
             &application->target_partition;
         ESP_LOGI(TAG, "selecting ota_0 for next boot: label=%s offset=0x%08" PRIx32,
                  ota_partition->label, ota_partition->address);
-        ESP_RETURN_ON_ERROR(mosaico_boot_select(ota_partition->address),
-                            TAG, "select ota_0");
+        if (s_update.defer_restart) {
+            /* Use the validated new descriptor, not IDF's cached old layout. */
+            ESP_RETURN_ON_ERROR(esp_ota_set_boot_partition(ota_partition), TAG,
+                                "select Ideas application");
+            ESP_RETURN_ON_ERROR(mosaico_boot_consume_request(), TAG,
+                                "clear Vibe Mode boot intent");
+        } else {
+            ESP_RETURN_ON_ERROR(mosaico_boot_select(ota_partition->address),
+                                TAG, "select ota_0");
+        }
         const esp_partition_t *configured = esp_ota_get_boot_partition();
         ESP_RETURN_ON_FALSE(configured != NULL, ESP_ERR_NOT_FOUND, TAG,
                             "read configured boot partition");
@@ -1564,11 +1586,12 @@ static esp_err_t commit_update(
     ESP_RETURN_ON_ERROR(persist_result(operation_id, ESP_OK), TAG,
                         "persist system update result");
     ESP_RETURN_ON_FALSE(
-        s_update.remote_bridge ||
+        s_update.remote_bridge || s_update.defer_restart ||
             xTaskCreate(restart_task, "factory_restart", 2048, NULL, 5, NULL) == pdPASS,
         ESP_ERR_NO_MEM, TAG, "schedule restart");
     update_status_finish(ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED, ESP_OK);
-    ESP_LOGI(TAG, "system update committed; restart scheduled");
+    ESP_LOGI(TAG, "system update committed; restart %s",
+             s_update.defer_restart ? "deferred" : "scheduled");
     return ESP_OK;
 }
 
@@ -1635,6 +1658,22 @@ esp_err_t factory_system_update_source_reserve(
     memcpy(s_update.operation_id, operation_id,
            sizeof(s_update.operation_id));
     update_status_reserve(owner, operation_id);
+    return ESP_OK;
+}
+
+esp_err_t factory_system_update_source_reserve_idea(const uint8_t operation_id[16])
+{
+    if (!operation_id_valid(operation_id)) return ESP_ERR_INVALID_ARG;
+    taskENTER_CRITICAL(&s_state_lock);
+    bool admitted = s_owner == FACTORY_SYSTEM_UPDATE_OWNER_NONE ||
+        (s_owner == FACTORY_SYSTEM_UPDATE_OWNER_NAND && s_update.defer_restart &&
+         s_status.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED);
+    if (admitted) s_owner = FACTORY_SYSTEM_UPDATE_OWNER_NAND;
+    taskEXIT_CRITICAL(&s_state_lock);
+    if (!admitted) return ESP_ERR_INVALID_STATE;
+    update_state_reset();
+    memcpy(s_update.operation_id, operation_id, sizeof(s_update.operation_id));
+    update_status_reserve(FACTORY_SYSTEM_UPDATE_OWNER_NAND, operation_id);
     return ESP_OK;
 }
 
@@ -1791,6 +1830,16 @@ esp_err_t factory_system_update_source_commit(
     return commit_update(operation_id, &s_update);
 }
 
+esp_err_t factory_system_update_source_commit_deferred(const uint8_t operation_id[16])
+{
+    if (!update_owner_is(FACTORY_SYSTEM_UPDATE_OWNER_NAND) ||
+        s_update.remote_bridge || s_update.recovery_update ||
+        plan_for_kind(ESP_IRIS_SYSTEM_UPDATE_COMPONENT_BOOTLOADER) != NULL)
+        return ESP_ERR_INVALID_STATE;
+    s_update.defer_restart = true;
+    return commit_update(operation_id, &s_update);
+}
+
 void factory_system_update_source_abort(
     factory_system_update_owner_t owner,
     const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES],
@@ -1819,6 +1868,19 @@ esp_err_t factory_system_update_register(void)
 }
 
 #else
+
+bool factory_system_update_writer_busy(void) { return false; }
+esp_err_t factory_system_update_source_reserve_idea(const uint8_t operation_id[16])
+{
+    (void)operation_id;
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
+esp_err_t factory_system_update_source_commit_deferred(const uint8_t operation_id[16])
+{
+    (void)operation_id;
+    return ESP_ERR_NOT_SUPPORTED;
+}
 
 esp_err_t factory_system_update_register(void)
 {

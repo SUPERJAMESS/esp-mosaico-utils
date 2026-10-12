@@ -157,6 +157,7 @@ esp_err_t factory_system_update_nand_register(void)
 static uint8_t op[16] = {1};
 static void setup(void)
 {
+    s_layout_needs_reload = false;
     update_state_reset();
     update_owner_release();
     memset(flash, 0xff, sizeof(flash));
@@ -628,10 +629,47 @@ int main(void)
     cJSON_Delete(root);
     assert(prepare_bridge(json, true) == ESP_ERR_INVALID_VERSION);
     assert(!erased && !mock_writes);
+    /* Offline Ideas install uses the validated target descriptor and does not
+     * create a restart task. The cached old layout cannot admit another writer. */
+    setup();
+    assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND, layout_manifest_without_data()) == ESP_OK);
+    assert(mosaico_boot_request_recovery() == ESP_OK);
+    assert(factory_system_update_source_commit_deferred(op) == ESP_ERR_INVALID_STATE);
+    for (size_t i = 0; i < 2; i++) {
+        c = s_update.plan[i].descriptor;
+        assert(begin_component(&c, NULL) == ESP_OK);
+        const uint8_t *bytes = i ? (const uint8_t *)"data" : new_table;
+        assert(write_component(&c, 0, bytes, c.size, NULL) == ESP_OK);
+        assert(end_component(&c, c.sha256, NULL) == ESP_OK);
+    }
+    mock_create_fail = 1; /* commit must succeed even when scheduling is impossible */
+    assert(factory_system_update_source_commit_deferred(op) == ESP_OK);
+    assert(boot == &s_update.plan[1].target_partition && boot->address == 0x210000);
+    assert(s_status.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED);
+    assert(factory_system_update_source_reserve(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, op) == ESP_ERR_INVALID_STATE);
+    assert(factory_system_update_writer_busy());
+    assert(factory_system_update_source_reserve_idea(op) == ESP_OK);
+    factory_system_update_source_abort(FACTORY_SYSTEM_UPDATE_OWNER_NAND, op, ESP_FAIL);
+    assert(factory_system_update_writer_busy()); /* cached layout is still stale */
+    assert(factory_system_update_source_reserve(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, op) == ESP_ERR_INVALID_STATE);
+    assert(factory_system_update_source_reserve_idea(op) == ESP_OK);
+    assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND, layout_manifest_without_data()) == ESP_OK);
+    assert(mosaico_boot_request_recovery() == ESP_OK);
+    for (size_t i = 0; i < 2; i++) {
+        c = s_update.plan[i].descriptor;
+        assert(begin_component(&c, NULL) == ESP_OK);
+        const uint8_t *bytes = i ? (const uint8_t *)"data" : new_table;
+        assert(write_component(&c, 0, bytes, c.size, NULL) == ESP_OK);
+        assert(end_component(&c, c.sha256, NULL) == ESP_OK);
+    }
+    assert(factory_system_update_source_commit_deferred(op) == ESP_OK);
+    assert(boot->address == 0x210000 && !memcmp(flash + 0x210000, "data", 4));
+    mock_create_fail = 0;
     puts("Recovery backend ownership, layout, readback and factory gates passed");
 }
 
 esp_err_t mosaico_boot_request_recovery(void) { boot = &mock_factory; return ESP_OK; }
+esp_err_t mosaico_boot_consume_request(void) { return ESP_OK; }
 esp_err_t mosaico_boot_recovery_requested(bool *requested)
 { *requested = boot == &mock_factory; return ESP_OK; }
 esp_err_t mosaico_boot_select(uint32_t address)

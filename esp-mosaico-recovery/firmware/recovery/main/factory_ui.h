@@ -8,8 +8,7 @@ extern "C" {
 
 esp_err_t factory_ui_start(void);
 
-/* Explicitly enter Bridge download mode through the same page as touch UI.
- * An active session is left intact; a completed one may be opened again. */
+/* Stable control entrypoint: open the six-digit Ideas download page. */
 esp_err_t factory_ui_open_bridge(void);
 
 #ifdef __cplusplus

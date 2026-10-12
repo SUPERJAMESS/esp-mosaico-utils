@@ -43,6 +43,7 @@ esp_err_t factory_system_update_nand_register(void);
 
 esp_err_t factory_system_update_get_status(
     factory_system_update_status_t *status);
+bool factory_system_update_writer_busy(void);
 
 /* Reserve the shared writer before an asynchronous source performs network
  * or filesystem work. This makes admission atomic across Bridge, NAND and
@@ -50,6 +51,9 @@ esp_err_t factory_system_update_get_status(
 esp_err_t factory_system_update_source_reserve(
     factory_system_update_owner_t owner,
     const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES]);
+/* Ideas always uses descriptors from its validated table, so it may replace
+ * a previously selected Idea while other writers await a partition reload. */
+esp_err_t factory_system_update_source_reserve_idea(const uint8_t operation_id[16]);
 
 /* Source-neutral transaction API used by the Bridge and NAND adapters. It
  * deliberately remains product-private: target addresses are authorized by
@@ -86,6 +90,9 @@ esp_err_t factory_system_update_source_end_component(
     const uint8_t actual_sha256[ESP_IRIS_SYSTEM_SHA256_BYTES]);
 /* True once remote critical commit begins; even failures must reload the table. */
 bool factory_system_update_source_needs_restart(factory_system_update_owner_t owner);
+/* Ideas install stays in Vibe Mode. Other writers remain blocked until reboot
+ * because ESP-IDF still holds partition descriptors from the previous layout. */
+esp_err_t factory_system_update_source_commit_deferred(const uint8_t operation_id[16]);
 esp_err_t factory_system_update_source_commit(
     factory_system_update_owner_t owner,
     const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES]);

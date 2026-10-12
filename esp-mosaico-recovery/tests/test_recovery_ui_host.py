@@ -9,7 +9,6 @@ import time
 
 import pytest
 from PIL import Image
-import zxingcpp
 
 ROOT = Path(__file__).resolve().parents[1]
 RECOVERY = ROOT / "firmware/recovery"
@@ -182,33 +181,45 @@ def test_download_wifi_continuation_and_cancel(sim):
         sim.tap(35, 258)
     sim.wait(password_length=8)
     sim.tap(420, 435)  # GO
-    sim.wait(page=4, pending=False, network=2, bridge_running=True, password_length=0)
+    sim.wait(page=4, pending=False, network=2, bridge_running=False, password_length=0)
     sim.capture("download-ideas")
-    sim.wait(bridge_open_calls=1)
+    sim.wait(bridge_open_calls=0, bridge_prefetch_calls=0)
     sim.open_bridge()
     sim.open_bridge()
-    sim.wait(page=4, bridge_running=True, bridge_open_calls=1)
-    sim.tap(240, 444)
+    sim.wait(page=4, bridge_running=False, bridge_open_calls=0)
+    sim.tap(38, 36)
     sim.wait(page=0, bridge_running=False)
     sim.tap(75, 445)  # ordinary Wi-Fi entry never starts a download
     sim.wait(page=1, pending=False, bridge_running=False)
 
 
 @pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
-def test_prefetched_code_reused_after_back_and_explicit_cancel(sim):
-    sim.wait(page=0, bridge_prefetch_calls=1, bridge_open_calls=0,
-             bridge_running=True, bridge_active=False, code_ready=True)
+def test_six_digit_code_download_never_installs_or_pairs(sim):
+    sim.wait(page=0, bridge_prefetch_calls=0, bridge_open_calls=0, bridge_running=False)
     sim.tap(240, 390)
-    sim.wait(page=4, bridge_active=True, code_ready=True, bridge_open_calls=1)
-    sim.capture("prefetched-code")
-    sim.tap(38, 36)
-    sim.wait(page=0, bridge_running=True, bridge_active=False, code_ready=True)
-    sim.tap(240, 390)
-    sim.wait(page=4, bridge_active=True, bridge_open_calls=2, bridge_prefetch_calls=1)
+    sim.wait(page=4, idea_code="")
+    sim.tap(240, 444)  # incomplete code must not issue a cloud request
+    sim.wait(page=4, download_calls=0)
+    positions = {0: (240, 350), 1: (124, 192), 2: (240, 192), 3: (356, 192),
+                 4: (124, 245), 5: (240, 245), 6: (356, 245),
+                 7: (124, 298), 8: (240, 298), 9: (356, 298)}
+    for digit in (0, 4, 2, 7, 3, 1, 9):  # seventh digit is ignored
+        sim.tap(*positions[digit])
+    sim.wait(idea_code="042731", download_calls=0)
+    sim.tap(356, 350)  # Delete
+    sim.wait(idea_code="04273")
+    sim.tap(*positions[1])
+    sim.capture("six-digit-download")
     sim.tap(240, 444)
-    sim.wait(page=0, bridge_running=False, bridge_active=False, code_ready=False)
-    sim.tap(240, 390)
-    sim.wait(page=4, bridge_running=True, bridge_open_calls=3, bridge_prefetch_calls=1)
+    sim.wait(download_calls=1, last_code="042731", install_calls=0)
+    sim.wait(timeout=45, page=8, progress=1000, boot_first=False, restart_calls=0)
+    sim.wait(bridge_open_calls=0, bridge_prefetch_calls=0, bridge_running=False)
+    sim.capture("download-result")
+    with Image.open(sim.directory / "download-result.png") as screenshot:
+        for box in ((72, 12, 408, 60), (96, 381, 384, 437)):
+            pixels = screenshot.convert("RGB").crop(box)
+            assert sum(min(pixel) > 220 for pixel in pixels.getdata()) > 100, \
+                "result heading and return button must retain readable text"
 
 
 def test_wifi_cards_and_labels_survive_navigation_and_rescan(sim):
@@ -261,12 +272,12 @@ def test_nand_update_and_result_acknowledgement(sim):
     sim.tap(150, 170)
     sim.wait(page=6)
     sim.capture("confirm")
-    sim.tap(350, 430)
+    sim.tap(240, 363)
     sim.wait(page=7)
     sim.capture("update")
     # Twenty asynchronous service ticks each issue renderer RPCs. macOS CI
     # can exceed 15 wall-clock seconds while still advancing normally.
-    sim.wait(timeout=45, page=8, progress=1000)
+    sim.wait(timeout=45, page=8, progress=1000, boot_first=True, restart_calls=0, install_calls=1)
     sim.capture("result")
     sim.tap(240, 409)
     sim.wait(page=0)
@@ -288,7 +299,7 @@ def test_network_failure_and_retry_preserve_download_intent(sim):
             sim.wait(page=1, network=3, pending=True, password_length=0)
             sim.capture("network-failure")
         else:
-            sim.wait(page=4, network=2, pending=False, bridge_running=True)
+            sim.wait(page=4, network=2, pending=False, bridge_running=False)
 
 
 @pytest.mark.parametrize("sim", ["update-fail"], indirect=True)
@@ -297,7 +308,7 @@ def test_update_failure_returns_home_without_reopening(sim):
     sim.wait(page=5)
     sim.tap(150, 170)
     sim.wait(page=6)
-    sim.tap(350, 430)
+    sim.tap(240, 363)
     sim.wait(page=8, progress=500)
     sim.capture("update-failure")
     sim.tap(240, 409)
@@ -324,29 +335,14 @@ def test_empty_lists_remain_navigable(sim):
     sim.wait(page=0)
 
 
-@pytest.mark.parametrize("sim", ["prefetched", "long-code", "waiting-code"], indirect=True)
-def test_download_qr_decodes_from_native_frame_and_code_survives_navigation(sim):
-    sim.tap(240, 390)
-    sim.wait(page=4)
-    sim.capture("ideas-qr")
-    frame = Image.open(sim.directory / "ideas-qr.png")
-    codes = zxingcpp.read_barcodes(frame)
-    assert [code.text for code in codes] == ["https://mosaico-ideas.espressif.com/"]
-    snapshot = sim.wait(page=4)
-    if snapshot["code_length"] == 15:
-        # Worst-case wide characters must have visible ink and side margins.
-        assert frame.crop((40, 328, 440, 362)).getbbox()
-        pixels = frame.convert("RGB")
-        for x in (36, 443):
-            assert all(max(pixels.getpixel((x, y))) < 100 for y in range(321, 372))
-    sim.tap(38, 36)
-    sim.wait(page=0, bridge_running=True, bridge_active=False)
-    sim.tap(240, 390)
-    sim.wait(page=4, bridge_running=True, bridge_active=True)
-    sim.control("expire-code")
-    sim.wait(renewed_code=True)
-    sim.tap(240, 444)
-    sim.wait(page=0, bridge_running=False, code_ready=False)
+@pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
+def test_check_updates_uses_selected_id_and_does_not_install(sim):
+    sim.tap(370, 446)
+    sim.wait(page=5)
+    sim.tap(150, 170)
+    sim.wait(page=6)
+    sim.tap(125, 300)
+    sim.wait(page=8, check_calls=1, last_code="042731", download_calls=0, install_calls=0, boot_first=False)
 
 
 def test_ota_telemetry_component_transition_stall_retry_and_terminal_states(sim):

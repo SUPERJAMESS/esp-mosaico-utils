@@ -312,5 +312,6 @@ static inline int xTaskCreateWithCaps(void (*fn)(void *), const char *name, int 
 static inline void vTaskDeleteWithCaps(void *task) { vTaskDelete(task); }
 
 esp_err_t mosaico_boot_select(uint32_t address);
+esp_err_t mosaico_boot_consume_request(void);
 esp_err_t mosaico_boot_request_recovery(void);
 esp_err_t mosaico_boot_recovery_requested(bool *requested);

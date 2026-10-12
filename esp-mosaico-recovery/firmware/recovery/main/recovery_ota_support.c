@@ -16,6 +16,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "factory_system_metadata.h"
+#include "factory_update_guard.h"
 #include "nvs.h"
 
 #define OTA_SERVICE_ID      0x1200U
@@ -111,6 +112,8 @@ esp_err_t esp_iris_platform_prepare_ota(uint32_t running_address,
 esp_err_t esp_iris_platform_select_ota_target(uint32_t default_address,
                                               uint32_t *target_address)
 {
+    if (factory_system_update_writer_busy())
+        return ESP_ERR_INVALID_STATE;
     if (default_address == 0 || target_address == NULL) {
         return ESP_ERR_INVALID_ARG;
     }

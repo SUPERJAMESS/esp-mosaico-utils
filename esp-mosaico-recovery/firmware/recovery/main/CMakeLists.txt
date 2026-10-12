@@ -2,6 +2,10 @@ idf_component_register(
     SRCS
         "main.c"
         "factory_bridge.c"
+        "factory_ideas.c"
+        "ideas_package.c"
+        "ideas_store.c"
+        "ideas_presentation.c"
         "factory_recovery_control.c"
         "factory_nand_update.c"
         "factory_network.c"
@@ -13,6 +17,7 @@ idf_component_register(
         "vibe_ui.c"
         "vibe_transfer.c"
         "vibe_bundle.c"
+        "vibe_png_inflate.c"
         "board_display.c"
         "factory_ui_input.c"
         "recovery_ota_support.c"
@@ -51,7 +56,8 @@ gsp_add_bundle(${COMPONENT_LIB}
     PIXEL_FORMAT rgb565
     SYMBOL bundle)
 target_link_options(${COMPONENT_LIB} INTERFACE
-    "-Wl,--wrap=esp_display_presenter_submit_buffer")
+    "-Wl,--wrap=esp_display_presenter_submit_buffer"
+    "-Wl,--wrap=tinfl_decompress")
 
 # Store a compressed copy instead of the helper's uncompressed embed source.
 set(vibe_bundle_dir "${CMAKE_CURRENT_BINARY_DIR}/gsp_gen_bundle")

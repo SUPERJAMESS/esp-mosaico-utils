@@ -5,6 +5,8 @@ struct mock_timer { esp_timer_create_args_t args; bool active; int64_t deadline;
 static struct mock_timer timer;
 static unsigned restarts, marks, timer_creates;
 static bool fail_arm, fail_mark;
+static bool writer_busy;
+bool factory_system_update_writer_busy(void) { return writer_busy; }
 static const esp_partition_t running = {.address = 0x20000, .subtype = 32, .label = "vibe_mode"};
 static const esp_partition_t target = {.address = 0x210000, .subtype = 16, .label = "ota_0"};
 static const esp_partition_t alternate = {.address = 0x900000, .subtype = 17, .label = "ota_1"};
@@ -55,6 +57,9 @@ static void advance(int64_t us)
 int main(void)
 {
     uint32_t selected = 0;
+    writer_busy = true;
+    assert(esp_iris_platform_select_ota_target(target.address, &selected) == ESP_ERR_INVALID_STATE);
+    writer_busy = false;
     assert(esp_iris_platform_select_ota_target(target.address, &selected) == ESP_OK);
     assert(selected == target.address);
     last_good = target.address;

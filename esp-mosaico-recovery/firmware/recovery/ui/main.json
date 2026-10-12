@@ -216,7 +216,7 @@
       "y": 427,
       "w": 154,
       "h": 40,
-      "text": "NAND update",
+      "text": "My Ideas",
       "font_size": 20,
       "fg_color": "#FCFCFF",
       "bg_color": "#242426",
@@ -786,14 +786,13 @@
       "text_align": "center"
     },
     {
-      "type": "image",
+      "type": "container",
       "parent": 49,
-      "x": 147,
-      "y": 70,
-      "w": 185,
-      "h": 185,
-      "image": "assets/ideas-qr.png",
-      "name": "ideas_qr"
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "hidden": true
     },
     {
       "type": "label",
@@ -805,15 +804,16 @@
       "text": "mosaico-ideas.espressif.com",
       "font_size": 16,
       "fg_color": "#91919B",
-      "text_align": "center"
+      "text_align": "center",
+      "hidden": true
     },
     {
       "type": "container",
       "parent": 49,
       "x": 24,
-      "y": 291,
+      "y": 98,
       "w": 432,
-      "h": 91,
+      "h": 69,
       "bg_color": "#242426",
       "radius": 18
     },
@@ -821,10 +821,10 @@
       "type": "label",
       "parent": 49,
       "x": 24,
-      "y": 293,
+      "y": 69,
       "w": 432,
       "h": 24,
-      "text": "PAIRING CODE",
+      "text": "APPLICATION CODE",
       "font_size": 16,
       "fg_color": "#91919B",
       "text_align": "center"
@@ -833,10 +833,10 @@
       "type": "label",
       "parent": 49,
       "x": 36,
-      "y": 317,
+      "y": 103,
       "w": 408,
       "h": 58,
-      "text": "----------",
+      "text": "------",
       "font_size": 40,
       "fg_color": "#FCFCFF",
       "text_align": "center",
@@ -848,10 +848,10 @@
       "type": "label",
       "parent": 49,
       "x": 36,
-      "y": 385,
+      "y": 382,
       "w": 408,
       "h": 28,
-      "text": "Connecting",
+      "text": "Enter the six-digit Idea code",
       "font_size": 16,
       "fg_color": "#91919B",
       "text_align": "center",
@@ -866,17 +866,17 @@
       "y": 421,
       "w": 240,
       "h": 44,
-      "text": "Cancel",
+      "text": "Download",
       "font_size": 20,
       "fg_color": "#FCFCFF",
       "bg_color": "#242426",
       "radius": 16,
-      "name": "button_cancel_bridge",
+      "name": "button_download_code",
       "events": [
         {
           "event": "click",
           "action": "call",
-          "target_name": "cancel_bridge"
+          "target_name": "download_code"
         }
       ]
     },
@@ -920,7 +920,7 @@
       "y": 12,
       "w": 336,
       "h": 48,
-      "text": "NAND firmware",
+      "text": "My Ideas",
       "font_size": 24,
       "fg_color": "#FCFCFF",
       "text_align": "center"
@@ -991,12 +991,12 @@
     {
       "type": "label",
       "parent": 65,
-      "x": 16,
+      "x": 82,
       "y": 6,
-      "w": 362,
+      "w": 300,
       "h": 33,
       "text": "Network",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "bind": "bundles_title",
@@ -1006,12 +1006,12 @@
     {
       "type": "label",
       "parent": 65,
-      "x": 16,
+      "x": 82,
       "y": 39,
-      "w": 362,
+      "w": 300,
       "h": 27,
       "text": "Details",
-      "font_size": 16,
+      "font_size": 14,
       "fg_color": "#91919B",
       "text_align": "left",
       "bind": "bundles_detail",
@@ -1070,7 +1070,7 @@
       "y": 12,
       "w": 336,
       "h": 48,
-      "text": "Confirm install",
+      "text": "Idea details",
       "font_size": 24,
       "fg_color": "#FCFCFF",
       "text_align": "center"
@@ -1081,7 +1081,7 @@
       "x": 24,
       "y": 87,
       "w": 432,
-      "h": 175,
+      "h": 185,
       "bg_color": "#242426",
       "radius": 18
     },
@@ -1092,7 +1092,7 @@
       "y": 95,
       "w": 400,
       "h": 30,
-      "text": "SELECTED RELEASE",
+      "text": "DOWNLOADED IDEA",
       "font_size": 16,
       "fg_color": "#91919B",
       "text_align": "left"
@@ -1131,9 +1131,9 @@
       "type": "label",
       "parent": 69,
       "x": 40,
-      "y": 215,
+      "y": 211,
       "w": 400,
-      "h": 35,
+      "h": 25,
       "text": "",
       "font_size": 16,
       "fg_color": "#91919B",
@@ -1146,11 +1146,11 @@
       "type": "label",
       "parent": 69,
       "x": 24,
-      "y": 286,
+      "y": 238,
       "w": 432,
-      "h": 92,
-      "text": "Keep external power connected.\nBootloader and partition writes have\na small power-loss window.",
-      "font_size": 16,
+      "h": 36,
+      "text": "After setup, this Idea starts on power-on.\nKeep power connected during setup.",
+      "font_size": 14,
       "fg_color": "#91919B",
       "text_align": "center"
     },
@@ -1161,7 +1161,7 @@
       "y": 405,
       "w": 204,
       "h": 52,
-      "text": "Cancel",
+      "text": "Back",
       "font_size": 20,
       "fg_color": "#FCFCFF",
       "bg_color": "#242426",
@@ -1178,11 +1178,11 @@
     {
       "type": "button",
       "parent": 69,
-      "x": 252,
-      "y": 405,
-      "w": 204,
+      "x": 24,
+      "y": 337,
+      "w": 432,
       "h": 52,
-      "text": "Install",
+      "text": "Set as boot application",
       "font_size": 20,
       "fg_color": "#FCFCFF",
       "bg_color": "#FF4C01",
@@ -1233,7 +1233,7 @@
       "text_align": "center",
       "bind": "update_title",
       "name": "update_title",
-      "font_charset": " ADFNUacdefgilmnoprstuvwy"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -1382,7 +1382,7 @@
       "text_align": "center",
       "bind": "result_title",
       "name": "result_title",
-      "font_charset": " ADFNUacdefgilmnoprstuvwy"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -1394,10 +1394,11 @@
       "text": "System images verified",
       "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "center",
+      "text_align": "left",
       "bind": "result_detail",
       "name": "result_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•",
+      "overflow": "clip"
     },
     {
       "type": "button",
@@ -1448,7 +1449,8 @@
       "text_align": "center",
       "bind": "bridge_code_compact",
       "name": "bridge_code_compact",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•",
+      "hidden": true
     },
     {
       "type": "label",
@@ -1494,6 +1496,334 @@
       "name": "update_component",
       "bind": "update_component",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 70,
+      "y": 170,
+      "w": 108,
+      "h": 45,
+      "text": "1",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_1",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_1"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 186,
+      "y": 170,
+      "w": 108,
+      "h": 45,
+      "text": "2",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_2",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_2"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 302,
+      "y": 170,
+      "w": 108,
+      "h": 45,
+      "text": "3",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_3",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_3"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 70,
+      "y": 223,
+      "w": 108,
+      "h": 45,
+      "text": "4",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_4",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_4"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 186,
+      "y": 223,
+      "w": 108,
+      "h": 45,
+      "text": "5",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_5",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_5"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 302,
+      "y": 223,
+      "w": 108,
+      "h": 45,
+      "text": "6",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_6",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_6"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 70,
+      "y": 276,
+      "w": 108,
+      "h": 45,
+      "text": "7",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_7",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_7"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 186,
+      "y": 276,
+      "w": 108,
+      "h": 45,
+      "text": "8",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_8",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_8"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 302,
+      "y": 276,
+      "w": 108,
+      "h": 45,
+      "text": "9",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_9",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_9"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 186,
+      "y": 329,
+      "w": 108,
+      "h": 45,
+      "text": "0",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_0",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_0"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 302,
+      "y": 329,
+      "w": 108,
+      "h": 45,
+      "text": "Delete",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_delete",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_delete"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 24,
+      "y": 278,
+      "w": 204,
+      "h": 44,
+      "text": "Check updates",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_check_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "check_idea"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 252,
+      "y": 278,
+      "w": 204,
+      "h": 44,
+      "text": "Download latest",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_update_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "update_idea"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 252,
+      "y": 405,
+      "w": 204,
+      "h": 52,
+      "text": "Restart now",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_start_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "start_idea"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 290,
+      "y": 93,
+      "w": 138,
+      "h": 36,
+      "text": "View info",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_preview_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "preview_idea"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "parent": 65,
+      "x": 12,
+      "y": 10,
+      "w": 56,
+      "h": 56,
+      "name": "bundles_icon",
+      "image": "assets/idea-default.svg",
+      "dynamic_image": true,
+      "bind": "bundles_icon",
+      "bind_target": "resource"
     }
   ]
 }
