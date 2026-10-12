@@ -866,7 +866,7 @@
       "y": 421,
       "w": 240,
       "h": 44,
-      "text": "Download",
+      "text": "View app",
       "font_size": 20,
       "fg_color": "#FCFCFF",
       "bg_color": "#242426",
@@ -1824,6 +1824,138 @@
       "dynamic_image": true,
       "bind": "bundles_icon",
       "bind_target": "resource"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "idea_info",
+      "bind": "idea_info_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 24,
+      "y": 20,
+      "w": 432,
+      "h": 40,
+      "text": "App information",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_heading",
+      "bind": "idea_heading",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 24,
+      "y": 84,
+      "w": 432,
+      "h": 72,
+      "text": "Loading app information...",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_name",
+      "bind": "idea_name",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 24,
+      "y": 168,
+      "w": 432,
+      "h": 160,
+      "text": "Fetching details from the cloud",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_description",
+      "bind": "idea_description",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 24,
+      "y": 342,
+      "w": 432,
+      "h": 28,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_summary",
+      "bind": "idea_summary",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 24,
+      "y": 374,
+      "w": 432,
+      "h": 26,
+      "text": "Confirm to save in My Ideas",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_status",
+      "bind": "idea_status",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": 117,
+      "x": 24,
+      "y": 408,
+      "w": 204,
+      "h": 56,
+      "text": "Cancel",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_cancel_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "cancel_idea"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 117,
+      "x": 252,
+      "y": 408,
+      "w": 204,
+      "h": 56,
+      "text": "Download",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_accept_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "accept_idea"
+        }
+      ],
+      "bind": "idea_accept",
+      "font_charset": "DownloadMy Ideas",
+      "hidden": true
     }
   ]
 }

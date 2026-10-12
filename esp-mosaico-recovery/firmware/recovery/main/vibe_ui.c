@@ -65,7 +65,7 @@ static void show(vibe_ui_t *s, vibe_page_t page)
         GSP_VIBE_BIND_PASSWORD_VISIBLE, GSP_VIBE_BIND_PAIRING_VISIBLE,
         GSP_VIBE_BIND_BRIDGE_VISIBLE, GSP_VIBE_BIND_NAND_VISIBLE,
         GSP_VIBE_BIND_CONFIRM_VISIBLE, GSP_VIBE_BIND_UPDATE_VISIBLE,
-        GSP_VIBE_BIND_RESULT_VISIBLE,
+        GSP_VIBE_BIND_RESULT_VISIBLE, GSP_VIBE_BIND_IDEA_INFO_VISIBLE,
     };
     const vibe_page_t previous = s->page;
     if (previous == VIBE_PASSWORD && page != VIBE_PASSWORD) {
@@ -99,6 +99,8 @@ int vibe_ui_open_bridge(vibe_ui_t *s)
 {
     if (!s || !s->ui) return ESP_GSP_ERR_INVALID_ARG;
     s->services.snapshot(s->services.ctx, &s->snapshot);
+    if (s->preview_active || s->snapshot.idea_busy || s->snapshot.idea_ready || s->snapshot.updating)
+        return ESP_GSP_ERR_INVALID_STATE;
     memset(s->idea_code, 0, sizeof(s->idea_code));
     show(s, VIBE_BRIDGE);
     vibe_ui_poll(s);
@@ -164,6 +166,17 @@ static void submit_password(vibe_ui_t *s)
     clear_secret(password, sizeof(password));
     if (err) TEXT(s, PASSWORD_ERROR, "Check password and try again");
     else show(s, s->download_pending ? VIBE_WIFI : VIBE_HOME);
+}
+static void prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code)
+{
+    s->services.snapshot(s->services.ctx, &s->snapshot);
+    if (s->snapshot.idea_busy) return;
+    int err = command(s, cmd, code, NULL);
+    if (err) { error_result(s, "App information failed", err); return; }
+    s->preview_return = s->page;
+    s->preview_active = true;
+    show(s, VIBE_IDEA_INFO);
+    vibe_ui_poll(s);
 }
 static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
 {
@@ -281,19 +294,31 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
     case GSP_VIBE_ACT_ID_DOWNLOAD_CODE:
         if (s->page != VIBE_BRIDGE) break;
         if (strlen(s->idea_code) != 6) { TEXT(s, BRIDGE_DETAIL, "Enter all six digits"); break; }
-        err = command(s, VIBE_DOWNLOAD_IDEA, s->idea_code, NULL);
-        if (err) error_result(s, "Download failed", err);
-        else vibe_ui_poll(s);
+        prepare_idea(s, VIBE_RESOLVE_IDEA, s->idea_code);
         break;
     case GSP_VIBE_ACT_ID_CHECK_IDEA:
     case GSP_VIBE_ACT_ID_UPDATE_IDEA:
     case GSP_VIBE_ACT_ID_PREVIEW_IDEA:
         if (s->page != VIBE_CONFIRM) break;
-        err = command(s, e->action_id == GSP_VIBE_ACT_ID_CHECK_IDEA ? VIBE_CHECK_IDEA :
-            e->action_id == GSP_VIBE_ACT_ID_PREVIEW_IDEA ? VIBE_PREVIEW_IDEA : VIBE_DOWNLOAD_IDEA,
-            s->selected_bundle.code, NULL);
-        if (err) error_result(s, "Idea unavailable", err);
-        else vibe_ui_poll(s);
+        if (e->action_id == GSP_VIBE_ACT_ID_PREVIEW_IDEA) {
+            err = command(s, VIBE_PREVIEW_IDEA, s->selected_bundle.code, NULL);
+            if (err) error_result(s, "Idea unavailable", err);
+        } else prepare_idea(s, e->action_id == GSP_VIBE_ACT_ID_CHECK_IDEA ? VIBE_CHECK_IDEA : VIBE_RESOLVE_IDEA,
+                            s->selected_bundle.code);
+        break;
+    case GSP_VIBE_ACT_ID_CANCEL_IDEA:
+        if (s->page != VIBE_IDEA_INFO || !s->preview_active) break;
+        err = command(s, VIBE_CANCEL_IDEA, NULL, NULL);
+        if (!err) { s->preview_active = false; show(s, s->preview_return); }
+        break;
+    case GSP_VIBE_ACT_ID_ACCEPT_IDEA:
+        if (s->page != VIBE_IDEA_INFO || !s->preview_active || !s->snapshot.idea_ready) break;
+        {
+            char request[16];
+            snprintf(request, sizeof(request), "%lu", (unsigned long)s->snapshot.idea_request);
+            err = command(s, VIBE_DOWNLOAD_IDEA, s->snapshot.idea.code, request);
+            if (!err) vibe_ui_poll(s);
+        }
         break;
     case GSP_VIBE_ACT_ID_START_IDEA:
         if (s->page != VIBE_CONFIRM || !s->selected_bundle.boot) break;
@@ -319,6 +344,10 @@ void vibe_ui_poll(vibe_ui_t *s)
     if (nand != v->nand_generation || bundle_count != v->bundle_count) {
         (void)esp_gsp_list_set_total(s->ui, s->bundles, v->bundle_count);
         (void)esp_gsp_list_refresh(s->ui, s->bundles);
+    }
+    if (s->preview_active && !v->idea_loading && !v->idea_ready) {
+        s->preview_active = false;
+        show(s, v->idea_return_library ? VIBE_NAND : s->preview_return);
     }
     if (v->updating) {
         if (s->page != VIBE_UPDATE) show(s, VIBE_UPDATE);
@@ -361,8 +390,18 @@ void vibe_ui_poll(vibe_ui_t *s)
             memcpy(display, s->idea_code, strlen(s->idea_code));
             TEXT(s, BRIDGE_CODE, display);
             TEXT(s, BRIDGE_DETAIL, v->network == VIBE_NET_CONNECTED
-                 ? "Enter the six-digit Idea code" : "Wi-Fi is not connected");
+                 ? (v->idea_busy ? "Finishing previous request..." : "Enter the six-digit Idea code") : "Wi-Fi is not connected");
         }
+        break;
+    case VIBE_IDEA_INFO:
+        TEXT(s, IDEA_NAME, v->idea_ready ? v->idea.release : "Loading app information...");
+        TEXT(s, IDEA_DESCRIPTION, v->idea_ready ? v->idea.description : "Fetching details from the cloud");
+        if (v->idea_ready) FORMAT(s, IDEA_SUMMARY, "%s | %.32s | %lu KiB", v->idea.code,
+            v->idea.version, (unsigned long)((v->idea.bytes + 1023) / 1024));
+        else TEXT(s, IDEA_SUMMARY, "");
+        TEXT(s, IDEA_STATUS, v->idea_downloaded ? "Already downloaded" : "Confirm to save in My Ideas");
+        TEXT(s, IDEA_ACCEPT, v->idea_downloaded ? "My Ideas" : "Download");
+        (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_BUTTON_ACCEPT_IDEA, v->idea_ready);
         break;
     case VIBE_NAND:
         if (v->nand_scanning) TEXT(s, NAND_SCAN, "Scanning NAND...");

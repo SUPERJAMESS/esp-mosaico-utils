@@ -49,7 +49,9 @@ static int service_command(void *ctx, vibe_command_t cmd, const char *a, const c
     case VIBE_STOP_BRIDGE: iris_bridge_stop(); return ESP_OK;
     case VIBE_SCAN_NAND: return factory_ideas_request(IDEAS_SCAN, NULL);
     case VIBE_INSTALL_NAND: return factory_ideas_request(IDEAS_INSTALL, a);
-    case VIBE_DOWNLOAD_IDEA: return factory_ideas_request(IDEAS_DOWNLOAD, a);
+    case VIBE_RESOLVE_IDEA: return factory_ideas_request(IDEAS_RESOLVE, a);
+    case VIBE_CANCEL_IDEA: return factory_ideas_cancel();
+    case VIBE_DOWNLOAD_IDEA: return factory_ideas_confirm(b ? strtoul(b, NULL, 10) : 0, true);
     case VIBE_CHECK_IDEA: return factory_ideas_request(IDEAS_CHECK, a);
     case VIBE_START_IDEA: return factory_ideas_request(IDEAS_START, a);
     case VIBE_PREVIEW_IDEA: return factory_ideas_request(IDEAS_PREVIEW, a);
@@ -101,6 +103,17 @@ static void service_snapshot(void *ctx, vibe_snapshot_t *out)
     out->nand_error = s_ideas.scan_error;
     out->bundle_count = s_ideas.count < VIBE_BUNDLE_MAX ? s_ideas.count : VIBE_BUNDLE_MAX;
     out->invalid_bundles = s_ideas.invalid;
+    out->idea_busy = s_ideas.busy;
+    out->idea_loading = s_ideas.resolving;
+    out->idea_ready = s_ideas.preview_ready;
+    out->idea_downloaded = s_ideas.already_downloaded;
+    out->idea_return_library = s_ideas.return_library;
+    out->idea_request = s_ideas.preview_id;
+    snprintf(out->idea.code, sizeof(out->idea.code), "%s", s_ideas.preview.code);
+    snprintf(out->idea.release, sizeof(out->idea.release), "%s", s_ideas.preview.name);
+    snprintf(out->idea.version, sizeof(out->idea.version), "%s", s_ideas.preview.version);
+    snprintf(out->idea.description, sizeof(out->idea.description), "%s", s_ideas.preview.description);
+    out->idea.bytes = s_ideas.preview.bytes;
     for (size_t i = 0; i < out->bundle_count; ++i) {
         const factory_idea_t *c = &s_ideas.items[i];
         snprintf(out->bundles[i].release, sizeof(out->bundles[i].release), "%s", c->name);
@@ -136,7 +149,7 @@ static void service_snapshot(void *ctx, vibe_snapshot_t *out)
     if (s_ideas.revision != s_ideas_revision) {
         s_ideas_revision = s_ideas.revision; ++s_revision; s_update_source = UPDATE_IDEAS;
     }
-    if (s_ideas.busy && !s_ideas.scanning && s_ideas.command != IDEAS_PREVIEW) s_update_source = UPDATE_IDEAS;
+    if (s_ideas.busy && (s_ideas.command == IDEAS_DOWNLOAD || s_ideas.command == IDEAS_INSTALL)) s_update_source = UPDATE_IDEAS;
     out->updating = out->update_terminal = out->update_failed = false;
     out->progress = 0;
     memset(&out->transfer, 0, sizeof(out->transfer));
@@ -144,7 +157,7 @@ static void service_snapshot(void *ctx, vibe_snapshot_t *out)
     out->transfer.source = (uint8_t)s_update_source;
     out->update_revision = s_revision;
     if (s_update_source == UPDATE_IDEAS) {
-        out->updating = s_ideas.busy && !s_ideas.scanning && s_ideas.command != IDEAS_PREVIEW;
+        out->updating = s_ideas.busy && (s_ideas.command == IDEAS_DOWNLOAD || s_ideas.command == IDEAS_INSTALL);
         out->update_terminal = s_ideas.terminal;
         out->update_failed = s_ideas.failed;
         COPY(update_title, s_ideas.title); COPY(update_detail, s_ideas.detail);

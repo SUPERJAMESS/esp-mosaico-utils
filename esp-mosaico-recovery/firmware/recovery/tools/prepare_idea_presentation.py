@@ -45,8 +45,8 @@ def build(args):
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     font_path = args.font.resolve()
-    name = wrap(args.name, ImageFont.truetype(str(font_path), 28), 416, 2)
-    description = wrap(args.description, ImageFont.truetype(str(font_path), 20), 416, 8)
+    name = wrap(args.name, ImageFont.truetype(str(font_path), 28), 328, 2)
+    description = wrap(args.description, ImageFont.truetype(str(font_path), 20), 416, 6)
     with Image.open(args.icon) as source:
         icon = source.convert("RGBA")
         icon.thumbnail((64, 64), Image.Resampling.LANCZOS)
@@ -65,13 +65,30 @@ def build(args):
             dict(type="container", parent=-1, x=12, y=12, w=48, h=48, radius=12, bg_color="#242426"),
             label(22, 15, 30, 40, "<", 28),
             label(90, 20, 358, 35, args.code, 24, "#91919B"),
-            dict(type="image", parent=-1, x=32, y=82, w=64, h=64, image="icon.png"),
-            label(32, 160, 416, 72, name, 28),
-            label(32, 244, 416, 210, description, 20, "#BDBDC6"),
+            dict(type="image", parent=-1, x=384, y=82, w=64, h=64, image="icon.png"),
+            label(32, 82, 328, 72, name, 28),
+            label(32, 176, 416, 170, description, 20, "#BDBDC6"),
         ])
+    # Local firmware owns these controls and their hit areas. They stay hidden
+    # in the offline information view; downloaded actions are never executed.
+    controls = len(scene["objects"])
+    scene["objects"].append(dict(type="layer", parent=-1, x=0, y=0, w=480, h=480,
+        name="idea_download_controls", bind="download_controls", bind_target="visible", hidden=True))
+    summary = label(24, 356, 432, 40, "", 16, "#BDBDC6")
+    summary.update(parent=controls, name="idea_download_summary", bind="download_summary",
+                   font_charset="".join(chr(i) for i in range(32, 127)))
+    scene["objects"].append(summary)
+    for x, caption in ((24, "Cancel"), (252, "Download")):
+        scene["objects"].append(dict(type="container", parent=controls, x=x, y=408,
+            w=204, h=56, radius=16, bg_color="#242426"))
+        button = label(x, 408, 204, 56, caption, 20)
+        button.update(parent=controls, text_align="center")
+        if caption == "Download":
+            button.update(name="idea_download_accept", bind="download_accept", font_charset="DownloadMy Ideas")
+        scene["objects"].append(button)
     scene_path = output / "card.json"
     latin_font = Path(__file__).resolve().parents[1] / "ui/fonts/DejaVuSans.ttf"
-    for index in (1, 2):
+    for index in (1, 2, controls + 1, controls + 3, controls + 5):
         scene["objects"][index]["font"] = str(latin_font)
     scene_path.write_text(json.dumps(scene, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     profile = Path(__file__).resolve().parents[1] / "ui/profile.yaml"

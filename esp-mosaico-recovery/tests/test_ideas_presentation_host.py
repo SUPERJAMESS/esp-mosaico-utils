@@ -38,14 +38,17 @@ typedef bool (*interceptor_t)(esp_gsp_handle_t, int32_t, int32_t, bool, void *);
 #define ESP_ERR_INVALID_SIZE 1
 #define ESP_ERR_NO_MEM 2
 #define ESP_ERR_NOT_SUPPORTED 3
+#define ESP_ERR_INVALID_STATE 4
 #define MALLOC_CAP_SPIRAM 1
 #define MALLOC_CAP_8BIT 2
 #define pdMS_TO_TICKS(x) (x)
 void vTaskDelay(unsigned ticks);
 void *heap_caps_aligned_alloc(size_t alignment, size_t size, unsigned flags);
 void heap_caps_free(void *data);
+esp_err_t esp_gsp_component_set_text(esp_gsp_handle_t ui, uint32_t key, const char *text);
+esp_err_t esp_gsp_component_set_visible(esp_gsp_handle_t ui, uint32_t key, bool visible);
 esp_err_t esp_gsp_set_input_interceptor(esp_gsp_handle_t ui, interceptor_t cb, void *ctx);
-esp_err_t esp_gsp_deployable_bundle_open(void *data, size_t size, bool crc, esp_gsp_deployable_bundle_t **out);
+esp_err_t esp_gsp_deployable_bundle_open(const void *data, size_t size, bool crc, esp_gsp_deployable_bundle_t **out);
 esp_err_t esp_gsp_deployable_bundle_get_info(esp_gsp_deployable_bundle_t *bundle, esp_gsp_deployable_info_t *info);
 esp_err_t esp_gsp_deployable_bundle_make_config(esp_gsp_deployable_bundle_t *bundle, esp_gsp_config_t *config);
 void esp_gsp_deployable_bundle_close(esp_gsp_deployable_bundle_t *bundle);
@@ -64,7 +67,8 @@ esp_err_t esp_gsp_esp_lcd_resume(esp_gsp_esp_lcd_session_t *session, esp_gsp_han
 #include "sdk.h"
 #include "ideas_presentation.h"
 #include <assert.h>
-static int resume_calls, closes, freed, fail_start;
+static int resume_calls, closes, freed, fail_start, decisions, decision_error, fail_controls;
+static bool accepted;
 static bool physical;
 static interceptor_t input;
 static void *input_ctx;
@@ -72,11 +76,14 @@ static esp_gsp_deployable_bundle_t bundle;
 static esp_gsp_esp_lcd_session_t session;
 void *heap_caps_aligned_alloc(size_t alignment, size_t size, unsigned flags) { (void)alignment; (void)flags; return malloc(size); }
 void heap_caps_free(void *data) { ++freed; free(data); }
-esp_err_t esp_gsp_deployable_bundle_open(void *data, size_t size, bool crc, esp_gsp_deployable_bundle_t **out) { assert(data && size && crc); *out = &bundle; return 0; }
+esp_err_t esp_gsp_deployable_bundle_open(const void *data, size_t size, bool crc, esp_gsp_deployable_bundle_t **out) { assert(data && size && crc); *out = &bundle; return 0; }
 esp_err_t esp_gsp_deployable_bundle_get_info(esp_gsp_deployable_bundle_t *b, esp_gsp_deployable_info_t *info) { assert(b == &bundle); info->scene_count = 1; info->dynamic_image_slots = 0; return 0; }
 esp_err_t esp_gsp_deployable_bundle_make_config(esp_gsp_deployable_bundle_t *b, esp_gsp_config_t *config) { (void)b; config->unused = 0; return 0; }
 void esp_gsp_deployable_bundle_close(esp_gsp_deployable_bundle_t *b) { assert(b == &bundle); ++closes; }
 esp_err_t esp_gsp_set_input_interceptor(esp_gsp_handle_t ui, interceptor_t cb, void *ctx) { assert(ui == (void *)2); input = cb; input_ctx = ctx; return 0; }
+esp_err_t esp_gsp_component_set_text(esp_gsp_handle_t ui, uint32_t key, const char *text) { assert(ui == (void *)2 && key && text); return fail_controls ? ESP_FAIL : ESP_OK; }
+esp_err_t esp_gsp_component_set_visible(esp_gsp_handle_t ui, uint32_t key, bool visible) { assert(ui == (void *)2 && key && visible); return ESP_OK; }
+static esp_err_t decide(uint32_t id, bool download) { assert(id == 42); ++decisions; accepted = download; return decision_error; }
 esp_err_t esp_gsp_esp_lcd_suspend(esp_gsp_handle_t hub, esp_gsp_esp_lcd_session_t **out) { assert(hub == (void *)1); assert(ideas_presentation_input(100, 100, false)); *out = &session; return 0; }
 esp_err_t esp_gsp_esp_lcd_start_on_session_prepared(esp_gsp_esp_lcd_session_t *s, const esp_gsp_config_t *config, void (*prepare)(esp_gsp_handle_t, void *), void *ctx, esp_gsp_handle_t *out) { (void)config; assert(s == &session); if (fail_start) return ESP_FAIL; *out = (void *)2; prepare(*out, ctx); return 0; }
 void vTaskDelay(unsigned ticks) {
@@ -102,6 +109,27 @@ int main(void) {
     assert(ideas_presentation_show((void *)1, "card.gspb") == ESP_FAIL);
     assert(!ideas_presentation_input(20, 20, true));
     assert(closes == 3 && freed == 3);
+    fail_start = 0;
+    ideas_presentation_options_t options = {.request_id=42, .summary="Version 1.0", .decide=decide};
+    assert(ideas_presentation_open((void *)1, "card", 4, &options) == ESP_OK);
+    ideas_presentation_input(350, 430, true); ideas_presentation_input(350, 430, false);
+    assert(decisions == 0); /* No decision before owner publishes ready. */
+    ideas_presentation_enable();
+    ideas_presentation_input(200, 200, true); ideas_presentation_input(350, 430, true);
+    ideas_presentation_input(350, 430, false); assert(decisions == 0); /* Dragging into button. */
+    decision_error = ESP_FAIL;
+    ideas_presentation_input(350, 430, true); ideas_presentation_input(350, 430, false);
+    assert(decisions == 1 && accepted);
+    decision_error = ESP_OK;
+    ideas_presentation_input(120, 430, true); ideas_presentation_input(120, 430, false);
+    assert(decisions == 2 && !accepted);
+    ideas_presentation_input(350, 430, true); ideas_presentation_input(350, 430, false);
+    assert(decisions == 2); /* Repeated taps accepted only once. */
+    ideas_presentation_close();
+    assert(!ideas_presentation_input(350, 430, true));
+    fail_controls = 1;
+    assert(ideas_presentation_open((void *)1, "old card", 8, &options) == ESP_FAIL);
+    assert(!ideas_presentation_input(350, 430, true));
     return 0;
 }
 """)

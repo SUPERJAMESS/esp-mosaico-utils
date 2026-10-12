@@ -211,6 +211,14 @@ def test_six_digit_code_download_never_installs_or_pairs(sim):
     sim.tap(*positions[1])
     sim.capture("six-digit-download")
     sim.tap(240, 444)
+    sim.wait(page=9, idea_ready=True, prepare_calls=1, download_calls=0, last_code="042731", install_calls=0)
+    sim.capture("download-confirmation")
+    sim.tap(120, 436)  # Cancel preserves input and never downloads.
+    sim.wait(page=4, idea_code="042731", cancel_calls=1, download_calls=0)
+    sim.tap(240, 444)
+    sim.wait(page=9, idea_ready=True, prepare_calls=2, download_calls=0)
+    sim.tap(350, 436)
+    sim.tap(350, 436)  # Repeated input cannot start another download.
     sim.wait(download_calls=1, last_code="042731", install_calls=0)
     sim.wait(timeout=45, page=8, progress=1000, boot_first=False, restart_calls=0)
     sim.wait(bridge_open_calls=0, bridge_prefetch_calls=0, bridge_running=False)
@@ -342,7 +350,9 @@ def test_check_updates_uses_selected_id_and_does_not_install(sim):
     sim.tap(150, 170)
     sim.wait(page=6)
     sim.tap(125, 300)
-    sim.wait(page=8, check_calls=1, last_code="042731", download_calls=0, install_calls=0, boot_first=False)
+    sim.wait(page=9, idea_ready=True, check_calls=1, last_code="042731", download_calls=0, install_calls=0, boot_first=False)
+    sim.tap(120, 436)
+    sim.wait(page=6, download_calls=0, install_calls=0)
 
 
 def test_ota_telemetry_component_transition_stall_retry_and_terminal_states(sim):
@@ -383,5 +393,44 @@ def test_ota_telemetry_component_transition_stall_retry_and_terminal_states(sim)
     sample(7000, 4*1024*1024, component=0, completed=2, receiving=0, job=3, terminal=2)
     sim.wait(page=8, progress=1000, rate_valid=False)
     sim.capture("ota-failed-after-transfer")
+    sim.tap(240, 409)
+    sim.wait(page=0)
+
+
+@pytest.mark.parametrize("sim", ["slow-preview"], indirect=True)
+def test_cancel_loading_discards_late_preview(sim):
+    sim.open_bridge()
+    for _ in range(6):
+        sim.tap(240, 350)
+    sim.tap(240, 444)
+    sim.wait(page=9, idea_loading=True, download_calls=0)
+    sim.tap(120, 436)
+    sim.wait(page=4, cancel_calls=1, download_calls=0)
+    time.sleep(8)
+    sim.wait(page=4, idea_ready=False, download_calls=0)
+
+
+@pytest.mark.parametrize("sim", ["already-downloaded"], indirect=True)
+def test_complete_release_opens_library_without_downloading(sim):
+    sim.open_bridge()
+    for _ in range(6):
+        sim.tap(240, 350)
+    sim.tap(240, 444)
+    sim.wait(page=9, idea_ready=True, download_calls=0)
+    sim.tap(350, 436)
+    sim.wait(page=5, download_calls=0, install_calls=0)
+    sim.tap(150, 170)
+    sim.wait(page=6)
+    sim.tap(125, 300)
+    sim.wait(page=8, check_calls=1, download_calls=0)
+
+
+@pytest.mark.parametrize("sim", ["preview-fail"], indirect=True)
+def test_preview_failure_never_starts_download(sim):
+    sim.open_bridge()
+    for _ in range(6):
+        sim.tap(240, 350)
+    sim.tap(240, 444)
+    sim.wait(page=8, idea_ready=False, download_calls=0, install_calls=0)
     sim.tap(240, 409)
     sim.wait(page=0)

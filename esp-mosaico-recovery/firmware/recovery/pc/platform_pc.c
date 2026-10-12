@@ -13,6 +13,7 @@ static vibe_snapshot_t model;
 static unsigned connect_ticks;
 static unsigned connect_attempts, bridge_open_calls;
 static unsigned bridge_prefetch_calls;
+static unsigned prepare_calls, cancel_calls, preview_ticks;
 static unsigned download_calls, install_calls, check_calls, restart_calls;
 static vibe_command_t current_job;
 static char last_code[7];
@@ -65,7 +66,7 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
     FILE *file = fopen(temporary, "w");
     if (!file) return;
     /* Observable test state never contains credentials or pairing tokens. */
-    fprintf(file, "{\"page\":%d,\"password_length\":%u,\"password_visible\":%s,\"pending\":%s,\"bridge_running\":%s,\"network\":%d,\"progress\":%u,\"bridge_open_calls\":%u,\"bridge_prefetch_calls\":%u,\"bridge_active\":%s,\"code_ready\":%s,\"code_length\":%u,\"renewed_code\":%s,\"rate_valid\":%s,\"rate_bps\":%llu,\"component_id\":%u,\"sample_ms\":%llu,\"idea_code\":\"%s\",\"last_code\":\"%s\",\"download_calls\":%u,\"install_calls\":%u,\"check_calls\":%u,\"restart_calls\":%u,\"boot_first\":%s}\n",
+    fprintf(file, "{\"page\":%d,\"password_length\":%u,\"password_visible\":%s,\"pending\":%s,\"bridge_running\":%s,\"network\":%d,\"progress\":%u,\"bridge_open_calls\":%u,\"bridge_prefetch_calls\":%u,\"bridge_active\":%s,\"code_ready\":%s,\"code_length\":%u,\"renewed_code\":%s,\"rate_valid\":%s,\"rate_bps\":%llu,\"component_id\":%u,\"sample_ms\":%llu,\"idea_code\":\"%s\",\"last_code\":\"%s\",\"download_calls\":%u,\"install_calls\":%u,\"check_calls\":%u,\"restart_calls\":%u,\"prepare_calls\":%u,\"cancel_calls\":%u,\"idea_ready\":%s,\"idea_loading\":%s,\"boot_first\":%s}\n",
         state.page, (unsigned)strlen(state.password), state.password_visible ? "true" : "false",
         state.download_pending ? "true" : "false", model.bridge_running ? "true" : "false", model.network, model.progress, bridge_open_calls,
         bridge_prefetch_calls, bridge_active ? "true" : "false", model.bridge_code[0] ? "true" : "false",
@@ -73,6 +74,7 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
         state.rate.valid ? "true" : "false", (unsigned long long)state.rate.bytes_per_second,
         model.transfer.component_id, (unsigned long long)model.transfer.now_ms,
         state.idea_code, last_code, download_calls, install_calls, check_calls, restart_calls,
+        prepare_calls, cancel_calls, model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
         model.bundles[0].boot ? "true" : "false");
     fclose(file);
 #ifdef _WIN32
@@ -89,6 +91,15 @@ static void snapshot(void *ctx, vibe_snapshot_t *out)
         connecting = false;
         model.network = VIBE_NET_CONNECTED;
         snprintf(model.ip, sizeof(model.ip), "192.0.2.10");
+    }
+    if (model.idea_loading && ++preview_ticks >= (scenario("slow-preview") ? 30U : 3U)) {
+        model.idea_loading = model.idea_busy = false;
+        model.idea_ready = true;
+        if (scenario("preview-fail") || (scenario("already-downloaded") && current_job == VIBE_CHECK_IDEA)) {
+            model.idea_ready = false; model.update_terminal = true;
+            model.update_failed = scenario("preview-fail"); ++model.update_revision;
+            snprintf(model.update_title, sizeof(model.update_title), "%s", model.update_failed ? "App information failed" : "Already up to date");
+        }
     }
     if (installing) {
         model.progress += 50;
@@ -150,14 +161,28 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
     case VIBE_SCAN_NAND: ++model.nand_generation; break;
     case VIBE_PREVIEW_IDEA: break;
     case VIBE_START_IDEA: ++restart_calls; break;
+    case VIBE_CANCEL_IDEA:
+        ++cancel_calls; model.idea_loading = model.idea_ready = model.idea_busy = false; break;
     case VIBE_CHECK_IDEA:
-        ++check_calls;
+    case VIBE_RESOLVE_IDEA:
+        if (model.idea_busy || model.idea_ready) return 0x103;
+        current_job = cmd;
+        if (cmd == VIBE_CHECK_IDEA) ++check_calls;
+        ++prepare_calls; preview_ticks = 0;
         snprintf(last_code, sizeof(last_code), "%s", a);
-        model.update_terminal = true; model.update_failed = false; ++model.update_revision;
-        snprintf(model.update_title, sizeof(model.update_title), "Update available");
-        snprintf(model.update_detail, sizeof(model.update_detail), "Download the latest release from My Ideas");
+        model.idea_loading = model.idea_busy = true; model.idea_ready = false;
+        model.idea_return_library = false; model.update_terminal = false;
+        ++model.idea_request;
+        model.idea = model.bundles[0];
+        snprintf(model.idea.code, sizeof(model.idea.code), "%s", a);
+        snprintf(model.idea.version, sizeof(model.idea.version), "1.1");
+        model.idea_downloaded = scenario("already-downloaded");
         break;
     case VIBE_DOWNLOAD_IDEA:
+        if (!model.idea_ready || !b || strtoul(b, NULL, 10) != model.idea_request) return 0x103;
+        model.idea_ready = false;
+        if (model.idea_downloaded) { model.idea_return_library = true; break; }
+        /* fall through */
     case VIBE_INSTALL_NAND:
         current_job = cmd;
         if (cmd == VIBE_DOWNLOAD_IDEA) ++download_calls; else ++install_calls;

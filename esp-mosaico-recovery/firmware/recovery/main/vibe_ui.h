@@ -11,14 +11,14 @@
 
 typedef enum {
     VIBE_HOME, VIBE_WIFI, VIBE_PASSWORD, VIBE_PAIRING, VIBE_BRIDGE,
-    VIBE_NAND, VIBE_CONFIRM, VIBE_UPDATE, VIBE_RESULT, VIBE_PAGE_COUNT
+    VIBE_NAND, VIBE_CONFIRM, VIBE_UPDATE, VIBE_RESULT, VIBE_IDEA_INFO, VIBE_PAGE_COUNT
 } vibe_page_t;
 typedef enum { VIBE_NET_OFFLINE, VIBE_NET_CONNECTING, VIBE_NET_CONNECTED, VIBE_NET_FAILED } vibe_net_t;
 typedef enum {
     VIBE_SCAN_WIFI, VIBE_FORGET_WIFI, VIBE_CONNECT_WIFI, VIBE_OPEN_BRIDGE,
     VIBE_STOP_BRIDGE, VIBE_SCAN_NAND, VIBE_INSTALL_NAND,
     VIBE_PREFETCH_BRIDGE, VIBE_PAUSE_BRIDGE,
-    VIBE_DOWNLOAD_IDEA, VIBE_CHECK_IDEA, VIBE_START_IDEA, VIBE_PREVIEW_IDEA
+    VIBE_DOWNLOAD_IDEA, VIBE_CHECK_IDEA, VIBE_START_IDEA, VIBE_PREVIEW_IDEA, VIBE_RESOLVE_IDEA, VIBE_CANCEL_IDEA
 } vibe_command_t;
 typedef struct { char ssid[33]; int rssi; bool open; } vibe_ap_t;
 typedef struct {
@@ -45,6 +45,9 @@ typedef struct {
     vibe_bundle_t bundles[VIBE_BUNDLE_MAX];
     /* A new revision identifies an update state change, including a new job.
      * Active updates own the screen; terminal states are acknowledged by Home. */
+    bool idea_busy, idea_loading, idea_ready, idea_downloaded, idea_return_library;
+    uint32_t idea_request;
+    vibe_bundle_t idea;
     uint32_t update_revision;
     bool updating, update_terminal, update_failed;
     unsigned progress; /* permille */
@@ -64,7 +67,8 @@ typedef struct {
     vibe_page_t page;
     esp_gsp_list_t networks, bundles;
     void *timer;
-    bool download_pending, password_visible;
+    bool download_pending, password_visible, preview_active;
+    vibe_page_t preview_return;
     bool prefetch_attempted;
     char selected_ssid[33], password_projection[65], password[65];
     char idea_code[7];
