@@ -65,22 +65,13 @@
       "source": "main/CMakeLists.txt"
     },
     {
-      "source": "main/game.c"
-    },
-    {
-      "source": "main/game.h"
-    },
-    {
-      "source": "main/game_config.h",
+      "source": "components/app_game_runtime/private/game_config.h",
       "replacements": [
         {
           "pattern": "^#define GAME_NAME \".*\"$",
           "replacement": "#define GAME_NAME {{project_name|json}}"
         }
       ]
-    },
-    {
-      "source": "main/game_module.c"
     },
     {
       "source": "main/idf_component.yml",
@@ -105,6 +96,39 @@
     },
     {
       "source": "sdkconfig.defaults"
+    },
+    {
+      "source": "components/app_game/CMakeLists.txt"
+    },
+    {
+      "source": "components/app_game/README.md"
+    },
+    {
+      "source": "components/app_game/app_game.c"
+    },
+    {
+      "source": "components/app_game/include/app_game.h"
+    },
+    {
+      "source": "components/app_game_runtime/CMakeLists.txt"
+    },
+    {
+      "source": "components/app_game_runtime/README.md"
+    },
+    {
+      "source": "components/app_game_runtime/app_game_runtime.c"
+    },
+    {
+      "source": "components/app_game_runtime/include/app_game_runtime.h"
+    },
+    {
+      "source": "tools/quality/policy.json"
+    },
+    {
+      "source": "main/README.md"
+    },
+    {
+      "source": "main/game_entry.c"
     }
   ]
 }

@@ -4,6 +4,7 @@ build_*/
 build-*/
 cmake-build-*/
 managed_components/
+/dependencies.lock
 sdkconfig
 sdkconfig.old
 sdkconfig.backup
@@ -47,4 +48,3 @@ __pycache__/
 Thumbs.db
 
 # Keep sdkconfig*.defaults, idf_component.yml and source assets versioned.
-# dependencies.lock may be versioned; see tools/quality/README.md.

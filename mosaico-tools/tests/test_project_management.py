@@ -184,7 +184,85 @@ def test_shared_checker_is_referenced_without_copying_implementation(workspace):
         "README.md",
         "policy.json",
         "requirements.txt",
+        "astyle.yml",
+        "ruff.toml",
     }
+
+
+@pytest.mark.parametrize("template", ["hello_world", "blank_game"])
+def test_builtin_layout_and_ignored_lockfile(workspace, template):
+    selected = replace(workspace, init_template=TOOLS / "templates" / template / "mosaico-template.json")
+    planned = initialize_project(selected, "demo", dry_run=True)
+    result = initialize_project(selected, "demo")
+    assert planned["files"] == result["files"]
+    project = Path(result["project"])
+    for name in ("third_party", "ui", "pc", ".astyle-rules.yml", ".ruff.toml"):
+        assert not (project / name).exists()
+    (project / "dependencies.lock").write_text("generated\n")
+    assert run_git(project, "check-ignore", "dependencies.lock").stdout.strip() == "dependencies.lock"
+    run_git(project, "add", ".")
+    assert "dependencies.lock" not in run_git(project, "ls-files").stdout.splitlines()
+    if template == "hello_world":
+        assert (project / "components/app_hello/ui/main.json").is_file()
+        assert (project / "components/app_hello/ui/fonts/LICENSE").is_file()
+        assert (project / "components/app_hello/host/CMakeLists.txt").is_file()
+
+
+@pytest.mark.parametrize("ruff", [".ruff.toml", "ruff.toml", "pyproject.toml"])
+def test_existing_root_format_rules_keep_native_discovery(workspace, ruff):
+    add_template_file(workspace, ruff, "# template-owned\n")
+    add_template_file(workspace, ".astyle-rules.yml", "# template-owned\n")
+    planned = initialize_project(workspace, "demo", dry_run=True)
+    result = initialize_project(workspace, "demo")
+    assert planned["files"] == result["files"]
+    assert result["quality"]["preserved_files"] == [".astyle-rules.yml", ruff]
+    project = Path(result["project"])
+    config = (project / ".pre-commit-config.yaml").read_text()
+    assert "--rules=.astyle-rules.yml" in config
+    assert "--config" not in config
+    assert not (project / "tools/quality/ruff.toml").exists()
+    assert not (project / "tools/quality/astyle.yml").exists()
+    assert (project / ruff).read_text() == "# template-owned\n"
+
+
+def test_template_quality_rules_take_precedence_without_rewriting_custom_hooks(workspace):
+    for name in ("tools/quality/ruff.toml", "tools/quality/astyle.yml", ".ruff.toml", ".astyle-rules.yml"):
+        add_template_file(workspace, name, "# template-owned\n")
+    result = initialize_project(workspace, "demo")
+    config = (Path(result["project"]) / ".pre-commit-config.yaml").read_text()
+    assert "--config, tools/quality/ruff.toml" in config
+    assert "--rules=tools/quality/astyle.yml" in config
+    custom = "repos: []\n"
+    add_template_file(workspace, ".pre-commit-config.yaml", custom)
+    result = initialize_project(workspace, "custom")
+    assert (Path(result["project"]) / ".pre-commit-config.yaml").read_text() == custom
+
+
+def test_engine_preserves_root_rules_in_dry_run_and_written_hooks(workspace):
+    project = workspace.projects_dir / "demo"
+    common = management_files(workspace, project)
+    sources = {".ruff.toml": b"# existing\n", ".astyle-rules.yml": b"# existing\n"}
+    planned = finish_engine_project(workspace, project, {"files": list(sources)}, common,
+                                    git_executable(), dry_run=True)
+    project.mkdir(parents=True)
+    for name, content in sources.items():
+        (project / name).write_bytes(content)
+    created = finish_engine_project(workspace, project, {}, common, git_executable(), dry_run=False)
+    assert set(planned["files"]) == set(created["files"])
+    assert planned["quality"]["preserved_files"] == created["quality"]["preserved_files"]
+    config = (project / ".pre-commit-config.yaml").read_text()
+    assert "--rules=.astyle-rules.yml" in config and "--config" not in config
+    assert not (project / "tools/quality/ruff.toml").exists()
+
+
+def test_project_sim_forwards_explicit_scene_after_options(workspace, monkeypatch):
+    add_template_file(workspace, "CMakeLists.txt", "project(demo)\n")
+    project = Path(initialize_project(workspace, "demo")["project"])
+    calls = []
+    monkeypatch.setattr("mosaico_cli.app_commands.subprocess.call", lambda command: calls.append(command) or 0)
+    assert main(["--workspace", str(workspace.root), "project", "sim", "--project", str(project),
+                 "--headless", "--frames", "2", "--scene", "components/app_ui/ui/main.json"]) == 0
+    assert calls[0][2:] == ["--project", str(project), "--headless", "--frames", "2", "components/app_ui/ui/main.json"]
 
 
 def test_missing_shared_checker_fails_before_writing(workspace, monkeypatch):
@@ -253,6 +331,22 @@ def run_hook(project, hook=None, *arguments):
     if hook:
         command.append(hook)
     return subprocess.run([*command, "--all-files", *arguments], cwd=project, capture_output=True, text=True)
+
+
+@pytest.mark.skipif(not HOOKS_ENABLED, reason="Set MOSAICO_TEST_PRE_COMMIT=1 for real pinned hook environments")
+@pytest.mark.parametrize("config", [".ruff.toml", "ruff.toml", "pyproject.toml"])
+def test_real_ruff_respects_template_root_and_nested_rules(workspace, config):
+    prefix = "tool.ruff." if config == "pyproject.toml" else ""
+    add_template_file(workspace, config, f'[{prefix}lint]\nignore = ["F401"]\n[{prefix}format]\nquote-style = "single"\n')
+    add_template_file(workspace, "code.py", "import os\n\nvalue = 'custom formatting'\n")
+    add_template_file(workspace, "nested/ruff.toml", '[lint]\nignore = ["F821"]\n')
+    add_template_file(workspace, "nested/code.py", "undefined_name()\n")
+    project = Path(initialize_project(workspace, "demo")["project"])
+    run_git(project, "add", ".")
+    for hook in ("ruff", "ruff-format"):
+        result = run_hook(project, hook)
+        assert result.returncode == 0, result.stdout + result.stderr
+    assert run_git(project, "diff", "--name-only").stdout == ""
 
 
 @pytest.mark.skipif(not HOOKS_ENABLED, reason="Set MOSAICO_TEST_PRE_COMMIT=1 for real pinned hook environments")

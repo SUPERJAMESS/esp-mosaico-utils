@@ -70,12 +70,14 @@ in the effective configuration; do not override the generated flashing arguments
 Optional GSP components are `mosaico-tools/components/esp_mosaico_gsp_bundle`
 (ui_bundle_open) and `esp_mosaico_gsp_iris` (iris_screen_mirror_init/attach).
 The latter owns the display-presenter link wrapper. Application display and touch
-policy stays in the template's board_display.c. Both components retain ESP-GSP
+policy stays in the template's `app_display` component. Both components retain ESP-GSP
 1.5.1 and the MOSGSP resource format.
 
 Use `cmake/gsp_compiler.cmake` before IDF to resolve the pinned GSPC. Include
 `cmake/gsp_bundle.cmake` in the application component, then call
-`mosaico_gsp_add_ui_bundle(${COMPONENT_LIB} "../ui/main.json")`.
+`mosaico_gsp_add_ui_bundle(${COMPONENT_LIB} "ui/main.json")`. Keep authored scenes
+and fonts under the owning component's `ui/` directory; generated bindings and
+bundles remain build outputs.
 Applications use GSPC 0.6.1 with ESP-GSP 1.5.1. Vibe Mode independently retains
 GSPC 0.5.0 with ESP-GSP 1.4.0, selecting `MOSAICO_GSPC_VERSION` before including
 the shared compiler bootstrap. Explicit `GSPC_EXECUTABLE` overrides must match

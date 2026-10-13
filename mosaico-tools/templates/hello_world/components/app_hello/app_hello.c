@@ -1,10 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
-#include "hello_ui.h"
+#include "app_hello.h"
+
+#include <stdlib.h>
 
 #include <stdio.h>
 
 #include "bundle_gsp.h"
+
+/* Only this implementation can observe or mutate timer/animation state. */
+struct app_hello {
+    esp_gsp_handle_t ui;
+    uint32_t count;
+    void *timer;
+    unsigned celebration_tick;
+    unsigned confetti_frame;
+    esp_gsp_err_t last_error;
+};
 
 #define CELEBRATION_TICK_MS 100
 #define CELEBRATION_TICKS 30
@@ -17,7 +29,7 @@ static esp_gsp_err_t (*const confetti_visible[])(esp_gsp_handle_t, bool) = {
     gsp_hello_confetti_4_set_visible, gsp_hello_confetti_5_set_visible,
 };
 
-static void remember_error(hello_ui_t *state, esp_gsp_err_t err)
+static void remember_error(struct app_hello *state, esp_gsp_err_t err)
 {
     if (err != ESP_GSP_OK) {
         state->last_error = err;
@@ -26,12 +38,17 @@ static void remember_error(hello_ui_t *state, esp_gsp_err_t err)
 
 static void celebrate_tick(esp_gsp_handle_t ui, void *ctx)
 {
-    hello_ui_t *state = ctx;
+    struct app_hello *state = ctx;
     if (++state->celebration_tick >= CELEBRATION_TICKS) {
+        const esp_gsp_err_t err = esp_gsp_timer_delete(ui, state->timer);
+        remember_error(state, err);
+        if (err != ESP_GSP_OK) {
+            /* Retain a coherent celebration until a later tick can stop it. */
+            return;
+        }
+        state->timer = NULL;
         remember_error(state, gsp_hello_count_set_text(ui, "00"));
         remember_error(state, gsp_hello_celebration_set_visible(ui, false));
-        remember_error(state, esp_gsp_timer_delete(ui, state->timer));
-        state->timer = NULL;
         state->count = 0;
         return;
     }
@@ -43,7 +60,7 @@ static void celebrate_tick(esp_gsp_handle_t ui, void *ctx)
 static void say_hello(esp_gsp_handle_t ui, const esp_gsp_event_t *event,
                       void *ctx)
 {
-    hello_ui_t *state = ctx;
+    struct app_hello *state = ctx;
     if (!gsp_hello_event_is_say_hello(event) || state->timer) {
         return;
     }
@@ -70,32 +87,71 @@ static void say_hello(esp_gsp_handle_t ui, const esp_gsp_event_t *event,
     }
 }
 
-esp_gsp_err_t hello_ui_init(esp_gsp_handle_t ui, hello_ui_t *state)
+esp_gsp_err_t app_hello_create(esp_gsp_handle_t ui, app_hello_handle_t *out_handle)
 {
-    if (!ui || !state) {
+    if (!out_handle) {
         return ESP_GSP_ERR_INVALID_ARG;
     }
-    *state = (hello_ui_t) {
-        0
-    };
+    *out_handle = NULL;
+    if (!ui) {
+        return ESP_GSP_ERR_INVALID_ARG;
+    }
+    struct app_hello *state = calloc(1, sizeof(*state));
+    if (!state) {
+        return ESP_GSP_ERR_NO_MEM;
+    }
+    state->ui = ui;
     remember_error(state, gsp_hello_count_set_text(ui, "00"));
     remember_error(state, gsp_hello_celebration_set_visible(ui, false));
     for (unsigned i = 0; i < CONFETTI_FRAMES; ++i) {
         remember_error(state, confetti_visible[i](ui, i == 0));
     }
-    if (state->last_error == ESP_GSP_OK) {
-        remember_error(state, esp_gsp_on_event(ui, say_hello, state));
+    esp_gsp_err_t err = state->last_error;
+    if (err == ESP_GSP_OK) {
+        /* Publish only a fully initialized context; dispatch may start now. */
+        err = esp_gsp_on_event(ui, say_hello, state);
     }
-    return state->last_error;
+    if (err != ESP_GSP_OK) {
+        free(state);
+        return err;
+    }
+    *out_handle = state;
+    return ESP_GSP_OK;
 }
 
-void hello_ui_deinit(esp_gsp_handle_t ui, hello_ui_t *state)
+esp_gsp_err_t app_hello_read(app_hello_handle_t handle, app_hello_snapshot_t *out_snapshot)
 {
-    if (ui && state) {
-        remember_error(state, esp_gsp_on_event(ui, NULL, NULL));
-        if (state->timer) {
-            remember_error(state, esp_gsp_timer_delete(ui, state->timer));
-            state->timer = NULL;
+    if (!handle || !out_snapshot) {
+        return ESP_GSP_ERR_INVALID_ARG;
+    }
+    *out_snapshot = (app_hello_snapshot_t) {
+        .count = handle->count,
+        .celebrating = handle->timer != NULL,
+        .last_error = handle->last_error,
+    };
+    return ESP_GSP_OK;
+}
+
+esp_gsp_err_t app_hello_destroy(app_hello_handle_t *handle)
+{
+    if (!handle) {
+        return ESP_GSP_ERR_INVALID_ARG;
+    }
+    struct app_hello *state = *handle;
+    if (!state) {
+        return ESP_GSP_OK;
+    }
+    esp_gsp_err_t err = esp_gsp_on_event(state->ui, NULL, NULL);
+    if (err != ESP_GSP_OK) {
+        return err;
+    }
+    if (state->timer) {
+        err = esp_gsp_timer_delete(state->ui, state->timer);
+        if (err != ESP_GSP_OK) {
+            return err;
         }
     }
+    free(state);
+    *handle = NULL;
+    return ESP_GSP_OK;
 }

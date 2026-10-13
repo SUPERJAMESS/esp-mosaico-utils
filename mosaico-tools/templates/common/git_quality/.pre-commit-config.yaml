@@ -28,14 +28,16 @@ repos:
     rev: v1.0.5
     hooks:
       - id: astyle_py
-        args: [--astyle-version=3.4.7, --rules=.astyle-rules.yml]
+        args: [--astyle-version=3.4.7, --rules=tools/quality/astyle.yml]
         exclude: &external_sources '(^|/)(build|build[-_][^/]*|cmake-build-[^/]*|managed_components|third_party|third-party|vendor|submodule|submodules|generated|\.venv[^/]*|venv)/|^shared/(common_components|boards)/'
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.7
     hooks:
       - id: ruff
+        args: [--config, tools/quality/ruff.toml]
         exclude: *external_sources
       - id: ruff-format
+        args: [--config, tools/quality/ruff.toml]
         exclude: *external_sources
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0

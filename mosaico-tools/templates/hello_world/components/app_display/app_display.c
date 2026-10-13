@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-#include "board_display.h"
+#include "app_display.h"
 
 #include "bsp/esp_mosaico.h"
 #include "esp_check.h"
@@ -9,7 +9,7 @@
 
 static const char *TAG = "gsp_board";
 
-esp_err_t board_display_init(esp_display_present_target_config_t *out_target)
+static esp_err_t board_display_init(esp_display_present_target_config_t *out_target)
 {
     ESP_RETURN_ON_FALSE(out_target != NULL, ESP_ERR_INVALID_ARG, TAG,
                         "present target is null");
@@ -42,18 +42,18 @@ esp_err_t board_display_init(esp_display_present_target_config_t *out_target)
             .mode = ESP_DISPLAY_PRESENT_MODE_AUTO,
         },
     };
-    ESP_LOGI(TAG, "GSP present target %dx%d RGB565 TE=%s GPIO=%d",
-             BSP_LCD_H_RES, BSP_LCD_V_RES,
+    const char *te_mode = "off";
+    int te_gpio = -1;
 #if CONFIG_BSP_CO5300_ENABLE_TE
-             "on", BSP_LCD_TE
-#else
-             "off", -1
+    te_mode = "on";
+    te_gpio = BSP_LCD_TE;
 #endif
-            );
+    ESP_LOGI(TAG, "GSP present target %dx%d RGB565 TE=%s GPIO=%d",
+             BSP_LCD_H_RES, BSP_LCD_V_RES, te_mode, te_gpio);
     return ESP_OK;
 }
 
-esp_err_t board_touch_init(esp_lcd_touch_handle_t *out_touch)
+static esp_err_t board_touch_init(esp_lcd_touch_handle_t *out_touch)
 {
     ESP_RETURN_ON_FALSE(out_touch != NULL, ESP_ERR_INVALID_ARG, TAG,
                         "touch output is null");
@@ -64,5 +64,15 @@ esp_err_t board_touch_init(esp_lcd_touch_handle_t *out_touch)
         *out_touch = NULL;
         return ESP_OK;
     }
+    return ESP_OK;
+}
+
+esp_err_t app_display_init(esp_gsp_esp_lcd_config_t *out_config)
+{
+    ESP_RETURN_ON_FALSE(out_config != NULL, ESP_ERR_INVALID_ARG, TAG, "output is null");
+    esp_gsp_esp_lcd_config_t config = ESP_GSP_ESP_LCD_CONFIG_INIT();
+    ESP_RETURN_ON_ERROR(board_display_init(&config.display), TAG, "display initialization");
+    ESP_RETURN_ON_ERROR(board_touch_init(&config.touch), TAG, "touch initialization");
+    *out_config = config;
     return ESP_OK;
 }

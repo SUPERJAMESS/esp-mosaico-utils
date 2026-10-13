@@ -88,8 +88,18 @@ def artifacts(names):
 
 def load_policy(root):
     policy = json.loads((root / "tools/quality/policy.json").read_text(encoding="utf-8"))
-    if not isinstance(policy, dict) or set(policy) - {"forbidden_apis", "generated_checks", "compile_commands"}:
-        raise ValueError("policy.json must contain only forbidden_apis, generated_checks and compile_commands")
+    if not isinstance(policy, dict) or set(policy) - {
+        "forbidden_apis",
+        "generated_checks",
+        "compile_commands",
+        "application_component_prefix",
+    }:
+        raise ValueError(
+            "policy.json has unsupported fields (expected forbidden_apis, generated_checks, compile_commands, application_component_prefix)"
+        )
+    prefix = policy.get("application_component_prefix", "")
+    if not isinstance(prefix, str) or (prefix and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", prefix)):
+        raise ValueError("application_component_prefix must be an ASCII identifier prefix or empty")
     apis = policy.get("forbidden_apis", [])
     if not isinstance(apis, list) or any(
         not isinstance(api, str) or not re.fullmatch(r"[A-Za-z_]\w*", api) for api in apis
@@ -116,6 +126,11 @@ def components(root, policy):
         if len(Path(name).parts) > 2 and Path(name).parts[0] == "components" and not Path(name).parts[1].startswith(".")
     }
     for name in sorted(component_names):
+        prefix = policy.get("application_component_prefix", "")
+        if prefix and not name.startswith(prefix):
+            errors.append(
+                f"components/{name}: application components must start with {prefix}; keep third-party components outside components/"
+            )
         if len(name) > 64 or not COMPONENT_NAME.fullmatch(name):
             errors.append(
                 f"components/{name}: use an IDF component name (2-64 ASCII letters/digits with single _ or - separators)"
@@ -172,6 +187,7 @@ def cppcheck(root, policy, override):
             executable,
             "--project=" + str(filtered),
             "--enable=warning,style,performance,portability",
+            "--check-level=exhaustive",
             "--error-exitcode=1",
             "--inline-suppr",
             "--suppress=missingIncludeSystem",

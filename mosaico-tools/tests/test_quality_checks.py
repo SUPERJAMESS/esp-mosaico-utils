@@ -81,6 +81,26 @@ def test_components_and_opt_in_forbidden_apis(project):
     assert "stage its CMakeLists" in run_check(project, "components").stderr
 
 
+def test_application_prefix_keeps_third_party_names_and_custom_templates_compatible(project):
+    component = project / "components/my-component"
+    vendor = project / "third_party/components/upstream-name"
+    for directory in (component, vendor):
+        directory.mkdir(parents=True)
+        (directory / "CMakeLists.txt").write_text("idf_component_register()\n")
+    run_git(project, "add", ".")
+    # Existing custom templates need not adopt the built-in application profile.
+    assert run_check(project, "components").returncode == 0
+    policy = project / "tools/quality/policy.json"
+    policy.write_text(json.dumps({"application_component_prefix": "app_"}))
+    failure = run_check(project, "components")
+    assert failure.returncode == 1 and "must start with app_" in failure.stderr
+    assert "upstream-name" not in failure.stderr
+    run_git(project, "mv", "components/my-component", "components/app_my-component")
+    assert run_check(project, "components").returncode == 0
+    policy.write_text(json.dumps({"application_component_prefix": ["app_"]}))
+    assert "must be an ASCII identifier" in run_check(project, "components").stderr
+
+
 def test_generated_checks_are_explicit_and_propagate_failure(project):
     assert "No generated-source checks" in run_check(project, "generated").stdout
     policy = project / "tools/quality/policy.json"

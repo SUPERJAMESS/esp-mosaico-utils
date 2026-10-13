@@ -9,7 +9,7 @@
   },
   "files": [
     {
-      "source": ".astyle-rules.yml"
+      "source": "tools/quality/astyle.yml"
     },
     {
       "source": ".editorconfig"
@@ -31,7 +31,7 @@
       ]
     },
     {
-      "source": ".ruff.toml"
+      "source": "tools/quality/ruff.toml"
     },
     {
       "source": "tools/quality/README.md"

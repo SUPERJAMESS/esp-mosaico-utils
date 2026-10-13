@@ -50,7 +50,7 @@ def test_blank_creation_uses_project_identity_without_example_assets(workspace, 
     assert not (project / "assets_src").exists()
     assert not (project / "assets").exists()
     assert set(json.loads((project / "game.sim.json").read_text())["sources"]) == {
-        "main/game_module.c", "main/game.c",
+        "main/game_entry.c", "components/app_game/app_game.c", "components/app_game_runtime/app_game_runtime.c",
     }
     for name in result["files"]:
         text = (project / name).read_text()
@@ -58,7 +58,7 @@ def test_blank_creation_uses_project_identity_without_example_assets(workspace, 
         assert "blank_game" not in text, name
         assert "{{" not in text, name
         assert str(workspace) not in text, name
-    assert '#define GAME_NAME "my_snake"' in (project / "main/game_config.h").read_text()
+    assert '#define GAME_NAME "my_snake"' in (project / "components/app_game_runtime/private/game_config.h").read_text()
     assert 'project(my_snake VERSION' in (project / "CMakeLists.txt").read_text()
     assert 'ESP-Iris Mosaico my_snake' in (project / "sdkconfig.application.defaults").read_text()
     assert (project / "README.md").read_text().startswith("# my_snake\n")
@@ -85,7 +85,7 @@ def test_blank_dry_run_and_refusal_to_overwrite(workspace, capsys):
     assert json.loads(capsys.readouterr().out)["status"] == "dry_run"
     assert not (workspace / "projects").exists()
     assert main(arguments) == 0
-    marker = workspace / "projects/my_game/main/game.c"
+    marker = workspace / "projects/my_game/components/app_game/app_game.c"
     marker.write_text("user game\n")
     assert main(arguments) != 0
     assert marker.read_text() == "user game\n"

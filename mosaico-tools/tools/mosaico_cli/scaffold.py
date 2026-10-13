@@ -176,7 +176,7 @@ def finish_engine_project(workspace: WorkspaceConfig, project: Path, result: dic
     merged, preserved = merge_management_files(existing, common)
     if not dry_run:
         _write_project(project, workspace.root.resolve(),
-                       {name: content for name, content in common.items() if name not in existing}, reserve=False)
+                       {name: content for name, content in merged.items() if name not in existing}, reserve=False)
         initialize_git(project, git)
     return {**result, "project": str(project), "files": list(merged),
             **setup_result(preserved, dry_run=dry_run)}

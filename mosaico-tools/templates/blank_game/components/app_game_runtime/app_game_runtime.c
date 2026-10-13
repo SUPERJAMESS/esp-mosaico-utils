@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <stdio.h>
-#include "game.h"
-#include "game_config.h"
-#include "raylib_lite_game_module.h"
+#include "include/app_game_runtime.h"
+/* Engine Host accepts source lists, not component include paths. Reference only
+ * the model's public header so these translation units work on both targets. */
+#include "../app_game/include/app_game.h"
+#include "private/game_config.h"
 #include "raylib_lite_raylib.h"
 
 typedef struct {
-    game_handle_t game;
+    app_game_handle_t game;
 } host_state_t;
 
 static int initialize(void *value, const char *asset_root)
 {
     (void)asset_root;
     host_state_t *state = value;
-    const game_config_t config = {GAME_WIDTH, GAME_HEIGHT};
-    if (!game_create(&config, &state->game)) {
+    const app_game_config_t config = {GAME_WIDTH, GAME_HEIGHT};
+    if (app_game_create(&config, &state->game) != APP_GAME_OK) {
         return -1;
     }
     InitWindow(GAME_WIDTH, GAME_HEIGHT, GAME_NAME);
@@ -25,8 +27,7 @@ static int initialize(void *value, const char *asset_root)
 static void shutdown(void *value)
 {
     host_state_t *state = value;
-    game_delete(state->game);
-    state->game = NULL;
+    app_game_destroy(&state->game);
 }
 
 static void input(void *value, const raylib_lite_game_input_v1_t *event)
@@ -36,37 +37,49 @@ static void input(void *value, const raylib_lite_game_input_v1_t *event)
         return;
     }
     if (event->type == RAYLIB_LITE_GAME_INPUT_POINTER && event->track_id == 0) {
-        game_set_pointer(state->game, event->x, event->y, event->pressed);
+        app_game_set_pointer(state->game, event->x, event->y, event->pressed);
     } else if (event->type == RAYLIB_LITE_GAME_INPUT_CONTROL) {
         switch (event->code) {
-        case RAYLIB_LITE_GAME_CONTROL_PAUSE: game_set_paused(state->game, true); break;
-        case RAYLIB_LITE_GAME_CONTROL_RESUME: game_set_paused(state->game, false); break;
-        case RAYLIB_LITE_GAME_CONTROL_RESET: game_reset(state->game); break;
+        case RAYLIB_LITE_GAME_CONTROL_PAUSE: app_game_set_paused(state->game, true); break;
+        case RAYLIB_LITE_GAME_CONTROL_RESUME: app_game_set_paused(state->game, false); break;
+        case RAYLIB_LITE_GAME_CONTROL_RESET: app_game_reset(state->game); break;
         default: break;
         }
     } else if (event->type == RAYLIB_LITE_GAME_INPUT_ACTION && event->pressed) {
         if (event->code == GAME_ACTION_RESET) {
-            game_reset(state->game);
+            app_game_reset(state->game);
         }
         if (event->code == GAME_ACTION_PAUSE) {
-            game_set_paused(state->game, !game_read(state->game).paused);
+            app_game_set_paused(state->game, !app_game_read(state->game).paused);
         }
     }
 }
 
 static void update(void *value)
 {
-    game_update(((host_state_t *)value)->game);
+    app_game_update(((host_state_t *)value)->game);
 }
 
 static int render(void *value)
 {
-    return game_render(((host_state_t *)value)->game) ? 0 : -1;
+    if (!((host_state_t *)value)->game) {
+        return -1;
+    }
+    BeginDrawing();
+    if (!raylib_lite_raylib_frame_available()) {
+        EndDrawing();
+        return -1;
+    }
+    ClearBackground(BLACK);
+    /* Read a model snapshot here when adding gameplay rendering. Keep hardware
+     * and drawing calls out of app_game so its rules remain independently testable. */
+    EndDrawing();
+    return 0;
 }
 
 static uint32_t state_hash(const void *value)
 {
-    const game_snapshot_t state = game_read(((const host_state_t *)value)->game);
+    const app_game_snapshot_t state = app_game_read(((const host_state_t *)value)->game);
     /* Hash named fields, avoiding platform-dependent struct padding. */
     uint32_t hash = state.tick;
     hash = hash * 31U + (uint32_t)state.pointer_x;
@@ -80,7 +93,7 @@ static int state_json(const void *value, char *output, size_t capacity)
     if (!output || !capacity) {
         return -1;
     }
-    const game_snapshot_t state = game_read(((const host_state_t *)value)->game);
+    const app_game_snapshot_t state = app_game_read(((const host_state_t *)value)->game);
     int size = snprintf(output, capacity,
                         "{\"phase\":\"%s\",\"tick\":%lu,\"pointer_x\":%ld,\"pointer_y\":%ld,"
                         "\"pointer_down\":%s,\"state_hash\":\"%08lx\"}",
@@ -101,7 +114,7 @@ static const raylib_lite_game_module_v1_t s_module = {
     .state_hash = state_hash, .state_json = state_json,
 };
 
-const raylib_lite_game_module_v1_t *raylib_lite_game_module_v1(void)
+const raylib_lite_game_module_v1_t *app_game_runtime_module(void)
 {
     return &s_module;
 }

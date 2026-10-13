@@ -97,6 +97,7 @@ def add_commands(commands, project_commands):
     preview = project_commands.add_parser("sim", help="Preview a GSP application with its native PC backend")
     preview.set_defaults(command="sim", public_command="project sim")
     preview.add_argument("--project")
+    preview.add_argument("--scene", help="Preview one scene without the PC backend; path relative to the project or absolute")
     preview.add_argument("--scene-only", action="store_true")
     mode = preview.add_mutually_exclusive_group()
     mode.add_argument("--headless", action="store_true")
@@ -145,6 +146,8 @@ def run(arguments, workspace):
             value = getattr(arguments, flag)
             if value is not None:
                 command.extend(("--" + flag.replace("_", "-"), str(value)))
+        if arguments.scene is not None:
+            command.append(arguments.scene)
         return subprocess.call(command)
 
     if arguments.game_action in {"create", "new"}:

@@ -54,18 +54,6 @@
       "source": "main/CMakeLists.txt"
     },
     {
-      "source": "main/board_display.c"
-    },
-    {
-      "source": "main/board_display.h"
-    },
-    {
-      "source": "main/hello_ui.c"
-    },
-    {
-      "source": "main/hello_ui.h"
-    },
-    {
       "source": "main/idf_component.yml",
       "replacements": [
         {
@@ -91,10 +79,10 @@
       "source": "partitions.csv"
     },
     {
-      "source": "pc/CMakeLists.txt"
+      "source": "components/app_hello/host/CMakeLists.txt"
     },
     {
-      "source": "pc/platform_pc.c"
+      "source": "components/app_hello/host/platform_pc.c"
     },
     {
       "source": "sdkconfig.application.defaults",
@@ -109,16 +97,46 @@
       "source": "sdkconfig.defaults"
     },
     {
-      "source": "ui/fonts/DejaVuSans-Bold.ttf"
+      "source": "components/app_hello/ui/fonts/DejaVuSans-Bold.ttf"
     },
     {
-      "source": "ui/fonts/DejaVuSans.ttf"
+      "source": "components/app_hello/ui/fonts/DejaVuSans.ttf"
     },
     {
-      "source": "ui/fonts/LICENSE"
+      "source": "components/app_hello/ui/fonts/LICENSE"
     },
     {
-      "source": "ui/main.json"
+      "source": "components/app_hello/ui/main.json"
+    },
+    {
+      "source": "components/app_display/CMakeLists.txt"
+    },
+    {
+      "source": "components/app_display/README.md"
+    },
+    {
+      "source": "components/app_display/app_display.c"
+    },
+    {
+      "source": "components/app_display/include/app_display.h"
+    },
+    {
+      "source": "components/app_hello/CMakeLists.txt"
+    },
+    {
+      "source": "components/app_hello/README.md"
+    },
+    {
+      "source": "components/app_hello/app_hello.c"
+    },
+    {
+      "source": "components/app_hello/include/app_hello.h"
+    },
+    {
+      "source": "tools/quality/policy.json"
+    },
+    {
+      "source": "main/README.md"
     }
   ]
 }

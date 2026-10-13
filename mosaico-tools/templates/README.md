@@ -11,6 +11,13 @@ instructions. Its schema v1 descriptor lists the files to supplement after
 rendering an application template. Existing application files take precedence.
 The descriptor itself is not copied into applications.
 
+Generated applications keep Git/editor settings and the pre-commit entry point
+at the root; formatter rules and setup instructions live under `tools/quality/`.
+The creation layer selects template-owned root formatter rules when present,
+without rewriting template-owned hooks. Hello World's authored scenes and fonts
+belong to `components/app_hello/ui/`; its desktop adapter lives beside them in
+`components/app_hello/host/`. Templates do not pre-create vendor folders.
+
 Executable tools live outside templates:
 
 - `../tools/quality/check_project.py` implements the shared quality checks. Hook
