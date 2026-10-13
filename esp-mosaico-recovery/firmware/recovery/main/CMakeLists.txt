@@ -6,6 +6,7 @@ idf_component_register(
         "ideas_package.c"
         "ideas_store.c"
         "ideas_presentation.c"
+        "ideas_font.c"
         "factory_recovery_control.c"
         "factory_nand_update.c"
         "factory_network.c"

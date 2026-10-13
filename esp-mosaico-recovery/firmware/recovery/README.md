@@ -39,9 +39,9 @@ Download Ideas 输入六位应用编号（字符串，保留前导零），点�
 - 新包先在 `.incoming` 完整下载并校验，再通过目录重命名替换 `current`；`.previous`
   只用于中断恢复，并在替换完成或下次扫描时删除，不提供历史版本列表。
 
-预览阶段仅获取 JSON 和经大小、SHA-256 校验的展示卡片，暂存在内存，不创建 `.incoming`，
+预览阶段仅获取清单、展示 JSON、字形子集和图标，经大小及 SHA-256 校验后暂存在内存，不创建 `.incoming`，
 不下载应用镜像或分区表。解析出的 release ID、清单和文件路径在确认期间固定；
-确认不会再次查询最新发布，已缓存卡片直接复用。取消清理预览，迟到响应不能启动下载。
+确认不会再次查询最新发布，已缓存展示资源直接复用。取消清理预览，迟到响应不能启动下载。
 等待确认期间不占用 NAND 租约或下载任务；重复确认及失效请求编号会被拒绝。
 若本地同 release ID 的全部文件校验通过，确认页显示已下载，按钮改为 **My Ideas**。
 
@@ -51,6 +51,10 @@ Vibe Mode 镜像。分区表改变后，普通 USB/TCP OTA 写入须等重启重
 Ideas 可继续使用经过验证的新分区表描述重新安装。
 
 #### 云端契约 `mosaico-ideas/download/1`
+
+V0.2 尚未正式发布，下载清单以同一个 `/1` 开发契约收敛到自定义展示资源，
+不为开发迭代增加协议版本或保留旧 GSPB 清单兼容分支。正式发布并冻结契约后，
+再为不兼容的结构变更增加 schema 版本。
 
 沿用 `CONFIG_IRIS_FACTORY_BRIDGE_SERVER_URL` 的 HTTPS origin 和
 `CONFIG_IRIS_FACTORY_BRIDGE_BOARD_ID`；语言由 `CONFIG_IRIS_FACTORY_IDEAS_LOCALE`
@@ -65,6 +69,9 @@ Ideas 可继续使用经过验证的新分区表描述重新安装。
   "locale": "zh-CN",
   "recovery_abi": 2,
   "layout_version": 5,
+  "download_schema": "mosaico-ideas/download/1",
+  "display_schema": "mosaico-ideas/display/1",
+  "font_format": "MIFF/1",
   "flash_size": 16777216,
   "application_id": "weather-station",
   "current_release_id": "weather-20261012-1"
@@ -98,10 +105,13 @@ Ideas 可继续使用经过验证的新分区表描述重新安装。
   "files": [
     {"name": "partition-table.bin", "path": "/api/v1/ideas/files/table-blob", "size": 4096, "sha256": "<partition-table SHA-256>"},
     {"name": "app.bin", "path": "/api/v1/ideas/files/app-blob", "size": 1048576, "sha256": "<application SHA-256>"},
-    {"name": "card.gspb", "path": "/api/v1/ideas/files/card-blob", "size": 21648, "sha256": "<presentation SHA-256>"},
+    {"name": "display.json", "path": "/api/v1/ideas/files/display-blob", "size": 2048, "sha256": "<display SHA-256>"},
+    {"name": "title.mif", "path": "/api/v1/ideas/files/title-blob", "size": 3072, "sha256": "<title font SHA-256>"},
+    {"name": "body.mif", "path": "/api/v1/ideas/files/body-blob", "size": 6144, "sha256": "<body font SHA-256>"},
     {"name": "icon.png", "path": "/api/v1/ideas/files/icon-blob", "size": 6105, "sha256": "<icon SHA-256>"}
   ],
-  "presentation": "card.gspb", "icon": "icon.png"
+  "presentation": "display.json", "icon": "icon.png",
+  "fonts": ["title.mif", "body.mif"]
 }
 ```
 
@@ -110,29 +120,58 @@ Ideas 可继续使用经过验证的新分区表描述重新安装。
 固件文件名、长度和摘要必须与 `system_manifest.components` 一一对应；分区表必须
 是第一个组件，且只能有一个 `0x210000` 应用。额外数据组件仍受 Recovery Flash
 策略验证。描述最多 16 KiB，内嵌 system manifest 最多 3 KiB，最多 8 个固件组件、
-10 个文件，总计最多 32 MiB。未被固件或展示字段引用的文件会被拒绝。
+12 个文件，总计最多 32 MiB。未被固件或展示字段引用的文件会被拒绝。
 
 #### 固定文字、图标及字体子集
 
-`presentation` 是可选的单场景 deployable GSPB，使用同一个固定卡片模板，包含
-图标、发布时确定的本地化名称/描述及编译后的字形子集，最多 1 MiB。
-“View info” 从 NAND 校验并加载该卡片，左上角 72×72 区域返回 Vibe Mode。
-卡片没有可执行设备操作；离开后释放资源，保留 Vibe Mode 原界面。
-下载确认使用当前工具生成的卡片：`idea_download_controls` 可见性、
-`idea_download_summary` 文本及 `idea_download_accept` 文本为保留组件名，
-分别用于固定页脚、版本/大小、Download/My Ideas；离线查看时页脚隐藏。
-页脚取消区为 `(24,408)-(228,464)`，确认区为 `(252,408)-(456,464)`，由固件处理触摸。
-上线此流程前须重新生成云端展示卡片；缺少这些组件的旧卡片只能离线查看，
-远程预览会报错，不会跳过确认直接下载。不带卡片的包仅支持内置 ASCII 名称及描述。
-列表图标使用独立 PNG（最多 64 KiB、96×96），缺省使用内置图标。
-Vibe 自身不携带完整多语种字体；列表中超出内置字符集的名称显示编号，
-完整本地化名称与描述在卡片中显示。
+`presentation` 指向 `mosaico-ideas/display/1` JSON（最多 32 KiB），`fonts`
+列出它直接引用的 MIFF/1 字形文件（最多两个），`icon` 指向可选 PNG（最多
+64 KiB、96×96）。全部展示资源合计不超过 1 MiB；所有引用都必须在 `files`
+中声明、唯一归属并通过长度与 SHA-256 校验。没有递归依赖、远端字体 URL、
+GSP 场景、组件名或动作。JSON 中的名称、描述、语言和图标引用必须与下载描述一致。
+详见[自定义展示资源格式](../../docs/ideas-display-format.md)。
 
-发布端使用 `tools/prepare_idea_presentation.py`，提供 `--code`、`--name`、
-`--description`、`--locale`、`--font`、`--icon`、`--output` 和 `--gspc`。
-字体须覆盖该语言。工具用 GSPC 0.5.0 生成 `card.gspb`、64×64 `icon.png` 和
-`presentation.json`（展示元数据及摘要）；云端将这些文件加入发布描述，
-不必下载字体全集。设备重启后仍能从 NAND 查看它们。
+发布端进行排版、换行和字形子集化，保存字形 ID、灰度位图及每个字形的位置，
+使阿拉伯文等语言的组合字形和书写方向得以保留。设备只解码所需字形；
+`ideas_font.c` 和 `ideas_presentation.c` 不依赖 GSP 或 ESP-IDF。
+`vibe_ui.c` 是当前 GSP 显示适配器，通过 Canvas 显示字形像素、通过 PNG 显示图标。
+页面位置、颜色、按钮和点击行为属于固件，未来换 UI 框架可复用相同下载资源。
+
+预览阶段获取并校验展示 JSON、字体和图标，成功后才启用 Download；确认后将
+这些已校验的缓存资源与固件一并保存到 NAND，不重复解析版本或下载资源。
+离线 View info 使用同一解析器，只提供返回操作，关闭时释放预览资源。
+不带展示 JSON 的包仅支持内置 ASCII 名称及描述。列表中超出内置字符集的名称
+仍显示编号，完整名称和描述在信息页显示。
+
+发布端安装 `tools/requirements-presentation.txt` 及系统 libraqm >= 0.9，运行：
+
+```sh
+python tools/prepare_idea_presentation.py \
+  --code 042731 --name '天气站' --description '今日天气与预报' \
+  --locale zh-CN --font /path/to/NotoSansCJK-Regular.ttc \
+  --icon /path/to/icon.png --output /path/to/published-assets
+```
+
+输出 `display.json`、`title.mif`、`body.mif`、64×64 `icon.png` 和
+`presentation.json`（供云端构造下载清单的元数据；不需要传给设备）。不再需要
+`--gspc`。云端把前四个文件加入 `/1` 清单，使用新 release ID 发布。
+旧 GSPB 清单及临时 `/2` 开发包不属于当前契约；已有这类 NAND 测试包需要输入
+六位编号重新下载，完整下载后按现有事务替换。不会自动迁移或清空测试数据。
+不要直接修改已有不可变 release 的内容。
+
+2026-10-13 自定义资源初版（清单标识统一前）完成 ESP32-S31 真机验收：中文与阿拉伯文字形显示、
+预览及取消不写 NAND、损坏字体在确认前拒绝、确认后复用全部展示资源、四个资源
+落盘摘要一致、重启后在资源服务不可用时离线查看且不产生 HTTP 请求。
+下载前后普通开机应用的固件摘要相同，bootloader 和分区表摘要也相同。
+候选 Vibe 固件为 1,799,552 字节，小于现有 1,835,008 字节分区，设备崩溃计数为 0。
+主机相关回归 560 项、原生界面回归 15 项通过；未纳入已有的
+`test_project_workflow.py`（导入不存在的 `mosaico_cli.scaffold.create_project`）。未替换发布预构建包。
+
+同日将开发契约统一回 `download/1` 并移除兼容分支后，561 项主机回归和
+ESP32-S31 构建通过（仍排除上述已有导入失败测试）；候选固件为 1,799,520 字节。
+此次清单契约调整未重新刷写测试设备。
+
+以下为 2026-10-12 旧 GSPB 流程的历史验收记录：
 
 2026-10-12 使用本地 HTTPS 解析/文件服务及真实 ESP32-S31、NAND/NOR 完成端到端
 验证：六位编号直接下载、两个 Ideas 共存、中文名称/描述及字形子集显示、独立列表
@@ -149,8 +188,8 @@ Vibe 自身不携带完整多语种字体；列表中超出内置字符集的名
 避免继续获取卡片；对应[原生界面回归](../../tests/test_recovery_ui_host.py)覆盖取消、重复确认和已下载分支。
 
 真机验证修正了 GSP 1.4 在 S31 ROM 上解码 PNG 时缺少线性输出标志的问题，
-并为多行列表显式配置图标槽。卡片预览期间，实体触摸与 USB 输入统一进入卡片，
-避免向暂停的主界面注入事件；见[对应原生回归](../../tests/test_ideas_presentation_host.py)。
+并为多行列表显式配置图标槽；见[PNG 适配回归](../../tests/test_ideas_presentation_host.py)。
+新展示资源使用 Vibe 原生页面，实体触摸和 USB 输入直接交由同一个界面处理。
 此功能不替换已评审的 `prebuilt/recovery`。生产云端联调和实际断电恢复仍需另行验收。
 
 Vibe Mode 关闭 Wi-Fi modem sleep，优先保证维护传输和控制响应；普通应用自行
@@ -558,11 +597,12 @@ GSP 在调用方同步创建、校验 UI，Vibe Mode 将
 
 场景、字形与键盘图标全部嵌入 Vibe Mode，不依赖应用资源分区。
 GSPB 在构建时无损 Deflate 压缩，启动时使用 ROM 解压器还原到 PSRAM；
-GSP 继续执行原始 bundle 校验。界面仅使用预烘焙字形，不启用运行时字体；
+GSP 继续执行原始 bundle 校验。内置界面使用预烘焙字形，不启用 GSP 运行时字体引擎；
 通过 `CONFIG_ESP_GSP_ENABLE_JPEG=n` 排除 JPEG 解码器，
 现有图标仍为编译后的 RGB565_A8。32 px 更新标题与百分比只打包对应状态文案
 和数字所需的字形，网络名称与密码仍保留完整的既有字符集。
-若增加运行时字体或 JPEG 图片，必须同步启用相应能力并重新验证大小和功能。
+Ideas 下载的 MIFF 字形由独立解析器处理，再作为普通像素交给 GSP。
+若增加 GSP 运行时字体或 JPEG 图片，必须同步启用相应能力并重新验证大小和功能。
 原生键盘支持大小写、符号、删除、确认、密码显示切换和 64 字节上限，
 离开输入页会清理密码。
 

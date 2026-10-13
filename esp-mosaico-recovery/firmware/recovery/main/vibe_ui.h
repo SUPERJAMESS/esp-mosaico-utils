@@ -46,6 +46,7 @@ typedef struct {
     /* A new revision identifies an update state change, including a new job.
      * Active updates own the screen; terminal states are acknowledged by Home. */
     bool idea_busy, idea_loading, idea_ready, idea_downloaded, idea_return_library;
+    bool idea_view_only, idea_custom, idea_has_icon;
     uint32_t idea_request;
     vibe_bundle_t idea;
     uint32_t update_revision;
@@ -59,6 +60,8 @@ typedef struct {
     void (*snapshot)(void *ctx, vibe_snapshot_t *out);
     int (*command)(void *ctx, vibe_command_t command, const char *first, const char *second);
     void *(*icon)(void *ctx, const char *code, size_t *size);
+    /* malloc-owned copies: title/body RGB565, then encoded icon PNG. */
+    void *(*preview)(void *ctx, uint32_t request, unsigned slot, size_t *size);
 } vibe_services_t;
 typedef struct {
     esp_gsp_handle_t ui;
@@ -73,7 +76,7 @@ typedef struct {
     char selected_ssid[33], password_projection[65], password[65];
     char idea_code[7];
     vibe_bundle_t selected_bundle;
-    uint32_t acknowledged_update;
+    uint32_t acknowledged_update, rendered_preview;
     vibe_rate_t rate;
     unsigned tick;
 } vibe_ui_t;

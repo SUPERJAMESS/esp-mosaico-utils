@@ -12,7 +12,6 @@
 #include "esp_wifi.h"
 #include "esp_timer.h"
 #include "factory_ideas.h"
-#include "ideas_presentation.h"
 #include "factory_network.h"
 #include "factory_nand_update.h"
 #include "factory_system_update.h"
@@ -63,6 +62,11 @@ static void *service_icon(void *ctx, const char *code, size_t *size)
     (void)ctx;
     return factory_ideas_copy_icon(code, size);
 }
+static void *service_preview(void *ctx, uint32_t request, unsigned slot, size_t *size)
+{
+    (void)ctx;
+    return factory_ideas_copy_preview(request, slot, size);
+}
 #define COPY(field, value) snprintf(out->field, sizeof(out->field), "%s", value)
 static void service_snapshot(void *ctx, vibe_snapshot_t *out)
 {
@@ -106,6 +110,9 @@ static void service_snapshot(void *ctx, vibe_snapshot_t *out)
     out->idea_busy = s_ideas.busy;
     out->idea_loading = s_ideas.resolving;
     out->idea_ready = s_ideas.preview_ready;
+    out->idea_view_only = s_ideas.view_only;
+    out->idea_custom = s_ideas.custom_display;
+    out->idea_has_icon = s_ideas.has_icon;
     out->idea_downloaded = s_ideas.already_downloaded;
     out->idea_return_library = s_ideas.return_library;
     out->idea_request = s_ideas.preview_id;
@@ -257,7 +264,7 @@ esp_err_t factory_ui_start(void)
     ESP_RETURN_ON_ERROR(esp_gsp_esp_lcd_start(&config, &lcd, &ui), TAG, "GSP start");
     ESP_RETURN_ON_ERROR(iris_screen_mirror_attach(ui), TAG, "screen attach");
     ESP_RETURN_ON_ERROR(factory_ideas_init(), TAG, "Ideas library");
-    const vibe_services_t services = {.snapshot = service_snapshot, .command = service_command, .icon = service_icon};
+    const vibe_services_t services = {.snapshot = service_snapshot, .command = service_command, .icon = service_icon, .preview = service_preview};
     ESP_RETURN_ON_ERROR(factory_ui_dispatch_start(ui, &s_ui, &services), TAG, "Vibe UI");
     ESP_LOGI(TAG, "Vibe Mode GSP UI ready at 480x480");
     return ESP_OK;

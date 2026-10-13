@@ -1,138 +1,139 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ideas_presentation.h"
-#include "ideas_package.h"
-#include "esp_gsp_deployable.h"
-#include "esp_gsp_esp_lcd.h"
-#include "esp_heap_caps.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include <stdatomic.h>
-#include <stdio.h>
-#include <sys/stat.h>
+#include "cJSON.h"
+#include <math.h>
+#include <string.h>
 
-typedef struct {
-    atomic_bool active, enabled, closed, pressed, deciding;
-    atomic_int target;
-    esp_gsp_deployable_bundle_t *bundle;
-    esp_gsp_esp_lcd_session_t *session;
-    esp_gsp_handle_t app, hub;
-    ideas_presentation_options_t options;
-    esp_err_t prepare_error;
-} card_t;
-static card_t s_card;
-
-static int hit(int32_t x, int32_t y)
+static const cJSON *get(const cJSON *o, const char *key)
+{ return cJSON_GetObjectItemCaseSensitive(o, key); }
+static const char *string(const cJSON *o, const char *key)
 {
-    if (x >= 0 && x < 72 && y >= 0 && y < 72) return 1;
-    if (!s_card.options.decide || y < 408 || y >= 464) return 0;
-    if (x >= 24 && x < 228) return 1;
-    if (x >= 252 && x < 456) return 2;
-    return 0;
+    const cJSON *v = get(o, key);
+    return cJSON_IsString(v) ? v->valuestring : NULL;
 }
-bool ideas_presentation_input(int32_t x, int32_t y, bool pressed)
+static bool equal(const cJSON *o, const char *key, const char *expected)
 {
-    if (!atomic_load(&s_card.active)) return false;
-    if (!atomic_load(&s_card.enabled)) return true;
-    bool was_pressed = atomic_exchange(&s_card.pressed, pressed);
-    if (pressed && !was_pressed) atomic_store(&s_card.target, hit(x, y));
-    if (!pressed && was_pressed) {
-        int target = atomic_exchange(&s_card.target, 0);
-        if (target && target == hit(x, y) && !atomic_exchange(&s_card.deciding, true)) {
-            if (!s_card.options.decide) atomic_store(&s_card.closed, true);
-            else if (s_card.options.decide(s_card.options.request_id, target == 2) != ESP_OK)
-                atomic_store(&s_card.deciding, false);
+    const char *v = string(o, key);
+    return v && expected && !strcmp(v, expected);
+}
+static bool keys(const cJSON *o, const char *const *allowed, size_t count)
+{
+    if (!cJSON_IsObject(o) || (size_t)cJSON_GetArraySize(o) != count) return false;
+    for (const cJSON *v = o->child; v; v = v->next) {
+        bool known = false;
+        for (size_t i = 0; i < count; ++i) known |= !strcmp(v->string, allowed[i]);
+        if (!known) return false;
+        for (const cJSON *next = v->next; next; next = next->next)
+            if (!strcmp(v->string, next->string)) return false;
+    }
+    return true;
+}
+static bool integer(const cJSON *v, int64_t low, int64_t high, int64_t *out)
+{
+    if (!cJSON_IsNumber(v) || !isfinite(v->valuedouble) || v->valuedouble < low ||
+        v->valuedouble > high || v->valuedouble != (int64_t)v->valuedouble) return false;
+    *out = (int64_t)v->valuedouble; return true;
+}
+static bool bounded(const char *data, size_t size)
+{
+    unsigned depth = 0; bool quoted = false, escaped = false;
+    for (size_t i = 0; i < size; ++i) {
+        char c = data[i];
+        if (!c || (i + 6 <= size && !memcmp(data + i, "\\u0000", 6))) return false;
+        if (quoted) {
+            if (escaped) escaped = false;
+            else if (c == '\\') escaped = true;
+            else if (c == '"') quoted = false;
+        } else if (c == '"') quoted = true;
+        else if (c == '[' || c == '{') { if (++depth > 8) return false; }
+        else if (c == ']' || c == '}') { if (!depth) return false; --depth; }
+    }
+    return !quoted && !depth;
+}
+bool ideas_presentation_parse(const void *json, size_t size,
+    const ideas_display_sources_t *sources, ideas_presentation_t *out)
+{
+    if (!json || !sources || !out || !size || size > IDEAS_DISPLAY_JSON_BYTES ||
+        !sources->font_count || sources->font_count > IDEAS_DISPLAY_FONTS || !bounded(json, size)) return false;
+    memset(out, 0, sizeof(*out));
+    for (size_t i = 0; i < sources->font_count; ++i) {
+        if (!sources->fonts[i].name || !ideas_font_open(sources->fonts[i].data,
+                sources->fonts[i].size, &out->fonts[i])) return false;
+        for (size_t j = 0; j < i; ++j)
+            if (!strcmp(sources->fonts[i].name, sources->fonts[j].name)) return false;
+    }
+    const char *end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(json, size, &end, false);
+    if (!root) return false;
+    while (end < (const char *)json + size && strchr(" \r\n\t", *end)) ++end;
+    bool valid = false, used[IDEAS_DISPLAY_FONTS] = {false};
+    static const char *const root_keys[] = {"schema", "locale", "icon", "name", "description"};
+    static const char *const text_keys[] = {"text", "font", "width", "height", "glyphs"};
+    if (end != (const char *)json + size || !keys(root, root_keys, 5) ||
+        !equal(root, "schema", "mosaico-ideas/display/1") ||
+        !equal(root, "locale", sources->locale) || !equal(root, "icon", sources->icon)) goto done;
+    for (unsigned i = 0; i < 2; ++i) {
+        const cJSON *text = get(root, i ? "description" : "name");
+        if (!keys(text, text_keys, 5) || !equal(text, "text", i ? sources->description : sources->name)) goto done;
+        ideas_text_t *dest = &out->text[i];
+        int64_t w, h;
+        if (!integer(get(text, "width"), 1, i ? IDEAS_DESCRIPTION_WIDTH : IDEAS_TITLE_WIDTH, &w) ||
+            !integer(get(text, "height"), 1, i ? IDEAS_DESCRIPTION_HEIGHT : IDEAS_TITLE_HEIGHT, &h)) goto done;
+        dest->width = w; dest->height = h;
+        const char *font = string(text, "font");
+        size_t index = 0;
+        while (index < sources->font_count && (!font || strcmp(font, sources->fonts[index].name))) ++index;
+        if (index == sources->font_count) goto done;
+        used[index] = true; dest->font = index;
+        const cJSON *glyphs = get(text, "glyphs");
+        int count = cJSON_GetArraySize(glyphs);
+        if (!cJSON_IsArray(glyphs) || count > (int)IDEAS_DISPLAY_RUNS ||
+            (!count && *(i ? sources->description : sources->name))) goto done;
+        dest->count = count;
+        for (int n = 0; n < count; ++n) {
+            const cJSON *entry = cJSON_GetArrayItem(glyphs, n);
+            int64_t id, x, y;
+            if (!cJSON_IsArray(entry) || cJSON_GetArraySize(entry) != 3 ||
+                !integer(cJSON_GetArrayItem(entry, 0), 1, UINT32_MAX, &id) ||
+                !integer(cJSON_GetArrayItem(entry, 1), -192, w + 192, &x) ||
+                !integer(cJSON_GetArrayItem(entry, 2), -192, h + 192, &y)) goto done;
+            ideas_glyph_t glyph;
+            if (!ideas_font_glyph(&out->fonts[index], id, &glyph)) goto done;
+            if (glyph.width && (x + glyph.left < 0 || x + glyph.left + glyph.width > w ||
+                y - glyph.top < 0 || y - glyph.top + glyph.height > h)) goto done;
+            dest->glyphs[n] = (ideas_glyph_position_t){id, x, y};
         }
     }
+    for (size_t i = 0; i < sources->font_count; ++i) if (!used[i]) goto done;
+    valid = true;
+done:
+    cJSON_Delete(root); return valid;
+}
+static uint16_t blend(uint16_t foreground, uint16_t background, unsigned alpha)
+{
+    unsigned r = (((foreground >> 11) & 31) * alpha + ((background >> 11) & 31) * (255 - alpha) + 127) / 255;
+    unsigned g = (((foreground >> 5) & 63) * alpha + ((background >> 5) & 63) * (255 - alpha) + 127) / 255;
+    unsigned b = ((foreground & 31) * alpha + (background & 31) * (255 - alpha) + 127) / 255;
+    return (r << 11) | (g << 5) | b;
+}
+bool ideas_presentation_render(const ideas_presentation_t *display, unsigned block,
+    uint16_t foreground, uint16_t background, uint16_t *pixels, size_t count)
+{
+    if (!display || block > 1 || !pixels) return false;
+    unsigned width = block ? IDEAS_DESCRIPTION_WIDTH : IDEAS_TITLE_WIDTH;
+    unsigned height = block ? IDEAS_DESCRIPTION_HEIGHT : IDEAS_TITLE_HEIGHT;
+    if (count != (size_t)width * height) return false;
+    for (size_t i = 0; i < count; ++i) pixels[i] = background;
+    const ideas_text_t *text = &display->text[block];
+    for (unsigned i = 0; i < text->count; ++i) {
+        const ideas_glyph_position_t *p = &text->glyphs[i];
+        ideas_glyph_t glyph;
+        if (!ideas_font_glyph(&display->fonts[text->font], p->glyph, &glyph)) return false;
+        for (unsigned y = 0; y < glyph.height; ++y)
+            for (unsigned x = 0; x < glyph.width; ++x) {
+                size_t offset = (p->y - glyph.top + y) * width + p->x + glyph.left + x;
+                pixels[offset] = blend(foreground, pixels[offset], glyph.alpha[y * glyph.width + x]);
+            }
+    }
     return true;
-}
-static bool input(esp_gsp_handle_t ui, int32_t x, int32_t y, bool pressed, void *ctx)
-{
-    (void)ui; (void)ctx;
-    (void)ideas_presentation_input(x, y, pressed);
-    /* Downloaded CALL actions are never dispatched. */
-    return true;
-}
-static uint32_t key(const char *name)
-{
-    uint32_t value = 2166136261U;
-    for (; *name; ++name) value = (value ^ (uint8_t)*name) * 16777619U;
-    return value;
-}
-static void prepare(esp_gsp_handle_t ui, void *ctx)
-{
-    card_t *card = ctx;
-    esp_err_t err = esp_gsp_set_input_interceptor(ui, input, ctx);
-    if (err == ESP_OK && card->options.decide) {
-        err = esp_gsp_component_set_text(ui, key("idea_download_summary"), card->options.summary);
-        if (err == ESP_OK) err = esp_gsp_component_set_text(ui, key("idea_download_accept"),
-            card->options.already_downloaded ? "My Ideas" : "Download");
-        if (err == ESP_OK) err = esp_gsp_component_set_visible(ui, key("idea_download_controls"), true);
-    }
-    card->prepare_error = err;
-}
-void ideas_presentation_enable(void) { atomic_store(&s_card.enabled, true); }
-void ideas_presentation_close(void)
-{
-    if (!atomic_load(&s_card.active)) return;
-    atomic_store(&s_card.enabled, false);
-    if (s_card.session && s_card.app) {
-        while (esp_gsp_esp_lcd_resume(s_card.session, s_card.app, &s_card.hub) != ESP_OK)
-            vTaskDelay(pdMS_TO_TICKS(100));
-    }
-    s_card.session = NULL; s_card.app = NULL;
-    atomic_store(&s_card.active, false);
-    if (s_card.bundle) esp_gsp_deployable_bundle_close(s_card.bundle);
-    s_card.bundle = NULL;
-}
-esp_err_t ideas_presentation_open(esp_gsp_handle_t hub, const void *data, size_t size,
-                                  const ideas_presentation_options_t *options)
-{
-    if (!hub || !data || !size || size > IDEAS_MAX_ASSET_BYTES) return ESP_ERR_INVALID_SIZE;
-    if (atomic_load(&s_card.active)) return ESP_ERR_INVALID_STATE;
-    s_card.options = options ? *options : (ideas_presentation_options_t){0};
-    s_card.prepare_error = ESP_OK;
-    s_card.hub = hub; s_card.app = NULL; s_card.session = NULL;
-    atomic_store(&s_card.closed, false); atomic_store(&s_card.pressed, false);
-    atomic_store(&s_card.deciding, false); atomic_store(&s_card.enabled, false);
-    atomic_store(&s_card.target, 0);
-    esp_err_t err = esp_gsp_deployable_bundle_open(data, size, true, &s_card.bundle);
-    esp_gsp_deployable_info_t info = {.struct_size = sizeof(info)};
-    if (err == ESP_OK) err = esp_gsp_deployable_bundle_get_info(s_card.bundle, &info);
-    if (err == ESP_OK && (info.scene_count != 1 || info.dynamic_image_slots != 0)) err = ESP_ERR_NOT_SUPPORTED;
-    esp_gsp_config_t config;
-    if (err == ESP_OK) err = esp_gsp_deployable_bundle_make_config(s_card.bundle, &config);
-    if (err == ESP_OK) {
-        atomic_store(&s_card.active, true);
-        err = esp_gsp_esp_lcd_suspend(hub, &s_card.session);
-    }
-    if (err == ESP_OK) {
-        err = esp_gsp_esp_lcd_start_on_session_prepared(s_card.session, &config, prepare, &s_card, &s_card.app);
-        /* Startup failure resumes the hub and consumes the session. */
-        if (err != ESP_OK) { s_card.session = NULL; s_card.app = NULL; }
-        else err = s_card.prepare_error;
-    }
-    if (err != ESP_OK) {
-        ideas_presentation_close();
-        if (s_card.bundle) esp_gsp_deployable_bundle_close(s_card.bundle);
-        s_card.bundle = NULL;
-    }
-    return err;
-}
-esp_err_t ideas_presentation_show(esp_gsp_handle_t hub, const char *path)
-{
-    struct stat st;
-    if (!hub || stat(path, &st) || st.st_size <= 0 || st.st_size > IDEAS_MAX_ASSET_BYTES)
-        return ESP_ERR_INVALID_SIZE;
-    void *data = heap_caps_aligned_alloc(64, st.st_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!data) return ESP_ERR_NO_MEM;
-    FILE *f = fopen(path, "rb");
-    bool read = f && fread(data, 1, (size_t)st.st_size, f) == (size_t)st.st_size && !ferror(f);
-    if (f) fclose(f);
-    esp_err_t err = read ? ideas_presentation_open(hub, data, st.st_size, NULL) : ESP_FAIL;
-    if (err == ESP_OK) {
-        ideas_presentation_enable();
-        while (!atomic_load(&s_card.closed)) vTaskDelay(pdMS_TO_TICKS(50));
-        ideas_presentation_close();
-    }
-    heap_caps_free(data); return err;
 }

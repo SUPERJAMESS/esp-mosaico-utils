@@ -1,24 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
-#include "esp_gsp.h"
-#include "esp_err.h"
-#include <stdbool.h>
-#include <stdint.h>
+#include "ideas_font.h"
 
-typedef esp_err_t (*ideas_presentation_decide_fn)(uint32_t request_id, bool download);
+/* Display/1 describes fixed text blocks, never scenes, widgets or actions.
+ * Coordinates are local to each block; the UI adapter owns screen placement. */
+#define IDEAS_DISPLAY_JSON_BYTES 32768U
+#define IDEAS_DISPLAY_FONTS 2U
+#define IDEAS_DISPLAY_RUNS 512U
+#define IDEAS_TITLE_WIDTH 328U
+#define IDEAS_TITLE_HEIGHT 84U
+#define IDEAS_DESCRIPTION_WIDTH 416U
+#define IDEAS_DESCRIPTION_HEIGHT 176U
+
 typedef struct {
-    uint32_t request_id;
-    const char *summary;
-    bool already_downloaded;
-    ideas_presentation_decide_fn decide;
-} ideas_presentation_options_t;
-/* All touches are consumed while the card owns the display. */
-bool ideas_presentation_input(int32_t x, int32_t y, bool pressed);
-/* Worker only. Borrows aligned, verified bytes until close. Opening does not
- * wait for user input; enable only after the owner publishes its ready state. */
-esp_err_t ideas_presentation_open(esp_gsp_handle_t hub, const void *data, size_t size,
-                                  const ideas_presentation_options_t *options);
-void ideas_presentation_enable(void);
-void ideas_presentation_close(void);
-/* Existing offline View info; returns after Back. */
-esp_err_t ideas_presentation_show(esp_gsp_handle_t hub, const char *path);
+    const char *name;
+    const void *data;
+    size_t size;
+} ideas_font_source_t;
+typedef struct {
+    const char *name, *description, *locale, *icon;
+    size_t font_count;
+    ideas_font_source_t fonts[IDEAS_DISPLAY_FONTS];
+} ideas_display_sources_t;
+typedef struct { uint32_t glyph; int16_t x, y; } ideas_glyph_position_t;
+typedef struct {
+    uint16_t width, height, count, font;
+    ideas_glyph_position_t glyphs[IDEAS_DISPLAY_RUNS];
+} ideas_text_t;
+typedef struct {
+    ideas_font_t fonts[IDEAS_DISPLAY_FONTS];
+    ideas_text_t text[2]; /* name, description */
+} ideas_presentation_t;
+
+/* All font bytes are borrowed. Validates references, metadata and every glyph
+ * extent before the caller may publish a ready preview. No UI/OS dependency. */
+bool ideas_presentation_parse(const void *json, size_t size,
+    const ideas_display_sources_t *sources, ideas_presentation_t *out);
+/* Opaque RGB565, native uint16_t pixels. Caller supplies the complete block.
+ * Foreground/background are adapter choices, not remote UI instructions. */
+bool ideas_presentation_render(const ideas_presentation_t *display, unsigned block,
+    uint16_t foreground, uint16_t background, uint16_t *pixels, size_t count);

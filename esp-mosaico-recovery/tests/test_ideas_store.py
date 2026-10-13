@@ -24,7 +24,8 @@ class Package(C.Structure):
         (key, C.c_char * 65) for key in ("presentation", "icon", "application_sha256", "layout_sha256")
     ] + [(key, C.c_uint32) for key in ("application_size", "application_offset", "flash_size")] + [
         ("file_count", C.c_size_t), ("component_count", C.c_size_t),
-        ("total_size", C.c_uint64), ("files", File * 10), ("manifest", C.c_char * 3073)]
+        ("total_size", C.c_uint64), ("files", File * 12), ("manifest", C.c_char * 3073),
+        ("font_count", C.c_size_t), ("fonts", (C.c_char * 65) * 2)]
 
 
 CALLBACK = C.CFUNCTYPE(C.c_int, C.POINTER(File), C.c_char_p, C.c_void_p)
@@ -59,7 +60,8 @@ def core(tmp_path_factory):
 
 def descriptor(version="1.0", code="042731"):
     payloads = {"table.bin": b"t" * 4096, "app.bin": version.encode() * 200,
-                "card.gspb": b"localized glyphs", "icon.png": b"icon"}
+                "display.json": b"description", "title.mif": b"title glyphs",
+                "body.mif": b"body glyphs", "icon.png": b"icon"}
     files = [dict(name=name, path="/api/v1/ideas/files/" + name, size=len(data),
                   sha256=hashlib.sha256(data).hexdigest()) for name, data in payloads.items()]
     components = [dict(id=i+1, kind=kind, target_offset=offset, file=f["name"],
@@ -70,7 +72,7 @@ def descriptor(version="1.0", code="042731"):
         system_manifest=dict(schema="esp-iris-system-update/0.2", release=version,
             target=dict(chip_id=32, flash_size=16*1024*1024),
             target_layout_sha256=files[0]["sha256"], components=components),
-        files=files, presentation="card.gspb", icon="icon.png"), payloads
+        files=files, presentation="display.json", fonts=["title.mif", "body.mif"], icon="icon.png"), payloads
 
 
 def parse(core, document, code=b"042731"):
@@ -190,3 +192,41 @@ def test_rejects_invalid_descriptor_before_download(core, case):
     if case == "fractional": doc["files"][1]["size"] = 1.5
     if case == "deep-json": doc = b"[" * 2000 + b"0" + b"]" * 2000
     assert parse(core, doc, code)[0] != 0
+
+
+def test_custom_assets_follow_atomic_download_and_offline_verification(core, tmp_path):
+    document, payloads = descriptor()
+    result, package, raw = parse(core, document)
+    assert result == 0 and package.font_count == 2
+    assert bytes(package.fonts[0]).rstrip(b"\0") == b"title.mif"
+    fetch, verify = callbacks(payloads)
+    root = str(tmp_path).encode()
+    assert core.ideas_store_download(root, raw, len(raw), C.byref(package), fetch, verify, None) == 0
+    assert core.ideas_store_verify(root, C.byref(package), verify, None) == 0
+    (tmp_path / "042731/current/title.mif").write_bytes(b"corrupt")
+    assert core.ideas_store_verify(root, C.byref(package), verify, None) != 0
+
+
+@pytest.mark.parametrize("change", [
+    lambda d: d.update(fonts=["title.mif", "missing.mif"]),
+    lambda d: d.update(fonts=["title.mif", "title.mif"]),
+    lambda d: d.update(fonts=["title.mif", "display.json"]),
+    lambda d: d.update(fonts=["title.mif", "app.bin"]),
+    lambda d: d.update(fonts=["title.mif", "body.mif", "extra.mif"]),
+    lambda d: d.update(fonts=[]), lambda d: d.update(fonts="title.mif"),
+    lambda d: d.update(presentation=""), lambda d: d.update(schema="mosaico-ideas/download/2"),
+    lambda d: next(f for f in d["files"] if f["name"] == "body.mif").update(size=1024*1024),
+    lambda d: next(f for f in d["files"] if f["name"] == "display.json").update(size=32769),
+])
+def test_custom_asset_dependency_graph_is_bounded(core, change):
+    document, _ = descriptor(); change(document)
+    assert parse(core, document)[0] != 0
+
+
+def test_retired_gsp_descriptor_is_not_an_alternate_download_v1(core):
+    document, _ = descriptor()
+    fonts = document.pop("fonts")
+    document["files"] = [f for f in document["files"] if f["name"] not in fonts]
+    card = next(f for f in document["files"] if f["name"] == "display.json")
+    card["name"] = document["presentation"] = "card.gspb"
+    assert parse(core, document)[0] != 0

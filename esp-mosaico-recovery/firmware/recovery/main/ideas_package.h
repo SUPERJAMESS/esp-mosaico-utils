@@ -8,7 +8,8 @@
 #define IDEAS_CODE_BYTES 7
 #define IDEAS_NAME_BYTES 129
 #define IDEAS_PATH_BYTES 256
-#define IDEAS_MAX_FILES 10
+#define IDEAS_MAX_FILES 12
+#define IDEAS_MAX_FONTS 2
 #define IDEAS_MAX_ITEMS 16
 #define IDEAS_DESCRIPTOR_BYTES 16384
 #define IDEAS_MANIFEST_BYTES 3072
@@ -30,6 +31,8 @@ typedef struct {
     uint64_t total_size;
     ideas_file_t files[IDEAS_MAX_FILES];
     char manifest[IDEAS_MANIFEST_BYTES + 1];
+    size_t font_count;
+    char fonts[IDEAS_MAX_FONTS][65];
 } ideas_package_t;
 
 bool ideas_code_valid(const char *code);

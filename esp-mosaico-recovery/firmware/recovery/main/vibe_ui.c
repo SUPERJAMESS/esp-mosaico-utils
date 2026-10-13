@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vibe_ui.h"
+#include "ideas_presentation.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,6 +59,41 @@ static void clear_secret(char *text, size_t size)
     volatile char *p = text;
     while (size--) *p++ = 0;
 }
+static void clear_preview(vibe_ui_t *s)
+{
+    (void)esp_gsp_canvas_stop(s->ui, GSP_VIBE_BIND_IDEA_TITLE_PIXELS);
+    (void)esp_gsp_canvas_stop(s->ui, GSP_VIBE_BIND_IDEA_BODY_PIXELS);
+    (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_IDEA_TITLE_PIXELS, false);
+    (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_IDEA_BODY_PIXELS, false);
+    (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_IDEA_ICON, false);
+    s->rendered_preview = 0;
+}
+static int render_preview(vibe_ui_t *s)
+{
+    const vibe_snapshot_t *v = &s->snapshot;
+    if (s->rendered_preview == v->idea_request) return 0;
+    if ((v->idea_custom || v->idea_has_icon) && !s->services.preview) return ESP_GSP_ERR_INVALID_STATE;
+    for (unsigned i = 0; i < 3; ++i) {
+        if (i < 2 ? !v->idea_custom : !v->idea_has_icon) continue;
+        size_t size = 0;
+        void *data = s->services.preview(s->services.ctx, v->idea_request, i, &size);
+        if (!data) return ESP_GSP_ERR_NO_MEM;
+        int err;
+        if (i < 2) {
+            size_t width = i ? IDEAS_DESCRIPTION_WIDTH : IDEAS_TITLE_WIDTH;
+            size_t height = i ? IDEAS_DESCRIPTION_HEIGHT : IDEAS_TITLE_HEIGHT;
+            err = size == width * height * 2 ? esp_gsp_canvas_push(s->ui,
+                i ? GSP_VIBE_BIND_IDEA_BODY_PIXELS : GSP_VIBE_BIND_IDEA_TITLE_PIXELS,
+                data, width * 2, free, data) : ESP_GSP_ERR_INVALID_ARG;
+        } else err = esp_gsp_set_image_owned(s->ui, GSP_VIBE_BIND_IDEA_ICON, data, size);
+        if (err) { free(data); clear_preview(s); return err; }
+    }
+    (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_IDEA_TITLE_PIXELS, v->idea_custom);
+    (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_IDEA_BODY_PIXELS, v->idea_custom);
+    (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_IDEA_ICON, v->idea_has_icon);
+    s->rendered_preview = v->idea_request;
+    return 0;
+}
 static void show(vibe_ui_t *s, vibe_page_t page)
 {
     static const uint16_t visibility[VIBE_PAGE_COUNT] = {
@@ -68,6 +104,7 @@ static void show(vibe_ui_t *s, vibe_page_t page)
         GSP_VIBE_BIND_RESULT_VISIBLE, GSP_VIBE_BIND_IDEA_INFO_VISIBLE,
     };
     const vibe_page_t previous = s->page;
+    if (previous == VIBE_IDEA_INFO && page != VIBE_IDEA_INFO) clear_preview(s);
     if (previous == VIBE_PASSWORD && page != VIBE_PASSWORD) {
         clear_secret(s->password, sizeof(s->password));
         TEXT(s, PASSWORD_DISPLAY, "Enter password");
@@ -300,11 +337,9 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
     case GSP_VIBE_ACT_ID_UPDATE_IDEA:
     case GSP_VIBE_ACT_ID_PREVIEW_IDEA:
         if (s->page != VIBE_CONFIRM) break;
-        if (e->action_id == GSP_VIBE_ACT_ID_PREVIEW_IDEA) {
-            err = command(s, VIBE_PREVIEW_IDEA, s->selected_bundle.code, NULL);
-            if (err) error_result(s, "Idea unavailable", err);
-        } else prepare_idea(s, e->action_id == GSP_VIBE_ACT_ID_CHECK_IDEA ? VIBE_CHECK_IDEA : VIBE_RESOLVE_IDEA,
-                            s->selected_bundle.code);
+        prepare_idea(s, e->action_id == GSP_VIBE_ACT_ID_PREVIEW_IDEA ? VIBE_PREVIEW_IDEA :
+            e->action_id == GSP_VIBE_ACT_ID_CHECK_IDEA ? VIBE_CHECK_IDEA : VIBE_RESOLVE_IDEA,
+            s->selected_bundle.code);
         break;
     case GSP_VIBE_ACT_ID_CANCEL_IDEA:
         if (s->page != VIBE_IDEA_INFO || !s->preview_active) break;
@@ -312,7 +347,7 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
         if (!err) { s->preview_active = false; show(s, s->preview_return); }
         break;
     case GSP_VIBE_ACT_ID_ACCEPT_IDEA:
-        if (s->page != VIBE_IDEA_INFO || !s->preview_active || !s->snapshot.idea_ready) break;
+        if (s->page != VIBE_IDEA_INFO || !s->preview_active || !s->snapshot.idea_ready || s->snapshot.idea_view_only) break;
         {
             char request[16];
             snprintf(request, sizeof(request), "%lu", (unsigned long)s->snapshot.idea_request);
@@ -394,14 +429,24 @@ void vibe_ui_poll(vibe_ui_t *s)
         }
         break;
     case VIBE_IDEA_INFO:
-        TEXT(s, IDEA_NAME, v->idea_ready ? v->idea.release : "Loading app information...");
-        TEXT(s, IDEA_DESCRIPTION, v->idea_ready ? v->idea.description : "Fetching details from the cloud");
+        if (v->idea_ready) {
+            int err = render_preview(s);
+            if (err) {
+                (void)command(s, VIBE_CANCEL_IDEA, NULL, NULL);
+                s->preview_active = false;
+                error_result(s, "App information failed", err);
+                break;
+            }
+        }
+        TEXT(s, IDEA_NAME, !v->idea_ready ? "Loading app information..." : v->idea_custom ? "" : v->idea.release);
+        TEXT(s, IDEA_DESCRIPTION, !v->idea_ready ? (v->idea_view_only ? "Reading downloaded resources" : "Fetching details from the cloud") : v->idea_custom ? "" : v->idea.description);
         if (v->idea_ready) FORMAT(s, IDEA_SUMMARY, "%s | %.32s | %lu KiB", v->idea.code,
             v->idea.version, (unsigned long)((v->idea.bytes + 1023) / 1024));
         else TEXT(s, IDEA_SUMMARY, "");
-        TEXT(s, IDEA_STATUS, v->idea_downloaded ? "Already downloaded" : "Confirm to save in My Ideas");
+        TEXT(s, IDEA_STATUS, !v->idea_ready ? "Please wait" : v->idea_view_only ? "Saved in My Ideas" :
+            v->idea_downloaded ? "Already downloaded" : "Confirm to save in My Ideas");
         TEXT(s, IDEA_ACCEPT, v->idea_downloaded ? "My Ideas" : "Download");
-        (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_BUTTON_ACCEPT_IDEA, v->idea_ready);
+        (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_BUTTON_ACCEPT_IDEA, v->idea_ready && !v->idea_view_only);
         break;
     case VIBE_NAND:
         if (v->nand_scanning) TEXT(s, NAND_SCAN, "Scanning NAND...");

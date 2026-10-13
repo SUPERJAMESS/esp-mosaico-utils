@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "gsp_sim_bridge.h"
 #include "vibe_ui.h"
+#include "ideas_presentation.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -159,10 +160,10 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
     case VIBE_PAUSE_BRIDGE: bridge_active = false; break;
     case VIBE_STOP_BRIDGE: model.bridge_running = false; bridge_active = false; model.bridge_code[0] = 0; break;
     case VIBE_SCAN_NAND: ++model.nand_generation; break;
-    case VIBE_PREVIEW_IDEA: break;
     case VIBE_START_IDEA: ++restart_calls; break;
     case VIBE_CANCEL_IDEA:
         ++cancel_calls; model.idea_loading = model.idea_ready = model.idea_busy = false; break;
+    case VIBE_PREVIEW_IDEA:
     case VIBE_CHECK_IDEA:
     case VIBE_RESOLVE_IDEA:
         if (model.idea_busy || model.idea_ready) return 0x103;
@@ -171,6 +172,8 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
         ++prepare_calls; preview_ticks = 0;
         snprintf(last_code, sizeof(last_code), "%s", a);
         model.idea_loading = model.idea_busy = true; model.idea_ready = false;
+        model.idea_custom = scenario("custom-preview") || scenario("custom-preview-fail");
+        model.idea_view_only = cmd == VIBE_PREVIEW_IDEA;
         model.idea_return_library = false; model.update_terminal = false;
         ++model.idea_request;
         model.idea = model.bundles[0];
@@ -179,7 +182,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
         model.idea_downloaded = scenario("already-downloaded");
         break;
     case VIBE_DOWNLOAD_IDEA:
-        if (!model.idea_ready || !b || strtoul(b, NULL, 10) != model.idea_request) return 0x103;
+        if (model.idea_view_only || !model.idea_ready || !b || strtoul(b, NULL, 10) != model.idea_request) return 0x103;
         model.idea_ready = false;
         if (model.idea_downloaded) { model.idea_return_library = true; break; }
         /* fall through */
@@ -200,6 +203,21 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
     }
     fprintf(stderr, "vibe_sim: command=%d page=%d\n", cmd, state.page);
     return 0;
+}
+/* Synthetic pixels exercise the production adapter without font/UI coupling.
+ * The portable font reader has separate byte-level publication roundtrips. */
+static void *preview(void *ctx, uint32_t request, unsigned slot, size_t *size)
+{
+    (void)ctx;
+    *size = 0;
+    if (request != model.idea_request || slot > 1 || scenario("custom-preview-fail")) return NULL;
+    size_t count = slot ? IDEAS_DESCRIPTION_WIDTH * IDEAS_DESCRIPTION_HEIGHT : IDEAS_TITLE_WIDTH * IDEAS_TITLE_HEIGHT;
+    uint16_t *pixels = malloc(count * 2);
+    if (pixels) {
+        for (size_t i = 0; i < count; ++i) pixels[i] = slot ? 0x07e0 : 0xf800;
+        *size = count * 2;
+    }
+    return pixels;
 }
 esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
 {
@@ -228,7 +246,7 @@ esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
         model.bundles[i].boot = i == 1;
         model.bundles[i].bytes = 1024 * 1024; model.bundles[i].components = 2;
     }
-    const vibe_services_t services = {.snapshot = snapshot, .command = command};
+    const vibe_services_t services = {.snapshot = snapshot, .command = command, .preview = preview};
     esp_gsp_err_t err = vibe_ui_init(&state, ui, &services);
     if (err == ESP_GSP_OK && getenv("VIBE_SIM_STATE_FILE"))
         trace_timer = esp_gsp_timer_create(ui, 50, trace_state, NULL);

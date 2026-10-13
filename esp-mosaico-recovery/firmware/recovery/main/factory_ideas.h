@@ -20,7 +20,7 @@ typedef struct {
     size_t count, invalid;
     factory_idea_t items[IDEAS_MAX_ITEMS];
     uint32_t preview_id;
-    bool resolving, preview_ready, already_downloaded, return_library;
+    bool resolving, preview_ready, already_downloaded, return_library, view_only, custom_display, has_icon;
     factory_idea_t preview;
 } factory_ideas_snapshot_t;
 
@@ -32,3 +32,6 @@ esp_err_t factory_ideas_cancel(void);
 esp_err_t factory_ideas_snapshot(factory_ideas_snapshot_t *out);
 /* malloc-compatible image copy; no filesystem IO on the render task. */
 void *factory_ideas_copy_icon(const char *code, size_t *size);
+
+/* Preview slots: 0 title RGB565, 1 description RGB565, 2 encoded PNG. */
+void *factory_ideas_copy_preview(uint32_t request_id, unsigned slot, size_t *size);

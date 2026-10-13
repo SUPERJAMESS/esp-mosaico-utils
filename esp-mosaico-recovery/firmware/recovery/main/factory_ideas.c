@@ -4,8 +4,6 @@
 #include "factory_network.h"
 #include "factory_system_update.h"
 #include "factory_system_metadata.h"
-#include "factory_ui.h"
-#include "factory_ui_input.h"
 #include "ideas_presentation.h"
 #include "esp_attr.h"
 #include "esp_crt_bundle.h"
@@ -41,10 +39,10 @@ static icon_t s_icons[IDEAS_MAX_ITEMS];
 typedef struct {
     ideas_package_t package;
     char *json;
-    size_t json_size, card_size;
-    void *card;
-    char summary[160];
-    bool already_downloaded;
+    size_t json_size;
+    icon_t assets[IDEAS_MAX_FILES];
+    icon_t pixels[2];
+    bool already_downloaded, view_only;
 } pending_t;
 static pending_t *s_pending;
 static uint32_t s_request_id;
@@ -62,7 +60,10 @@ static bool cancelled(uint32_t request_id)
 static void free_pending(pending_t *p)
 {
     if (!p) return;
-    free(p->json); heap_caps_free(p->card); free(p);
+    free(p->json);
+    for (size_t i = 0; i < IDEAS_MAX_FILES; ++i) free(p->assets[i].data);
+    for (unsigned i = 0; i < 2; ++i) free(p->pixels[i].data);
+    free(p);
 }
 typedef struct {
     uint32_t schema, offset, size;
@@ -251,6 +252,9 @@ static esp_err_t resolve(const job_t *job, const ideas_package_t *local, char **
     cJSON_AddStringToObject(body, "locale", CONFIG_IRIS_FACTORY_IDEAS_LOCALE);
     cJSON_AddNumberToObject(body, "recovery_abi", 2);
     cJSON_AddNumberToObject(body, "layout_version", 5);
+    cJSON_AddStringToObject(body, "download_schema", "mosaico-ideas/download/1");
+    cJSON_AddStringToObject(body, "display_schema", "mosaico-ideas/display/1");
+    cJSON_AddStringToObject(body, "font_format", "MIFF/1");
     uint32_t flash_size = 0;
     esp_flash_get_size(esp_flash_default_chip, &flash_size);
     cJSON_AddNumberToObject(body, "flash_size", flash_size);
@@ -283,13 +287,16 @@ static esp_err_t resolve(const job_t *job, const ideas_package_t *local, char **
 static esp_err_t fetch_file(const ideas_file_t *file, const char *path, void *ctx)
 {
     const pending_t *pending = ctx;
-    if (pending && pending->card && !strcmp(file->name, pending->package.presentation)) {
+    const icon_t *asset = NULL;
+    for (size_t i = 0; pending && i < pending->package.file_count; ++i)
+        if (!strcmp(file->name, pending->package.files[i].name)) asset = &pending->assets[i];
+    if (asset && asset->data) {
         FILE *cached = fopen(path, "wb");
         if (!cached) return ESP_FAIL;
-        bool ok = fwrite(pending->card, 1, pending->card_size, cached) == pending->card_size;
+        bool ok = fwrite(asset->data, 1, asset->size, cached) == asset->size;
         if (fflush(cached) || fsync(fileno(cached))) ok = false;
         if (fclose(cached)) ok = false;
-        if (ok) { LOCK(); s_state.received += pending->card_size; UNLOCK(); }
+        if (ok) { LOCK(); s_state.received += asset->size; UNLOCK(); }
         return ok ? ESP_OK : ESP_FAIL;
     }
     esp_http_client_handle_t client = NULL;
@@ -325,42 +332,93 @@ static bool ascii_text(const char *text)
         if (*p < 32 || *p > 126) return false;
     return true;
 }
-static esp_err_t fetch_card(const job_t *job, pending_t *pending)
+static int asset_index(const ideas_package_t *p, const char *name)
 {
-    const ideas_package_t *p = &pending->package;
-    if (!p->presentation[0])
-        return ascii_text(p->name) && ascii_text(p->description) ? ESP_OK : ESP_ERR_NOT_SUPPORTED;
-    const ideas_file_t *file = NULL;
     for (size_t i = 0; i < p->file_count; ++i)
-        if (!strcmp(p->files[i].name, p->presentation)) file = &p->files[i];
-    if (!file || file->size > IDEAS_MAX_ASSET_BYTES) return ESP_ERR_INVALID_SIZE;
-    pending->card = heap_caps_aligned_alloc(64, file->size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!pending->card) return ESP_ERR_NO_MEM;
-    esp_http_client_handle_t client = NULL;
-    esp_err_t err = http_open(file->path, NULL, &client);
-    if (err != ESP_OK) return err;
-    int64_t length = esp_http_client_get_content_length(client);
-    if (length >= 0 && length != file->size) err = ESP_ERR_INVALID_SIZE;
+        if (!strcmp(p->files[i].name, name)) return (int)i;
+    return -1;
+}
+static esp_err_t fetch_asset(const job_t *job, pending_t *pending, unsigned index, bool local)
+{
+    if (cancelled(job->request_id)) return ESP_ERR_INVALID_STATE;
+    const ideas_file_t *file = &pending->package.files[index];
+    icon_t *asset = &pending->assets[index];
+    asset->data = heap_caps_malloc(file->size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!asset->data) return ESP_ERR_NO_MEM;
+    esp_err_t err = ESP_OK;
     size_t used = 0;
-    int64_t deadline = esp_timer_get_time() + 30000000;
-    while (err == ESP_OK && used < file->size) {
-        if (cancelled(job->request_id)) { err = ESP_ERR_INVALID_STATE; break; }
-        size_t nmax = file->size - used;
-        if (nmax > IO_BYTES) nmax = IO_BYTES;
-        int n = esp_http_client_read(client, (char *)pending->card + used, nmax);
-        if (n < 0 || esp_timer_get_time() > deadline) { err = ESP_ERR_TIMEOUT; break; }
-        if (!n) break;
-        used += n; vTaskDelay(1);
+    if (local) {
+        char path[IDEAS_PATH_BYTES];
+        err = ideas_store_path(ROOT, pending->package.code, file->name, path);
+        FILE *f = err == ESP_OK ? fopen(path, "rb") : NULL;
+        if (!f) return ESP_ERR_NOT_FOUND;
+        used = fread(asset->data, 1, file->size, f);
+        if (used != file->size || ferror(f) || fgetc(f) != EOF) err = ESP_ERR_INVALID_SIZE;
+        fclose(f);
+    } else {
+        esp_http_client_handle_t client = NULL;
+        err = http_open(file->path, NULL, &client);
+        if (err != ESP_OK) return err;
+        int64_t length = esp_http_client_get_content_length(client);
+        if (length >= 0 && length != file->size) err = ESP_ERR_INVALID_SIZE;
+        int64_t deadline = esp_timer_get_time() + 30000000;
+        while (err == ESP_OK && used < file->size) {
+            if (cancelled(job->request_id)) { err = ESP_ERR_INVALID_STATE; break; }
+            size_t nmax = file->size - used;
+            if (nmax > IO_BYTES) nmax = IO_BYTES;
+            int n = esp_http_client_read(client, (char *)asset->data + used, nmax);
+            if (n < 0 || esp_timer_get_time() > deadline) { err = ESP_ERR_TIMEOUT; break; }
+            if (!n) break;
+            used += n; vTaskDelay(1);
+        }
+        if (err == ESP_OK && (used != file->size || !esp_http_client_is_complete_data_received(client)))
+            err = ESP_ERR_INVALID_SIZE;
+        esp_http_client_close(client); esp_http_client_cleanup(client);
     }
-    if (err == ESP_OK && (used != file->size || !esp_http_client_is_complete_data_received(client)))
-        err = ESP_ERR_INVALID_SIZE;
-    esp_http_client_close(client); esp_http_client_cleanup(client);
     uint8_t digest[32]; size_t size = 0; char actual[65];
     if (err == ESP_OK && (psa_crypto_init() != PSA_SUCCESS ||
-        psa_hash_compute(PSA_ALG_SHA_256, pending->card, used, digest, sizeof(digest), &size) != PSA_SUCCESS || size != 32)) err = ESP_FAIL;
+        psa_hash_compute(PSA_ALG_SHA_256, asset->data, used, digest, sizeof(digest), &size) != PSA_SUCCESS || size != 32)) err = ESP_FAIL;
     if (err == ESP_OK) { hex(digest, actual); if (strcmp(actual, file->sha256)) err = ESP_ERR_INVALID_CRC; }
-    if (err == ESP_OK) pending->card_size = used;
+    if (err == ESP_OK) asset->size = used;
     return err;
+}
+static esp_err_t prepare_assets(const job_t *job, pending_t *pending, bool local)
+{
+    const ideas_package_t *p = &pending->package;
+    if (!p->presentation[0] && (!ascii_text(p->name) || !ascii_text(p->description))) return ESP_ERR_NOT_SUPPORTED;
+    const char *names[4] = {p->presentation, p->icon, p->fonts[0], p->fonts[1]};
+    for (unsigned i = 0; i < 4; ++i) if (*names[i]) {
+        int index = asset_index(p, names[i]);
+        if (index < 0) return ESP_ERR_INVALID_ARG;
+        esp_err_t err = fetch_asset(job, pending, index, local);
+        if (err != ESP_OK) return err;
+    }
+    if (p->icon[0]) {
+        const icon_t *icon = &pending->assets[asset_index(p, p->icon)];
+        const unsigned char *h = icon->data;
+        if (icon->size < 24 || memcmp(h, "\x89PNG\r\n\x1a\n", 8) || memcmp(h + 12, "IHDR", 4) ||
+            h[16] || h[17] || h[18] || !h[19] || h[19] > 96 ||
+            h[20] || h[21] || h[22] || !h[23] || h[23] > 96) return ESP_ERR_INVALID_ARG;
+    }
+    if (!p->presentation[0]) return ESP_OK;
+    ideas_display_sources_t sources = {.name = p->name, .description = p->description,
+        .locale = p->locale, .icon = p->icon, .font_count = p->font_count};
+    for (size_t i = 0; i < p->font_count; ++i) {
+        const icon_t *asset = &pending->assets[asset_index(p, p->fonts[i])];
+        sources.fonts[i] = (ideas_font_source_t){p->fonts[i], asset->data, asset->size};
+    }
+    ideas_presentation_t *display = malloc(sizeof(*display));
+    if (!display) return ESP_ERR_NO_MEM;
+    const icon_t *json = &pending->assets[asset_index(p, p->presentation)];
+    esp_err_t err = ideas_presentation_parse(json->data, json->size, &sources, display) ? ESP_OK : ESP_ERR_INVALID_ARG;
+    for (unsigned i = 0; err == ESP_OK && i < 2; ++i) {
+        size_t count = i ? IDEAS_DESCRIPTION_WIDTH * IDEAS_DESCRIPTION_HEIGHT : IDEAS_TITLE_WIDTH * IDEAS_TITLE_HEIGHT;
+        pending->pixels[i].data = heap_caps_malloc(count * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        pending->pixels[i].size = count * 2;
+        if (!pending->pixels[i].data) err = ESP_ERR_NO_MEM;
+        else if (!ideas_presentation_render(display, i, i ? 0xbdf8 : 0xffff, 0, pending->pixels[i].data, count)) err = ESP_ERR_INVALID_ARG;
+    }
+    free(display); return err;
 }
 static void preview_item(factory_idea_t *item, const ideas_package_t *p)
 {
@@ -406,21 +464,12 @@ static esp_err_t prepare_download(job_t *job)
         job->up_to_date = true;
         message("Already up to date", "The downloaded Idea is up to date.");
     } else if (err == ESP_OK) {
-        err = fetch_card(job, pending);
+        err = prepare_assets(job, pending, false);
         if (err == ESP_OK && cancelled(job->request_id)) err = ESP_ERR_INVALID_STATE;
-        unsigned long kib = (unsigned long)((remote->total_size + 1023) / 1024);
-        snprintf(pending->summary, sizeof(pending->summary), "%s%.64s | %lu KiB",
-            pending->already_downloaded ? "Downloaded: " : "Version: ", remote->version, kib);
-        if (err == ESP_OK && pending->card) {
-            const ideas_presentation_options_t options = {.request_id = job->request_id,
-                .summary = pending->summary, .already_downloaded = pending->already_downloaded,
-                .decide = factory_ideas_confirm};
-            err = ideas_presentation_open(factory_ui_handle(), pending->card, pending->card_size, &options);
-        }
     }
     free(local); return err;
 }
-static esp_err_t run_local(const job_t *job)
+static esp_err_t run_local(job_t *job)
 {
     if (job->command == IDEAS_SCAN) return scan();
     if (job->command == IDEAS_DOWNLOAD) {
@@ -435,13 +484,13 @@ static esp_err_t run_local(const job_t *job)
     esp_err_t err = ideas_store_recover(ROOT, job->code);
     if (err == ESP_OK) err = ideas_store_read(ROOT, job->code, local);
     if (job->command == IDEAS_PREVIEW) {
-        char path[IDEAS_PATH_BYTES]; const ideas_file_t *file = NULL;
-        for (size_t i = 0; err == ESP_OK && i < local->file_count; i++)
-            if (!strcmp(local->files[i].name, local->presentation)) file = &local->files[i];
-        if (err == ESP_OK && !file) err = ESP_ERR_NOT_FOUND;
-        if (err == ESP_OK) err = ideas_store_path(ROOT, job->code, file->name, path);
-        if (err == ESP_OK) err = verify_file(file, path, NULL);
-        if (err == ESP_OK) err = ideas_presentation_show(factory_ui_handle(), path);
+        job->pending = calloc(1, sizeof(*job->pending));
+        if (!job->pending) err = ESP_ERR_NO_MEM;
+        if (err == ESP_OK) {
+            job->pending->package = *local;
+            job->pending->view_only = true;
+            err = prepare_assets(job, job->pending, true);
+        }
     } else if (job->command == IDEAS_INSTALL) {
         message("Setting boot application", "Verifying downloaded files");
         if (err == ESP_OK) err = ideas_store_verify(ROOT, local, verify_file, NULL);
@@ -456,11 +505,11 @@ static esp_err_t run_local(const job_t *job)
 static void worker(void *arg)
 {
     job_t *job = arg;
-    bool preparing = job->command == IDEAS_RESOLVE || job->command == IDEAS_CHECK;
+    bool remote = job->command == IDEAS_RESOLVE || job->command == IDEAS_CHECK;
+    bool preparing = remote || job->command == IDEAS_PREVIEW;
     esp_err_t err = ESP_OK;
-    if (preparing) err = prepare_download(job);
+    if (remote) err = prepare_download(job);
     else {
-        if (job->pending) ideas_presentation_close();
         if (job->command != IDEAS_DISMISS) {
             err = factory_nand_acquire();
             if (err == ESP_OK) { err = run_local(job); factory_nand_release(); }
@@ -468,11 +517,7 @@ static void worker(void *arg)
     }
     LOCK();
     bool stale = preparing && job->request_id != s_state.preview_id;
-    if (preparing && (err != ESP_OK || stale || job->up_to_date)) {
-        UNLOCK(); ideas_presentation_close(); LOCK();
-        stale = job->request_id != s_state.preview_id;
-    }
-    if (preparing && !stale && err == ESP_OK) {
+    if (remote && !stale && err == ESP_OK) {
         for (size_t i = 0; i < s_state.count; ++i) if (!strcmp(s_state.items[i].code, job->code)) {
             factory_idea_t *item = &s_state.items[i];
             item->update_available = strcmp(item->release_id, job->pending->package.release_id) != 0;
@@ -487,7 +532,9 @@ static void worker(void *arg)
         preview_item(&s_state.preview, &s_pending->package);
         s_state.already_downloaded = s_pending->already_downloaded;
         s_state.preview_ready = true;
-        ideas_presentation_enable();
+        s_state.view_only = s_pending->view_only;
+        s_state.custom_display = s_pending->pixels[0].data != NULL;
+        s_state.has_icon = s_pending->package.icon[0] != 0;
     }
     s_state.busy = false; s_state.scanning = false;
     if (preparing) s_state.resolving = false;
@@ -517,7 +564,7 @@ esp_err_t factory_ideas_confirm(uint32_t request_id, bool download)
     job_t *job = calloc(1, sizeof(*job));
     if (!job) return ESP_ERR_NO_MEM;
     LOCK();
-    if (s_state.busy || !s_state.preview_ready || !s_pending || request_id != s_state.preview_id) {
+    if (s_state.busy || !s_state.preview_ready || !s_pending || request_id != s_state.preview_id || (download && s_pending->view_only)) {
         UNLOCK(); free(job); return ESP_ERR_INVALID_STATE;
     }
     job->command = download && !s_pending->already_downloaded ? IDEAS_DOWNLOAD : IDEAS_DISMISS;
@@ -563,13 +610,13 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     }
     job->command = command; if (code) strcpy(job->code, code);
     s_state.busy = true; s_state.command = command; s_state.scanning = command == IDEAS_SCAN;
-    if (command == IDEAS_RESOLVE || command == IDEAS_CHECK) {
+    if (command == IDEAS_RESOLVE || command == IDEAS_CHECK || command == IDEAS_PREVIEW) {
         if (++s_request_id == 0) ++s_request_id;
         s_state.preview_id = job->request_id = s_request_id;
         s_state.resolving = true; s_state.preview_ready = false; s_state.return_library = false;
-        s_state.already_downloaded = false; memset(&s_state.preview, 0, sizeof(s_state.preview));
+        s_state.already_downloaded = s_state.view_only = s_state.custom_display = s_state.has_icon = false; memset(&s_state.preview, 0, sizeof(s_state.preview));
     }
-    if (command != IDEAS_SCAN && command != IDEAS_PREVIEW) {
+    if (command != IDEAS_SCAN) {
         s_state.terminal = s_state.failed = false; s_state.total = s_state.received = 0;
         snprintf(s_state.title, sizeof(s_state.title), "%s", command == IDEAS_INSTALL ? "Setting boot application" : "Loading app information");
         snprintf(s_state.detail, sizeof(s_state.detail), "Please wait"); ++s_state.revision;
@@ -597,6 +644,23 @@ void *factory_ideas_copy_icon(const char *code, size_t *size)
         if (copy) { memcpy(copy, s_icons[i].data, s_icons[i].size); *size = s_icons[i].size; }
         break;
     }
+    UNLOCK(); return copy;
+}
+void *factory_ideas_copy_preview(uint32_t request_id, unsigned slot, size_t *size)
+{
+    if (!size || slot > 2 || !s_lock) return NULL;
+    *size = 0;
+    LOCK();
+    const icon_t *asset = NULL;
+    if (s_pending && s_state.preview_ready && s_state.preview_id == request_id) {
+        if (slot < 2) asset = &s_pending->pixels[slot];
+        else {
+            int index = asset_index(&s_pending->package, s_pending->package.icon);
+            if (index >= 0) asset = &s_pending->assets[index];
+        }
+    }
+    void *copy = asset && asset->data ? malloc(asset->size) : NULL;
+    if (copy) { memcpy(copy, asset->data, asset->size); *size = asset->size; }
     UNLOCK(); return copy;
 }
 esp_err_t factory_ideas_init(void)

@@ -169,7 +169,30 @@ esp_err_t ideas_package_parse(const char *json, size_t size, const char *code,
         if (!f || used[f - out->files] || f->size > IDEAS_MAX_ASSET_BYTES) goto done;
         strcpy(names[i], name); used[f - out->files] = true;
     }
-    for (int i = 0; i < count; i++) if (!used[i]) goto done;
+    const cJSON *fonts = get(root, "fonts");
+    if (fonts && !cJSON_IsArray(fonts)) goto done;
+    int font_count = cJSON_GetArraySize(fonts);
+    if (font_count > IDEAS_MAX_FONTS || (font_count && !out->presentation[0]) ||
+        (out->presentation[0] && !font_count)) goto done;
+    out->font_count = font_count;
+    uint64_t asset_bytes = 0;
+    for (int i = 0; i < font_count; ++i) {
+        const cJSON *name = cJSON_GetArrayItem(fonts, i);
+        if (!cJSON_IsString(name)) goto done;
+        const ideas_file_t *f = file_for(out, name->valuestring);
+        if (!f || used[f - out->files] || f->size > IDEAS_MAX_ASSET_BYTES) goto done;
+        strcpy(out->fonts[i], f->name); used[f - out->files] = true;
+    }
+    for (int i = 0; i < count; ++i) {
+        if (!used[i]) goto done;
+        bool asset = !strcmp(out->presentation, out->files[i].name) || !strcmp(out->icon, out->files[i].name);
+        for (int j = 0; j < font_count; ++j) asset |= !strcmp(out->fonts[j], out->files[i].name);
+        if (asset) asset_bytes += out->files[i].size;
+    }
+    if (asset_bytes > IDEAS_MAX_ASSET_BYTES) goto done;
+    const ideas_file_t *icon = file_for(out, out->icon), *display = file_for(out, out->presentation);
+    if (icon && icon->size > 65536) goto done;
+    if (display && display->size > 32768) goto done;
     char *encoded = cJSON_PrintUnformatted(manifest);
     if (!encoded) { err = ESP_ERR_NO_MEM; goto done; }
     if (strlen(encoded) <= IDEAS_MANIFEST_BYTES) {

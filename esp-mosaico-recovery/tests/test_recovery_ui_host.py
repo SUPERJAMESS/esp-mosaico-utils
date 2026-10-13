@@ -434,3 +434,31 @@ def test_preview_failure_never_starts_download(sim):
     sim.wait(page=8, idea_ready=False, download_calls=0, install_calls=0)
     sim.tap(240, 409)
     sim.wait(page=0)
+
+
+@pytest.mark.parametrize("sim", ["custom-preview"], indirect=True)
+def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
+    sim.tap(370, 446); sim.wait(page=5)
+    sim.tap(150, 170); sim.wait(page=6)
+    sim.tap(359, 111)  # offline information
+    sim.wait(page=9, idea_ready=True, download_calls=0)
+    sim.capture("custom-offline")
+    with Image.open(sim.directory / "custom-offline.png") as image:
+        r, g, b = image.convert("RGB").getpixel((40, 90))
+        assert r > 200 and g < 20 and b < 20
+        r, g, b = image.convert("RGB").getpixel((40, 185))
+        assert g > 200 and r < 20 and b < 20
+    sim.tap(350, 436)  # no download from read-only view
+    sim.wait(page=9, download_calls=0, install_calls=0)
+    sim.tap(120, 436); sim.wait(page=6)
+    sim.tap(125, 300); sim.wait(page=9, idea_ready=True, check_calls=1)
+    sim.tap(350, 436)
+    sim.wait(page=8, download_calls=1, install_calls=0)
+
+
+@pytest.mark.parametrize("sim", ["custom-preview-fail"], indirect=True)
+def test_display_adapter_failure_cancels_without_download(sim):
+    sim.open_bridge()
+    for _ in range(6): sim.tap(240, 350)
+    sim.tap(240, 444)
+    sim.wait(page=8, cancel_calls=1, idea_ready=False, download_calls=0)
