@@ -1,8 +1,10 @@
 # ESP-Mosaico Utils agent rules
 
 User-facing ESP-Mosaico firmware is **Vibe Mode**; **ROM Download Mode** is the
-chip download program without ESP-Iris. Keep Recovery paths, commands, protocol
-identifiers and ABI names stable. See the [firmware guide](esp-mosaico-recovery/firmware/recovery/README.md).
+chip download program without ESP-Iris. Vibe Mode sources live in
+`esp-mosaico-vibe-mode/firmware/vibe-mode` and the firmware project is `vibe-mode`.
+Keep Recovery commands, protocol identifiers and ABI names stable. See the
+[firmware guide](esp-mosaico-vibe-mode/firmware/vibe-mode/README.md).
 
 ## Repository boundaries
 
@@ -10,15 +12,15 @@ identifiers and ABI names stable. See the [firmware guide](esp-mosaico-recovery/
   Gateway, Workbench, examples, and component-level tests.
 - `mosaico-tools/` owns the ESP-Mosaico host CLI and build runner. It consumes
   the public Iris host API and product Recovery contracts.
-- `esp-mosaico-recovery/` owns retained Vibe Mode firmware, its public product
+- `esp-mosaico-vibe-mode/` owns retained Vibe Mode firmware, its public product
   ABI header, reviewed bundle, and integration tests. Legacy tool paths are removed.
 - Do not recreate a nested ESP-Iris submodule. Both products resolve from the
   same `esp-mosaico-utils` revision.
 - Keep consuming applications and workspace-specific `.mosaico.json` files in
   their application repositories. Reusable templates live in mosaico-tools/templates;
   optional GSP application components in mosaico-tools/components; the normal
-  Recovery adapter and its CMake configuration gate live in esp-mosaico-recovery.
-- Run both mosaico-tools/tests and esp-mosaico-recovery/tests for public application
+  Recovery adapter and its CMake configuration gate live in esp-mosaico-vibe-mode.
+- Run both mosaico-tools/tests and esp-mosaico-vibe-mode/tests for public application
   integration changes. These tests must not read consuming workspace internals.
 
 ## Versions
@@ -39,7 +41,7 @@ identifiers and ABI names stable. See the [firmware guide](esp-mosaico-recovery/
 
 ## Validation
 
-- Run Vibe Mode host tests from `esp-mosaico-recovery/tests`.
+- Run Vibe Mode host tests from `esp-mosaico-vibe-mode/tests`.
 - Run ESP-Iris Python tests from `ESP-Iris/components/esp_iris/tools` and keep
   Python 3.8 compatibility.
 - Run Workbench unit/build/E2E checks for frontend changes.

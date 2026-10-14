@@ -1,5 +1,0 @@
-Pillow>=10,<12
-zxing-cpp>=2.2,<3
-
-# Fixed-language publication and custom glyph roundtrips.
--r ../firmware/recovery/tools/requirements-presentation.txt

@@ -49,9 +49,9 @@ for USB startup, screenshot/pointer registration and first-frame health acceptan
 GSP canvas placeholder or external resource partition. Host and native use the
 same `raylib_lite_game_module_v1()` implementation.
 
-Normal apps include `esp-mosaico-recovery/cmake/mosaico_idf_project.cmake`
+Normal apps include `esp-mosaico-vibe-mode/cmake/mosaico_idf_project.cmake`
 before project(), supplying MOSAICO_BSP_ROOT for the board-owned splash handoff.
-Add `esp-mosaico-recovery/components/esp_mosaico_app_recovery` to
+Add `esp-mosaico-vibe-mode/components/esp_mosaico_app_recovery` to
 EXTRA_COMPONENT_DIRS and call iris_ota_support_start(). This component has no
 GSP, BSP or display dependency. Its configure gate validates the effective
 configuration, including existing sdkconfig files; the OTA writer stays in Vibe Mode.
@@ -112,11 +112,11 @@ manifest names are rejected. Rebuild old applications and bundles with the
 matching tools instead of relabeling their manifests.
 
 Vibe Mode's `product_contract.json` owns host identity and fixed partition values.
-The C ABI remains in `esp-mosaico-recovery/include/mosaico_recovery_contract.h`;
+The C ABI remains in `esp-mosaico-vibe-mode/include/mosaico_recovery_contract.h`;
 contract tests compare the product manifest, configuration and partition tables.
 
 Host validation: run `pytest mosaico-tools/tests` and
-`pytest esp-mosaico-recovery/tests/test_*.py` separately. Recovery UI tests also
+`pytest esp-mosaico-vibe-mode/tests/test_*.py` separately. Recovery UI tests also
 require its pinned GSPC 0.5.0 and simulator 1.4.0. Hardware acceptance remains
 separate from these host checks.
 No consumer workspace source is needed. Old workspace paths have no forwarding

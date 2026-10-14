@@ -4,7 +4,7 @@ The [0.2 software specification (中文)](docs/mosaico-tools-software-spec-zh.md
 and [migration guide (中文)](docs/migration-0.2.md) describe the breaking release.
 The source uses Gateway API 2 and the new test-partition product contract.
 Default updates validate the matching reviewed 0.2.0 base bundle; see the
-[0.2 validation record (中文)](../esp-mosaico-recovery/docs/validation-0.2.md).
+[0.2 validation record (中文)](../esp-mosaico-vibe-mode/docs/validation-0.2.md).
 Old devices and old bundles require their separate 0.1 environment.
 
 Workspace-consumed command-line tools for ESP-Mosaico development and device
@@ -15,7 +15,7 @@ Python environment.
 The user-facing retained firmware is **Vibe Mode** (`firmware_mode=recovery`).
 **ROM Download Mode** runs the chip download program without ESP-Iris.
 `iris test enter-recovery` enters Vibe Mode; `recover` writes base firmware.
-See the [firmware guide](../esp-mosaico-recovery/firmware/recovery/README.md).
+See the [firmware guide](../esp-mosaico-vibe-mode/firmware/vibe-mode/README.md).
 
 Local Gateways are shared project services. Device commands start or reuse one
 and retain a renewable client lease for their duration. Every
@@ -124,7 +124,7 @@ aliases. `iris logs` follows by default (`--snapshot` prints retained logs only)
 The consuming repository owns a `.mosaico.json` file with `schema_version: 2`.
 All configured relative
 paths are resolved from the directory containing that file. Vibe Mode firmware
-source and its reviewed bundle live under `../esp-mosaico-recovery/firmware/recovery` and are resolved
+source and its reviewed bundle live under `../esp-mosaico-vibe-mode/firmware/vibe-mode` and are resolved
 from this checkout so the CLI and Vibe Mode implementation are versioned
 together. ESP-Iris is included alongside this project in the workspace, making
 the workspace the single source of its device-side Iris implementation.
@@ -169,7 +169,7 @@ template configuration takes precedence; preserved filenames are reported.
 Output goes under `workspace.projects_dir`;
 `default_project` is unchanged. The generic renderer handles path variables,
 validated replacements, exclusive creation and failure cleanup without assuming
-an application layout. See [the template format](../esp-mosaico-recovery/docs/project-template.md).
+an application layout. See [the template format](../esp-mosaico-vibe-mode/docs/project-template.md).
 
 Names use 1–31 ASCII letters, digits or underscores, starting with a letter,
 and cannot be Windows reserved names. Existing destinations are rejected.
@@ -205,7 +205,7 @@ The pairing token and other retained NVS state are not erased.
 Run the self-contained tool tests with:
 
 ```sh
-python3 -m pytest -q ../esp-mosaico-recovery/tests
+python3 -m pytest -q ../esp-mosaico-vibe-mode/tests
 ```
 
 

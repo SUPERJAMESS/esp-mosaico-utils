@@ -681,7 +681,7 @@ def install(arguments: Any, context: RunContext) -> dict[str, Any]:
     recovery_source = getattr(arguments, "recovery_source", "reviewed")
     recovery_directory = workspace.recovery_dir
     if recovery_source == "current":
-        recovery_directory = workspace.recovery_project / "build-mosaico-recovery" / "recovery-current"
+        recovery_directory = workspace.recovery_project / "build-mosaico-vibe-mode" / "recovery-current"
         context.status("validation: explicitly using the current-source Vibe Mode candidate")
     recovery_manifest = load_bundle(recovery_directory, model.target)
     if artifacts.target != model.target:
@@ -908,7 +908,7 @@ def recover(arguments: Any, context: RunContext) -> dict[str, Any]:
                 f"hardware_mac={selected_hardware_mac}"
             )
 
-    build_dir = recovery_project / "build-mosaico-recovery"
+    build_dir = recovery_project / "build-mosaico-vibe-mode"
     plan = {
         "command": "recover",
         "status": "dry_run" if arguments.dry_run else "planned",

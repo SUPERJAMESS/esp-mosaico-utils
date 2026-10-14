@@ -9,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 IRIS = ROOT / "ESP-Iris"
-RECOVERY = ROOT / "esp-mosaico-recovery"
+RECOVERY = ROOT / "esp-mosaico-vibe-mode"
 
 
 def fail(message: str) -> None:
@@ -24,14 +24,14 @@ def main() -> int:
         IRIS / "components" / "esp_iris" / "tools" / "system_update_bundle.py",
         ROOT / "mosaico-tools" / "mosaico.py",
         ROOT / "mosaico-tools" / "tools" / "mosaico_cli" / "__init__.py",
-        RECOVERY / "firmware" / "recovery" / "prebuilt" / "recovery" / "manifest.json",
+        RECOVERY / "firmware" / "vibe-mode" / "prebuilt" / "recovery" / "manifest.json",
     )
     for path in required:
         if not path.is_file():
             fail(f"required file is missing: {path.relative_to(ROOT)}")
             errors += 1
 
-    manifest = RECOVERY / "firmware" / "recovery" / "main" / "idf_component.yml"
+    manifest = RECOVERY / "firmware" / "vibe-mode" / "main" / "idf_component.yml"
     override = re.search(
         r"^\s*override_path:\s*(\S+)\s*$",
         manifest.read_text(encoding="utf-8"),

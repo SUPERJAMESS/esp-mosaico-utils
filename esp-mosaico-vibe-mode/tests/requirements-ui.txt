@@ -1,0 +1,5 @@
+Pillow>=10,<12
+zxing-cpp>=2.2,<3
+
+# Fixed-language publication and custom glyph roundtrips.
+-r ../firmware/vibe-mode/tools/requirements-presentation.txt

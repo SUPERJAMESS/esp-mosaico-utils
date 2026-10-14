@@ -3,7 +3,7 @@
 # 给已有应用添加 Vibe Mode 和 Iris 日志
 
 Vibe Mode 是运行 ESP-Iris 的保留固件，与芯片 ROM 下载模式不同；
-技术名称及完整固件说明见[Vibe Mode 指南](../esp-mosaico-recovery/firmware/recovery/README.md)。
+技术名称及完整固件说明见[Vibe Mode 指南](../esp-mosaico-vibe-mode/firmware/vibe-mode/README.md)。
 
 迁移可以分开做：**先修改分区表、添加 Vibe Mode 镜像；需要业务日志时，再接入
 Iris 组件。** 保留原工程目录、业务代码、UI 框架和构建方式，无需先迁成示例工程。
@@ -15,7 +15,7 @@ Iris 组件。** 保留原工程目录、业务代码、UI 框架和构建方式
 ### 1. 在分区表中留出前 2 MiB
 
 将 Flash 的 `[0x000000, 0x200000)` 留给 Vibe Mode 及其系统数据。下面是本仓库
-[预置 Vibe Mode](../esp-mosaico-recovery/firmware/recovery/prebuilt/recovery/manifest.json)
+[预置 Vibe Mode](../esp-mosaico-vibe-mode/firmware/vibe-mode/prebuilt/recovery/manifest.json)
 配套的系统分区，可合入现有 `partitions.csv`：
 
 ```csv

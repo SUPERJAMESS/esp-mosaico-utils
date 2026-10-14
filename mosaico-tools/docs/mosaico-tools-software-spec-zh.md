@@ -15,7 +15,7 @@
 mosaico-tools 提供工作区入口 `mosaico.py`、工程与游戏模板、构建集成、设备选择、产品更新和证据流程。工具使用 ESP-Iris 的公共主机 API 与 Recovery 产品契约，不维护第二套设备协议、Flash 写入策略或保留固件实现。
 
 - [ESP-Iris 规格](../../ESP-Iris/docs/esp-iris-software-spec-zh.md)拥有 console、控制／数据链路、Gateway、Workbench、通用 RPC、媒体、文件、诊断与主机 API。
-- [Recovery 规格](../../esp-mosaico-recovery/docs/esp-mosaico-recovery-software-spec-zh.md)拥有 Vibe Mode、分区、启动、应用适配 ABI、产品更新后端与基础包。
+- [Vibe Mode 规格](../../esp-mosaico-vibe-mode/docs/esp-mosaico-vibe-mode-software-spec-zh.md)拥有 Vibe Mode、分区、启动、应用适配 ABI、产品更新后端与基础包。
 - 本规格拥有工程入口、默认流程、原生工具互操作、操作编排、用户提示及 0.1 → 0.2 文档迁移。
 
 本文中的“必须／不得”为验收要求。0.2 参数、输出、配置和制品契约已在命令帮助、README 与公共集成指南中同步；不以规格文字替代实机验证。
@@ -196,7 +196,7 @@ mosaico-tools 0.2 仅使用配套 Iris 0.2 Gateway／设备 API 和新的产品�
 
 1. 记录旧工作区及 utils revision、硬件身份、固件和布局；按需用旧工具导出项目配置、日志、Core Dump、制品及业务数据，关闭旧 Gateway 并释放端口。
 2. 保留旧环境归档，安装配套 0.2 工具与 Iris；新建独立配置和状态目录，依据新 Schema 手动重建 `.mosaico.json` 和连接设置，不自动导入旧数据库。
-3. 依据新模板和 [Recovery 规格](../../esp-mosaico-recovery/docs/esp-mosaico-recovery-software-spec-zh.md)修改旧工程的公共集成入口、分区及 ABI 声明，重新构建应用和资源；替换脚本中已移除的入口，不保留本地兼容转发层。
+3. 依据新模板和 [Vibe Mode 规格](../../esp-mosaico-vibe-mode/docs/esp-mosaico-vibe-mode-software-spec-zh.md)修改旧工程的公共集成入口、分区及 ABI 声明，重新构建应用和资源；替换脚本中已移除的入口，不保留本地兼容转发层。
 4. 准备完整 0.2 基础包及明确的保留／重建数据清单，通过 recover 的 ROM 路径完成跨代安装。该步骤不要求新 Gateway 先连上旧 Iris。
 5. 验证同一硬件、Vibe Mode 新启动和目标产品契约，按新规则重新配对、创建 Token 和权限，再安装正常应用。
 6. 验证默认更新闭环、控制截图、数据自动绑定、启动日志与复位，以及不启动 Gateway 的原生 monitor；按产品路径验证原生 flash 和 JTAG。
@@ -229,13 +229,13 @@ mosaico-tools 0.2 仅使用配套 Iris 0.2 Gateway／设备 API 和新的产品�
 Gateway API 为 2；原生 flash 清单检查替代旧的整体禁用。正常应用与 test
 维护分区的启动契约、schema 3 基础包和默认 Mosaico 更新流程已完成验证。
 
-主机、模拟后端与三块设备的结果见[0.2 验证记录](../../esp-mosaico-recovery/docs/validation-0.2.md)。
+主机、模拟后端与三块设备的结果见[0.2 验证记录](../../esp-mosaico-vibe-mode/docs/validation-0.2.md)。
 JTAG 按要求跳过；外部 Bridge 0.2 服务及其他未测场景单独标记。标准 monitor
 无需 Iris 扩展，S31 High-Speed USB 烧录后首次枚举的时序限制须按实测记录说明。
 
 - [当前工具说明](../README.md)
 - [当前应用集成](application-integration.md)
 - [当前 System Update 构建集成](../cmake/system_update.cmake)
-- [产品契约](../../esp-mosaico-recovery/product_contract.json)
-- [Vibe Mode 当前功能](../../esp-mosaico-recovery/firmware/recovery/README.md)
+- [产品契约](../../esp-mosaico-vibe-mode/product_contract.json)
+- [Vibe Mode 当前功能](../../esp-mosaico-vibe-mode/firmware/vibe-mode/README.md)
 - [模块边界](../../docs/component-boundaries.md)

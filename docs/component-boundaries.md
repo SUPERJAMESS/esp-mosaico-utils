@@ -1,13 +1,14 @@
 # Component boundaries
 
-ESP-Mosaico calls its retained firmware **Vibe Mode**. Recovery remains the
-technical name of its component, ABI and protocol identifiers.
+ESP-Mosaico calls its retained firmware **Vibe Mode**. Its product directory is
+`esp-mosaico-vibe-mode` and its firmware project is `firmware/vibe-mode`.
+Recovery remains the name used by existing ABI and protocol identifiers.
 
 | Owner | Responsibilities | Public contracts |
 | --- | --- | --- |
 | ESP-Iris | Transport, device sessions, Gateway lifetime and ownership, operations, reconnect, Workbench | Wire protocol; HTTP API/capabilities; `iris_gateway.client` host API v1 |
 | mosaico-tools | Workspace selection, templates, GSP integration, build/artifact orchestration, product preconditions, evidence and user CLI | `mosaico.py`; `.mosaico.json` |
-| esp-mosaico-recovery | Retained Vibe Mode firmware, normal-application Recovery adapter, reviewed images and persistent product format | `include/mosaico_recovery_contract.h`; reviewed manifest |
+| esp-mosaico-vibe-mode | Retained Vibe Mode firmware, normal-application Recovery adapter, reviewed images and persistent product format | `include/mosaico_recovery_contract.h`; reviewed manifest |
 | Application workspace | User-created application, dependency selection and UI policy | Product configuration and normal firmware |
 
 Dependencies point from product tools and firmware adapters toward these public
@@ -73,9 +74,11 @@ payloads, so the refactor does not require a firmware update.
 
 New launchers point to `mosaico-tools/mosaico.py`; its implementation and build
 runner live under `mosaico-tools/tools` and `mosaico-tools/skills`. Vibe Mode source,
-reviewed bundles, contracts and integration tests retain their paths.
-The old Vibe Mode launcher, Python package path and build-runner script are
-forwarding shims with no duplicate implementation or independent version.
+reviewed bundles, contracts and integration tests live under `esp-mosaico-vibe-mode`;
+the firmware source is `firmware/vibe-mode`. Consumers must update their includes
+and source paths and configure fresh build directories after the rename.
+The old Vibe Mode launcher, Python forwarding package and build-runner entrypoint
+have been removed.
 
 BSP examples own complete Mosaico games and their behavior tests; the engine owns
 rendering/runtime and Host implementation tests. Shared application integration

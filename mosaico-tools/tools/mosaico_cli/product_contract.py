@@ -8,7 +8,7 @@ from pathlib import Path
 from .errors import BuildError
 
 # The retained Recovery product owns identity and fixed layout values.
-CONTRACT_PATH = Path(__file__).resolve().parents[3] / "esp-mosaico-recovery/product_contract.json"
+CONTRACT_PATH = Path(__file__).resolve().parents[3] / "esp-mosaico-vibe-mode/product_contract.json"
 PRODUCT_CONTRACT = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
 COMPATIBILITY = PRODUCT_CONTRACT["compatibility"]
 

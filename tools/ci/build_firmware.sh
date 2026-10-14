@@ -73,9 +73,9 @@ build_system() {
     build_iris system-update test_apps/system_update
     build_iris disabled test_apps/disabled
 
-    local recovery_build="$repository_root/build-ci-recovery-factory"
+    local recovery_build="$repository_root/build-ci-vibe-mode"
     idf.py \
-        -C "$repository_root/esp-mosaico-recovery/firmware/recovery" \
+        -C "$repository_root/esp-mosaico-vibe-mode/firmware/vibe-mode" \
         -B "$recovery_build" \
         -D "SDKCONFIG=$recovery_build/sdkconfig" \
         build

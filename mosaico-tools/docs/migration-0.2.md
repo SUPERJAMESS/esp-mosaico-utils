@@ -10,7 +10,7 @@ Ideas 账户凭据和续传记录也在该目录下，须重新登录；旧目�
 Python 依赖环境与可变设备状态分开；不再复用源码目录的旧 `.venv`。
 
 使用工具所属目录的 `mosaico-tools/mosaico.py`，或工作区的对应 launcher。
-旧 `esp-mosaico-recovery/mosaico.py`、其 Python 转发包和旧构建脚本路径已移除。
+旧 `esp-mosaico-vibe-mode/mosaico.py`、其 Python 转发包和旧构建脚本路径已移除。
 应用接入 [公共集成入口](application-integration.md)，使用新的 test 分区契约后重建。
 不能仅替换旧包的版本字符串。
 
@@ -52,7 +52,7 @@ map 归档到项目 Gateway，以便后续按完整 ELF 哈希解码崩溃。仅
 已有匹配 0.2 基础固件时，可关闭所属 Gateway，直接使用原版 monitor 或原生烧录。
 空白设备、第三方完整烧录后的设备及旧布局设备先执行 recover，再核验实时身份、
 模式与契约。迁移擦写范围和启动意图详见
-[Recovery 迁移指南](../../esp-mosaico-recovery/docs/migration-0.2.md)。
+[Vibe Mode 迁移指南](../../esp-mosaico-vibe-mode/docs/migration-0.2.md)。
 
 仓库内评审基础包已更新为 0.2.0，普通 `recover` 和 `app-update` 默认使用它。
 验证后续源码候选使用 `recover --source current`，通过验收后再整体替换评审包。

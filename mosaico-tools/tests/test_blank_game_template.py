@@ -73,7 +73,7 @@ def test_blank_creation_uses_project_identity_without_example_assets(workspace, 
         (project / "partitions.csv").read_text().splitlines()) if row and not row[0].startswith("#")]
     partitions = {name: [kind, sub, int(offset, 0), int(size, 0), flags]
                   for name, kind, sub, offset, size, flags in rows}
-    contract = json.loads((TOOLS.parent / "esp-mosaico-recovery/product_contract.json").read_text())
+    contract = json.loads((TOOLS.parent / "esp-mosaico-vibe-mode/product_contract.json").read_text())
     for name, values in contract["immutable_layout"].items():
         assert partitions[name] == values
     assert set(partitions) == {*contract["immutable_layout"], "nvs", "main_app"}

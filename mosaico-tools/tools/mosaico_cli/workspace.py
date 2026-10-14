@@ -42,13 +42,13 @@ class WorkspaceConfig:
 
     @property
     def recovery_project(self) -> Path:
-        """Return the Recovery firmware source bundled with this tool version."""
-        recovery_root = self.tool_root.parent / "esp-mosaico-recovery"
-        return recovery_root / "firmware" / "recovery"
+        """Return the Vibe Mode firmware source bundled with this tool version."""
+        recovery_root = self.tool_root.parent / "esp-mosaico-vibe-mode"
+        return recovery_root / "firmware" / "vibe-mode"
 
     @property
     def recovery_dir(self) -> Path:
-        """Return the reviewed Recovery bundle bundled with this tool version."""
+        """Return the reviewed Vibe Mode bundle bundled with this tool version."""
         return self.recovery_project / "prebuilt" / "recovery"
 
     @property

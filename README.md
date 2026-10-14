@@ -5,8 +5,9 @@ link and Vibe Mode toolchain. It intentionally starts with a clean Git
 history while recording the source revisions used for the migration.
 
 Vibe Mode runs ESP-Iris for application installation and device maintenance.
-ROM Download Mode is the chip-level flashing path. The retained firmware keeps
-its technical name, Recovery, in directories, commands and protocol identifiers.
+ROM Download Mode is the chip-level flashing path. The retained firmware lives
+in `esp-mosaico-vibe-mode/firmware/vibe-mode` and builds as `vibe-mode`.
+Recovery commands, protocol identifiers and ABI names remain stable.
 
 ## Repository layout
 
@@ -14,7 +15,7 @@ its technical name, Recovery, in directories, commands and protocol identifiers.
 | --- | --- | --- |
 | `ESP-Iris/` | ESP-Iris component, Developer Gateway, and Web Workbench | `0.1.x` |
 | `mosaico-tools/` | ESP-Mosaico host CLI and build runner | `0.1.x` |
-| `esp-mosaico-recovery/` | Vibe Mode firmware and Recovery ABI | `0.1` |
+| `esp-mosaico-vibe-mode/` | Vibe Mode firmware and Recovery ABI | `0.1` |
 
 The release version of `mosaico-tools` describes the host toolchain.
 The embedded Vibe Mode firmware keeps its independent version. New source
@@ -36,7 +37,7 @@ from that checkout. For ESP-Mosaico-Vibe the intended layout is:
 submodule/esp-mosaico-utils/
 ├── ESP-Iris/
 ├── mosaico-tools/
-└── esp-mosaico-recovery/
+└── esp-mosaico-vibe-mode/
 ```
 
 Run device commands through the consuming workspace's root `mosaico.py`. The
@@ -54,7 +55,7 @@ Create a Python environment and install the ESP-Iris host test dependencies,
 then run:
 
 ```sh
-python -m pytest -q esp-mosaico-recovery/tests
+python -m pytest -q esp-mosaico-vibe-mode/tests
 cd ESP-Iris/components/esp_iris/tools
 python -m pytest -q --ignore=tests/e2e
 ```

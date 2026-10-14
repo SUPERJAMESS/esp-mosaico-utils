@@ -8,7 +8,7 @@ import venv
 import pytest
 
 UTILS_ROOT = Path(__file__).resolve().parents[2]
-RECOVERY = UTILS_ROOT / "esp-mosaico-recovery/firmware/recovery"
+RECOVERY = UTILS_ROOT / "esp-mosaico-vibe-mode/firmware/vibe-mode"
 
 
 def test_recovery_bootstraps_without_python_gsp_package(tmp_path):
