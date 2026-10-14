@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ideas_internal.h"
+#include "factory_system_update.h"
 
 void ideas_hex(const uint8_t digest[32], char out[65])
 {
@@ -11,9 +12,8 @@ void ideas_hex(const uint8_t digest[32], char out[65])
     out[64] = 0;
 }
 
-esp_err_t ideas_verify_file(const ideas_file_t *file, const char *path, void *ctx)
+static esp_err_t verify_file(const ideas_file_t *file, const char *path, ideas_context_t *ctx)
 {
-    (void)ctx;
     struct stat st;
     if (stat(path, &st) || !S_ISREG(st.st_mode) || (uint64_t)st.st_size != file->size)
         return ESP_ERR_INVALID_SIZE;
@@ -32,6 +32,12 @@ esp_err_t ideas_verify_file(const ideas_file_t *file, const char *path, void *ct
             : ESP_FAIL;
     size_t n, total = 0;
     while (err == ESP_OK && (n = fread(buffer, 1, IO_BYTES, f))) {
+        if (ctx) {
+            xSemaphoreTake(ctx->lock, portMAX_DELAY);
+            ctx->state->received += n;
+            if (ctx->cancel_requested) err = ESP_ERR_INVALID_STATE;
+            xSemaphoreGive(ctx->lock);
+        }
         total += n;
         if (total > file->size || psa_hash_update(&hash, buffer, n) != PSA_SUCCESS)
             err = ESP_FAIL;
@@ -53,6 +59,16 @@ esp_err_t ideas_verify_file(const ideas_file_t *file, const char *path, void *ct
     fclose(f);
     free(buffer);
     return err;
+}
+
+esp_err_t ideas_verify_file(const ideas_file_t *file, const char *path, void *unused)
+{
+    (void)unused;
+    return verify_file(file, path, NULL);
+}
+static esp_err_t prepare_file(const ideas_file_t *file, const char *path, void *ctx)
+{
+    return verify_file(file, path, ctx);
 }
 
 esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected)
@@ -88,6 +104,30 @@ esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected)
     return err;
 }
 
+/* Caller holds the NOR read lease. The parsed descriptor is already bounded
+ * and validated; include resources when deciding whether a write can be skipped. */
+esp_err_t ideas_verify_installed(const ideas_package_t *package)
+{
+    cJSON *manifest = cJSON_Parse(package->manifest);
+    if (!manifest) return ESP_ERR_NO_MEM;
+    cJSON *components = cJSON_GetObjectItem(manifest, "components"), *component;
+    esp_err_t err = cJSON_IsArray(components) ? ESP_OK : ESP_ERR_INVALID_ARG;
+    cJSON_ArrayForEach(component, components) {
+        const cJSON *offset = cJSON_GetObjectItem(component, "target_offset");
+        const cJSON *size = cJSON_GetObjectItem(component, "size");
+        const char *hash = cJSON_GetStringValue(cJSON_GetObjectItem(component, "sha256"));
+        if (!cJSON_IsNumber(offset) || !cJSON_IsNumber(size) || !hash || strlen(hash) != 64 ||
+            offset->valuedouble < 0 || size->valuedouble <= 0 ||
+            offset->valuedouble + size->valuedouble > package->flash_size) {
+            err = ESP_ERR_INVALID_ARG; break;
+        }
+        err = ideas_flash_hash((uint32_t)offset->valuedouble, (uint32_t)size->valuedouble, hash);
+        if (err != ESP_OK) break;
+    }
+    cJSON_Delete(manifest);
+    return err;
+}
+
 bool ideas_boot_record(boot_record_t *record)
 {
     nvs_handle_t nvs;
@@ -99,8 +139,9 @@ bool ideas_boot_record(boot_record_t *record)
     nvs_close(nvs);
     const esp_partition_t *boot = esp_ota_get_boot_partition();
     if (err != ESP_OK || size != sizeof(*record) || record->schema != 1 ||
-        !memchr(record->code, 0, sizeof(record->code)) || !ideas_code_valid(record->code) ||
-        !memchr(record->application_id, 0, sizeof(record->application_id)) || record->image[64] ||
+        !memchr(record->code, 0, sizeof(record->code)) || !ideas_local_code_valid(record->code) ||
+        !memchr(record->application_id, 0, sizeof(record->application_id)) ||
+        !memchr(record->release_id, 0, sizeof(record->release_id)) || record->image[64] ||
         record->layout[64] || !boot || boot->address != record->offset ||
         record->offset != 0x210000 || !record->size || record->size > 16U * 1024U * 1024U)
         return false;
@@ -150,10 +191,15 @@ esp_err_t ideas_scan(ideas_context_t *ctx)
     struct dirent *entry;
     size_t count = 0, invalid = 0, examined = 0;
     while (dir && examined++ < 64 && (entry = readdir(dir))) {
-        if (!ideas_code_valid(entry->d_name))
+        if (!ideas_local_code_valid(entry->d_name))
             continue;
-        if (ideas_store_recover(ROOT, entry->d_name) != ESP_OK ||
-            ideas_store_read(ROOT, entry->d_name, p) != ESP_OK) {
+        esp_err_t recovered = ideas_store_recover(ROOT, entry->d_name);
+        char base[IDEAS_PATH_BYTES];
+        snprintf(base, sizeof(base), "%s/%.6s", ROOT, entry->d_name);
+        struct stat st;
+        if (recovered == ESP_OK && stat(base, &st) && errno == ENOENT)
+            continue;
+        if (recovered != ESP_OK || ideas_store_read(ROOT, entry->d_name, p) != ESP_OK) {
             invalid++;
             continue;
         }
@@ -209,6 +255,16 @@ esp_err_t ideas_scan(ideas_context_t *ctx)
     if (dir)
         closedir(dir);
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    for (size_t i = 0; i < count; ++i)
+        for (size_t n = 0; n < ctx->state->count; ++n)
+            if (!strcmp(items[i].code, ctx->state->items[n].code)) {
+                items[i].queued = ctx->state->items[n].queued;
+                if (!strcmp(items[i].release_id, ctx->state->items[n].release_id)) {
+                    items[i].update_available = ctx->state->items[n].update_available;
+                    strcpy(items[i].latest_version, ctx->state->items[n].latest_version);
+                }
+                break;
+            }
     for (size_t i = 0; i < IDEAS_MAX_ITEMS; i++) {
         free(ctx->icons[i].data);
         ctx->icons[i] = icons[i];
@@ -219,6 +275,14 @@ esp_err_t ideas_scan(ideas_context_t *ctx)
     ctx->state->scan_error = ESP_OK;
     ++ctx->state->generation;
     xSemaphoreGive(ctx->lock);
+    uint64_t total = 0, used = 0;
+    if (app_storage_info(&total, &used) == ESP_OK) {
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        ctx->state->storage_total = total;
+        ctx->state->storage_used = used;
+        xSemaphoreGive(ctx->lock);
+    }
+    ideas_development_status(ctx);
     free(items);
     free(p);
     return ESP_OK;
@@ -228,15 +292,20 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job)
 {
     if (job->command == IDEAS_SCAN)
         return ideas_scan(ctx);
+    if (job->command == IDEAS_DELETE)
+        return ideas_delete(ctx, job->code);
+    if (job->command == IDEAS_SAVE_DEVELOPMENT)
+        return ideas_save_development(ctx);
     if (job->command == IDEAS_DOWNLOAD) {
         pending_t *p = job->pending;
         ideas_message(ctx, "Downloading Idea", "Saving and verifying files in NAND");
-        esp_err_t err = ideas_store_download(ROOT, p->json, p->json_size, &p->package,
-                                             ideas_fetch_file, ideas_verify_file, p);
+        esp_err_t err = ideas_check_space(p->package.total_size);
+        if (err == ESP_OK) err = ideas_store_download_gated(ROOT, p->json, p->json_size, &p->package,
+                                             ideas_fetch_file, ideas_verify_file, p, ideas_commit_download);
         if (err == ESP_OK) {
             (void)ideas_scan(ctx);
             ideas_message(ctx, "Download complete",
-                          "Saved in My Ideas.\nSelect it to set as boot app.");
+                          "Saved in My Ideas.\nChoose Open to run it.");
         }
         return err;
     }
@@ -255,19 +324,43 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job)
             job->pending->view_only = true;
             err = ideas_prepare_assets(ctx, job, job->pending, true);
         }
-    } else if (job->command == IDEAS_INSTALL) {
+    } else if (job->command == IDEAS_INSTALL || job->command == IDEAS_OPEN) {
         ideas_message(ctx, "Setting boot application", "Verifying downloaded files");
-        if (err == ESP_OK)
-            err = ideas_store_verify(ROOT, local, ideas_verify_file, NULL);
+        if (err == ESP_OK) {
+            xSemaphoreTake(ctx->lock, portMAX_DELAY);
+            ctx->state->total = local->total_size;
+            ctx->state->received = 0;
+            xSemaphoreGive(ctx->lock);
+            err = ideas_store_verify(ROOT, local, prepare_file, ctx);
+        }
+        /* The admission gate is the last cancellable point before NOR writes. */
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        if (ctx->cancel_requested) err = ESP_ERR_INVALID_STATE;
+        ctx->state->cancellable = false;
+        xSemaphoreGive(ctx->lock);
         char path[IDEAS_PATH_BYTES];
         if (err == ESP_OK)
             err = ideas_store_path(ROOT, job->code, "manifest.json", path);
-        if (err == ESP_OK)
+        boot_record_t boot;
+        bool current = false;
+        if (job->command == IDEAS_OPEN && err == ESP_OK) {
+            err = factory_system_update_read_acquire();
+            if (err == ESP_OK) {
+                current = ideas_boot_record(&boot) && !strcmp(boot.code, local->code) &&
+                          !strcmp(boot.release_id, local->release_id) &&
+                          ideas_verify_installed(local) == ESP_OK;
+                if (current) esp_restart();
+                factory_system_update_read_release();
+            }
+        }
+        if (err == ESP_OK && !current)
             err = factory_nand_install_idea(path, local->manifest, ideas_save_boot, local);
         if (err == ESP_OK)
             ideas_message(ctx, "Boot application ready",
                           "Starts on next power-on.\nRestart to run it now.");
         (void)ideas_scan(ctx);
+        if (err == ESP_OK && job->command == IDEAS_OPEN && !current)
+            esp_restart();
     }
     free(local);
     return err;

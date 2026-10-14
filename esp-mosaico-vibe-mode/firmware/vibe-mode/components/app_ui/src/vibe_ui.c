@@ -16,13 +16,13 @@ static VIBE_STATE_STORAGE vibe_ui_t s_controller;
 #define GSP_BUNDLE_ENABLE_RAW_IDS
 #include "bundle_gsp.h"
 
-#define TEXT(s, name, value) esp_gsp_set_text((s)->ui, GSP_VIBE_BIND_##name, value)
+#define TEXT(s, name, value) esp_gsp_set_text((s)->ui, GSP_VIBE_BIND_##name, vibe_translate(s, value))
 static void format(vibe_ui_t *s, uint16_t bind, const char *fmt, ...)
 {
     char text[192];
     va_list args;
     va_start(args, fmt);
-    vsnprintf(text, sizeof(text), fmt, args);
+    vsnprintf(text, sizeof(text), vibe_translate(s, fmt), args);
     va_end(args);
     (void)esp_gsp_set_text(s->ui, bind, text);
 }
@@ -132,7 +132,16 @@ static void show(vibe_ui_t *s, vibe_page_t page)
         GSP_VIBE_BIND_BRIDGE_VISIBLE,   GSP_VIBE_BIND_NAND_VISIBLE,
         GSP_VIBE_BIND_CONFIRM_VISIBLE,  GSP_VIBE_BIND_UPDATE_VISIBLE,
         GSP_VIBE_BIND_RESULT_VISIBLE,   GSP_VIBE_BIND_IDEA_INFO_VISIBLE,
+        GSP_VIBE_BIND_DEVELOP_VISIBLE, GSP_VIBE_BIND_SETTINGS_VISIBLE,
+        GSP_VIBE_BIND_DISPLAY_VISIBLE, GSP_VIBE_BIND_LANGUAGE_VISIBLE,
+        GSP_VIBE_BIND_SHARED_VISIBLE, GSP_VIBE_BIND_SHARED_EDITOR_VISIBLE,
+        GSP_VIBE_BIND_ABOUT_VISIBLE, GSP_VIBE_BIND_RESET_VISIBLE,
+        GSP_VIBE_BIND_WELCOME_VISIBLE, GSP_VIBE_BIND_GRID_VISIBLE,
+        GSP_VIBE_BIND_OPEN_CONFIRM_VISIBLE, GSP_VIBE_BIND_SLEEP_VISIBLE,
+        GSP_VIBE_BIND_BOOT_TIP_VISIBLE, GSP_VIBE_BIND_DELETE_CONFIRM_VISIBLE,
+        GSP_VIBE_BIND_HELP_VISIBLE, GSP_VIBE_BIND_GUIDE_VISIBLE,
     };
+    if (!vibe_product_leave(s, page)) return;
     const vibe_page_t previous = s->page;
     if (previous == VIBE_IDEA_INFO && page != VIBE_IDEA_INFO)
         clear_preview(s);
@@ -145,6 +154,7 @@ static void show(vibe_ui_t *s, vibe_page_t page)
     }
     if (page != VIBE_WIFI && page != VIBE_PASSWORD)
         s->download_pending = false;
+    if (previous != page) s->page_enter_tick = s->tick;
     s->page = page;
     /* Authored layers start with only HOME visible. Update only the two
      * participating layers, avoiding redundant visibility invalidations. */
@@ -159,6 +169,7 @@ static void show(vibe_ui_t *s, vibe_page_t page)
         if (previous != page)
             (void)command(s, VIBE_SCAN_WIFI, NULL, NULL);
     }
+    (void)esp_gsp_set_visible(s->ui, GSP_VIBE_BIND_BUNDLES_VISIBLE, page == VIBE_NAND);
     if (page == VIBE_NAND)
         (void)esp_gsp_list_refresh(s->ui, s->bundles);
 }
@@ -204,18 +215,30 @@ static bool ascii_text(const char *text)
 static gsp_err_t bundle_row(esp_gsp_handle_t ui, esp_gsp_row_t row, uint32_t index, void *ctx)
 {
     vibe_ui_t *s = ctx;
+    index = vibe_bundle_index(s, index);
     if (index >= s->snapshot.bundle_count)
         return GSP_ERR_INVALID_ARG;
     const vibe_bundle_t *bundle = &s->snapshot.bundles[index];
     char detail[128];
-    snprintf(detail, sizeof(detail), "%s | %.40s%s%s", bundle->code, bundle->version,
-             bundle->boot ? " | Boot app" : "", bundle->update_available ? " | Update" : "");
+    snprintf(detail, sizeof(detail), "%s", bundle->boot ? vibe_translate(s, "Current")
+             : bundle->update_available ? vibe_translate(s, "Update available") : bundle->version);
+    bool hot = bundle->boot || bundle->update_available;
+    if (s->snapshot.batch && !strcmp(bundle->code, s->snapshot.batch_code)) {
+        hot = true;
+        snprintf(detail, sizeof(detail), vibe_translate(s, "Updating · %u%%"),
+                 vibe_transfer_permille(s->snapshot.transfer.received, s->snapshot.transfer.total) / 10);
+    } else if (s->snapshot.batch && bundle->queued) {
+        hot = false;
+        snprintf(detail, sizeof(detail), "%s", vibe_translate(s, "Waiting"));
+    }
     char fallback[32];
     snprintf(fallback, sizeof(fallback), "Idea %s", bundle->code);
-    esp_gsp_err_t err = gsp_vibe_bundles_row_row_set_bundles_title_text(
-        ui, row, ascii_text(bundle->release) ? bundle->release : fallback);
+    esp_gsp_err_t err = gsp_vibe_bundles_row_row_set_bundles_detail_text(ui, row, detail);
     if (err == ESP_GSP_OK)
-        err = gsp_vibe_bundles_row_row_set_bundles_detail_text(ui, row, detail);
+        err = esp_gsp_row_set_color(ui, row, GSP_VIBE_TEMPLATE_BUNDLES_ROW_BUNDLES_DETAIL_FG_COLOR_SLOT, hot ? 0xfa60 : 0x9cd3);
+    if (err == ESP_GSP_OK)
+        err = gsp_vibe_bundles_row_row_set_bundles_title_text(
+            ui, row, ascii_text(bundle->release) ? bundle->release : fallback);
     if (s->services.icon) {
         size_t size = 0;
         void *data = s->services.icon(s->services.ctx, bundle->code, &size);
@@ -252,7 +275,7 @@ static void submit_password(vibe_ui_t *s)
     if (err)
         TEXT(s, PASSWORD_ERROR, "Check password and try again");
     else
-        show(s, s->download_pending ? VIBE_WIFI : VIBE_HOME);
+        show(s, s->download_pending || s->first_run ? VIBE_WIFI : VIBE_HOME);
 }
 static void prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code)
 {
@@ -274,11 +297,14 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
     vibe_ui_t *s = ctx;
     if (e->type != ESP_GSP_EVENT_CALL)
         return;
+    s->activity_tick = s->tick;
+    if (vibe_product_event(s, e))
+        return;
 #ifdef VIBE_UI_TRACE
     fprintf(stderr, "vibe_event: action=%u list=%u item=%u page=%d networks=%u bundles=%u\n",
             e->action_id, e->list, (unsigned)e->item, s->page, s->networks, s->bundles);
 #endif
-    if (s->snapshot.updating)
+    if (s->snapshot.updating && !s->snapshot.batch)
         return;
     int err;
     switch (e->action_id) {
@@ -323,7 +349,6 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
         (void)command(s, VIBE_FORGET_WIFI, NULL, NULL);
         break;
     case GSP_VIBE_ACT_ID_NAND:
-    case GSP_VIBE_ACT_ID_NAND_SCAN:
         show(s, VIBE_NAND);
         err = command(s, VIBE_SCAN_NAND, NULL, NULL);
         if (err)
@@ -333,6 +358,11 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
         if (s->page != VIBE_WIFI || e->list != s->networks || e->item >= s->snapshot.ap_count)
             break;
         snprintf(s->selected_ssid, sizeof(s->selected_ssid), "%s", s->snapshot.aps[e->item].ssid);
+        if (s->snapshot.aps[e->item].open) {
+            err = command(s, VIBE_CONNECT_WIFI, s->selected_ssid, "");
+            if (err) error_result(s, "Connection failed", err);
+            break;
+        }
         TEXT(s, SSID, s->selected_ssid);
         TEXT(s, PASSWORD_ERROR, "");
         clear_secret(s->password, sizeof(s->password));
@@ -373,7 +403,8 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
     case GSP_VIBE_ACT_ID_SELECT_BUNDLES:
         if (s->page != VIBE_NAND || e->list != s->bundles || e->item >= s->snapshot.bundle_count)
             break;
-        s->selected_bundle = s->snapshot.bundles[e->item];
+        if (vibe_bundle_index(s, e->item) >= s->snapshot.bundle_count) break;
+        s->selected_bundle = s->snapshot.bundles[vibe_bundle_index(s, e->item)];
         if (ascii_text(s->selected_bundle.release))
             TEXT(s, RELEASE, s->selected_bundle.release);
         else
@@ -383,8 +414,10 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
         TEXT(s, RELEASE_PATH,
              ascii_text(s->selected_bundle.description) ? s->selected_bundle.description
                                                         : "View info for name and description");
-        (void)esp_gsp_component_set_visible(ui, GSP_VIBE_OBJ_KEY_BUTTON_START_IDEA,
-                                            s->selected_bundle.boot);
+        (void)esp_gsp_set_visible(ui, GSP_VIBE_BIND_BUTTON_START_IDEA_VISIBLE,
+                                            !s->selected_bundle.boot);
+        (void)esp_gsp_set_visible(ui, GSP_VIBE_BIND_BUTTON_CHECK_IDEA_VISIBLE, s->selected_bundle.code[0] != 'd');
+        (void)esp_gsp_set_visible(ui, GSP_VIBE_BIND_BUTTON_UPDATE_IDEA_VISIBLE, false);
         show(s, VIBE_CONFIRM);
         break;
     case GSP_VIBE_ACT_ID_INSTALL:
@@ -471,17 +504,11 @@ static void event(esp_gsp_handle_t ui, const esp_gsp_event_t *e, void *ctx)
         {
             char request[16];
             snprintf(request, sizeof(request), "%lu", (unsigned long)s->snapshot.idea_request);
+            s->selected_bundle = s->snapshot.idea;
             err = command(s, VIBE_DOWNLOAD_IDEA, s->snapshot.idea.code, request);
             if (!err)
                 vibe_ui_poll(s);
         }
-        break;
-    case GSP_VIBE_ACT_ID_START_IDEA:
-        if (s->page != VIBE_CONFIRM || !s->selected_bundle.boot)
-            break;
-        err = command(s, VIBE_START_IDEA, s->selected_bundle.code, NULL);
-        if (err)
-            error_result(s, "No boot application", err);
         break;
     default:
         break;
@@ -491,6 +518,8 @@ void vibe_ui_poll(vibe_ui_t *s)
 {
     uint32_t scan = s->snapshot.scan_generation, nand = s->snapshot.nand_generation;
     size_t ap_count = s->snapshot.ap_count, bundle_count = s->snapshot.bundle_count;
+    bool batch = s->snapshot.batch;
+    unsigned batch_progress = vibe_transfer_permille(s->snapshot.transfer.received, s->snapshot.transfer.total) / 10;
     s->services.snapshot(s->services.ctx, &s->snapshot);
     vibe_snapshot_t *v = &s->snapshot;
     vibe_rate_sample(&s->rate, &v->transfer);
@@ -502,15 +531,21 @@ void vibe_ui_poll(vibe_ui_t *s)
         (void)esp_gsp_list_set_total(s->ui, s->networks, v->ap_count);
         (void)esp_gsp_list_refresh(s->ui, s->networks);
     }
-    if (nand != v->nand_generation || bundle_count != v->bundle_count) {
-        (void)esp_gsp_list_set_total(s->ui, s->bundles, v->bundle_count);
+    if (nand != v->nand_generation || bundle_count != v->bundle_count || batch != v->batch ||
+        (v->batch && batch_progress != vibe_transfer_permille(v->transfer.received, v->transfer.total) / 10)) {
+        (void)esp_gsp_list_set_total(s->ui, s->bundles, vibe_bundle_count(s));
         (void)esp_gsp_list_refresh(s->ui, s->bundles);
+        /* Invalidate the retained viewport after a rebind. Both mutations run
+         * in this render callback, preserving scroll position without painting
+         * an intermediate hidden frame on the device. */
+        (void)esp_gsp_set_visible(s->ui, GSP_VIBE_BIND_BUNDLES_VISIBLE, false);
+        (void)esp_gsp_set_visible(s->ui, GSP_VIBE_BIND_BUNDLES_VISIBLE, s->page == VIBE_NAND);
     }
     if (s->preview_active && !v->idea_loading && !v->idea_ready) {
         s->preview_active = false;
         show(s, v->idea_return_library ? VIBE_NAND : s->preview_return);
     }
-    if (v->updating) {
+    if (v->updating && !v->batch) {
         if (s->page != VIBE_UPDATE)
             show(s, VIBE_UPDATE);
         TEXT(s, UPDATE_TITLE, v->update_title);
@@ -518,7 +553,7 @@ void vibe_ui_poll(vibe_ui_t *s)
         TEXT(s, UPDATE_OWNER, v->update_owner);
         TEXT(s, UPDATE_VERIFIED, v->update_verified);
         transfer_text(s);
-    } else if (v->update_terminal && v->update_revision != s->acknowledged_update) {
+    } else if (!v->updating && v->update_terminal && v->update_revision != s->acknowledged_update) {
         s->acknowledged_update = v->update_revision;
         TEXT(s, RESULT_TITLE, v->update_title);
         if (v->update_failed && v->transfer.total)
@@ -608,25 +643,19 @@ void vibe_ui_poll(vibe_ui_t *s)
              : v->idea_downloaded ? "Already downloaded"
                                   : "Confirm to save in My Ideas");
         TEXT(s, IDEA_ACCEPT, v->idea_downloaded ? "My Ideas" : "Download");
-        (void)esp_gsp_component_set_visible(s->ui, GSP_VIBE_OBJ_KEY_BUTTON_ACCEPT_IDEA,
+        (void)esp_gsp_set_visible(s->ui, GSP_VIBE_BIND_BUTTON_ACCEPT_IDEA_VISIBLE,
                                             v->idea_ready && !v->idea_view_only);
-        break;
-    case VIBE_NAND:
-        if (v->nand_scanning)
-            TEXT(s, NAND_SCAN, "Scanning NAND...");
-        else if (v->nand_error)
-            FORMAT(s, NAND_SCAN, "NAND unavailable: 0x%x", (unsigned)v->nand_error);
-        else
-            FORMAT(s, NAND_SCAN, "%u Ideas downloaded", (unsigned)v->bundle_count);
         break;
     default:
         break;
     }
+    vibe_product_poll(s);
 }
 static void tick(esp_gsp_handle_t ui, void *ctx)
 {
     (void)ui;
     vibe_ui_t *s = ctx;
+    vibe_product_tick(s);
     if (s->page == VIBE_PASSWORD)
         project_password(s);
     if (++s->tick % 5 == 0)
@@ -646,6 +675,7 @@ esp_gsp_err_t vibe_ui_create(esp_gsp_handle_t ui, const vibe_services_t *service
     memset(s, 0, sizeof(*s));
     s->ui = ui;
     s->services = *services;
+    s->last_language = 3;
     s->networks = esp_gsp_list_bind_component(ui, GSP_VIBE_OBJ_KEY_NETWORKS, network_row, s);
     s->bundles = esp_gsp_list_bind_component(ui, GSP_VIBE_OBJ_KEY_BUNDLES, bundle_row, s);
     if (s->networks == ESP_GSP_LIST_NONE || s->bundles == ESP_GSP_LIST_NONE)
@@ -655,6 +685,7 @@ esp_gsp_err_t vibe_ui_create(esp_gsp_handle_t ui, const vibe_services_t *service
         return err;
     show(s, VIBE_HOME);
     vibe_ui_poll(s);
+    vibe_product_init(s);
     s->timer = esp_gsp_timer_create(ui, 50, tick, s);
     return s->timer ? ESP_GSP_OK : ESP_GSP_ERR_NO_MEM;
 }
@@ -667,6 +698,7 @@ void vibe_ui_deinit(vibe_ui_t *s)
     if (s->timer)
         (void)esp_gsp_timer_delete(s->ui, s->timer);
     (void)esp_gsp_on_event(s->ui, NULL, NULL);
+    (void)esp_gsp_set_pointer_observer(s->ui, NULL, NULL);
     clear_secret(s->snapshot.token, sizeof(s->snapshot.token));
     s->ui = NULL;
     s->timer = NULL;
@@ -683,6 +715,12 @@ void vibe_ui_get_status(const vibe_ui_t *s, vibe_ui_status_t *out)
         .download_pending = s->download_pending,
         .rate_valid = s->rate.valid,
         .rate_bytes_per_second = s->rate.bytes_per_second,
+        .grid_page = s->grid_page, .language = s->snapshot.settings.language,
+        .asleep = s->page == VIBE_SLEEP, .pending_delete = s->undo_until != 0,
     };
     memcpy(out->idea_code, s->idea_code, sizeof(out->idea_code));
 }
+
+void vibe_show(vibe_ui_t *s, vibe_page_t page) { show(s, page); }
+int vibe_command(vibe_ui_t *s, vibe_command_t cmd, const char *a, const char *b) { return command(s, cmd, a, b); }
+void vibe_error(vibe_ui_t *s, const char *title, int error) { error_result(s, title, error); }

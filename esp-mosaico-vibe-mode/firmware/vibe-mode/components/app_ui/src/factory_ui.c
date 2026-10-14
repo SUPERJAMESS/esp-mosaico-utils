@@ -16,6 +16,28 @@ typedef struct {
     esp_gsp_handle_t ui;
 } ui_device_context_t;
 static ui_device_context_t s_device;
+/* Resume failures leave the token owned by us; retry without losing the UI. */
+static esp_gsp_esp_lcd_pause_t *s_rotation_pause;
+static unsigned s_rotation_degrees;
+
+esp_err_t factory_ui_rotate(unsigned degrees)
+{
+    if (!s_device.ui || (degrees != 0 && degrees != 90 && degrees != 180 && degrees != 270))
+        return ESP_ERR_INVALID_ARG;
+    if (s_rotation_pause) {
+        esp_err_t resumed = esp_gsp_esp_lcd_resume_paused(s_rotation_pause, &s_device.ui);
+        if (resumed != ESP_OK) return resumed;
+        s_rotation_pause = NULL;
+        if (s_rotation_degrees == degrees) return ESP_OK;
+    }
+    esp_err_t err = esp_gsp_esp_lcd_pause(s_device.ui, 500, &s_rotation_pause);
+    if (err != ESP_OK) return err;
+    err = bsp_display_set_rotation((bsp_display_rotation_t)degrees);
+    if (err == ESP_OK) s_rotation_degrees = degrees;
+    esp_err_t resumed = esp_gsp_esp_lcd_resume_paused(s_rotation_pause, &s_device.ui);
+    if (resumed == ESP_OK) s_rotation_pause = NULL;
+    return resumed != ESP_OK ? resumed : err;
+}
 
 esp_err_t factory_ui_start(void)
 {

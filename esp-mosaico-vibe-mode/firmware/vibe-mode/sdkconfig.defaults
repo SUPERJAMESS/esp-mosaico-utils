@@ -60,3 +60,9 @@ CONFIG_BOOTLOADER_LOG_LEVEL_ERROR=y
 # Keep assertions active; Core Dump/ELF retain the failing location without
 # duplicating SDK assertion strings in the fixed maintenance image.
 CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
+
+# Keep warning/error diagnostics and Core Dump; omit SDK informational strings
+# to fit the bilingual product UI in the unchanged maintenance partition.
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+# Keep error codes and caller handling, omit repeated SDK check-site strings.
+CONFIG_COMPILER_OPTIMIZATION_CHECKS_SILENT=y

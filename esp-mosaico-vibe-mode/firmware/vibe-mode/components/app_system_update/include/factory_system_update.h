@@ -20,6 +20,7 @@ typedef enum {
     FACTORY_SYSTEM_UPDATE_OWNER_ESP_IRIS,
     FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
     FACTORY_SYSTEM_UPDATE_OWNER_NAND,
+    FACTORY_SYSTEM_UPDATE_OWNER_READER,
 } factory_system_update_owner_t;
 
 typedef struct {
@@ -44,6 +45,10 @@ esp_err_t factory_system_update_get_status(factory_system_update_status_t *statu
 /* Return whether a writer owns the backend or a committed layout needs reboot.
  * Nonblocking admission probe; it does not reserve the writer. */
 bool factory_system_update_writer_busy(void);
+/* Reserve a stable application/layout snapshot against new writers. Caller
+ * rechecks OTA activity and hashes before publishing a copied NAND generation. */
+esp_err_t factory_system_update_read_acquire(void);
+void factory_system_update_read_release(void);
 
 /* Reserve the writer for owner and a nonzero operation_id before source IO.
  * Copies ID; returns invalid-state on contention. The owning task serializes

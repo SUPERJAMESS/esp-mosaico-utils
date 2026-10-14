@@ -30,6 +30,8 @@ include("${CMAKE_CURRENT_LIST_DIR}/../../../mosaico-tools/cmake/gsp_compiler.cma
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(vibe-mode)
 
+include(cmake/usb_dma_bss.cmake)
+
 if(NOT CONFIG_ESPTOOLPY_FLASHMODE_QIO)
     message(FATAL_ERROR "Vibe Mode requires CONFIG_ESPTOOLPY_FLASHMODE_QIO=y; update sdkconfig and rebuild")
 endif()

@@ -11,7 +11,7 @@
 static esp_err_t path_join(const char *root, const char *code, const char *suffix,
                            char path[IDEAS_PATH_BYTES])
 {
-    if (!root || !ideas_code_valid(code))
+    if (!root || !ideas_local_code_valid(code))
         return ESP_ERR_INVALID_ARG;
     int n = snprintf(path, IDEAS_PATH_BYTES, "%s/%s/%s", root, code, suffix);
     return n > 0 && n < IDEAS_PATH_BYTES ? ESP_OK : ESP_ERR_INVALID_SIZE;
@@ -74,6 +74,13 @@ esp_err_t ideas_store_recover(const char *root, const char *code)
     esp_err_t err = remove_generation(previous);
     if (err == ESP_OK)
         err = remove_generation(incoming);
+    char deleted[IDEAS_PATH_BYTES];
+    if (err == ESP_OK && path_join(root, code, ".deleted", deleted) == ESP_OK)
+        err = remove_generation(deleted);
+    /* Only remove an empty container; unknown user files remain untouched. */
+    char base[IDEAS_PATH_BYTES];
+    if (err == ESP_OK && path_join(root, code, "", base) == ESP_OK)
+        (void)rmdir(base);
     return err;
 }
 static esp_err_t write_file(const char *path, const void *data, size_t size)
@@ -128,6 +135,13 @@ esp_err_t ideas_store_download(const char *root, const char *json, size_t size,
                                const ideas_package_t *p, ideas_fetch_fn fetch,
                                ideas_verify_fn verify, void *ctx)
 {
+    return ideas_store_download_gated(root, json, size, p, fetch, verify, ctx, NULL);
+}
+esp_err_t ideas_store_download_gated(const char *root, const char *json, size_t size,
+                                     const ideas_package_t *p, ideas_fetch_fn fetch,
+                                     ideas_verify_fn verify, void *ctx,
+                                     esp_err_t (*commit_gate)(void *))
+{
     if (!p || !fetch || !verify || !size || size > IDEAS_DESCRIPTOR_BYTES)
         return ESP_ERR_INVALID_ARG;
     char base[IDEAS_PATH_BYTES], current[IDEAS_PATH_BYTES], previous[IDEAS_PATH_BYTES];
@@ -142,6 +156,8 @@ esp_err_t ideas_store_download(const char *root, const char *json, size_t size,
         err = make_directory(base);
     if (err == ESP_OK)
         err = ideas_store_recover(root, p->code);
+    if (err == ESP_OK)
+        err = make_directory(base);
     if (err == ESP_OK)
         err = make_directory(incoming);
     if (err != ESP_OK)
@@ -166,8 +182,11 @@ esp_err_t ideas_store_download(const char *root, const char *json, size_t size,
         if (err == ESP_OK)
             err = write_file(path, json, size);
     }
+    if (err == ESP_OK && commit_gate)
+        err = commit_gate(ctx);
     if (err != ESP_OK) {
         (void)remove_generation(incoming);
+        (void)rmdir(base);
         return err;
     }
     bool replacing = directory(current);
@@ -185,4 +204,20 @@ esp_err_t ideas_store_download(const char *root, const char *json, size_t size,
      * recovery if interrupted; previous is never listed as another version. */
     (void)remove_generation(previous);
     return ESP_OK;
+}
+
+esp_err_t ideas_store_delete(const char *root, const char *code)
+{
+    char current[IDEAS_PATH_BYTES], deleted[IDEAS_PATH_BYTES], base[IDEAS_PATH_BYTES];
+    esp_err_t err = ideas_store_recover(root, code);
+    if (err != ESP_OK) return err;
+    if (path_join(root, code, "current", current) != ESP_OK ||
+        path_join(root, code, ".deleted", deleted) != ESP_OK ||
+        path_join(root, code, "", base) != ESP_OK) return ESP_ERR_INVALID_ARG;
+    /* Hide the complete generation atomically. Interrupted cleanup is resumed
+     * by scan; no partially deleted Idea can be opened. */
+    if (rename(current, deleted)) return ESP_ERR_NOT_FOUND;
+    err = remove_generation(deleted);
+    if (err == ESP_OK && rmdir(base) && errno != ENOENT) err = ESP_FAIL;
+    return err;
 }

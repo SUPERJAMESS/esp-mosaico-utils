@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ideas_internal.h"
+#include "vibe_settings.h"
 
 esp_err_t ideas_http_open(const char *path, const char *body, esp_http_client_handle_t *out)
 {
@@ -51,6 +52,7 @@ esp_err_t ideas_http_open(const char *path, const char *body, esp_http_client_ha
 esp_err_t ideas_resolve(ideas_context_t *ctx, const job_t *job, const ideas_package_t *local,
                         char **json, size_t *size)
 {
+    if (!ideas_code_valid(job->code)) return ESP_ERR_INVALID_ARG;
     factory_network_snapshot_t network;
     if (factory_network_get_snapshot(&network) != ESP_OK ||
         network.state != FACTORY_NETWORK_CONNECTED)
@@ -60,7 +62,7 @@ esp_err_t ideas_resolve(ideas_context_t *ctx, const job_t *job, const ideas_pack
         return ESP_ERR_NO_MEM;
     cJSON_AddStringToObject(body, "code", job->code);
     cJSON_AddStringToObject(body, "board_id", CONFIG_IRIS_FACTORY_BRIDGE_BOARD_ID);
-    cJSON_AddStringToObject(body, "locale", CONFIG_IRIS_FACTORY_IDEAS_LOCALE);
+    cJSON_AddStringToObject(body, "locale", vibe_settings_language() == 2 ? "zh-CN" : "en");
     cJSON_AddNumberToObject(body, "recovery_abi", 2);
     cJSON_AddNumberToObject(body, "layout_version", 5);
     cJSON_AddStringToObject(body, "download_schema", "mosaico-ideas/download/1");
@@ -123,6 +125,7 @@ esp_err_t ideas_fetch_file(const ideas_file_t *file, const char *path, void *arg
 {
     ideas_context_t *ctx = ((pending_t *)argument)->owner;
     const pending_t *pending = argument;
+    if (ideas_job_cancelled(ctx)) return ESP_ERR_INVALID_STATE;
     const icon_t *asset = NULL;
     for (size_t i = 0; pending && i < pending->package.file_count; ++i)
         if (!strcmp(file->name, pending->package.files[i].name))
@@ -157,6 +160,7 @@ esp_err_t ideas_fetch_file(const ideas_file_t *file, const char *path, void *arg
     uint32_t used = 0;
     int64_t deadline = esp_timer_get_time() + 300000000;
     while (err == ESP_OK) {
+        if (ideas_job_cancelled(ctx)) { err = ESP_ERR_INVALID_STATE; break; }
         int n = esp_http_client_read(client, (char *)buffer, IO_BYTES);
         if (n < 0 || esp_timer_get_time() > deadline) {
             err = ESP_ERR_TIMEOUT;

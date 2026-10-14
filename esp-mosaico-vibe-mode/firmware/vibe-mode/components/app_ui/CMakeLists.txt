@@ -9,10 +9,11 @@ idf_component_register(
         "src/vibe_png_inflate.c"
         "src/vibe_transfer.c"
         "src/vibe_ui.c"
+        "src/vibe_product.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "private"
-    REQUIRES esp-gsp
-    PRIV_REQUIRES app_network app_ideas app_nand_update app_system_update app_bridge esp_iris esp-mosaico-bsp esp_display_present esp_lcd esp_timer esp_wifi
+    REQUIRES esp-gsp app_settings app_device
+    PRIV_REQUIRES app_network app_ideas app_nand_update app_system_update app_bridge esp_iris esp-mosaico-bsp esp_display_present esp_lcd esp_timer esp_wifi esp_app_format
 )
 
 # GSP's prebuilt package exports its public touch adapter as an INTERFACE

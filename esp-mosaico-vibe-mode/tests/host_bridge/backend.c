@@ -314,8 +314,27 @@ static esp_err_t prepare_bridge(char *json, bool allow_bootloader)
     return err;
 }
 
+static bool ota_active;
+static esp_err_t ota_status_error;
+esp_err_t esp_iris_ota_get_status(esp_iris_ota_status_t *status) { status->active = ota_active; return ota_status_error; }
 int main(void)
 {
+    ota_active = true;
+    assert(factory_system_update_read_acquire() == ESP_ERR_INVALID_STATE);
+    assert(!factory_system_update_writer_busy());
+    ota_active = false;
+    assert(factory_system_update_read_acquire() == ESP_OK);
+    assert(factory_system_update_writer_busy());
+    assert(factory_system_update_read_acquire() == ESP_ERR_INVALID_STATE);
+    factory_system_update_read_release();
+    assert(!factory_system_update_writer_busy());
+    ota_status_error = ESP_ERR_NOT_FOUND;
+    assert(factory_system_update_read_acquire() == ESP_OK);
+    factory_system_update_read_release();
+    ota_status_error = ESP_FAIL;
+    assert(factory_system_update_read_acquire() == ESP_FAIL);
+    assert(!factory_system_update_writer_busy());
+    ota_status_error = ESP_OK;
     /* A parsed prefix followed by trailing bytes must not leak its cJSON tree. */
     setup();
     char *trailing = manifest(true, "data", 0x200000, 4);

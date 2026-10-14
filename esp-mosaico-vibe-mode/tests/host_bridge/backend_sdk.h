@@ -81,3 +81,6 @@ esp_err_t esp_image_verify_bootloader(uint32_t *size);
 const esp_partition_t *esp_ota_get_boot_partition(void);
 esp_err_t esp_iris_crash_loop_reset(void);
 esp_err_t esp_iris_mark_planned_restart(void);
+
+typedef struct { bool active; } esp_iris_ota_status_t;
+esp_err_t esp_iris_ota_get_status(esp_iris_ota_status_t *status);

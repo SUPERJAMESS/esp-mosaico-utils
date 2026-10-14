@@ -22,8 +22,8 @@ endif()
 add_subdirectory("${ESP_GSP_COMPONENT_DIR}/tools/sim_bridge" sim_bridge)
 gsp_add_backend(vibe_backend
     PROFILE "${CMAKE_CURRENT_LIST_DIR}/../ui/profile.yaml"
-    SOURCES ../components/app_ui/src/vibe_ui.c ../components/app_ui/src/vibe_transfer.c platform_pc.c
-    INCLUDE_DIRECTORIES ../components/app_ui/include ../components/app_ideas/include
+    SOURCES ../components/app_ui/src/vibe_ui.c ../components/app_ui/src/vibe_product.c ../components/app_ui/src/vibe_transfer.c platform_pc.c
+    INCLUDE_DIRECTORIES ../components/app_ui/include ../components/app_ideas/include ../components/app_settings/include ../components/app_device/include
     SCENES ../ui/main.json)
 
 target_compile_definitions(vibe_backend PRIVATE VIBE_UI_TRACE=1)

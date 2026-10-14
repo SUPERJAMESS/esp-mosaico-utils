@@ -4,6 +4,8 @@
 #include "factory_ideas.h"
 #include "factory_nand_update.h"
 #include "factory_network.h"
+#include "factory_system_update.h"
+#include "esp_iris.h"
 #include "cJSON.h"
 #include <dirent.h>
 #include <stdio.h>
@@ -37,7 +39,7 @@ mock_environment_t *mock_environment(void)
 }
 void mock_assert_idle(void)
 {
-    assert(!queued_task && !env.lease && env.http_live == 0);
+    assert(!queued_task && !env.lease && !env.read_lease && env.http_live == 0);
 }
 void mock_run_worker(void)
 {
@@ -91,6 +93,7 @@ void vTaskDelete(void *task)
 void vTaskDelay(unsigned ticks)
 {
     clock_us += ticks * 1000;
+    if (env.cancel_on_delay) { env.cancel_on_delay = false; assert(factory_ideas_cancel() == ESP_OK); }
 }
 int64_t esp_timer_get_time(void)
 {
@@ -246,7 +249,8 @@ int64_t esp_http_client_fetch_headers(esp_http_client_handle_t c)
         assert(c->content_type && c->body_size == c->expected_body);
         cJSON *body = cJSON_Parse(c->body);
         assert(body);
-        assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(body, "code")), "042731"));
+        const char *code = cJSON_GetStringValue(cJSON_GetObjectItem(body, "code"));
+        assert(code && (!strcmp(code, "042731") || !strcmp(code, "042732")));
         assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(body, "board_id")), "test-s31"));
         assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(body, "locale")), "en"));
         assert(cJSON_GetObjectItem(body, "recovery_abi")->valueint == 2);
@@ -259,12 +263,13 @@ int64_t esp_http_client_fetch_headers(esp_http_client_handle_t c)
         assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(body, "font_format")), "MIFF/1"));
         if (cJSON_GetObjectItem(body, "application_id")) {
             assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(body, "application_id")),
-                           "stable-app-id"));
+                           !strcmp(code, "042732") ? "stable-app-id-2" : "stable-app-id"));
             assert(cJSON_IsString(cJSON_GetObjectItem(body, "current_release_id")));
             env.requests_with_identity++;
         }
+        snprintf(path, sizeof(path), "%s/%s%s.json", env.fixture_dir, env.release,
+                 !strcmp(code, "042732") ? "-042732" : "");
         cJSON_Delete(body);
-        snprintf(path, sizeof(path), "%s/%s.json", env.fixture_dir, env.release);
     } else {
         snprintf(path, sizeof(path), "%s/%s", env.fixture_dir, c->file);
     }
@@ -450,3 +455,30 @@ esp_err_t factory_nand_install_idea(const char *manifest_path, const char *manif
     }
     return err;
 }
+
+esp_err_t app_storage_info(uint64_t *total, uint64_t *used) { assert(env.lease); *total = 512ULL * 1048576; *used = env.no_space ? *total : 1048576; return ESP_OK; }
+esp_err_t factory_system_update_read_acquire(void) { if (env.read_lease || env.ota_busy) return ESP_ERR_INVALID_STATE; env.read_lease = true; return ESP_OK; }
+void factory_system_update_read_release(void) { assert(env.read_lease); env.read_lease = false; }
+esp_err_t esp_iris_ota_get_status(esp_iris_ota_status_t *status) { memset(status, 0, sizeof(*status)); status->active = env.ota_busy; return env.ota_missing ? ESP_ERR_NOT_FOUND : ESP_OK; }
+esp_err_t esp_partition_table_verify(const esp_partition_info_t *table, bool log, int *count)
+{ (void)log; if (!env.development || table[0].magic != 0x50aa) return ESP_ERR_INVALID_ARG; *count = 2; return ESP_OK; }
+esp_err_t esp_image_verify(int mode, const esp_partition_pos_t *position, esp_image_metadata_t *out)
+{ (void)mode; assert(env.read_lease && position->offset == 0x210000); out->image_len = 512; return env.development ? ESP_OK : ESP_FAIL; }
+void mock_development(void)
+{
+    env.development = true;
+    esp_partition_info_t table[2] = {
+        {.magic = 0x50aa, .type = ESP_PARTITION_TYPE_APP, .subtype = ESP_PARTITION_SUBTYPE_APP_OTA_0, .pos = {0x210000, 0x100000}},
+        {.magic = 0x50aa, .type = ESP_PARTITION_TYPE_DATA, .subtype = 0x82, .pos = {0x310000, 4096}}};
+    memcpy(flash + 0x8000, table, sizeof(table));
+    memset(flash + 0x210000, 42, 512);
+    esp_app_desc_t app = {.project_name = "dev-example", .version = "1.0"};
+    memcpy(flash + 0x210000 + 32, &app, sizeof(app));
+    memset(flash + 0x310000, 99, 4096);
+    boot.address = 0x210000;
+}
+void mock_change_resource(void) { flash[0x310000] ^= 0x55; }
+
+esp_err_t mosaico_boot_select(uint32_t address) { assert(env.read_lease && address == 0x210000); boot.address = address; return ESP_OK; }
+
+unsigned vibe_settings_language(void) { return 1; }

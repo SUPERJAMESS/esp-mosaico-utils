@@ -11,6 +11,8 @@ extern "C" {
 /* Start board display, screenshot adapter and render-owned controller.
  * Call once after Ideas/Iris initialization; returns startup/timeout errors. */
 esp_err_t factory_ui_start(void);
+/* Device-service task only; drains rendering before changing panel and touch. */
+esp_err_t factory_ui_rotate(unsigned degrees);
 
 /* Open the six-digit Ideas page from a worker task. ctx is unused. Bounded
  * queue/response wait; returns timeout or the render-thread operation result. */

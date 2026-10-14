@@ -16,6 +16,7 @@ static unsigned connect_attempts, bridge_open_calls;
 static unsigned bridge_prefetch_calls;
 static unsigned prepare_calls, cancel_calls, preview_ticks;
 static unsigned download_calls, install_calls, check_calls, restart_calls;
+static unsigned save_calls, delete_calls, reset_calls, next_key;
 static vibe_command_t current_job;
 static char last_code[7];
 static bool bridge_active;
@@ -35,13 +36,18 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
     FILE *request = control ? fopen(control, "r") : NULL;
     if (request) {
         char command[256] = {0};
-        (void)fgets(command, sizeof(command), request);
+        if (!fgets(command, sizeof(command), request)) command[0] = 0;
         fclose(request);
         remove(control);
         if (!strcmp(command, "open-bridge"))
             (void)vibe_ui_open_bridge(state);
         if (!strcmp(command, "expire-code"))
             renewed_code = true;
+        if (!strcmp(command, "ai")) next_key = 1;
+        if (!strcmp(command, "boot")) next_key = 3;
+        if (!strcmp(command, "motion")) ++model.device.motion_revision;
+        unsigned battery;
+        if (sscanf(command, "battery %u", &battery) == 1) model.device.battery_percent = battery;
         unsigned long long ms, received, total;
         unsigned component, count, completed, receiving, job, component_received, component_size,
             terminal;
@@ -98,7 +104,7 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
             "\"renewed_code\":%s,\"rate_valid\":%s,\"rate_bps\":%llu,\"component_id\":%u,\"sample_"
             "ms\":%llu,\"idea_code\":\"%s\",\"last_code\":\"%s\",\"download_calls\":%u,\"install_"
             "calls\":%u,\"check_calls\":%u,\"restart_calls\":%u,\"prepare_calls\":%u,\"cancel_"
-            "calls\":%u,\"idea_ready\":%s,\"idea_loading\":%s,\"boot_first\":%s}\n",
+            "calls\":%u,\"idea_ready\":%s,\"idea_loading\":%s,\"boot_first\":%s,",
             status.page, (unsigned)status.password_length,
             status.password_visible ? "true" : "false", status.download_pending ? "true" : "false",
             model.bridge_running ? "true" : "false", model.network, model.progress,
@@ -110,6 +116,14 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
             install_calls, check_calls, restart_calls, prepare_calls, cancel_calls,
             model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
             model.bundles[0].boot ? "true" : "false");
+    fprintf(file, "\"grid_page\":%u,\"language\":%u,\"asleep\":%s,\"pending_delete\":%s,"
+            "\"bundle_count\":%u,\"shared_count\":%u,\"save_calls\":%u,\"delete_calls\":%u,\"reset_calls\":%u,"
+            "\"development_saved\":%s,\"brightness\":%u,\"screen_off_seconds\":%u,\"rotate\":%s,\"haptics\":%s,\"batch\":%s}\n",
+            status.grid_page, status.language, status.asleep ? "true" : "false", status.pending_delete ? "true" : "false",
+            (unsigned)model.bundle_count, (unsigned)model.settings.shared_count, save_calls, delete_calls, reset_calls,
+            model.development_saved ? "true" : "false", model.settings.brightness, model.settings.screen_off_seconds,
+            model.settings.auto_rotate ? "true" : "false", model.settings.haptics ? "true" : "false",
+            model.batch ? "true" : "false");
     fclose(file);
 #ifdef _WIN32
     /* The Windows C runtime's rename cannot replace an existing snapshot. */
@@ -140,7 +154,7 @@ static void snapshot(void *ctx, vibe_snapshot_t *out)
         }
     }
     if (installing) {
-        model.progress += 50;
+        model.progress += scenario("batch") ? 2 : 50;
         model.transfer.now_ms += 250;
         model.transfer.received = model.transfer.total * model.progress / 1000;
         model.transfer.component_received = (uint32_t)model.transfer.received;
@@ -158,14 +172,17 @@ static void snapshot(void *ctx, vibe_snapshot_t *out)
             model.update_terminal = true;
             ++model.update_revision;
             snprintf(model.update_title, sizeof(model.update_title), "%s",
-                     current_job == VIBE_INSTALL_NAND ? "Boot application ready"
+                     (current_job == VIBE_INSTALL_NAND || current_job == VIBE_OPEN_IDEA) ? "Boot application ready"
                                                       : "Download complete");
             snprintf(model.update_detail, sizeof(model.update_detail), "%s",
-                     current_job == VIBE_INSTALL_NAND ? "Starts on next power-on"
+                     (current_job == VIBE_INSTALL_NAND || current_job == VIBE_OPEN_IDEA) ? "Starts on next power-on"
                                                       : "Saved in My Ideas");
-            if (current_job == VIBE_INSTALL_NAND)
+            if ((current_job == VIBE_INSTALL_NAND || current_job == VIBE_OPEN_IDEA))
                 for (size_t i = 0; i < model.bundle_count; i++)
                     model.bundles[i].boot = !strcmp(model.bundles[i].code, last_code);
+            if (current_job == VIBE_OPEN_IDEA) ++restart_calls;
+            if (current_job == VIBE_SAVE_DEVELOPMENT) model.development_saved = true;
+            model.cancellable = model.batch = model.idea_busy = false;
             ++model.nand_generation;
         }
         model.transfer.receiving = installing;
@@ -227,14 +244,31 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
         bridge_active = false;
         model.bridge_code[0] = 0;
         break;
+    case VIBE_DELETE_IDEA:
+        for (size_t i = 0; i < model.bundle_count; ++i) {
+            if (strcmp(model.bundles[i].code, a)) continue;
+            if (model.bundles[i].boot) return 0x103;
+            memmove(&model.bundles[i], &model.bundles[i + 1], (--model.bundle_count - i) * sizeof(model.bundles[0]));
+            ++delete_calls;
+            ++model.nand_generation;
+            break;
+        }
+        break;
     case VIBE_SCAN_NAND:
         ++model.nand_generation;
         break;
+    case VIBE_RUN_DEVELOPMENT:
     case VIBE_START_IDEA:
         ++restart_calls;
         break;
     case VIBE_CANCEL_IDEA:
         ++cancel_calls;
+        if (model.cancellable) {
+            installing = model.updating = model.cancellable = model.batch = false;
+            model.update_terminal = true;
+            ++model.update_revision;
+            snprintf(model.update_title, sizeof(model.update_title), "Cancelled");
+        }
         model.idea_loading = model.idea_ready = model.idea_busy = false;
         break;
     case VIBE_PREVIEW_IDEA:
@@ -270,13 +304,25 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
             break;
         }
         /* fall through */
+    case VIBE_SAVE_DEVELOPMENT:
+    case VIBE_UPDATE_ALL:
+    case VIBE_OPEN_IDEA:
     case VIBE_INSTALL_NAND:
         current_job = cmd;
         if (cmd == VIBE_DOWNLOAD_IDEA)
             ++download_calls;
-        else
-            ++install_calls;
-        snprintf(last_code, sizeof(last_code), "%s", a);
+        else if (cmd == VIBE_SAVE_DEVELOPMENT) ++save_calls;
+        else if (cmd == VIBE_UPDATE_ALL) ++check_calls;
+        else ++install_calls;
+        model.cancellable = cmd == VIBE_DOWNLOAD_IDEA || cmd == VIBE_UPDATE_ALL;
+        model.batch = cmd == VIBE_UPDATE_ALL;
+        model.batch_total = (unsigned)model.bundle_count;
+        model.batch_index = 1;
+        if (model.batch && model.bundle_count) {
+            snprintf(model.batch_code, sizeof(model.batch_code), "%s", model.bundles[0].code);
+            for (size_t i = 0; i < model.bundle_count; ++i) model.bundles[i].queued = true;
+        }
+        snprintf(last_code, sizeof(last_code), "%s", a ? a : "");
         installing = true;
         model.updating = true;
         model.update_terminal = false;
@@ -320,8 +366,60 @@ static void *preview(void *ctx, uint32_t request, unsigned slot, size_t *size)
     }
     return pixels;
 }
+static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, const char *value)
+{
+    (void)ctx;
+    unsigned n = value ? (unsigned)strtoul(value, NULL, 10) : 0;
+    switch (cmd) {
+    case VIBE_SETTINGS_LANGUAGE: model.settings.language = n; break;
+    case VIBE_SETTINGS_BRIGHTNESS: model.settings.brightness = n; break;
+    case VIBE_SETTINGS_TIMEOUT: model.settings.screen_off_seconds = n; break;
+    case VIBE_SETTINGS_ROTATE: model.settings.auto_rotate = n; break;
+    case VIBE_SETTINGS_HAPTICS: model.settings.haptics = n; break;
+    case VIBE_SETTINGS_OPEN_CONFIRM: model.settings.open_confirm = n; break;
+    case VIBE_SETTINGS_SHARED_SET:
+    case VIBE_SETTINGS_SHARED_DELETE: {
+        size_t i;
+        for (i = 0; i < model.settings.shared_count && strcmp(model.settings.shared[i].key, key); ++i) {}
+        if (cmd == VIBE_SETTINGS_SHARED_DELETE) {
+            if (i < model.settings.shared_count)
+                memmove(&model.settings.shared[i], &model.settings.shared[i + 1],
+                        (--model.settings.shared_count - i) * sizeof(model.settings.shared[0]));
+        } else {
+            if (i >= VIBE_SHARED_MAX) return 0x101;
+            if (i == model.settings.shared_count) ++model.settings.shared_count;
+            snprintf(model.settings.shared[i].key, sizeof(model.settings.shared[i].key), "%s", key);
+            snprintf(model.settings.shared[i].value, sizeof(model.settings.shared[i].value), "%s", value);
+        }
+        break;
+    }
+    case VIBE_SETTINGS_RESET:
+        ++reset_calls;
+        ++restart_calls;
+        model.settings.language = 0;
+        model.settings.shared_count = 0;
+        memset(model.settings.shared, 0, sizeof(model.settings.shared));
+        model.credentials_saved = false;
+        model.network = VIBE_NET_OFFLINE;
+        break;
+    }
+    ++model.settings.revision;
+    return 0;
+}
+static unsigned key(void *ctx) { (void)ctx; unsigned k = next_key; next_key = 0; return k; }
 esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
 {
+    model.settings = (vibe_settings_snapshot_t){.language = scenario("first-run") ? 0 : 1,
+        .brightness = 80, .screen_off_seconds = 180, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
+    model.device.battery_valid = true;
+    model.device.battery_percent = scenario("low-battery") ? 15 : 80;
+    model.development_available = scenario("unsaved") || scenario("development");
+    snprintf(model.development_name, sizeof(model.development_name), "My development Idea");
+    snprintf(model.development_version, sizeof(model.development_version), "1.0");
+    snprintf(model.firmware_version, sizeof(model.firmware_version), "0.3-dev");
+    snprintf(model.mac, sizeof(model.mac), "02:00:00:00:00:01");
+    model.storage_total = 512ULL * 1048576;
+    model.storage_used = 2ULL * 1048576;
     model.tcp_port = 7777;
     if (scenario("prefetched") || scenario("long-code") || scenario("waiting-code")) {
         model.credentials_saved = true;
@@ -345,6 +443,13 @@ esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
     model.nand_generation = 1;
     if (scenario("empty"))
         model.bundle_count = 0;
+    if (scenario("pager-five")) model.bundle_count = 5;
+    if (scenario("pager-six") || scenario("manage-states")) model.bundle_count = 6;
+    if (scenario("pager-max")) model.bundle_count = VIBE_BUNDLE_MAX;
+    if (scenario("manage-states")) {
+        model.storage_total = 64000000;
+        model.storage_used = 32800000;
+    }
     for (size_t i = 0; i < model.bundle_count; ++i) {
         snprintf(model.bundles[i].release, sizeof(model.bundles[i].release), "Demo release %u",
                  (unsigned)i + 1);
@@ -353,10 +458,14 @@ esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
         snprintf(model.bundles[i].description, sizeof(model.bundles[i].description),
                  "A downloaded Idea");
         model.bundles[i].boot = i == 1;
+        if (scenario("manage-states")) {
+            model.bundles[i].boot = i == 0;
+            model.bundles[i].update_available = i == 1 || i == 2;
+        }
         model.bundles[i].bytes = 1024 * 1024;
         model.bundles[i].components = 2;
     }
-    const vibe_services_t services = {.snapshot = snapshot, .command = command, .preview = preview};
+    const vibe_services_t services = {.snapshot = snapshot, .command = command, .preview = preview, .setting = setting, .key = key};
     esp_gsp_err_t err = vibe_ui_create(ui, &services, &state);
     if (err == ESP_GSP_OK && getenv("VIBE_SIM_STATE_FILE"))
         trace_timer = esp_gsp_timer_create(ui, 50, trace_state, NULL);

@@ -16,7 +16,7 @@ static factory_ideas_snapshot_t snapshot(void)
 }
 static void run(factory_ideas_command_t command)
 {
-    assert(factory_ideas_request(command, command == IDEAS_SCAN ? NULL : code) == ESP_OK);
+    assert(factory_ideas_request(command, (command == IDEAS_SCAN || command == IDEAS_UPDATE_ALL || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_REFRESH_UPDATES) ? NULL : code) == ESP_OK);
     assert(snapshot().busy);
     mock_run_worker();
     assert(!snapshot().busy);
@@ -98,7 +98,84 @@ int main(int argc, char **argv)
     mock_run_worker();
     assert(snapshot().count == 0 && snapshot().scan_error == ESP_OK && env->writes == 0);
 
-    if (!strcmp(scenario, "preview")) {
+    if (!strcmp(scenario, "refresh-updates")) {
+        download(); env->release = "v2";
+        unsigned assets = env->assets, writes = env->writes;
+        run(IDEAS_REFRESH_UPDATES);
+        assert(snapshot().items[0].update_available && !snapshot().terminal);
+        assert(env->assets == assets && env->writes == writes && !env->installs);
+        library("1.0");
+    } else if (!strcmp(scenario, "open-cancel")) {
+        download(); env->cancel_on_delay = true;
+        run(IDEAS_OPEN);
+        assert(!snapshot().failed && !strcmp(snapshot().title, "Cancelled"));
+        assert(!env->installs && !env->commits && !env->restarts);
+        library("1.0");
+    } else if (!strcmp(scenario, "no-space")) {
+        uint32_t id = preview(); env->no_space = true;
+        confirm(id);
+        assert(snapshot().failed && !env->firmware && !env->installs);
+        assert(snapshot().count == 0);
+    } else if (!strcmp(scenario, "open")) {
+        download(); env->network = false;
+        run(IDEAS_OPEN);
+        assert(!snapshot().failed && env->installs == 1 && env->restarts == 1);
+        run(IDEAS_OPEN);
+        assert(!snapshot().failed && env->installs == 1 && env->restarts == 2);
+    } else if (!strcmp(scenario, "delete") || !strcmp(scenario, "delete-current")) {
+        download();
+        bool current = !strcmp(scenario, "delete-current");
+        if (current) run(IDEAS_INSTALL);
+        run(IDEAS_DELETE);
+        assert(snapshot().failed == current && snapshot().count == (current ? 1U : 0U));
+        run(IDEAS_SCAN);
+        assert(snapshot().count == (current ? 1U : 0U) && !snapshot().invalid);
+    } else if (!strcmp(scenario, "download-cancel")) {
+        download(); env->release = "v2";
+        uint32_t id = preview();
+        env->cancel_on_read = "v2-app.bin";
+        confirm(id);
+        assert(!snapshot().failed && !strcmp(snapshot().title, "Cancelled"));
+        library("1.0");
+        assert(!env->installs && !env->restarts);
+    } else if (!strcmp(scenario, "batch")) {
+        download();
+        code = "042732"; download(); code = "042731";
+        env->release = "v2";
+        run(IDEAS_UPDATE_ALL);
+        assert(!snapshot().failed && !snapshot().batch && !snapshot().busy);
+        factory_ideas_snapshot_t s = snapshot();
+        assert(s.count == 2 && s.batch_index == 2 && s.batch_total == 2);
+        for (size_t i = 0; i < s.count; ++i)
+            assert(!strcmp(s.items[i].version, "2.0") && !s.items[i].queued && !s.items[i].update_available);
+        assert(!env->installs && !env->restarts);
+    } else if (!strncmp(scenario, "development", 11)) {
+        mock_development();
+        env->ota_missing = true; /* Offline boot before a lazy Iris OTA session exists. */
+        run(IDEAS_SCAN);
+        assert(snapshot().development_available && !snapshot().development_saved);
+        env->ota_busy = !strcmp(scenario, "development-ota-busy");
+        run(IDEAS_SAVE_DEVELOPMENT);
+        assert(snapshot().failed == env->ota_busy);
+        if (env->ota_busy) assert(snapshot().count == 0 && !env->writes);
+        else {
+            factory_ideas_snapshot_t s = snapshot();
+            assert(s.count == 1 && s.items[0].code[0] == 'd' && s.items[0].components == 3);
+            assert(s.development_saved && s.items[0].boot);
+            run(IDEAS_SAVE_DEVELOPMENT);
+            assert(!snapshot().failed && snapshot().count == 1);
+            env->network = false;
+            assert(factory_ideas_request(IDEAS_OPEN, s.items[0].code) == ESP_OK);
+            mock_run_worker();
+            assert(!snapshot().failed && env->restarts == 1 && !env->installs);
+            mock_change_resource();
+            run(IDEAS_SCAN);
+            assert(snapshot().development_available && !snapshot().development_saved);
+            assert(factory_ideas_request(IDEAS_OPEN, s.items[0].code) == ESP_OK);
+            mock_run_worker();
+            assert(!snapshot().failed && env->restarts == 2 && env->installs == 1);
+        }
+    } else if (!strcmp(scenario, "preview")) {
         uint32_t id = preview();
         copy_preview(id);
         assert(env->resolves == 1 && env->assets == 3 && !env->firmware && !env->writes);

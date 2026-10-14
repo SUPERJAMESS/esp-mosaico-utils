@@ -25,6 +25,26 @@ bool factory_system_update_writer_busy(void)
     taskEXIT_CRITICAL(&ctx->lock);
     return busy;
 }
+esp_err_t factory_system_update_read_acquire(void)
+{
+    if (!update_owner_claim(&s_backend, FACTORY_SYSTEM_UPDATE_OWNER_READER))
+        return ESP_ERR_INVALID_STATE;
+    esp_iris_ota_status_t ota = {0};
+    esp_err_t err = esp_iris_ota_get_status(&ota);
+    /* A lazy/unconfigured OTA service owns no writer yet. The claimed owner
+     * prevents a later BEGIN from selecting its target. */
+    if (err == ESP_ERR_NOT_FOUND || err == ESP_ERR_NOT_SUPPORTED) err = ESP_OK;
+    if (err != ESP_OK || ota.active) {
+        update_owner_release(&s_backend);
+        return err != ESP_OK ? err : ESP_ERR_INVALID_STATE;
+    }
+    return ESP_OK;
+}
+void factory_system_update_read_release(void)
+{
+    if (update_owner_is(&s_backend, FACTORY_SYSTEM_UPDATE_OWNER_READER))
+        update_owner_release(&s_backend);
+}
 
 esp_err_t factory_system_update_get_status(factory_system_update_status_t *status)
 {
@@ -254,6 +274,8 @@ esp_err_t factory_system_update_register(void)
 }
 
 #else
+esp_err_t factory_system_update_read_acquire(void) { return ESP_ERR_NOT_SUPPORTED; }
+void factory_system_update_read_release(void) {}
 
 bool factory_system_update_writer_busy(void)
 {

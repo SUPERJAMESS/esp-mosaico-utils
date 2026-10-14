@@ -63,13 +63,6 @@ config IRIS_FACTORY_BRIDGE_BOARD_ID
         Required before entering Bridge download mode. Factory update
         manifests must match this board identifier.
 
-config IRIS_FACTORY_IDEAS_LOCALE
-    string "Preferred Ideas presentation language (BCP 47)"
-    default "en"
-    help
-        Sent when resolving a six-digit Idea code. The cloud returns localized
-        fixed names/descriptions and their subset font/presentation resources.
-
 config IRIS_FACTORY_BRIDGE_SYSTEM_UPDATE
     bool "Enable Bridge full system-update bundles"
     default y

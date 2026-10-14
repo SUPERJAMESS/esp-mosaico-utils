@@ -19,6 +19,8 @@ manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 保留原始 `factory
 - [应用集成](../../../mosaico-tools/docs/application-integration.md)：原生
   `idf.py flash monitor` 与默认 Mosaico 更新流程。
 - [软件规格](../../docs/esp-mosaico-vibe-mode-software-spec-zh.md)：完整功能和验收边界。
+- [EMVM-73078 使用、管理与开发流程](../../docs/vibe-mode-workflows.md)：本轮实现、
+  本地保存、共享信息 API、恢复出厂范围及验证记录。
 
 保留 Wi-Fi、Download Ideas、HTTPS Bridge 维护后端、NAND、文件、截图、输入及维护自更新。
 高速 USB 使用 console/data 双 CDC；TCP 使用独立端口；控制链支持按需截图。
@@ -39,9 +41,11 @@ Download Ideas 输入六位应用编号（字符串，保留前导零），点�
 - **检查更新**：以已下载的 application ID、release ID 查询最新发布。已是最新版本时直接提示；
   有更新时进入同一确认页。“Download latest” 也先展示信息，确认后替换 NAND 当前版本，
   保持 NOR 中原应用及其开机标记。
-- **设为开机应用**：完全离线，从 NAND 重新校验所有文件，然后写 NOR、验证读回、
-  提交分区表和下次启动目标。完成后仍停留在 Vibe Mode，可继续选择另一个 Idea。
-  “Restart now” 启动当前已选的开机应用。界面不显示“已安装”状态。
+- **打开**：完全离线，从 NAND 重新校验所有文件；需要切换时写 NOR、验证读回、
+  提交分区表和启动目标，随后自动重启。相同版本也核对 NOR 中的应用、布局和资源，
+  完全一致才跳过写入。未保存开发内容时只提供“放弃并打开 / 取消”。
+- **管理**：启动联网后检查更新，支持逐个确认更新和后台批量更新；更新只替换 NAND 副本，
+  下次点击“打开”才写入运行槽。删除须长按确认，四秒内可以撤销；当前 Idea 不允许删除。
 - 开机应用身份保存在保留的 `sysmeta` 分区独立 `ideas` 命名空间；标记同时核对
   实际 NOR 应用与分区表的 SHA-256。它不依赖 NAND 中当前版本是否等于 NOR 版本。
 - 新包先在 `.incoming` 完整下载并校验，再通过目录重命名替换 `current`；`.previous`
@@ -65,8 +69,8 @@ V0.2 尚未正式发布，下载清单以同一个 `/1` 开发契约收敛到自
 再为不兼容的结构变更增加 schema 版本。
 
 沿用 `CONFIG_IRIS_FACTORY_BRIDGE_SERVER_URL` 的 HTTPS origin 和
-`CONFIG_IRIS_FACTORY_BRIDGE_BOARD_ID`；语言由 `CONFIG_IRIS_FACTORY_IDEAS_LOCALE`
-指定（默认 `en`）。证书验证开启，不跟随重定向。
+`CONFIG_IRIS_FACTORY_BRIDGE_BOARD_ID`；语言跟随设备设置，使用 `en` 或 `zh-CN`。
+证书验证开启，不跟随重定向。
 
 `POST /api/v1/ideas/resolve` 请求示例：
 

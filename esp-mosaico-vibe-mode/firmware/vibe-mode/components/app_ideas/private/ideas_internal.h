@@ -51,7 +51,7 @@ typedef struct {
     char code[7];
     uint32_t request_id;
     pending_t *pending;
-    bool up_to_date;
+    bool up_to_date, metadata_only;
     ideas_context_t *owner;
 } job_t;
 struct ideas_context {
@@ -60,6 +60,7 @@ struct ideas_context {
     icon_t icons[IDEAS_MAX_ITEMS];
     pending_t *pending;
     uint32_t request_id;
+    bool cancel_requested;
 };
 typedef struct {
     uint32_t schema, offset, size;
@@ -75,6 +76,7 @@ void ideas_message(ideas_context_t *ctx, const char *title, const char *detail);
 void ideas_hex(const uint8_t digest[32], char out[65]);
 esp_err_t ideas_verify_file(const ideas_file_t *file, const char *path, void *ctx);
 esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected);
+esp_err_t ideas_verify_installed(const ideas_package_t *package);
 bool ideas_boot_record(boot_record_t *record);
 esp_err_t ideas_save_boot(void *ctx);
 esp_err_t ideas_scan(ideas_context_t *ctx);
@@ -91,5 +93,13 @@ esp_err_t ideas_prepare_assets(ideas_context_t *ctx, const job_t *job, pending_t
 void ideas_preview_item(factory_idea_t *item, const ideas_package_t *p);
 esp_err_t ideas_prepare_download(ideas_context_t *ctx, job_t *job);
 esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job);
+esp_err_t ideas_delete(ideas_context_t *ctx, const char *code);
+esp_err_t ideas_check_space(uint64_t bytes);
+esp_err_t ideas_update_all(ideas_context_t *ctx, job_t *job);
+bool ideas_job_cancelled(ideas_context_t *ctx);
+esp_err_t ideas_commit_download(void *argument);
+esp_err_t ideas_run_development(void);
+void ideas_development_status(ideas_context_t *ctx);
+esp_err_t ideas_save_development(ideas_context_t *ctx);
 void ideas_worker(void *arg);
 esp_err_t ideas_launch_locked(ideas_context_t *ctx, job_t *job);

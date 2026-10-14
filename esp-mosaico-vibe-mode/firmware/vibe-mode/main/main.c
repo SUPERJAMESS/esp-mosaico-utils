@@ -13,6 +13,8 @@
 #include "factory_recovery_control.h"
 #include "factory_system_inventory.h"
 #include "factory_system_metadata.h"
+#include "vibe_settings.h"
+#include "vibe_device.h"
 #include "factory_system_update.h"
 #include "factory_ui.h"
 #include "recovery_ota_support.h"
@@ -31,6 +33,7 @@ void app_main(void)
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_iris_boot_probe());
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(factory_system_metadata_init());
+    ESP_ERROR_CHECK(vibe_settings_init());
     bool requested = false;
     const esp_err_t intent_err = mosaico_boot_recovery_requested(&requested);
     ESP_ERROR_CHECK(mosaico_boot_consume_request());
@@ -67,6 +70,7 @@ void app_main(void)
     }
     ESP_LOGI(TAG, "UI initialization stack headroom: %u bytes",
              (unsigned)uxTaskGetStackHighWaterMark(NULL));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(vibe_device_start(factory_ui_rotate));
     const esp_err_t input_err = app_iris_input_register(&ui_commands);
     if (input_err != ESP_OK) {
         ESP_LOGE(TAG, "Vibe Mode input failed: %s; USB maintenance remains active",

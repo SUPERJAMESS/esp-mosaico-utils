@@ -5,6 +5,14 @@ static bool executor_ota_status(esp_iris_ota_status_t *out)
     if (executor_busy()) {
         taskENTER_CRITICAL(&s_services_lock);
         *out = s_executor.ota_status;
+        /* BEGIN erases flash before ota->active is published. Report the
+         * admitted worker as active too, so platform readers/reset cannot
+         * enter between target selection and the first erase. */
+        const int stage = atomic_load(&s_executor.stage);
+        if ((stage == IRIS_EXEC_QUEUED || stage == IRIS_EXEC_RUNNING) &&
+            s_executor.header.channel == ESP_IRIS_CHANNEL_OTA &&
+            s_executor.header.type == ESP_IRIS_OTA_BEGIN)
+            out->active = true;
         taskEXIT_CRITICAL(&s_services_lock);
         return true;
     }

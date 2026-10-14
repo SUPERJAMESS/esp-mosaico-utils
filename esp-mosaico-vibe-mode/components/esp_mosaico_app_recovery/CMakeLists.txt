@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "iris_ota_support.c"
+    SRCS "iris_ota_support.c" "mosaico_shared.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "../../include"
     REQUIRES

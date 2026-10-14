@@ -39,6 +39,11 @@ bool ideas_code_valid(const char *code)
 {
     return code && strlen(code) == 6 && strspn(code, "0123456789") == 6;
 }
+bool ideas_local_code_valid(const char *code)
+{
+    return ideas_code_valid(code) || (code && strlen(code) == 6 && code[0] == 'd' &&
+                                      strspn(code + 1, "0123456789abcdef") == 5);
+}
 bool ideas_filename_valid(const char *name)
 {
     return name && *name && strlen(name) < 65 && name[0] != '.' &&
@@ -98,7 +103,7 @@ static bool bounded_depth(const char *json, size_t size)
 
 esp_err_t ideas_package_parse(const char *json, size_t size, const char *code, ideas_package_t *out)
 {
-    if (!json || !out || !ideas_code_valid(code) || !size || size > IDEAS_DESCRIPTOR_BYTES ||
+    if (!json || !out || !ideas_local_code_valid(code) || !size || size > IDEAS_DESCRIPTOR_BYTES ||
         memchr(json, 0, size) || !bounded_depth(json, size))
         return ESP_ERR_INVALID_ARG;
     /* cJSON stores strings as NUL-terminated values. Reject escaped NULs before
@@ -115,7 +120,7 @@ esp_err_t ideas_package_parse(const char *json, size_t size, const char *code, i
     esp_err_t err = ESP_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     if (end != json + size || !unique_keys(root, 0) ||
-        strcmp(str(root, "schema"), "mosaico-ideas/download/1"))
+        strcmp(str(root, "schema"), ideas_code_valid(code) ? "mosaico-ideas/download/1" : "mosaico-ideas/local/1"))
         goto done;
     const cJSON *app = get(root, "application"), *manifest = get(root, "system_manifest");
     if (!copy(app, "code", out->code, sizeof(out->code)) || strcmp(out->code, code) ||
@@ -154,8 +159,9 @@ esp_err_t ideas_package_parse(const char *json, size_t size, const char *code, i
         ideas_file_t *dest = &out->files[i];
         if (!copy(f, "name", dest->name, sizeof(dest->name)) || !ideas_filename_valid(dest->name) ||
             !copy(f, "path", dest->path, sizeof(dest->path)) ||
-            strncmp(dest->path, "/api/v1/ideas/files/", 20) ||
-            !ideas_filename_valid(dest->path + 20) ||
+            (ideas_code_valid(code) ?
+                (strncmp(dest->path, "/api/v1/ideas/files/", 20) || !ideas_filename_valid(dest->path + 20)) :
+                (strncmp(dest->path, "/local/", 7) || !ideas_filename_valid(dest->path + 7))) ||
             !copy(f, "sha256", dest->sha256, sizeof(dest->sha256)) || !hash(dest->sha256) ||
             !number(f, "size", &dest->size) || !dest->size || dest->size > 16U * 1024U * 1024U)
             goto done;

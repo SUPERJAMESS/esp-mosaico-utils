@@ -16,7 +16,11 @@ void ideas_worker(void *arg)
     bool remote = job->command == IDEAS_RESOLVE || job->command == IDEAS_CHECK;
     bool preparing = remote || job->command == IDEAS_PREVIEW;
     esp_err_t err = ESP_OK;
-    if (remote)
+    if ((job->command == IDEAS_UPDATE_ALL || job->command == IDEAS_REFRESH_UPDATES))
+        err = ideas_update_all(ctx, job);
+    else if (job->command == IDEAS_RUN_DEVELOPMENT)
+        err = ideas_run_development();
+    else if (remote)
         err = ideas_prepare_download(ctx, job);
     else {
         if (job->command != IDEAS_DISMISS) {
@@ -53,10 +57,16 @@ void ideas_worker(void *arg)
         ctx->state->has_icon = ctx->pending->package.icon[0] != 0;
     }
     ctx->state->busy = false;
+    ctx->state->cancellable = false;
+    ctx->state->batch = false;
+    ctx->state->batch_code[0] = 0;
+    for (size_t i = 0; i < ctx->state->count; ++i) ctx->state->items[i].queued = false;
     ctx->state->scanning = false;
     if (preparing)
         ctx->state->resolving = false;
-    if (job->command == IDEAS_SCAN)
+    if (job->command == IDEAS_REFRESH_UPDATES) {
+        ctx->state->terminal = false;
+    } else if (job->command == IDEAS_SCAN)
         ctx->state->scan_error = err;
     else if (!stale && !ready && job->command != IDEAS_DISMISS &&
              (job->command != IDEAS_PREVIEW || err != ESP_OK)) {
@@ -72,6 +82,17 @@ void ideas_worker(void *arg)
                                                      : "Download");
             snprintf(ctx->state->detail, sizeof(ctx->state->detail),
                      "%s (0x%x).\nReturn home and try again.", esp_err_to_name(err), (unsigned)err);
+        }
+        if (ctx->cancel_requested) {
+            ctx->state->failed = false;
+            snprintf(ctx->state->title, sizeof(ctx->state->title), "Cancelled");
+            snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Previously saved Ideas are unchanged");
+        }
+        if (err == FACTORY_IDEAS_ERR_STORAGE_FULL) {
+            snprintf(ctx->state->title, sizeof(ctx->state->title), "Not enough space");
+            snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Free space or delete an Idea, then retry.");
+        } else if (err == ESP_ERR_NOT_FOUND && job->command == IDEAS_RESOLVE) {
+            snprintf(ctx->state->title, sizeof(ctx->state->title), "No Idea with this ID");
         }
         ++ctx->state->revision;
     }

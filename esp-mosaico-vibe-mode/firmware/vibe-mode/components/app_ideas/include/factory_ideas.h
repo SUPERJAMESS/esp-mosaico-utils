@@ -6,6 +6,7 @@
 #include "esp_err.h"
 
 #define FACTORY_IDEAS_MAX_ITEMS 16U
+#define FACTORY_IDEAS_ERR_STORAGE_FULL 0x7a01
 
 typedef enum {
     IDEAS_SCAN,
@@ -15,14 +16,20 @@ typedef enum {
     IDEAS_PREVIEW,
     IDEAS_START,
     IDEAS_RESOLVE,
-    IDEAS_DISMISS
+    IDEAS_DISMISS,
+    IDEAS_OPEN,
+    IDEAS_DELETE,
+    IDEAS_SAVE_DEVELOPMENT,
+    IDEAS_UPDATE_ALL,
+    IDEAS_RUN_DEVELOPMENT,
+    IDEAS_REFRESH_UPDATES
 } factory_ideas_command_t;
 typedef struct {
     char code[7], application_id[65], release_id[65], version[65], name[129];
     char description[513], presentation[65], icon[65], latest_version[65];
     uint64_t bytes;
     unsigned components;
-    bool boot, update_available;
+    bool boot, update_available, queued;
 } factory_idea_t;
 typedef struct {
     uint32_t generation, revision;
@@ -32,6 +39,11 @@ typedef struct {
     char title[48], detail[160];
     uint64_t total, received;
     size_t count, invalid;
+    uint64_t storage_total, storage_used;
+    bool development_available, development_saved, cancellable, batch;
+    char development_name[33], development_version[33];
+    unsigned batch_index, batch_total;
+    char batch_code[7];
     factory_idea_t items[FACTORY_IDEAS_MAX_ITEMS];
     uint32_t preview_id;
     bool resolving, preview_ready, already_downloaded, return_library, view_only, custom_display,
@@ -48,8 +60,8 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
 /* Confirm or dismiss the current immutable preview identified by request_id.
  * download=true saves to NAND; false dismisses. Stale/duplicate IDs are rejected. */
 esp_err_t factory_ideas_confirm(uint32_t request_id, bool download);
-/* Invalidate an in-flight preview or asynchronously release a ready preview.
- * Never starts a download; completion of unrelated active IO is not cancelled. */
+/* Cancel preview or a cancellable download. NOR writes are never cancelled.
+ * Admission and cancellation state are serialized with the worker. */
 esp_err_t factory_ideas_cancel(void);
 /* Copy current library/preview status into required out without waiting.
  * Returns timeout on snapshot contention; safe for render-task polling. */

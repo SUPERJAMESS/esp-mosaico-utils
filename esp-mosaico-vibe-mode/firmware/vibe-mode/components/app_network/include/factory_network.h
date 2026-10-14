@@ -56,6 +56,9 @@ esp_err_t factory_network_connect(const char *ssid, const char *password);
 /* Forget saved Wi-Fi credentials and disconnect the station.
  * Affects only the Wi-Fi namespace; returns the storage/disconnect result. */
 esp_err_t factory_network_forget(void);
+/* Task-context suspend/resume, preserving credentials. Suspended event handlers
+ * cannot reconnect or persist a late connection. Used by sleep and reset. */
+esp_err_t factory_network_suspend(bool suspended);
 /* Copy a lock-consistent status and scan results into required snapshot.
  * May wait for the short snapshot mutex; performs no network or filesystem IO. */
 esp_err_t factory_network_get_snapshot(factory_network_snapshot_t *snapshot);

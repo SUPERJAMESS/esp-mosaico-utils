@@ -146,6 +146,21 @@ def test_power_loss_between_generation_renames(core, tmp_path):
     assert (base / "current/app.bin").read_bytes() == payloads["app.bin"]
 
 
+def test_first_download_failure_and_interrupted_delete_leave_no_idea(core, tmp_path):
+    root = str(tmp_path).encode()
+    document, payloads = descriptor()
+    _, package, raw = parse(core, document)
+    fetch, verify = callbacks(payloads, fail="app.bin")
+    assert core.ideas_store_download(root, raw, len(raw), C.byref(package), fetch, verify, None) != 0
+    base = tmp_path / "042731"
+    assert not base.exists()
+    fetch, verify = callbacks(payloads)
+    assert core.ideas_store_download(root, raw, len(raw), C.byref(package), fetch, verify, None) == 0
+    (base / "current").rename(base / ".deleted")
+    assert core.ideas_store_recover(root, b"042731") == 0
+    assert not base.exists()
+
+
 def test_multiple_ideas_survive_replacement_and_post_commit_cleanup(core, tmp_path):
     root = str(tmp_path).encode()
     for code, version in (("042731", "1.0"), ("042732", "1.0"), ("042731", "2.0")):
