@@ -27,33 +27,33 @@ bootloader 实现和已评审的 `prebuilt/recovery` 未修改；本记录不代
 
 | 范围 | 结果 |
 | --- | --- |
-| Recovery 与 mosaico-tools（不含下述收集失败和单独运行的 UI） | 592 passed |
-| 原生 GSP UI 模拟器 | 15 passed |
-| ESP-Iris Python tests | 603 passed |
+| Recovery 与 mosaico-tools（全量，含 27 项工作流及 15 项原生 GSP UI 测试） | 634 passed |
+| ESP-Iris Python tests（此前重构回归） | 603 passed |
 
-以上共 1,210 项。实际 Bridge worker、更新后端、Ideas worker、存储事务、服务故障路径、字体/展示解析、
+以上共 1,237 项。实际 Bridge worker、更新后端、Ideas worker、存储事务、服务故障路径、字体/展示解析、
 输入导航、进度和截图均有主机回归。硬件故障注入及云端联调不能由这些主机结果替代。
 
 使用 GSPC 0.5.0、GSP simulator 1.4.0；测试命令从 utils 根目录运行：
 
 ```sh
-python -m pytest -q esp-mosaico-vibe-mode/tests mosaico-tools/tests \
-  --ignore=esp-mosaico-vibe-mode/tests/test_project_workflow.py \
-  --ignore=esp-mosaico-vibe-mode/tests/test_recovery_ui_host.py
-python -m pytest -q esp-mosaico-vibe-mode/tests/test_recovery_ui_host.py
+python -m pytest -q esp-mosaico-vibe-mode/tests mosaico-tools/tests
 cd ESP-Iris/components/esp_iris/tools
 python -m pytest -q
 ```
 
 测试前设置 `GSPC_EXECUTABLE`、`GSP_SIM_EXECUTABLE`，安装相应测试依赖。
-已有未跟踪 `test_project_workflow.py` 仍因导入不存在的
-`mosaico_cli.scaffold.create_project` 而收集失败；独立复现了该错误，没有删除测试或计入通过项。
-因此不声明整个工作区不加筛选的测试全绿。
+最初 `test_project_workflow.py` 依赖另一分支的单项目接口
+`mosaico_cli.scaffold.create_project`，导致收集失败。2026-10-14 按当前主线契约修复测试，
+使用 `initialize_project(workspace, name)`、`project init`、`--workspace` 和 doctor 的
+`checks`/`exit_code`。27 项场景覆盖 workspace 发现与选择优先级、模板创建后的安装命令、
+dry-run、错误配置在工作开始前被拒绝，以及真实诊断逻辑在缺少 IDF/Gateway 时的 JSON/文本输出。
+全部夹具在临时目录创建配置和模板，没有读取消费 workspace；工具实现未增加兼容接口。
+修复后两个测试目录无排除项全量运行，634 项通过，耗时 240.76 秒。
 
 ### 无已发布 Ideas 时的功能验证
 
 按用户 2026-10-14 的要求，使用本地生成的固定 release 做功能测试，不依赖正式发布的
-六位编号。新增 `tests/test_ideas_worker_host.py` 的 **28 项**已包含在上方 592 项中；
+六位编号。新增 `tests/test_ideas_worker_host.py` 的 **28 项**已包含在上方 634 项中；
 额外启用 ASan/UBSan 复跑同一组 28 项，全部通过，不重复计数。
 
 夹具独立编译 `app_ideas` 的全部九个源文件，通过公共 API 驱动真实 worker、HTTP 处理、
