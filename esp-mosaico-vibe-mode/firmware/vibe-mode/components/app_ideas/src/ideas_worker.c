@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ideas_internal.h"
 
-void ideas_message(ideas_context_t *ctx, const char *title, const char *detail)
-{
+void ideas_message(ideas_context_t *ctx, const char *title, const char *detail) {
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     snprintf(ctx->state->title, sizeof(ctx->state->title), "%s", title);
     snprintf(ctx->state->detail, sizeof(ctx->state->detail), "%s", detail);
     xSemaphoreGive(ctx->lock);
 }
 
-void ideas_worker(void *arg)
-{
-    ideas_context_t *ctx = ((job_t *)arg)->owner;
-    job_t *job = arg;
+static void run_job(job_t *job) {
+    ideas_context_t *ctx = job->owner;
+    factory_io_metrics_t metrics = {.started = factory_io_now()};
+#ifdef ESP_PLATFORM
+    /* INTERNAL includes LP/RTC RAM on ESP32-S31. Record the actual stack and
+     * largest HP SRAM block so slow-stack fallback is visible in field logs. */
+    ESP_LOGI("io_perf", "task_start command=%u core=%u stack=%p dram_largest=%u rtc_largest=%u",
+             (unsigned)job->command, (unsigned)xPortGetCoreID(), (void *)&job,
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA | MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_RTCRAM | MALLOC_CAP_8BIT));
+#endif
     bool remote = job->command == IDEAS_RESOLVE || job->command == IDEAS_CHECK;
     bool preparing = remote || job->command == IDEAS_PREVIEW;
     esp_err_t err = ESP_OK;
@@ -56,9 +62,9 @@ void ideas_worker(void *arg)
     ctx->state->scanning = false;
     if (preparing)
         ctx->state->resolving = false;
-    if (job->command == IDEAS_SCAN)
+    if (job->command == IDEAS_SCAN || job->command == IDEAS_RELOCALIZE)
         ctx->state->scan_error = err;
-    else if (!stale && !ready && job->command != IDEAS_DISMISS &&
+    else if (!stale && !ready && job->command != IDEAS_DISMISS && job->command != IDEAS_ROW &&
              (job->command != IDEAS_PREVIEW || err != ESP_OK)) {
         ctx->state->terminal = true;
         ctx->state->failed = err != ESP_OK;
@@ -70,21 +76,78 @@ void ideas_worker(void *arg)
                      preparing                       ? "App information"
                      : job->command == IDEAS_INSTALL ? "Installation"
                                                      : "Download");
-            snprintf(ctx->state->detail, sizeof(ctx->state->detail),
-                     "%s (0x%x).\nReturn home and try again.", esp_err_to_name(err), (unsigned)err);
+            snprintf(ctx->state->detail, sizeof(ctx->state->detail), "%s (0x%x).\n%s",
+                     esp_err_to_name(err), (unsigned)err,
+                     factory_locale_get() ? "Return home and try again." : "返回主界面后重试。");
         }
         ++ctx->state->revision;
     }
     xSemaphoreGive(ctx->lock);
     ideas_free_pending(job->pending);
+    char operation[20];
+    snprintf(operation, sizeof(operation), "%u/%s", (unsigned)job->command, job->code);
+    factory_io_report("operation", operation, &metrics, NULL, 0, err);
+#ifdef ESP_PLATFORM
+    ESP_LOGI("io_perf", "memory internal_free=%u internal_largest=%u internal_min=%u psram_free=%u stack_free=%u",
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT),
+             (unsigned)uxTaskGetStackHighWaterMark(NULL));
+#endif
     free(job);
-    vTaskDelete(NULL);
 }
 
-esp_err_t ideas_launch_locked(ideas_context_t *ctx, job_t *job)
-{
-    job->owner = ctx;
-    if (xTaskCreate(ideas_worker, "ideas", 24576, job, 3, NULL) == pdPASS)
+static void ideas_worker(void *arg) {
+    ideas_context_t *ctx = arg;
+    job_t *job;
+    for (;;) {
+        if (xQueueReceive(ctx->jobs, &job, portMAX_DELAY) == pdTRUE)
+            run_job(job);
+    }
+}
+
+/* Called only from serialized startup. Publish initialized last, so UI calls
+ * cannot access partial resources while an allocation fails and rolls back. */
+esp_err_t ideas_worker_init(ideas_context_t *ctx) {
+    if (atomic_load(&ctx->initialized))
         return ESP_OK;
+    job_t *initial = calloc(1, sizeof(*initial));
+    if (!initial)
+        return ESP_ERR_NO_MEM;
+    ctx->lock = xSemaphoreCreateMutex();
+    ctx->jobs = xQueueCreate(1, sizeof(job_t *));
+    if (!ctx->lock || !ctx->jobs)
+        goto fail;
+    initial->owner = ctx;
+    initial->command = IDEAS_SCAN;
+    if (xQueueSend(ctx->jobs, &initial, 0) != pdTRUE)
+        goto fail;
+    ctx->state->busy = ctx->state->scanning = true;
+    ctx->state->command = IDEAS_SCAN;
+    /* On S31 INTERNAL alone also admits slow LP/RTC RAM. DMA capability
+     * restricts this lifetime stack to HP SRAM, with no slower fallback.
+     * Create after Wi-Fi startup, before normal UI jobs fragment the heap. */
+    if (xTaskCreatePinnedToCoreWithCaps(ideas_worker, "ideas", 16384, ctx, 3,
+                                       &ctx->worker, tskNO_AFFINITY,
+                                       MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT | MALLOC_CAP_DMA) != pdPASS)
+        goto fail;
+    atomic_store(&ctx->initialized, true);
+    return ESP_OK;
+fail:
+    if (ctx->jobs)
+        vQueueDelete(ctx->jobs);
+    if (ctx->lock)
+        vSemaphoreDelete(ctx->lock);
+    ctx->jobs = NULL;
+    ctx->lock = NULL;
+    ctx->worker = NULL;
+    ctx->state->busy = ctx->state->scanning = false;
+    free(initial);
     return ESP_ERR_NO_MEM;
+}
+
+esp_err_t ideas_launch_locked(ideas_context_t *ctx, job_t *job) {
+    job->owner = ctx;
+    return xQueueSend(ctx->jobs, &job, 0) == pdTRUE ? ESP_OK : ESP_ERR_INVALID_STATE;
 }

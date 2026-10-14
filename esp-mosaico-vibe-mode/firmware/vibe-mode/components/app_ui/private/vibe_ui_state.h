@@ -12,6 +12,7 @@ struct vibe_ui {
     bool download_pending, password_visible, preview_active;
     vibe_page_t preview_return;
     bool prefetch_attempted;
+    bool rendered_release;
     char selected_ssid[33], password_projection[65], password[65];
     char idea_code[7];
     vibe_bundle_t selected_bundle;

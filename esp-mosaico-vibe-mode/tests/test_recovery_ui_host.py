@@ -462,3 +462,51 @@ def test_display_adapter_failure_cancels_without_download(sim):
     for _ in range(6): sim.tap(240, 350)
     sim.tap(240, 444)
     sim.wait(page=8, cancel_calls=1, idea_ready=False, download_calls=0)
+
+
+def test_system_language_switch_is_offline_and_reversible(sim):
+    sim.wait(page=0, language=0, network=0)
+    sim.capture("system-zh")
+    sim.tap(390, 310)
+    sim.wait(page=0, language=1, network=0, download_calls=0)
+    sim.capture("system-en")
+    zh = Image.open(sim.directory / "system-zh.png").crop((100, 130, 380, 175))
+    en = Image.open(sim.directory / "system-en.png").crop((100, 130, 380, 175))
+    assert zh.tobytes() != en.tobytes(), "System labels must repaint when the locale changes"
+    sim.tap(390, 310)
+    sim.wait(page=0, language=0, network=0, download_calls=0)
+    sim.capture("system-zh-again")
+    again = Image.open(sim.directory / "system-zh-again.png").crop((100, 130, 380, 175))
+    assert zh.tobytes() == again.tobytes()
+
+
+@pytest.mark.parametrize("english", [False, True])
+def test_ideas_download_verification_stages(sim, english):
+    if english:
+        sim.tap(395, 313)
+        sim.wait(language=1)
+    sim.control("ideas-phase 0 0 1000000 0 12 0")
+    sim.wait(page=7, progress=0, rate_valid=False)
+    sim.control("ideas-phase 0 500000 1000000 0 12 1000")
+    sim.wait(page=7, progress=500, rate_valid=True, rate_bps=500000)
+    sim.capture("ideas-transfer")
+    sim.control("ideas-phase 1 0 1000000 0 12 2000")
+    sim.wait(page=7, progress=0, rate_valid=False)
+    sim.control("ideas-phase 1 400000 1000000 4 12 3000")
+    sim.wait(page=7, progress=400, rate_valid=False)
+    sim.capture("ideas-verify-files")
+    for phase, name in ((2, "check-image"), (3, "save"), (4, "complete")):
+        sim.control("ideas-phase %d 1000000 1000000 12 12 %d" % (phase, 3000 + phase*1000))
+        sim.wait(page=8 if phase == 4 else 7, rate_valid=False)
+        sim.capture("ideas-" + name)
+
+
+def test_ideas_verification_failure_has_no_download_rate(sim):
+    sim.control("ideas-phase 0 500000 1000000 0 12 0")
+    sim.control("ideas-phase 0 1000000 1000000 0 12 1000")
+    sim.wait(page=7, rate_valid=True)
+    sim.control("ideas-phase 1 400000 1000000 4 12 2000")
+    sim.wait(page=7, progress=400, rate_valid=False)
+    sim.control("ideas-fail")
+    sim.wait(page=8, rate_valid=False)
+    sim.capture("ideas-verification-failed")

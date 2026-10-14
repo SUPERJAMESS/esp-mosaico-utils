@@ -5,6 +5,7 @@ idf_component_register(
         "src/update_iris_adapter.c"
         "src/update_manifest.c"
         "src/update_policy.c"
+        "src/update_idea_check.c"
         "src/update_transaction.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "private"

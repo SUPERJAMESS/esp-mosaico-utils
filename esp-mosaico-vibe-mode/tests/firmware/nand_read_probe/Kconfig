@@ -1,0 +1,17 @@
+menu "NAND read hardware probe (test component only)"
+config NAND_READ_PROBE_PATH
+    string "Existing file to read and hash"
+    default ""
+config NAND_READ_PROBE_EVICT_PATH
+    string "Separate existing large file used to evict logical page cache"
+    default ""
+config NAND_RUNTIME_PROBE
+    bool "Compare task stack memory and NOR/NAND SHA runtime"
+    default n
+config NAND_IDEAS_DRAM_STACK
+    bool "TEST ONLY: run Ideas jobs on a 16 KiB HP SRAM stack"
+    default n
+config NAND_IDEAS_RTC_STACK
+    bool "TEST ONLY: run Ideas jobs on a 16 KiB LP RTC stack"
+    default n
+endmenu

@@ -4,9 +4,13 @@
 #include <stdint.h>
 
 /* Local UI telemetry, not part of the ESP-Iris wire protocol. */
+typedef enum {
+    VIBE_TRANSFER_BYTES, VIBE_TRANSFER_VERIFY_FILES, VIBE_TRANSFER_CHECK_IMAGE, VIBE_TRANSFER_SAVE
+} vibe_transfer_phase_t;
 typedef struct {
     uint8_t job[16], source;
     bool receiving;
+    vibe_transfer_phase_t phase;
     uint64_t now_ms, received, total;
     uint32_t component_received, component_size;
     unsigned component_id, completed_components, component_count;

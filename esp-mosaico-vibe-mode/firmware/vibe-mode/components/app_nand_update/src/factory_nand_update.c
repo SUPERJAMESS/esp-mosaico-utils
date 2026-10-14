@@ -4,6 +4,8 @@
 #include "factory_system_update.h"
 #include "factory_nand_update.h"
 #include "app_storage.h"
+#include "factory_io_metrics.h"
+#include "esp_heap_caps.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -375,23 +377,24 @@ static esp_err_t read_component(const char *path,
 
     FILE *file = fopen(path, "rb");
     ESP_RETURN_ON_FALSE(file != NULL, ESP_ERR_NOT_FOUND, TAG, "open NAND component");
-    esp_err_t err =
-        factory_system_update_source_begin_component(FACTORY_SYSTEM_UPDATE_OWNER_NAND, component);
+    factory_io_metrics_t metrics = {.started = factory_io_now()};
+    /* SPI1 NOR writes from PSRAM otherwise bounce through IDF's tiny temporary
+     * buffer. Reserve the internal chunk before any destructive erase. */
+    uint8_t *buffer = heap_caps_malloc(NAND_UPDATE_READ_BYTES,
+                                       MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    esp_err_t err = buffer ? ESP_OK : ESP_ERR_NO_MEM;
     psa_hash_operation_t hash = PSA_HASH_OPERATION_INIT;
     bool hash_active = false;
     if (err == ESP_OK) {
         err = psa_crypto_init() == PSA_SUCCESS &&
                       psa_hash_setup(&hash, PSA_ALG_SHA_256) == PSA_SUCCESS
-                  ? ESP_OK
-                  : ESP_FAIL;
+                  ? ESP_OK : ESP_FAIL;
         hash_active = err == ESP_OK;
     }
-
-    uint8_t *buffer = NULL;
-    if (err == ESP_OK) {
-        buffer = malloc(NAND_UPDATE_READ_BYTES);
-        err = buffer != NULL ? ESP_OK : ESP_ERR_NO_MEM;
-    }
+    int64_t started = factory_io_now();
+    if (err == ESP_OK)
+        err = factory_system_update_source_begin_component(FACTORY_SYSTEM_UPDATE_OWNER_NAND, component);
+    metrics.begin = factory_io_now() - started;
     uint32_t received = 0;
     uint32_t next_log_percent = NAND_UPDATE_LOG_STEP_PERCENT;
     while (err == ESP_OK && received < component->size) {
@@ -399,17 +402,25 @@ static esp_err_t read_component(const char *path,
         if (request > NAND_UPDATE_READ_BYTES) {
             request = NAND_UPDATE_READ_BYTES;
         }
+        started = factory_io_now();
         const size_t read_size = fread(buffer, 1, request, file);
+        metrics.read += factory_io_now() - started;
+        metrics.bytes += read_size;
         if (read_size == 0) {
             err = ESP_ERR_INVALID_SIZE;
             break;
         }
-        if (psa_hash_update(&hash, buffer, read_size) != PSA_SUCCESS) {
+        started = factory_io_now();
+        psa_status_t status = psa_hash_update(&hash, buffer, read_size);
+        metrics.hash += factory_io_now() - started;
+        if (status != PSA_SUCCESS) {
             err = ESP_FAIL;
             break;
         }
+        started = factory_io_now();
         err = factory_system_update_source_write_component(FACTORY_SYSTEM_UPDATE_OWNER_NAND,
                                                            component, received, buffer, read_size);
+        metrics.write += factory_io_now() - started;
         if (err == ESP_OK) {
             received += (uint32_t)read_size;
             const uint32_t percent = (uint32_t)(((uint64_t)received * 100U) / component->size);
@@ -440,8 +451,10 @@ static esp_err_t read_component(const char *path,
     }
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "finalizing NAND component %u", component->id);
+        started = factory_io_now();
         err = factory_system_update_source_end_component(FACTORY_SYSTEM_UPDATE_OWNER_NAND,
                                                          component, digest);
+        metrics.end = factory_io_now() - started;
         if (err == ESP_OK) {
             ESP_LOGI(TAG, "NAND component %u verified", component->id);
         }
@@ -449,6 +462,7 @@ static esp_err_t read_component(const char *path,
     if (hash_active) {
         (void)psa_hash_abort(&hash);
     }
+    factory_io_report("nand_install", path, &metrics, buffer, NAND_UPDATE_READ_BYTES, err);
     free(buffer);
     fclose(file);
     return err;

@@ -1,0 +1,96 @@
+{
+  "schema": "mosaico-ideas/release/1",
+  "project": {
+    "title": "Weather Station",
+    "categories": [
+      "display",
+      "sensors"
+    ],
+    "boards": [],
+    "tags": [
+      "weather"
+    ],
+    "license": "Apache-2.0",
+    "external_links": []
+  },
+  "firmware": {
+    "path": "firmware/app.irisfw",
+    "size": 600000,
+    "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "website": {
+    "readme": {
+      "path": "README.md",
+      "size": 2048,
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+    },
+    "changelog": {
+      "path": "CHANGELOG.md",
+      "size": 256,
+      "sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+    },
+    "covers": [
+      {
+        "path": "web/cover.png",
+        "size": 120000,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "resources": [],
+    "attachments": []
+  },
+  "device": {
+    "profile": "esp-mosaico/v2",
+    "default_locale": "zh-CN",
+    "presentations": [
+      {
+        "display": {
+          "path": "device/zh-CN/display.json",
+          "size": 2048,
+          "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+        },
+        "assets": [
+          {
+            "path": "device/zh-CN/title.mif",
+            "size": 3072,
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+          },
+          {
+            "path": "device/zh-CN/body.mif",
+            "size": 6144,
+            "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+          },
+          {
+            "path": "device/zh-CN/icon.png",
+            "size": 6105,
+            "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+          }
+        ]
+      },
+      {
+        "display": {
+          "path": "device/en/display.json",
+          "size": 2048,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "assets": [
+          {
+            "path": "device/en/title.mif",
+            "size": 3072,
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "path": "device/en/body.mif",
+            "size": 6144,
+            "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          {
+            "path": "device/en/icon.png",
+            "size": 6105,
+            "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+          }
+        ]
+      }
+    ]
+  }
+}

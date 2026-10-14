@@ -20,63 +20,44 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPONENTS = ROOT / "firmware/vibe-mode/components"
 FIXTURE = ROOT / "tests/host_ideas"
 SCENARIOS = [
+    "download-stages", "retry-manifest", "retry-read", "retry-limit", "bilingual-offline",
     "preview", "cancel-queued", "cancel-resolve", "cancel-asset", "fixed-release",
-    "task-failure", "reject-bad-font", "reject-bad-display", "reject-bad-icon",
+    "queue-failure", "init-retry", "worker-reuse", "worker-handoff", "reject-bad-font", "reject-bad-display", "reject-bad-icon",
     "reject-hash", "reject-truncated", "reject-missing", "reject-redirect",
     "reject-read-error", "reject-wrong-length", "reject-unknown-code", "reject-resolve-truncated",
     "reject-bad-descriptor", "reject-bad-flash", "rollback-hash", "rollback-truncated",
     "offline", "install-corrupt", "install-commit-failure", "boot-identity",
-    "interrupted-generation", "admission", "repair-current",
+    "interrupted-generation", "admission", "repair-current", "io-budget",
 ]
 
 
-def png(width=2):
-    def chunk(kind, data):
-        return (struct.pack(">I", len(data)) + kind + data +
-                struct.pack(">I", zlib.crc32(kind + data)))
-    return (b"\x89PNG\r\n\x1a\n" +
-            chunk(b"IHDR", struct.pack(">IIBBBBB", width, 2, 8, 2, 0, 0, 0)) +
-            chunk(b"IDAT", zlib.compress((b"\0" + b"\xff\0\0" * width) * 2)) +
-            chunk(b"IEND", b""))
+sys.path.insert(0, str(ROOT / "tests/fixtures"))
+from ideas_release import descriptor, encoded, ref, png
 
 
 def write_release(directory, release, version="1.0"):
-    font = (struct.pack("<4sHHIHHHHI", b"MIFF", 1, 24, 50, 1, 20, 24, 0, 24) +
-            struct.pack("<IIHHhhi", 42, 44, 2, 3, 0, 3, 128) +
-            bytes([255, 128, 0, 255, 255, 0]))
-    display = dict(schema="mosaico-ideas/display/1", locale="en", icon="icon.png",
-                   name=dict(text="A", font="font.mif", width=328, height=84, glyphs=[[42, 0, 3]]),
-                   description=dict(text="B", font="font.mif", width=416, height=176, glyphs=[[42, 4, 5]]))
-    # Rehash malformed assets so semantic rejection is tested independently of SHA checks.
-    if release == "bad-font":
-        font = b"XXXX" + font[4:]
-    if release == "bad-display":
-        display["name"]["glyphs"] = [[42, 327, 3]]
-    payloads = {"table.bin": b"t" * 4096, "app.bin": version.encode() * 300,
-                "display.json": json.dumps(display).encode(), "font.mif": font,
-                "icon.png": png(97 if release == "bad-icon" else 2)}
-    files = []
-    for name, data in payloads.items():
-        immutable_name = release + "-" + name
-        (directory / immutable_name).write_bytes(data)
-        files.append(dict(name=name, path="/api/v1/ideas/files/" + immutable_name,
-                          size=len(data), sha256=hashlib.sha256(data).hexdigest()))
-    components = [dict(id=i + 1, kind=kind, target_offset=offset, file=f["name"],
-                       size=f["size"], sha256=f["sha256"])
-                  for i, (f, kind, offset) in enumerate(zip(
-                      files, ("partition_table", "application"), (0x8000, 0x210000)))]
-    document = dict(
-        schema="mosaico-ideas/download/1",
-        application=dict(code="042731", id="stable-app-id", release_id="release-" + version,
-                         version=version, name="A", description="B", locale="en"),
-        system_manifest=dict(schema="esp-iris-system-update/0.2", release=version,
-                             target=dict(chip_id=32, flash_size=16 * 1024 * 1024),
-                             target_layout_sha256=files[0]["sha256"], components=components),
-        files=files, presentation="display.json", fonts=["font.mif"], icon="icon.png")
+    document, payloads = descriptor(version)
+    display_path = "device/en/display.json"
+    display = json.loads(payloads[display_path])
+    if release == "bad-font": payloads["device/en/font.miff"] = b"bad-font"
+    if release == "bad-display": display["name"]["glyphs"] = [[1, 400, 1]]
+    if release == "bad-icon": payloads["device/en/icon.png"] = png(97)
+    payloads[display_path] = encoded(display)
+    for view in document["device"]["presentations"]:
+        view["display"] = ref(view["display"]["path"], payloads[view["display"]["path"]])
+        view["assets"] = [ref(a["path"], payloads[a["path"]]) for a in view["assets"]]
     if release == "bad-flash":
-        document["system_manifest"]["target"]["flash_size"] = 8 * 1024 * 1024
-    (directory / (release + ".json")).write_text(
-        "{broken" if release == "bad-descriptor" else json.dumps(document))
+        fw = json.loads(payloads["firmware/manifest.json"]); fw["target"]["flash_size"] = 8*1024*1024
+        payloads["firmware/manifest.json"] = encoded(fw)
+    document["firmware"]["manifest"] = ref("firmware/manifest.json", payloads["firmware/manifest.json"])
+    index = {}
+    for path, data in payloads.items():
+        sha = hashlib.sha256(data).hexdigest()
+        (directory / sha).write_bytes(data)
+        alias = "inner.json" if path == "firmware/manifest.json" else path.split("/")[-1]
+        index[sha] = dict(alias=alias, firmware=path.startswith("firmware/") and path != "firmware/manifest.json")
+    (directory / (release + "-index.json")).write_bytes(encoded(index))
+    (directory / (release + ".json")).write_bytes(b"{broken" if release == "bad-descriptor" else encoded(document))
 
 
 @pytest.fixture(scope="module")
@@ -90,8 +71,8 @@ def worker(tmp_path_factory):
     assert sources, "Build Recovery first or set CJSON_COMPONENT_DIR"
     cjson_source = sources[0]
     for name in ("esp_err.h", "esp_attr.h", "esp_crt_bundle.h", "esp_flash.h", "esp_heap_caps.h",
-                 "esp_http_client.h", "esp_ota_ops.h", "esp_system.h", "esp_timer.h", "nvs.h",
-                 "sdkconfig.h", "freertos/FreeRTOS.h", "freertos/semphr.h", "freertos/task.h", "psa/crypto.h"):
+                 "esp_http_client.h", "esp_random.h", "esp_app_desc.h", "esp_ota_ops.h", "esp_system.h", "esp_timer.h", "nvs.h",
+                 "sdkconfig.h", "freertos/FreeRTOS.h", "freertos/semphr.h", "freertos/task.h", "freertos/queue.h", "psa/crypto.h"):
         header = build / name
         header.parent.mkdir(parents=True, exist_ok=True)
         header.write_text('#include "sdk.h"\n')
@@ -106,8 +87,8 @@ def worker(tmp_path_factory):
                "-I" + str(COMPONENTS / "app_ideas/private"),
                *map(str, sorted((COMPONENTS / "app_ideas/src").glob("*.c"))),
                str(FIXTURE / "sdk.c"), str(FIXTURE / "main.c"), str(cjson_source),
-               *["-Wl,--wrap=" + name for name in ("fopen", "stat", "opendir", "mkdir", "unlink", "rmdir", "rename")],
-               "-lcrypto", "-o", str(executable)]
+               *["-Wl,--wrap=" + name for name in ("calloc", "fopen", "stat", "lstat", "open", "opendir", "mkdir", "unlink", "rmdir", "rename")],
+               "-lcrypto", "-lz", "-pthread", "-o", str(executable)]
     if os.environ.get("IRIS_HOST_SANITIZERS") == "1":
         command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-no-pie"]
     result = subprocess.run(command, capture_output=True, text=True)

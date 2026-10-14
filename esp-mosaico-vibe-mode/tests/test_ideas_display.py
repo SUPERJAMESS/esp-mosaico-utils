@@ -157,15 +157,16 @@ def test_publisher_roundtrip_without_ui_framework(core, publisher, tmp_path, loc
     if not font_path.exists(): pytest.skip("Publication font unavailable")
     from PIL import Image
     icon = tmp_path / "source.png"; Image.new("RGB", (128, 80), "red").save(icon)
-    metadata = publisher.build(SimpleNamespace(code="042731", name=name, description=description,
+    metadata = publisher.build(SimpleNamespace(name=name, description=description,
         locale=locale, font=font_path, icon=icon, output=tmp_path / "out"))
     assert not list((tmp_path / "out").glob("*.gspb"))
-    assert metadata["download_schema"] == "mosaico-ideas/download/1"
-    for asset in metadata["files"]:
-        raw = (tmp_path / "out" / asset["name"]).read_bytes()
+    assert not (tmp_path / "out/presentation.json").exists()
+    for asset in [metadata["display"]] + metadata["assets"]:
+        raw = (tmp_path / "out" / asset["path"]).read_bytes()
         assert len(raw) == asset["size"] and hashlib.sha256(raw).hexdigest() == asset["sha256"]
-    blobs = [(tmp_path / "out" / n).read_bytes() for n in metadata["fonts"]]
-    fonts = (Source * 2)(*[Source(n.encode(), raw, len(raw)) for n,raw in zip(metadata["fonts"], blobs)])
+    names = ["title.mif", "body.mif"]
+    blobs = [(tmp_path / "out" / n).read_bytes() for n in names]
+    fonts = (Source * 2)(*[Source(n.encode(), raw, len(raw)) for n,raw in zip(names, blobs)])
     sources = Sources(name.encode(), description.encode(), locale.encode(), b"icon.png", 2, fonts)
     raw = (tmp_path / "out/display.json").read_bytes(); display = Display()
     assert core.ideas_presentation_parse(raw, len(raw), C.byref(sources), C.byref(display))

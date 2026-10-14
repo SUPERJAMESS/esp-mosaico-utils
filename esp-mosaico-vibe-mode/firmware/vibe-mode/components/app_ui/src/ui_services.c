@@ -1,17 +1,18 @@
 #include "esp_attr.h"
 // SPDX-License-Identifier: Apache-2.0
-#include "vibe_ui.h"
 #include "esp_iris.h"
-#include "esp_wifi.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "factory_ideas.h"
-#include "factory_network.h"
+#include "factory_locale.h"
 #include "factory_nand_update.h"
+#include "factory_network.h"
 #include "factory_system_update.h"
 #include "iris_bridge.h"
 #include "sdkconfig.h"
-#include <stdlib.h>
+#include "vibe_ui.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "ui_services.h"
@@ -30,10 +31,29 @@ typedef struct {
 /* Large render-owned snapshots remain zero-filled PSRAM storage. No locks. */
 static EXT_RAM_BSS_ATTR ui_services_context_t s_services;
 
-static int service_command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
-{
+static int service_command(void *ctx, vibe_command_t cmd, const char *a, const char *b) {
     (void)ctx;
     switch (cmd) {
+    case VIBE_SET_LANGUAGE: {
+        if (!a || (strcmp(a, "en") && strcmp(a, "zh-CN")))
+            return ESP_ERR_INVALID_ARG;
+        factory_ideas_snapshot_t *state = malloc(sizeof(*state));
+        if (!state)
+            return ESP_ERR_NO_MEM;
+        esp_err_t err = factory_ideas_snapshot(state);
+        if (err == ESP_OK && (state->busy || state->preview_ready))
+            err = ESP_ERR_INVALID_STATE;
+        free(state);
+        unsigned before = factory_locale_get();
+        if (err == ESP_OK)
+            err = factory_locale_set(!strcmp(a, "en"));
+        if (err == ESP_OK) {
+            err = factory_ideas_request(IDEAS_RELOCALIZE, NULL);
+            if (err != ESP_OK)
+                (void)factory_locale_set(before);
+        }
+        return err;
+    }
     case VIBE_SCAN_WIFI:
         return factory_network_request_scan();
     case VIBE_FORGET_WIFI:
@@ -70,19 +90,21 @@ static int service_command(void *ctx, vibe_command_t cmd, const char *a, const c
         return ESP_ERR_INVALID_ARG;
     }
 }
-static void *service_icon(void *ctx, const char *code, size_t *size)
-{
+static void *service_icon(void *ctx, const char *code, size_t *size) {
     (void)ctx;
     return factory_ideas_copy_icon(code, size);
 }
-static void *service_preview(void *ctx, uint32_t request, unsigned slot, size_t *size)
-{
+static void *service_title(void *ctx, const char *code, size_t *size) {
+    (void)ctx;
+    return factory_ideas_copy_title(code, size);
+}
+static void *service_preview(void *ctx, uint32_t request, unsigned slot, size_t *size) {
     (void)ctx;
     return factory_ideas_copy_preview(request, slot, size);
 }
 #define COPY(field, value) snprintf(out->field, sizeof(out->field), "%s", value)
-static void service_snapshot(void *argument, vibe_snapshot_t *out)
-{
+static void service_snapshot(void *argument, vibe_snapshot_t *out) {
+    out->language = factory_locale_get();
     ui_services_context_t *ctx = argument;
     factory_network_snapshot_t network = {0};
     esp_iris_status_t iris = {0};
@@ -209,7 +231,18 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out)
         out->transfer.total = ctx->ideas.total;
         out->transfer.received = ctx->ideas.received;
         memcpy(out->transfer.job, &ctx->ideas.revision, sizeof(ctx->ideas.revision));
-        out->transfer.receiving = out->updating && ctx->ideas.command == IDEAS_DOWNLOAD;
+        out->transfer.receiving = out->updating && ctx->ideas.command == IDEAS_DOWNLOAD &&
+                                  ctx->ideas.phase == IDEAS_PHASE_DOWNLOAD;
+        if (ctx->ideas.command == IDEAS_DOWNLOAD) {
+            if (ctx->ideas.phase == IDEAS_PHASE_VERIFY_FILES)
+                out->transfer.phase = VIBE_TRANSFER_VERIFY_FILES;
+            else if (ctx->ideas.phase == IDEAS_PHASE_CHECK_IMAGE)
+                out->transfer.phase = VIBE_TRANSFER_CHECK_IMAGE;
+            else if (ctx->ideas.phase == IDEAS_PHASE_SAVE)
+                out->transfer.phase = VIBE_TRANSFER_SAVE;
+            out->transfer.completed_components = ctx->ideas.files_verified;
+            out->transfer.component_count = ctx->ideas.file_count;
+        }
         if (ctx->ideas.command == IDEAS_INSTALL && system_active) {
             out->transfer.total = system.total_size;
             out->transfer.received = system.received_size;
@@ -313,13 +346,13 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out)
                                                                             : "TCP");
     COPY(update_verified, "Unsigned");
 }
-const vibe_services_t *factory_ui_services(void)
-{
+const vibe_services_t *factory_ui_services(void) {
     static const vibe_services_t services = {
         .ctx = &s_services,
         .snapshot = service_snapshot,
         .command = service_command,
         .icon = service_icon,
+        .title = service_title,
         .preview = service_preview,
     };
     return &services;

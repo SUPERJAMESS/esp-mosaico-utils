@@ -3,9 +3,11 @@
 #include "factory_system_update.h"
 #if CONFIG_ESP_IRIS_SYSTEM_UPDATE && CONFIG_IRIS_FACTORY_SYSTEM_UPDATE_BACKEND
 #include "update_internal.h"
+#include "factory_io_metrics.h"
 
 esp_err_t update_hash_flash_region(uint32_t address, size_t size, uint8_t output[32])
 {
+    factory_io_metrics_t metrics = {.started = factory_io_now()};
     uint8_t buffer[FACTORY_SYSTEM_HASH_CHUNK_BYTES];
     psa_hash_operation_t operation = PSA_HASH_OPERATION_INIT;
     if (psa_crypto_init() != PSA_SUCCESS ||
@@ -18,12 +20,18 @@ esp_err_t update_hash_flash_region(uint32_t address, size_t size, uint8_t output
         if (chunk > sizeof(buffer)) {
             chunk = sizeof(buffer);
         }
+        int64_t started = factory_io_now();
         err = esp_flash_read(NULL, buffer, address + offset, chunk);
-        if (err != ESP_OK || psa_hash_update(&operation, buffer, chunk) != PSA_SUCCESS) {
+        metrics.read += factory_io_now() - started;
+        started = factory_io_now();
+        bool hash_ok = err == ESP_OK && psa_hash_update(&operation, buffer, chunk) == PSA_SUCCESS;
+        metrics.hash += factory_io_now() - started;
+        if (err != ESP_OK || !hash_ok) {
             err = err == ESP_OK ? ESP_FAIL : err;
             break;
         }
         offset += chunk;
+        metrics.bytes += chunk;
     }
     size_t actual_size = 0;
     if (err == ESP_OK && (psa_hash_finish(&operation, output, 32, &actual_size) != PSA_SUCCESS ||
@@ -33,6 +41,9 @@ esp_err_t update_hash_flash_region(uint32_t address, size_t size, uint8_t output
     if (err != ESP_OK) {
         (void)psa_hash_abort(&operation);
     }
+    char region[16];
+    snprintf(region, sizeof(region), "0x%08" PRIx32, address);
+    factory_io_report("nor_hash", region, &metrics, buffer, sizeof(buffer), err);
     return err;
 }
 
@@ -181,9 +192,11 @@ esp_err_t update_end_component(const esp_iris_system_update_component_t *compone
         ESP_GOTO_ON_FALSE(update_bytes_equal(readback_sha256, actual_sha256, 32),
                           ESP_ERR_INVALID_CRC, done, TAG, "component readback mismatch");
         if (component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_APPLICATION) {
-            ESP_GOTO_ON_ERROR(
-                update_verify_application_on_flash(component, ctx->transaction.active_partition),
-                done, TAG, "application image validation");
+            factory_io_metrics_t metrics = {.started = factory_io_now(), .bytes = component->size};
+            ret = update_verify_application_on_flash(component, ctx->transaction.active_partition);
+            factory_io_report("nor_image", "application", &metrics, NULL, 0, ret);
+            ESP_GOTO_ON_ERROR(ret, done, TAG, "application image validation");
+            plan->image_verified = true;
             ctx->transaction.application_received = true;
             ESP_LOGI(TAG, "application image and readback verified");
         } else {
@@ -313,6 +326,12 @@ esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERAT
     const factory_update_plan_component_t *recovery =
         update_plan_for_kind(ctx, ESP_IRIS_SYSTEM_UPDATE_COMPONENT_RECOVERY);
 
+    if (application != NULL) {
+        ESP_RETURN_ON_FALSE(application->target_partition_valid && application->image_verified &&
+                                ctx->transaction.application_received,
+                            ESP_ERR_INVALID_STATE, TAG, "application verification is missing");
+    }
+
     if (ctx->transaction.remote_bridge) {
         const esp_partition_t *factory = esp_partition_find_first(
             ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_TEST, MOSAICO_RECOVERY_PARTITION);
@@ -375,14 +394,18 @@ esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERAT
                             "record planned system-update restart");
     }
     if (ctx->transaction.application_received && !ctx->transaction.remote_bridge) {
-        ESP_RETURN_ON_FALSE(application != NULL && application->target_partition_valid,
+        ESP_RETURN_ON_FALSE(application != NULL && application->target_partition_valid &&
+                                application->completed && application->image_verified,
                             ESP_ERR_INVALID_STATE, TAG, "application target descriptor is missing");
         const esp_partition_t *ota_partition = &application->target_partition;
         ESP_LOGI(TAG, "selecting ota_0 for next boot: label=%s offset=0x%08" PRIx32,
                  ota_partition->label, ota_partition->address);
         if (ctx->transaction.defer_restart) {
-            /* Use the validated new descriptor, not IDF's cached old layout. */
-            ESP_RETURN_ON_ERROR(esp_ota_set_boot_partition(ota_partition), TAG,
+            /* This transaction already verified the NOR readback digest and the
+             * complete application image in end_component. Completed components
+             * cannot be rewritten. Keep the validated new layout descriptor and
+             * avoid repeating the same image verification during boot selection. */
+            ESP_RETURN_ON_ERROR(esp_ota_set_boot_partition_skip_validate(ota_partition), TAG,
                                 "select Ideas application");
             ESP_RETURN_ON_ERROR(mosaico_boot_consume_request(), TAG, "clear Vibe Mode boot intent");
         } else {

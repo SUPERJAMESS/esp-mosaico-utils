@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "gsp_sim_bridge.h"
-#include "vibe_ui.h"
 #include "ideas_presentation.h"
+#include "vibe_ui.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,13 +22,11 @@ static bool bridge_active;
 static bool connecting, installing;
 static bool renewed_code;
 static void *trace_timer;
-static bool scenario(const char *name)
-{
+static bool scenario(const char *name) {
     const char *selected = getenv("VIBE_SIM_SCENARIO");
     return selected && !strcmp(selected, name);
 }
-static void trace_state(esp_gsp_handle_t ui, void *ctx)
-{
+static void trace_state(esp_gsp_handle_t ui, void *ctx) {
     (void)ui;
     (void)ctx;
     const char *control = getenv("VIBE_SIM_CONTROL_FILE");
@@ -38,10 +36,42 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
         (void)fgets(command, sizeof(command), request);
         fclose(request);
         remove(control);
+        if (!strcmp(command, "ideas-fail")) {
+            installing = model.updating = model.transfer.receiving = false;
+            model.update_terminal = model.update_failed = true;
+            ++model.update_revision;
+            snprintf(model.update_title, sizeof(model.update_title), "Download failed");
+            snprintf(model.update_detail, sizeof(model.update_detail), "File integrity check failed");
+            vibe_ui_poll(state);
+        }
         if (!strcmp(command, "open-bridge"))
             (void)vibe_ui_open_bridge(state);
         if (!strcmp(command, "expire-code"))
             renewed_code = true;
+        unsigned phase, verified, files;
+        unsigned long long checked, expected, clock;
+        if (sscanf(command, "ideas-phase %u %llu %llu %u %u %llu", &phase, &checked,
+                   &expected, &verified, &files, &clock) == 6) {
+            installing = false;
+            model.transfer = (vibe_transfer_t){.source = 3, .phase = phase < 4 ? phase : 3,
+                .receiving = phase == 0, .received = checked, .total = expected,
+                .completed_components = verified, .component_count = files, .now_ms = clock};
+            model.transfer.job[0] = 42;
+            model.progress = vibe_transfer_permille(checked, expected);
+            model.updating = phase < 4;
+            model.update_terminal = phase == 4;
+            model.update_failed = false;
+            ++model.update_revision;
+            const char *titles[] = {"Downloading Idea", "Verifying files", "Checking image",
+                                    "Saving Idea", "Idea saved"};
+            snprintf(model.update_title, sizeof(model.update_title), "%s", titles[phase < 5 ? phase : 4]);
+            snprintf(model.update_detail, sizeof(model.update_detail), "%s",
+                     phase == 0 ? "Transferring files" : phase == 4 ?
+                     "Saved in My Ideas.\nSelect it to set as boot app." : "Please wait");
+            snprintf(model.update_owner, sizeof(model.update_owner), "Cloud");
+            snprintf(model.update_verified, sizeof(model.update_verified), "SHA-256");
+            vibe_ui_poll(state);
+        }
         unsigned long long ms, received, total;
         unsigned component, count, completed, receiving, job, component_received, component_size,
             terminal;
@@ -92,13 +122,20 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
     vibe_ui_get_status(state, &status);
     /* Observable test state never contains credentials or pairing tokens. */
     fprintf(file,
-            "{\"page\":%d,\"password_length\":%u,\"password_visible\":%s,\"pending\":%s,\"bridge_"
-            "running\":%s,\"network\":%d,\"progress\":%u,\"bridge_open_calls\":%u,\"bridge_"
-            "prefetch_calls\":%u,\"bridge_active\":%s,\"code_ready\":%s,\"code_length\":%u,"
-            "\"renewed_code\":%s,\"rate_valid\":%s,\"rate_bps\":%llu,\"component_id\":%u,\"sample_"
-            "ms\":%llu,\"idea_code\":\"%s\",\"last_code\":\"%s\",\"download_calls\":%u,\"install_"
-            "calls\":%u,\"check_calls\":%u,\"restart_calls\":%u,\"prepare_calls\":%u,\"cancel_"
-            "calls\":%u,\"idea_ready\":%s,\"idea_loading\":%s,\"boot_first\":%s}\n",
+            "{\"page\":%d,\"password_length\":%u,\"password_visible\":%s,"
+            "\"pending\":%s,\"bridge_"
+            "running\":%s,\"network\":%d,\"progress\":%u,\"bridge_open_calls\":%"
+            "u,\"bridge_"
+            "prefetch_calls\":%u,\"bridge_active\":%s,\"code_ready\":%s,\"code_"
+            "length\":%u,"
+            "\"renewed_code\":%s,\"rate_valid\":%s,\"rate_bps\":%llu,\"component_"
+            "id\":%u,\"sample_"
+            "ms\":%llu,\"idea_code\":\"%s\",\"last_code\":\"%s\",\"download_"
+            "calls\":%u,\"install_"
+            "calls\":%u,\"check_calls\":%u,\"restart_calls\":%u,\"prepare_"
+            "calls\":%u,\"cancel_"
+            "calls\":%u,\"idea_ready\":%s,\"idea_loading\":%s,\"boot_first\":%s,"
+            "\"language\":%u}\n",
             status.page, (unsigned)status.password_length,
             status.password_visible ? "true" : "false", status.download_pending ? "true" : "false",
             model.bridge_running ? "true" : "false", model.network, model.progress,
@@ -109,7 +146,7 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
             (unsigned long long)model.transfer.now_ms, status.idea_code, last_code, download_calls,
             install_calls, check_calls, restart_calls, prepare_calls, cancel_calls,
             model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
-            model.bundles[0].boot ? "true" : "false");
+            model.bundles[0].boot ? "true" : "false", (unsigned)model.language);
     fclose(file);
 #ifdef _WIN32
     /* The Windows C runtime's rename cannot replace an existing snapshot. */
@@ -118,8 +155,7 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
     (void)rename(temporary, path);
 #endif
 }
-static void snapshot(void *ctx, vibe_snapshot_t *out)
-{
+static void snapshot(void *ctx, vibe_snapshot_t *out) {
     (void)ctx;
     if (connecting && ++connect_ticks >= 5) {
         connecting = false;
@@ -180,10 +216,13 @@ static void snapshot(void *ctx, vibe_snapshot_t *out)
     }
     *out = model;
 }
-static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
-{
+static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) {
     (void)ctx;
     switch (cmd) {
+    case VIBE_SET_LANGUAGE:
+        model.language = !strcmp(a, "en");
+        ++model.nand_generation;
+        break;
     case VIBE_SCAN_WIFI:
         ++model.scan_generation;
         break;
@@ -304,8 +343,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
 }
 /* Synthetic pixels exercise the production adapter without font/UI coupling.
  * The portable font reader has separate byte-level publication roundtrips. */
-static void *preview(void *ctx, uint32_t request, unsigned slot, size_t *size)
-{
+static void *preview(void *ctx, uint32_t request, unsigned slot, size_t *size) {
     (void)ctx;
     *size = 0;
     if (request != model.idea_request || slot > 1 || scenario("custom-preview-fail"))
@@ -320,8 +358,7 @@ static void *preview(void *ctx, uint32_t request, unsigned slot, size_t *size)
     }
     return pixels;
 }
-esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
-{
+esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui) {
     model.tcp_port = 7777;
     if (scenario("prefetched") || scenario("long-code") || scenario("waiting-code")) {
         model.credentials_saved = true;
@@ -362,8 +399,7 @@ esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
         trace_timer = esp_gsp_timer_create(ui, 50, trace_state, NULL);
     return err;
 }
-void gsp_bridge_app_deinit(esp_gsp_handle_t ui)
-{
+void gsp_bridge_app_deinit(esp_gsp_handle_t ui) {
     (void)ui;
     if (trace_timer)
         (void)esp_gsp_timer_delete(ui, trace_timer);

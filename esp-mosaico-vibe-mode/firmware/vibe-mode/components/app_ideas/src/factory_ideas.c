@@ -5,10 +5,9 @@
 static EXT_RAM_BSS_ATTR factory_ideas_snapshot_t s_snapshot_storage;
 static ideas_context_t s_ideas = {.state = &s_snapshot_storage};
 
-esp_err_t factory_ideas_confirm(uint32_t request_id, bool download)
-{
+esp_err_t factory_ideas_confirm(uint32_t request_id, bool download) {
     ideas_context_t *ctx = &s_ideas;
-    if (!ctx->lock || !request_id)
+    if (!atomic_load(&ctx->initialized) || !request_id)
         return ESP_ERR_INVALID_STATE;
     job_t *job = calloc(1, sizeof(*job));
     if (!job)
@@ -28,8 +27,12 @@ esp_err_t factory_ideas_confirm(uint32_t request_id, bool download)
     ctx->state->command = job->command;
     ctx->state->terminal = ctx->state->failed = false;
     ctx->state->return_library = download && ctx->pending->already_downloaded;
-    ctx->state->total = ctx->pending->package.total_size;
+    /* The root is already in memory from preview, not part of this transfer. */
+    ctx->state->total = ctx->pending->package.total_size - ctx->pending->package.root_size;
     ctx->state->received = 0;
+    ctx->state->phase = IDEAS_PHASE_DOWNLOAD;
+    ctx->state->files_verified = 0;
+    ctx->state->file_count = ctx->pending->package.file_count;
     ctx->pending = NULL;
     esp_err_t err = ideas_launch_locked(ctx, job);
     if (err != ESP_OK) {
@@ -46,10 +49,9 @@ esp_err_t factory_ideas_confirm(uint32_t request_id, bool download)
     return err;
 }
 
-esp_err_t factory_ideas_cancel(void)
-{
+esp_err_t factory_ideas_cancel(void) {
     ideas_context_t *ctx = &s_ideas;
-    if (!ctx->lock)
+    if (!atomic_load(&ctx->initialized))
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     uint32_t ready = ctx->state->preview_ready ? ctx->state->preview_id : 0;
@@ -62,13 +64,12 @@ esp_err_t factory_ideas_cancel(void)
     return ready ? factory_ideas_confirm(ready, false) : ESP_OK;
 }
 
-esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *code)
-{
+esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *code) {
     ideas_context_t *ctx = &s_ideas;
-    if (!ctx->lock)
+    if (!atomic_load(&ctx->initialized))
         return ESP_ERR_INVALID_STATE;
-    if (command < IDEAS_SCAN || command > IDEAS_RESOLVE || command == IDEAS_DOWNLOAD ||
-        (command != IDEAS_SCAN && !ideas_code_valid(code)))
+    if (command < IDEAS_SCAN || (command > IDEAS_RESOLVE && command != IDEAS_RELOCALIZE) || command == IDEAS_DOWNLOAD ||
+        (command != IDEAS_SCAN && command != IDEAS_RELOCALIZE && !ideas_code_valid(code)))
         return ESP_ERR_INVALID_ARG;
     job_t *job = calloc(1, sizeof(*job));
     if (!job)
@@ -95,7 +96,7 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
         strcpy(job->code, code);
     ctx->state->busy = true;
     ctx->state->command = command;
-    ctx->state->scanning = command == IDEAS_SCAN;
+    ctx->state->scanning = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE;
     if (command == IDEAS_RESOLVE || command == IDEAS_CHECK || command == IDEAS_PREVIEW) {
         if (++ctx->request_id == 0)
             ++ctx->request_id;
@@ -107,9 +108,11 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
             ctx->state->has_icon = false;
         memset(&ctx->state->preview, 0, sizeof(ctx->state->preview));
     }
-    if (command != IDEAS_SCAN) {
+    if (command != IDEAS_SCAN && command != IDEAS_RELOCALIZE) {
         ctx->state->terminal = ctx->state->failed = false;
         ctx->state->total = ctx->state->received = 0;
+        ctx->state->phase = IDEAS_PHASE_NONE;
+        ctx->state->files_verified = ctx->state->file_count = 0;
         snprintf(ctx->state->title, sizeof(ctx->state->title), "%s",
                  command == IDEAS_INSTALL ? "Setting boot application" : "Loading app information");
         snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Please wait");
@@ -126,10 +129,9 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     return err;
 }
 
-esp_err_t factory_ideas_snapshot(factory_ideas_snapshot_t *out)
-{
+esp_err_t factory_ideas_snapshot(factory_ideas_snapshot_t *out) {
     ideas_context_t *ctx = &s_ideas;
-    if (!out || !ctx->lock)
+    if (!out || !atomic_load(&ctx->initialized))
         return ESP_ERR_INVALID_ARG;
     if (xSemaphoreTake(ctx->lock, 0) != pdTRUE)
         return ESP_ERR_TIMEOUT;
@@ -138,10 +140,9 @@ esp_err_t factory_ideas_snapshot(factory_ideas_snapshot_t *out)
     return ESP_OK;
 }
 
-void *factory_ideas_copy_icon(const char *code, size_t *size)
-{
+void *factory_ideas_copy_icon(const char *code, size_t *size) {
     ideas_context_t *ctx = &s_ideas;
-    if (!code || !size || !ctx->lock)
+    if (!code || !size || !atomic_load(&ctx->initialized))
         return NULL;
     *size = 0;
     if (xSemaphoreTake(ctx->lock, 0) != pdTRUE)
@@ -160,10 +161,9 @@ void *factory_ideas_copy_icon(const char *code, size_t *size)
     return copy;
 }
 
-void *factory_ideas_copy_preview(uint32_t request_id, unsigned slot, size_t *size)
-{
+void *factory_ideas_copy_preview(uint32_t request_id, unsigned slot, size_t *size) {
     ideas_context_t *ctx = &s_ideas;
-    if (!size || slot > 2 || !ctx->lock)
+    if (!size || slot > 2 || !atomic_load(&ctx->initialized))
         return NULL;
     *size = 0;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
@@ -186,11 +186,48 @@ void *factory_ideas_copy_preview(uint32_t request_id, unsigned slot, size_t *siz
     return copy;
 }
 
-esp_err_t factory_ideas_init(void)
-{
+esp_err_t factory_ideas_init(void) {
+    return ideas_worker_init(&s_ideas);
+}
+
+void *factory_ideas_copy_title(const char *code, size_t *size) {
     ideas_context_t *ctx = &s_ideas;
-    if (ctx->lock)
-        return ESP_OK;
-    ctx->lock = xSemaphoreCreateMutex();
-    return ctx->lock ? factory_ideas_request(IDEAS_SCAN, NULL) : ESP_ERR_NO_MEM;
+    if (!ideas_code_valid(code) || !size || !atomic_load(&ctx->initialized))
+        return NULL;
+    *size = 0;
+    if (xSemaphoreTake(ctx->lock, 0) != pdTRUE)
+        return NULL;
+    unsigned language = factory_locale_get();
+    for (unsigned i = 0; i < 8; ++i) {
+        if (!strcmp(ctx->titles[i].code, code) && ctx->titles[i].language == language) {
+            icon_t *image = &ctx->titles[i].image;
+            void *copy = image->data ? malloc(image->size) : NULL;
+            if (copy) {
+                memcpy(copy, image->data, image->size);
+                *size = image->size;
+            }
+            ctx->titles[i].stamp = ++ctx->title_clock;
+            xSemaphoreGive(ctx->lock);
+            return copy;
+        }
+    }
+    if (!ctx->state->busy && !ctx->pending) {
+        bool known = false;
+        for (unsigned i = 0; i < ctx->state->count; ++i)
+            known |= !strcmp(ctx->state->items[i].code, code);
+        job_t *job = known ? calloc(1, sizeof(*job)) : NULL;
+        if (job) {
+            job->command = IDEAS_ROW;
+            strcpy(job->code, code);
+            job->request_id = ctx->state->preview_id;
+            ctx->state->busy = true;
+            ctx->state->command = IDEAS_ROW;
+            if (ideas_launch_locked(ctx, job) != ESP_OK) {
+                free(job);
+                ctx->state->busy = false;
+            }
+        }
+    }
+    xSemaphoreGive(ctx->lock);
+    return NULL;
 }

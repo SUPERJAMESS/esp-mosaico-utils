@@ -607,3 +607,25 @@ def test_system_update_inventory_decodes_actual_flash_hashes() -> None:
     import asyncio
 
     asyncio.run(scenario())
+
+
+def test_public_bundle_inspection_is_offline_and_validates_payloads(tmp_path):
+    from iris_gateway.client import inspect_system_update_bundle
+    (tmp_path / "partition-table.bin").write_bytes(b"partition" + b"\xff" * 55)
+    (tmp_path / "ota_0.bin").write_bytes(_application_image())
+    manifest = _manifest("00" * 32)
+    manifest.pop("signature")
+    output = build_system_update_bundle(tmp_path / "offline.irisfw", manifest, tmp_path)
+    metadata = inspect_system_update_bundle(output)
+    assert metadata == inspect_system_update_bundle(output.read_bytes())
+    assert metadata["chip_id"] == 32 and metadata["flash_size"] == 16 * 1024 * 1024
+    assert [entry["kind"] for entry in metadata["components"]] == ["partition_table", "application"]
+    assert all("data" not in entry and len(entry["sha256"]) == 64 for entry in metadata["components"])
+    import io
+    damaged = io.BytesIO()
+    with zipfile.ZipFile(output) as source, zipfile.ZipFile(damaged, "w") as target:
+        for name in source.namelist():
+            data = source.read(name)
+            if name == "ota_0.bin": data = bytes([data[0] ^ 1]) + data[1:]
+            target.writestr(name, data)
+    with pytest.raises(ValueError): inspect_system_update_bundle(damaged.getvalue())

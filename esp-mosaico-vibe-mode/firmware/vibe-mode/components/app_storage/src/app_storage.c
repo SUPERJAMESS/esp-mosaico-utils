@@ -12,6 +12,8 @@
 #include "esp_littlefs.h"
 #include "esp_log.h"
 #include "spi_nand_flash.h"
+#include "storage_metrics.h"
+#include "storage_blockdev.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -49,6 +51,7 @@ static void nand_cleanup_partial(app_storage_context_t *ctx)
         ctx->blockdev = NULL;
     }
     if (ctx->spi != NULL) {
+        storage_metrics_bind(NULL, 0);
         (void)spi_bus_remove_device(ctx->spi);
         ctx->spi = NULL;
     }
@@ -100,11 +103,20 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
         .io_mode = SPI_NAND_IO_MODE_SIO,
         .flags = SPI_DEVICE_HALFDUPLEX,
     };
+    storage_metrics_bind(ctx->spi, 0);
     err = spi_nand_flash_init_with_layers(&nand_config, &ctx->blockdev);
     if (err != ESP_OK) {
         nand_cleanup_partial(ctx);
         return err;
     }
+    storage_metrics_bind(ctx->spi, ctx->blockdev->geometry.read_size);
+    esp_blockdev_handle_t cached = NULL;
+    err = storage_blockdev_wrap(ctx->blockdev, CONFIG_IRIS_FACTORY_NAND_READ_CACHE_KIB * 1024U, &cached);
+    if (err != ESP_OK) {
+        nand_cleanup_partial(ctx);
+        return err;
+    }
+    ctx->blockdev = cached;
 
     const esp_vfs_littlefs_conf_t mount_config = {
         .base_path = NAND_UPDATE_MOUNT_PATH,
@@ -149,6 +161,7 @@ esp_err_t app_storage_reserve(void)
 void app_storage_release(void)
 {
     app_storage_context_t *ctx = &s_storage;
+    storage_metrics_end();
     taskENTER_CRITICAL(&ctx->lock);
     ctx->busy = false;
     taskEXIT_CRITICAL(&ctx->lock);
@@ -161,6 +174,8 @@ esp_err_t app_storage_acquire(void)
     err = app_storage_mount();
     if (err != ESP_OK)
         app_storage_release();
+    else
+        storage_metrics_begin();
     return err;
 }
 #else

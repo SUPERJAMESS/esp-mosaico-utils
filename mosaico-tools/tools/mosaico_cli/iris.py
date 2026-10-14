@@ -19,3 +19,10 @@ def host_api(workspace: Any) -> Any:
     if client.API_MAJOR != 2:
         raise EnvironmentError("Unsupported Iris public host API version")
     return client
+
+
+def load_bundle(source: Any) -> Any:
+    """Read a local bundle through the pinned Iris bundle API, without a device."""
+    from types import SimpleNamespace
+    checkout = Path(__file__).resolve().parents[3] / "ESP-Iris"
+    return host_api(SimpleNamespace(esp_iris_path=checkout)).inspect_system_update_bundle(source)

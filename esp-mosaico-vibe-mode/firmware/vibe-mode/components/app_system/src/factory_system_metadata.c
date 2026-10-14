@@ -1,4 +1,5 @@
 #include "factory_system_metadata.h"
+#include "factory_locale.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -9,13 +10,14 @@
 #define FACTORY_SYSTEM_UPDATE_NAMESPACE MOSAICO_UPDATE_NAMESPACE
 #define FACTORY_SYSTEM_UPDATE_RESULT_KEY MOSAICO_UPDATE_RESULT_KEY
 
-esp_err_t factory_system_metadata_init(void)
-{
-    return nvs_flash_init_partition(FACTORY_SYSTEM_METADATA_PARTITION);
+esp_err_t factory_system_metadata_init(void) {
+    esp_err_t err = nvs_flash_init_partition(FACTORY_SYSTEM_METADATA_PARTITION);
+    if (err == ESP_OK)
+        factory_locale_init();
+    return err;
 }
 
-esp_err_t factory_system_metadata_load_last_result(factory_sysmeta_record_t *record)
-{
+esp_err_t factory_system_metadata_load_last_result(factory_sysmeta_record_t *record) {
     if (record == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -41,8 +43,7 @@ esp_err_t factory_system_metadata_load_last_result(factory_sysmeta_record_t *rec
 }
 
 esp_err_t factory_system_metadata_store_last_result(
-    const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES], esp_err_t result)
-{
+    const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES], esp_err_t result) {
     if (operation_id == NULL) {
         return ESP_ERR_INVALID_ARG;
     }

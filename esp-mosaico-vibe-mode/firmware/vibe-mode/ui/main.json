@@ -53,7 +53,10 @@
       "text": "Ready for your next idea",
       "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "center"
+      "text_align": "center",
+      "bind": "i18n_3",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "container",
@@ -90,7 +93,8 @@
       "text_align": "right",
       "bind": "usb_status",
       "name": "usb_status",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -102,7 +106,10 @@
       "text": "Network",
       "font_size": 20,
       "fg_color": "#FCFCFF",
-      "text_align": "left"
+      "text_align": "left",
+      "bind": "i18n_7",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -117,30 +124,32 @@
       "text_align": "right",
       "bind": "network_status",
       "name": "network_status",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
       "parent": 0,
       "x": 24,
-      "y": 290,
-      "w": 432,
-      "h": 28,
+      "y": 294,
+      "w": 296,
+      "h": 42,
       "text": "Network setup not completed",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "center",
+      "text_align": "left",
       "bind": "address",
       "name": "address",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
       "parent": 0,
       "x": 24,
-      "y": 327,
-      "w": 432,
-      "h": 24,
+      "y": 338,
+      "w": 296,
+      "h": 20,
       "text": "mosaico-ideas.espressif.com",
       "font_size": 16,
       "fg_color": "#91919B",
@@ -165,7 +174,10 @@
           "action": "call",
           "target_name": "download"
         }
-      ]
+      ],
+      "bind": "i18n_11",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "button",
@@ -207,7 +219,10 @@
           "action": "call",
           "target_name": "pairing"
         }
-      ]
+      ],
+      "bind": "i18n_13",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "button",
@@ -228,7 +243,10 @@
           "action": "call",
           "target_name": "nand"
         }
-      ]
+      ],
+      "bind": "i18n_14",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "layer",
@@ -293,12 +311,13 @@
       "w": 292,
       "h": 35,
       "text": "Not connected",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "bind": "wifi_connection",
       "name": "wifi_connection",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -308,12 +327,13 @@
       "w": 310,
       "h": 35,
       "text": "Choose a network below",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "left",
       "bind": "wifi_detail",
       "name": "wifi_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "button",
@@ -334,7 +354,10 @@
           "action": "call",
           "target_name": "forget"
         }
-      ]
+      ],
+      "bind": "i18n_21",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -349,7 +372,8 @@
       "text_align": "left",
       "bind": "wifi_scan",
       "name": "wifi_scan",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "button",
@@ -370,7 +394,10 @@
           "action": "call",
           "target_name": "scan"
         }
-      ]
+      ],
+      "bind": "i18n_23",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "list",
@@ -417,12 +444,13 @@
       "w": 362,
       "h": 27,
       "text": "Network",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "bind": "networks_title",
       "name": "networks_title",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -432,12 +460,13 @@
       "w": 362,
       "h": 26,
       "text": "Details",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "left",
       "bind": "networks_detail",
       "name": "networks_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -447,10 +476,11 @@
       "w": 30,
       "h": 44,
       "text": "›",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -460,12 +490,13 @@
       "w": 432,
       "h": 28,
       "text": "USB remains available offline",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "center",
       "bind": "wifi_note",
       "name": "wifi_note",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "layer",
@@ -508,9 +539,12 @@
       "w": 336,
       "h": 48,
       "text": "Join network",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
-      "text_align": "center"
+      "text_align": "center",
+      "bind": "i18n_33",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -520,12 +554,13 @@
       "w": 432,
       "h": 36,
       "text": "Network",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "left",
       "bind": "ssid",
       "name": "ssid",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -535,12 +570,13 @@
       "w": 340,
       "h": 45,
       "text": "Enter password",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "bind": "password_display",
       "name": "password_display",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "button",
@@ -571,12 +607,13 @@
       "w": 432,
       "h": 33,
       "text": "",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#FF4C01",
       "text_align": "left",
       "bind": "password_error",
       "name": "password_error",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "keyboard",
@@ -650,9 +687,12 @@
       "w": 336,
       "h": 48,
       "text": "TCP pairing",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
-      "text_align": "center"
+      "text_align": "center",
+      "bind": "i18n_41",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "container",
@@ -672,9 +712,12 @@
       "w": 400,
       "h": 28,
       "text": "DEVICE ENDPOINT",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "left"
+      "text_align": "left",
+      "bind": "i18n_43",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -689,7 +732,8 @@
       "text_align": "left",
       "bind": "pairing_endpoint",
       "name": "pairing_endpoint",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -699,9 +743,12 @@
       "w": 432,
       "h": 32,
       "text": "PAIRING TOKEN",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "left"
+      "text_align": "left",
+      "bind": "i18n_45",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "container",
@@ -721,12 +768,13 @@
       "w": 404,
       "h": 84,
       "text": "Available after startup",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "center",
       "bind": "pairing_token",
       "name": "pairing_token",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -736,9 +784,12 @@
       "w": 432,
       "h": 67,
       "text": "Enter this token once in the Gateway.\nIt never crosses the TCP link.",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "center"
+      "text_align": "left",
+      "bind": "i18n_48",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "layer",
@@ -781,9 +832,12 @@
       "w": 336,
       "h": 48,
       "text": "Download Ideas",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
-      "text_align": "center"
+      "text_align": "center",
+      "bind": "i18n_51",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "container",
@@ -825,9 +879,12 @@
       "w": 432,
       "h": 24,
       "text": "APPLICATION CODE",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "center"
+      "text_align": "center",
+      "bind": "i18n_55",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -837,12 +894,13 @@
       "w": 408,
       "h": 58,
       "text": "------",
-      "font_size": 40,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "center",
       "bind": "bridge_code",
       "name": "bridge_code",
-      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -852,12 +910,13 @@
       "w": 408,
       "h": 28,
       "text": "Enter the six-digit Idea code",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "center",
       "bind": "bridge_detail",
       "name": "bridge_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "button",
@@ -878,7 +937,10 @@
           "action": "call",
           "target_name": "download_code"
         }
-      ]
+      ],
+      "bind": "i18n_58",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "layer",
@@ -921,9 +983,12 @@
       "w": 336,
       "h": 48,
       "text": "My Ideas",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
-      "text_align": "center"
+      "text_align": "center",
+      "bind": "i18n_61",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -933,12 +998,13 @@
       "w": 320,
       "h": 44,
       "text": "Open to scan",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "left",
       "bind": "nand_scan",
       "name": "nand_scan",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "button",
@@ -959,7 +1025,10 @@
           "action": "call",
           "target_name": "nand_scan"
         }
-      ]
+      ],
+      "bind": "i18n_63",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "list",
@@ -969,7 +1038,7 @@
       "w": 432,
       "h": 306,
       "name": "bundles",
-      "item_height": 76,
+      "item_height": 120,
       "item_count": 0,
       "row_template": "bundles_row",
       "scroll_snapshot": true,
@@ -982,41 +1051,43 @@
       "x": 0,
       "y": 0,
       "w": 432,
-      "h": 76,
+      "h": 120,
       "template": "bundles_row",
       "callback": "select_bundles",
-      "bg_color": "#242426",
+      "bg_color": "#000000",
       "radius": 14
     },
     {
       "type": "label",
       "parent": 65,
       "x": 82,
-      "y": 6,
-      "w": 300,
-      "h": 33,
-      "text": "Network",
+      "y": 7,
+      "w": 328,
+      "h": 84,
+      "text": "",
       "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "bind": "bundles_title",
       "name": "bundles_title",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
       "parent": 65,
       "x": 82,
-      "y": 39,
-      "w": 300,
-      "h": 27,
+      "y": 93,
+      "w": 328,
+      "h": 24,
       "text": "Details",
       "font_size": 14,
       "fg_color": "#91919B",
       "text_align": "left",
       "bind": "bundles_detail",
       "name": "bundles_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~…。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1028,7 +1099,8 @@
       "text": "›",
       "font_size": 24,
       "fg_color": "#91919B",
-      "text_align": "left"
+      "text_align": "left",
+      "hidden": true
     },
     {
       "type": "layer",
@@ -1071,9 +1143,12 @@
       "w": 336,
       "h": 48,
       "text": "Idea details",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
-      "text_align": "center"
+      "text_align": "center",
+      "bind": "i18n_71",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "container",
@@ -1090,57 +1165,64 @@
       "parent": 69,
       "x": 40,
       "y": 95,
-      "w": 400,
+      "w": 244,
       "h": 30,
       "text": "DOWNLOADED IDEA",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "left"
+      "text_align": "left",
+      "bind": "i18n_73",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
       "parent": 69,
       "x": 40,
-      "y": 133,
-      "w": 400,
-      "h": 40,
+      "y": 136,
+      "w": 328,
+      "h": 84,
       "text": "NAND bundle",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "bind": "release",
       "name": "release",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
       "parent": 69,
       "x": 40,
-      "y": 178,
+      "y": 229,
       "w": 400,
       "h": 32,
       "text": "",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "left",
       "bind": "release_detail",
       "name": "release_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
       "parent": 69,
       "x": 40,
-      "y": 211,
+      "y": 230,
       "w": 400,
       "h": 25,
       "text": "",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "left",
       "bind": "release_path",
       "name": "release_path",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf",
+      "hidden": true
     },
     {
       "type": "label",
@@ -1148,11 +1230,14 @@
       "x": 24,
       "y": 238,
       "w": 432,
-      "h": 36,
+      "h": 60,
       "text": "After setup, this Idea starts on power-on.\nKeep power connected during setup.",
-      "font_size": 14,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "center"
+      "text_align": "left",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "hidden": true
     },
     {
       "type": "button",
@@ -1173,7 +1258,10 @@
           "action": "call",
           "target_name": "cancel_install"
         }
-      ]
+      ],
+      "bind": "i18n_78",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "button",
@@ -1194,7 +1282,10 @@
           "action": "call",
           "target_name": "install"
         }
-      ]
+      ],
+      "bind": "i18n_79",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "layer",
@@ -1228,12 +1319,13 @@
       "w": 432,
       "h": 48,
       "text": "Updating system",
-      "font_size": 32,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "center",
       "bind": "update_title",
       "name": "update_title",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1248,7 +1340,8 @@
       "text_align": "center",
       "bind": "update_detail",
       "name": "update_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1258,12 +1351,13 @@
       "w": 432,
       "h": 45,
       "text": "0%",
-      "font_size": 32,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "center",
       "bind": "update_percent",
       "name": "update_percent",
-      "font_charset": "0123456789%-"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "progress",
@@ -1287,9 +1381,12 @@
       "w": 216,
       "h": 30,
       "text": "Session owner",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "left"
+      "text_align": "left",
+      "bind": "i18n_86",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -1299,12 +1396,13 @@
       "w": 216,
       "h": 30,
       "text": "",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "right",
       "bind": "update_owner",
       "name": "update_owner",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1314,9 +1412,12 @@
       "w": 216,
       "h": 30,
       "text": "Verification",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "left"
+      "text_align": "left",
+      "bind": "i18n_88",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -1326,12 +1427,13 @@
       "w": 216,
       "h": 30,
       "text": "",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "right",
       "bind": "update_verified",
       "name": "update_verified",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1341,9 +1443,12 @@
       "w": 432,
       "h": 28,
       "text": "Keep power connected until restart.",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
-      "text_align": "center"
+      "text_align": "center",
+      "bind": "i18n_90",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "layer",
@@ -1377,12 +1482,13 @@
       "w": 432,
       "h": 67,
       "text": "Update complete",
-      "font_size": 32,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "center",
       "bind": "result_title",
       "name": "result_title",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1397,8 +1503,9 @@
       "text_align": "left",
       "bind": "result_detail",
       "name": "result_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•",
-      "overflow": "clip"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "overflow": "clip",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "button",
@@ -1419,7 +1526,10 @@
           "action": "call",
           "target_name": "home"
         }
-      ]
+      ],
+      "bind": "i18n_95",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "label",
@@ -1434,7 +1544,8 @@
       "text_align": "center",
       "name": "password_toggle",
       "bind": "password_toggle",
-      "font_charset": "ShowHide"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1444,13 +1555,14 @@
       "w": 408,
       "h": 58,
       "text": " ",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "center",
       "bind": "bridge_code_compact",
       "name": "bridge_code_compact",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•",
-      "hidden": true
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "hidden": true,
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1465,7 +1577,8 @@
       "text_align": "center",
       "name": "update_bytes",
       "bind": "update_bytes",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1475,12 +1588,13 @@
       "w": 432,
       "h": 32,
       "text": "",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#FF4C01",
       "text_align": "center",
       "name": "update_rate",
       "bind": "update_rate",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1490,12 +1604,13 @@
       "w": 432,
       "h": 28,
       "text": "",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#91919B",
       "text_align": "center",
       "name": "update_component",
       "bind": "update_component",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "button",
@@ -1726,7 +1841,10 @@
           "action": "call",
           "target_name": "code_delete"
         }
-      ]
+      ],
+      "bind": "i18n_111",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "button",
@@ -1747,7 +1865,10 @@
           "action": "call",
           "target_name": "check_idea"
         }
-      ]
+      ],
+      "bind": "i18n_112",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "button",
@@ -1768,7 +1889,10 @@
           "action": "call",
           "target_name": "update_idea"
         }
-      ]
+      ],
+      "bind": "i18n_113",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "button",
@@ -1789,7 +1913,11 @@
           "action": "call",
           "target_name": "start_idea"
         }
-      ]
+      ],
+      "bind": "i18n_114",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "hidden": true
     },
     {
       "type": "button",
@@ -1810,7 +1938,10 @@
           "action": "call",
           "target_name": "preview_idea"
         }
-      ]
+      ],
+      "bind": "i18n_115",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "image",
@@ -1850,7 +1981,8 @@
       "text_align": "left",
       "name": "idea_heading",
       "bind": "idea_heading",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1865,7 +1997,8 @@
       "text_align": "left",
       "name": "idea_name",
       "bind": "idea_name",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1875,12 +2008,13 @@
       "w": 416,
       "h": 176,
       "text": "Fetching details from the cloud",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "name": "idea_description",
       "bind": "idea_description",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1890,12 +2024,13 @@
       "w": 432,
       "h": 28,
       "text": "",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "name": "idea_summary",
       "bind": "idea_summary",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "label",
@@ -1905,12 +2040,13 @@
       "w": 432,
       "h": 26,
       "text": "Confirm to save in My Ideas",
-      "font_size": 16,
+      "font_size": 20,
       "fg_color": "#FCFCFF",
       "text_align": "left",
       "name": "idea_status",
       "bind": "idea_status",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "button",
@@ -1931,7 +2067,10 @@
           "action": "call",
           "target_name": "cancel_idea"
         }
-      ]
+      ],
+      "bind": "i18n_123",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，："
     },
     {
       "type": "button",
@@ -1954,8 +2093,9 @@
         }
       ],
       "bind": "idea_accept",
-      "font_charset": "DownloadMy Ideas",
-      "hidden": true
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~•…‹›。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "hidden": true,
+      "font": "fonts/MosaicoUI.otf"
     },
     {
       "type": "image",
@@ -1996,6 +2136,56 @@
       "image": "assets/idea-default.svg",
       "dynamic_image": true,
       "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": 0,
+      "x": 332,
+      "y": 292,
+      "w": 124,
+      "h": 42,
+      "text": "English",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_language",
+      "bind": "language_label",
+      "font": "fonts/MosaicoUI.otf",
+      "font_charset": " %,-./08:ABCDEFGHIJKLMNOPRSTUVWabcdefghiklmnopqrstuvwxy|…。一上下不个中为主了云交介仍令件会传位作使供保信候停储像先入六准击切划创删到前加动即发取可号名后启回固在地址备失好存安完密对将尚就已并应开待忘态息情意成我或打扫找择持换接描提操收放整文新方时是显暂更最有期未本机来查校检次正此消源点版牌状用电界的看码确示离稍立端等签系线组绍络统绪编网置获藏行装解言计认记设试详语误请读败资载输过迎运返进连送选通配重错镜间除隐面验，：",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "language"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "parent": 65,
+      "x": 82,
+      "y": 7,
+      "w": 328,
+      "h": 84,
+      "name": "bundles_pixels",
+      "bind": "bundles_pixels",
+      "bind_target": "resource",
+      "image": "assets/idea_title_pixels.png",
+      "dynamic_image": true
+    },
+    {
+      "type": "image",
+      "parent": 69,
+      "x": 40,
+      "y": 136,
+      "w": 328,
+      "h": 84,
+      "name": "release_pixels",
+      "bind": "release_pixels",
+      "bind_target": "resource",
+      "image": "assets/idea_title_pixels.png",
+      "dynamic_image": true
     }
   ]
 }

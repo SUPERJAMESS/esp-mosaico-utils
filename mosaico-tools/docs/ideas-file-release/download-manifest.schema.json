@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mosaico Ideas hierarchical device release 1 draft",
+  "description": "CONFIRMED DRAFT, implemented by the local integration server and current clients; served directly as an HTTP manifest response without a resolve step. The latest endpoint selects the latest compatible published snapshot using profile/chip_id/flash_size/recovery_version query parameters; a fixed-release endpoint returns only the specified snapshot. Selection never rewrites manifest bytes. Accepts only mosaico-ideas/device-release/1; no legacy import or conversion. References one firmware manifest and bilingual display files; components are declared only in the referenced Iris manifest. See README.zh-CN.md for semantic checks and limits. Ordinary Ideas only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "release_id",
+    "application",
+    "firmware",
+    "device"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mosaico-ideas/device-release/1"
+    },
+    "release_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "code"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[0-9]{6}$"
+        }
+      }
+    },
+    "firmware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest"
+      ],
+      "properties": {
+        "manifest": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/file"
+            },
+            {
+              "properties": {
+                "path": {
+                  "const": "firmware/manifest.json"
+                },
+                "size": {
+                  "maximum": 3072
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "device": {
+      "$ref": "#/$defs/ideaDevice"
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 192,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}(/[A-Za-z0-9][A-Za-z0-9._-]{0,63}){0,3}$",
+          "not": {
+            "enum": [
+              "manifest.json",
+              "MANIFEST.JSON"
+            ]
+          }
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 33554432
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "description": "Root-relative ordinary file. Semantic validation also rejects case-folded reserved names, duplicate paths and file/directory prefix conflicts."
+    },
+    "ideaDevice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "default_locale",
+        "presentations"
+      ],
+      "properties": {
+        "profile": {
+          "const": "esp-mosaico/v2"
+        },
+        "default_locale": {
+          "enum": [
+            "zh-CN",
+            "en"
+          ]
+        },
+        "presentations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "display",
+              "assets"
+            ],
+            "properties": {
+              "display": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/file"
+                  },
+                  {
+                    "properties": {
+                      "size": {
+                        "maximum": 32768
+                      },
+                      "path": {
+                        "enum": [
+                          "device/zh-CN/display.json",
+                          "device/en/display.json"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "description": "mosaico-ideas/display/1; authoritative locale, name, description, font and icon references."
+              },
+              "assets": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "uniqueItems": true,
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/file"
+                    },
+                    {
+                      "properties": {
+                        "size": {
+                          "maximum": 1048576
+                        }
+                      }
+                    }
+                  ],
+                  "description": "Exactly the 1-2 MIFF fonts and optional icon referenced by display. Icon: fixed 64x64 RGBA PNG, bit_depth=8, color_type=6, interlace_method=0, no APNG, at most 65536 bytes. The generic 1 MiB limit accommodates fonts; semantic validation must apply icon limits and decode actual bytes. The display and all assets together are at most 1 MiB per locale."
+                }
+              }
+            }
+          },
+          "description": "Exactly two self-contained presentations: device/zh-CN/display.json and device/en/display.json. The display locale must equal its directory name.",
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "required": [
+                  "display"
+                ],
+                "properties": {
+                  "display": {
+                    "type": "object",
+                    "required": [
+                      "path"
+                    ],
+                    "properties": {
+                      "path": {
+                        "const": "device/zh-CN/display.json"
+                      }
+                    }
+                  }
+                }
+              },
+              "minContains": 1,
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "required": [
+                  "display"
+                ],
+                "properties": {
+                  "display": {
+                    "type": "object",
+                    "required": [
+                      "path"
+                    ],
+                    "properties": {
+                      "path": {
+                        "const": "device/en/display.json"
+                      }
+                    }
+                  }
+                }
+              },
+              "minContains": 1,
+              "maxContains": 1
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$comment": "First-version contract recorded on 2026-10-14; runtime validators remain unimplemented. Root manifest: at most 65536 bytes. Full device collection: at most 32 MiB and 32 files including both manifests, firmware components and both locales. Display plus assets: at most 1 MiB per locale, 2 MiB for both. Icons require decodable 64x64, 8-bit-per-channel RGBA, non-interlaced PNG with no APNG, at most 65536 bytes. Both per-file and aggregate limits apply. JSON Schema cannot inspect external bytes, count the dependency closure or resolve display.icon. String lengths count Unicode code points; byte limits use UTF-8. GET query parameters and HTTP behavior are defined in README.zh-CN.md, not in the immutable manifest."
+}

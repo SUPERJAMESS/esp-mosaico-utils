@@ -52,6 +52,7 @@ typedef struct {
     esp_partition_t target_partition;
     bool target_partition_valid;
     bool completed;
+    bool image_verified;
 } factory_update_plan_component_t;
 
 typedef struct {

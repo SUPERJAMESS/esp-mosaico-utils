@@ -265,6 +265,7 @@ void vTaskDelay(unsigned ms);
 void vTaskDelete(void *task);
 void esp_restart(void);
 esp_err_t esp_ota_set_boot_partition(const esp_partition_t *partition);
+esp_err_t esp_ota_set_boot_partition_skip_validate(const esp_partition_t *partition);
 const esp_partition_t *esp_partition_find_first(int type, int subtype,
                                                 const char *label);
 esp_err_t nvs_open_from_partition(const char *partition, const char *ns, int mode,

@@ -55,9 +55,7 @@ void app_main(void)
     ESP_ERROR_CHECK(factory_recovery_control_register(&ui_commands));
     recovery_ota_support_start();
 
-    esp_err_t ui_err = factory_ideas_init();
-    if (ui_err == ESP_OK)
-        ui_err = factory_ui_start();
+    esp_err_t ui_err = factory_ui_start();
     if (ui_err != ESP_OK) {
         /* Keep the already-started USB writer available for a corrected
          * image, but do not announce a healthy Recovery with a broken UI. */
@@ -74,6 +72,20 @@ void app_main(void)
         return;
     }
 
+    /* Initialize the Wi-Fi driver first, then reserve the lifetime Ideas HP
+     * SRAM stack and queue its scan. Later UI jobs reuse this allocation. */
+    const esp_err_t network_err = factory_network_start();
+    if (network_err != ESP_OK) {
+        ESP_LOGE(TAG, "Factory network unavailable; USB recovery remains active: %s",
+                 esp_err_to_name(network_err));
+    }
+    const esp_err_t ideas_err = factory_ideas_init();
+    if (ideas_err != ESP_OK) {
+        ESP_LOGE(TAG, "Ideas initialization failed: %s; USB maintenance remains active",
+                 esp_err_to_name(ideas_err));
+        return;
+    }
+
 #if CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE && CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE_AUTO_START
     if (CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE_MANIFEST_PATH[0] != '\0') {
         const esp_err_t update_err =
@@ -84,11 +96,6 @@ void app_main(void)
         }
     }
 #endif
-    const esp_err_t network_err = factory_network_start();
-    if (network_err != ESP_OK) {
-        ESP_LOGE(TAG, "Factory network unavailable; USB recovery remains active: %s",
-                 esp_err_to_name(network_err));
-    }
     /* This is the Recovery acceptance boundary used by the host's closed-loop
      * self-update workflow.  esp_iris_mark_healthy() replays the event when a
      * USB session connects after this point. */

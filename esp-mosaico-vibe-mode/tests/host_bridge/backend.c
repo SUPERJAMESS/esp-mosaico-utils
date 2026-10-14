@@ -12,6 +12,8 @@ esp_partition_t mock_factory = {
 void *esp_flash_default_chip;
 static uint8_t flash[0x1000000];
 static int erased, persisted, corrupt_readback;
+static unsigned image_checks, boot_checks, boot_selections;
+static bool fail_image;
 static uint32_t last_write;
 static const esp_partition_t *boot;
 static size_t cjson_allocations;
@@ -106,7 +108,8 @@ esp_err_t esp_image_verify(int mode, const esp_partition_pos_t *pos,
     (void)mode;
     (void)pos;
     (void)metadata;
-    return 0;
+    ++image_checks;
+    return fail_image ? ESP_ERR_INVALID_CRC : ESP_OK;
 }
 esp_err_t esp_image_verify_bootloader(uint32_t *size)
 {
@@ -126,8 +129,14 @@ const esp_partition_t *esp_ota_get_boot_partition(void)
 }
 esp_err_t esp_ota_set_boot_partition(const esp_partition_t *p)
 {
+    ++boot_checks;
+    return esp_ota_set_boot_partition_skip_validate(p);
+}
+esp_err_t esp_ota_set_boot_partition_skip_validate(const esp_partition_t *p)
+{
+    ++boot_selections;
     boot = p;
-    return 0;
+    return ESP_OK;
 }
 esp_err_t esp_iris_crash_loop_reset(void)
 {
@@ -164,6 +173,8 @@ static void setup(void)
     erased = mock_writes = persisted = corrupt_readback = mock_alloc_fail =
         mock_commit_error = 0;
     boot = NULL;
+    image_checks = boot_checks = boot_selections = 0;
+    fail_image = false;
     esp_partition_info_t *entries = (void *)(flash + 0x8000);
     for (size_t i = 0; i < 5; i++) {
         const immutable_partition_contract_t *c = &s_immutable_partitions[i];
@@ -642,8 +653,14 @@ int main(void)
         assert(update_write_component(&c, 0, bytes, c.size, &s_backend) == ESP_OK);
         assert(update_end_component(&c, c.sha256, &s_backend) == ESP_OK);
     }
+    assert(image_checks == 1 && !boot_checks && !boot_selections);
+    s_backend.transaction.plan[1].image_verified = false;
+    assert(factory_system_update_source_commit_deferred(op) == ESP_ERR_INVALID_STATE);
+    assert(!boot_selections);
+    s_backend.transaction.plan[1].image_verified = true;
     mock_create_fail = 1; /* commit must succeed even when scheduling is impossible */
     assert(factory_system_update_source_commit_deferred(op) == ESP_OK);
+    assert(image_checks == 1 && !boot_checks && boot_selections == 1);
     assert(boot == &s_backend.transaction.plan[1].target_partition && boot->address == 0x210000);
     assert(s_backend.status.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED);
     assert(factory_system_update_source_reserve(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, op) == ESP_ERR_INVALID_STATE);
@@ -665,6 +682,25 @@ int main(void)
     assert(factory_system_update_source_commit_deferred(op) == ESP_OK);
     assert(boot->address == 0x210000 && !memcmp(flash + 0x210000, "data", 4));
     mock_create_fail = 0;
+    assert(image_checks == 2 && !boot_checks && boot_selections == 2);
+    for (int fault = 0; fault < 2; ++fault) {
+        setup();
+        assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND, layout_manifest_without_data()) == ESP_OK);
+        assert(!s_backend.transaction.plan[1].image_verified);
+        assert(mosaico_boot_request_recovery() == ESP_OK);
+        for (size_t i = 0; i < 2; ++i) {
+            c = s_backend.transaction.plan[i].descriptor;
+            assert(update_begin_component(&c, &s_backend) == ESP_OK);
+            assert(update_write_component(&c, 0, i ? (const uint8_t *)"data" : new_table,
+                                          c.size, &s_backend) == ESP_OK);
+            fail_image = i && fault == 0;
+            corrupt_readback = i && fault == 1;
+            assert((update_end_component(&c, c.sha256, &s_backend) == ESP_OK) == (i == 0));
+        }
+        assert(!s_backend.transaction.plan[1].image_verified);
+        assert(factory_system_update_source_commit_deferred(op) != ESP_OK);
+        assert(!boot_checks && !boot_selections && boot == &mock_factory);
+    }
     puts("Recovery backend ownership, layout, readback and factory gates passed");
 }
 

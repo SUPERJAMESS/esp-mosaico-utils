@@ -260,112 +260,70 @@ live receiver. `reconcile` is available to a participant project only after both
 original sessions have exited and physical locks are free. All four record
 commands require `--takeover-id`; `status` never starts a Gateway.
 
-## Upload Iris applications to Mosaico Ideas
+## Publish a Mosaico Ideas file collection
 
-`project upload` creates or updates an application draft. It never submits a
-review, withdraws pending review, publishes a version, connects a device or
-starts the local Gateway. The current platform accepts **unsigned `.irisfw`**
-for ESP32-S31 (chip ID 32), containing exactly one application plus optional
-data/partition-table components. Vibe Mode/bootloader components and nonzero
-flags are rejected. The server validates the bundle against its administrator's
-current active Iris Header; applications do not select a Header.
+The [file release protocol](docs/ideas-file-release/README.zh-CN.md) uses one immutable
+ZIP upload and direct device manifest GET requests. The CLI, local integration
+server and Vibe Mode implement the new format only. An upload creates a **draft**;
+publication is separate. Ordinary Ideas cannot contain Vibe Mode or bootloader
+components. Vibe Mode self-update remains outside this protocol.
 
-Keep `mosaico-ideas.json`, README, covers and resources in the application directory:
+Install host-only dependencies with `python3 -m pip install -r mosaico-tools/requirements-ideas.txt`.
+Display generation also needs the platform's FreeType/libraqm runtime. Device
+resources are generated before the ZIP is frozen; uploading never rebuilds them.
+
+Keep this author configuration in the application's `mosaico-ideas.json`:
 
 ```json
 {
-  "schema": "mosaico-ideas/project-upload/v1",
-  "project": {
-    "title": "Temperature sensor",
-    "categories": ["sensors"],
-    "boards": [],
-    "tags": ["iris", "sensor"],
-    "license": "MIT",
-    "external_links": []
-  },
-  "content": {
-    "readme": "README.md",
-    "covers": ["assets/cover.png"],
-    "resources": ["assets/wiring.png"],
-    "attachments": ["attachments/schematic.pdf"]
-  },
-  "release": {"changelog": "Improve reconnect behavior"}
+  "schema": "mosaico-ideas/project-release/1",
+  "project": {"title": "Bilingual demo", "categories": ["display"]},
+  "firmware": "build/demo-system-update.irisfw",
+  "website": {"readme": "website/readme.md", "covers": ["website/cover.png"]},
+  "device": {
+    "default_locale": "zh-CN",
+    "presentations": {
+      "zh-CN": {"name": "双语示例", "description": "下载后可离线切换语言。", "font": "assets/NotoSansCJK-Regular.ttc", "icon": "assets/icon.png"},
+      "en": {"name": "Bilingual demo", "description": "Switch languages offline after downloading.", "font": "assets/NotoSansCJK-Regular.ttc", "icon": "assets/icon.png"}
+    }
+  }
 }
 ```
 
-The machine-readable schema is [mosaico-ideas.schema.json](mosaico-ideas.schema.json).
-The unpublished pre-release manifest name and schema identifier have been replaced;
-use `mosaico-ideas.json` with `mosaico-ideas/project-upload/v1` for new and existing projects.
-No application ID, Header ID or credential belongs in the manifest or bundle.
-All file paths are application-relative; absolute paths, `..`, escaping symlinks
-and duplicate declared files are rejected. Link README resources using Markdown
-inline images/links or reference definitions; these files are discovered and
-uploaded automatically, then destinations are replaced with platform asset URLs.
-External HTTP(S) links and code blocks remain unchanged. `content.resources`
-entries must be referenced from README; use `attachments` for standalone files.
-Use `%20` or angle destinations for spaces and percent-encode parentheses in
-filenames. Raw HTML resource links are not rewritten.
-
-Limits: 9 covers, 20 attachments, 100 resource files/100 MiB total; images up to
-10 MiB each, other resources 20 MiB, and the Iris archive 32 MiB. README must be
-UTF-8, at most 100,000 characters and 400,000 bytes. The manifest is at most 64 KiB.
+Each locale defaults to `mode: "generate"`; alternatively use only
+`{"mode":"prebuilt","display":"device/en/display.json"}` with adjacent font/icon
+files. Mixing generated and prebuilt fields in one locale is rejected. See the
+[author schema](mosaico-ideas.schema.json) for fields and limits. Website paths
+remain relative; referenced images must be listed in `resources` or `covers`.
 
 ```sh
-python mosaico.py account login --open-browser
-python mosaico.py account status
-python mosaico.py project upload --project projects/my_app
+# First use the application's offline ESP-IDF build to generate its
+# system-update-bundle target; package an existing .irisfw below.
+python mosaico.py project package --project projects/demo --output dist/release.zip
+python mosaico.py project validate dist/release.zip --json
+python mosaico.py account login
+python mosaico.py project upload dist/release.zip --create --yes --json
+# Update requires the draft version returned by the last accepted upload.
+python mosaico.py project upload dist/release.zip --update APPLICATION_ID --expected-project-version 1 --yes --json
 ```
 
-Login displays a verification page and a separate user code. Approve the code
-in your browser; the CLI stores its token privately under
-`state_root("esp-mosaico")/0.2/mosaico-ideas/` (POSIX directory/file modes 0700/0600).
-Log in again for 0.2. Earlier credentials and resumable-upload records stay in
-their original directories and are never imported or rewritten.
-Native Windows account directory permissions apply. `account logout` revokes
-the selected token. `MAKER_SPARK_TOKEN` takes precedence over saved credentials;
-logout with that environment variable revokes it, without deleting a different
-saved token. Tokens never appear in JSON or run logs.
+`project package --bundle PATH` overrides the configured firmware input. Packaging
+is offline and deterministic. Both packaging and upload validate ZIP structure,
+all hashes, the Iris firmware/product layout, actual image encoding, MIFF glyphs,
+and complete Chinese/English dependency sets. They reject extra or missing files,
+links, traversal, ambiguous paths, animations and unsupported firmware components.
 
-The default server is `https://mosaico-ideas.espressif.com`. Server selection uses
-the first non-empty value in this order: `--server`, `MOSAICO_IDEAS_SERVER`,
-`MAKER_SPARK_SERVER` (legacy), then the default. Use `MOSAICO_IDEAS_SERVER` for
-new configurations; `MAKER_SPARK_SERVER` remains supported for existing setups.
-HTTPS is required except for localhost development. Supply only the origin
-(no `/api/v1` or other path); the CLI adds API paths automatically.
-The token environment variable remains `MAKER_SPARK_TOKEN`.
+Upload state lives in the private 0.2 account directory, scoped by server, stable
+account ID and request. Repeating the same command resumes the upload receipt and
+idempotency key, including after token rotation. A changed ZIP or target is a new
+request. `--wait-timeout` stops waiting while preserving a validating upload ID;
+it does not turn a pending upload into a business failure. `--server` chooses the
+API origin; `--ca-file` trusts a private test CA without disabling TLS checks.
 
-Interactive upload asks whether to create a new application or update an owned
-one, showing the complete application ID, version and status. It asks for
-confirmation again and warns when replacing an existing draft. An update is
-never inferred from directory names or previous selections. CI/`--json` usage
-requires `--create` or `--update APPLICATION_ID`, and `--yes` explicitly confirms
-the operation, including replacement of an existing draft:
+For a runnable server, TLS setup, explicit test publication and device acceptance,
+see [local integration testing](docs/ideas-file-release/testing.zh-CN.md).
 
 ```sh
-# Inject MAKER_SPARK_TOKEN through the CI secret store, not a command argument.
-python mosaico.py project upload --project projects/my_app --create --yes --json
-python mosaico.py project upload --project projects/my_app --skip-build --update APPLICATION_ID --yes --json
-python mosaico.py project upload --project projects/my_app --bundle dist/app.irisfw --version 0.1.2 --update APPLICATION_ID --yes --json
-```
-
-By default the CLI runs the existing `system-update-bundle` build target.
-`--skip-build` uses the existing build and its `project_description.json`;
-`--bundle` inspects the specified archive without a build. Local build version,
-bundle `release` and explicit `--version`, when present, must match exactly.
-A supplied bundle without `release` requires `--version`. Versions are at most
-80 characters, begin with a letter/digit, and use letters, digits, `.`, `_`, `+`
-and `-`; no normalization occurs (bundle release itself is limited to 64 characters).
-
-Success JSON includes `application_id`, `revision_id`, `version`, `bundle_sha256`,
-`status: "draft"` and `draft_url`. Retry the same command after a lost response:
-private resumable state preserves idempotency keys and completed assets. S3
-precondition failures are verified through completion; expired sessions are
-renewed. Local servers without S3 use the dedicated Iris multipart endpoint.
-Network errors report a platform request ID where available, without signed URLs.
-A version conflict requires refreshing the draft rather than overriding changes.
-
-Run upload-specific unit tests with:
-
-```sh
-python3 -m unittest discover -s mosaico-tools/tests -v
+python3 -m pytest mosaico-tools/tests
+python3 -m pytest esp-mosaico-vibe-mode/tests
 ```

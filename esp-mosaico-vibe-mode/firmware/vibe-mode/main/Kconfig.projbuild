@@ -63,12 +63,20 @@ config IRIS_FACTORY_BRIDGE_BOARD_ID
         Required before entering Bridge download mode. Factory update
         manifests must match this board identifier.
 
-config IRIS_FACTORY_IDEAS_LOCALE
-    string "Preferred Ideas presentation language (BCP 47)"
-    default "en"
+config IRIS_FACTORY_IDEAS_SERVER_URL
+    string "Ideas HTTPS origin (no trailing slash)"
+    default IRIS_FACTORY_BRIDGE_SERVER_URL
     help
-        Sent when resolving a six-digit Idea code. The cloud returns localized
-        fixed names/descriptions and their subset font/presentation resources.
+        Direct manifest and content-addressed file service. Empty disables
+        Ideas downloads. System language is selected locally and persisted.
+
+config IRIS_FACTORY_IDEAS_CA_FILE
+    string "Optional Ideas CA certificate PEM file"
+    default ""
+    help
+        Build-time path to a trusted private CA for a development/deployment
+        server. Empty uses the public certificate bundle. TLS verification
+        and hostname checking always remain enabled.
 
 config IRIS_FACTORY_BRIDGE_SYSTEM_UPDATE
     bool "Enable Bridge full system-update bundles"
@@ -106,6 +114,25 @@ config IRIS_FACTORY_NAND_SYSTEM_UPDATE
         maintenance from starting.
         The Recovery UI scans /nand/system-update/manifest.json and one level
         of release subdirectories so an operator can select a bundle locally.
+
+config IRIS_FACTORY_NAND_READ_CACHE_KIB
+    int "NAND logical page read cache in PSRAM (KiB, 0 disables)"
+    range 0 128
+    default 64
+    depends on IRIS_FACTORY_NAND_SYSTEM_UPDATE
+    help
+        Read-only LRU between LittleFS and Dhara. Writes, erase, ioctl and sync
+        invalidate it before forwarding. Allocation failure uses uncached IO.
+        Changes RAM usage only; NAND geometry and disk format stay unchanged.
+
+config IRIS_FACTORY_NAND_POLL_SHORT
+    bool "Poll short NAND page-load and READY SPI transactions"
+    default y
+    depends on IRIS_FACTORY_NAND_SYSTEM_UPDATE
+    help
+        Only the NAND SPI handle's page-load command and one-byte READY query
+        use polling. Data reads keep interrupt/DMA scheduling; the driver's
+        BUSY timeout, ECC checks, programming and erase behavior are preserved.
 
 config IRIS_FACTORY_NAND_SYSTEM_UPDATE_TASK_STACK
     int "NAND system-update task stack size"

@@ -1,0 +1,180 @@
+openapi: 3.1.0
+info:
+  title: Mosaico Ideas immutable file release
+  version: '1'
+  description: Single ZIP upload creates a draft. Publication is a separate server workflow.
+servers:
+  - url: https://ideas.example/api/v1
+paths:
+  /ideas/uploads:
+    post:
+      operationId: uploadIdeaArchive
+      security: [{bearer: []}]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 128}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [request, package]
+              properties:
+                request: {$ref: '#/components/schemas/UploadRequest'}
+                package: {type: string, format: binary, description: Frozen ZIP, at most 104857600 bytes.}
+            encoding:
+              request: {contentType: application/json}
+              package: {contentType: application/zip}
+      responses:
+        '202':
+          description: Full ZIP accepted; validation pending. Request part must precede package.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/UploadState'}}
+        '200':
+          description: Replay of a terminal receipt for the same account, key and request.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/UploadState'}}
+        default: {$ref: '#/components/responses/Error'}
+  /ideas/uploads/{upload_id}:
+    get:
+      operationId: getUploadState
+      security: [{bearer: []}]
+      parameters:
+        - in: path
+          name: upload_id
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Durable validating, complete or failed state; complete is a draft.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/UploadState'}}
+        default: {$ref: '#/components/responses/Error'}
+  /ideas/{code}/manifest.json:
+    get:
+      operationId: getLatestCompatibleIdea
+      parameters:
+        - {$ref: '#/components/parameters/Code'}
+        - {in: query, name: profile, required: true, schema: {const: esp-mosaico/v2}}
+        - {in: query, name: chip_id, required: true, schema: {type: integer, minimum: 0}}
+        - {in: query, name: flash_size, required: true, schema: {type: integer, minimum: 1}}
+        - {in: query, name: recovery_version, required: true, schema: {type: string, minLength: 1}}
+      responses:
+        '200': {$ref: '#/components/responses/Manifest'}
+        '409':
+          description: NO_COMPATIBLE_RELEASE; no visible release satisfies capabilities.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/Error'}}
+        default: {$ref: '#/components/responses/Error'}
+  /ideas/{code}/releases/{release_id}/manifest.json:
+    get:
+      operationId: getFixedIdeaRelease
+      parameters:
+        - {$ref: '#/components/parameters/Code'}
+        - {in: path, name: release_id, required: true, schema: {type: string, maxLength: 64}}
+      responses:
+        '200': {$ref: '#/components/responses/Manifest'}
+        default: {$ref: '#/components/responses/Error'}
+  /ideas/files/{sha256}:
+    get:
+      operationId: getPublishedFile
+      parameters:
+        - {in: path, name: sha256, required: true, schema: {$ref: '#/components/schemas/Sha256'}}
+      responses:
+        '200':
+          description: Exact published bytes, immutable. No redirects, HTTP compression or draft disclosure.
+          headers:
+            ETag: {schema: {type: string}, description: Quoted SHA-256 of the raw response.}
+            Cache-Control: {schema: {type: string}, description: 'public, max-age=31536000, immutable'}
+          content:
+            application/octet-stream: {schema: {type: string, format: binary}}
+        default: {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearer: {type: http, scheme: bearer}
+  parameters:
+    Code:
+      in: path
+      name: code
+      required: true
+      schema: {type: string, pattern: '^[0-9]{6}$'}
+  responses:
+    Manifest:
+      description: Raw device manifest, never an envelope. Latest is no-store; fixed releases immutable. No 304. Unknown or duplicate query parameters rejected.
+      headers:
+        ETag: {schema: {type: string}, description: Required strong quoted SHA-256 of the raw manifest bytes.}
+        Cache-Control: {schema: {type: string}}
+      content:
+        application/json:
+          schema: {$ref: download-manifest.schema.json}
+    Error:
+      description: See protocol error table for HTTP status, stable code and retry rules.
+      headers:
+        Retry-After: {schema: {type: string}, description: Seconds or HTTP date; no retry before this delay.}
+      content:
+        application/json: {schema: {$ref: '#/components/schemas/Error'}}
+  schemas:
+    Sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    UploadRequest:
+      type: object
+      additionalProperties: false
+      required: [mode, archive]
+      properties:
+        mode: {enum: [create, update]}
+        archive:
+          type: object
+          additionalProperties: false
+          required: [size, sha256]
+          properties:
+            size: {type: integer, minimum: 1, maximum: 104857600}
+            sha256: {$ref: '#/components/schemas/Sha256'}
+        application_id: {type: string, maxLength: 64}
+        expected_project_version: {type: integer, minimum: 0}
+      allOf:
+        - if: {properties: {mode: {const: update}}}
+          then: {required: [application_id, expected_project_version]}
+          else:
+            not:
+              anyOf:
+                - {required: [application_id]}
+                - {required: [expected_project_version]}
+    UploadState:
+      type: object
+      required: [upload_id, status]
+      properties:
+        upload_id: {type: string}
+        archive_sha256: {$ref: '#/components/schemas/Sha256'}
+        status: {enum: [validating, complete, failed]}
+        result: {$ref: '#/components/schemas/Receipt'}
+        error: {$ref: '#/components/schemas/Error'}
+      allOf:
+        - if: {properties: {status: {const: complete}}}
+          then: {required: [archive_sha256, result]}
+        - if: {properties: {status: {const: failed}}}
+          then: {required: [archive_sha256, error]}
+    Receipt:
+      type: object
+      required: [application_id, code, revision_id, release_id, project_version, version, manifest_sha256, bundle_sha256, status, draft_url]
+      properties:
+        application_id: {type: string}
+        code: {type: string, pattern: '^[0-9]{6}$'}
+        revision_id: {type: string}
+        release_id: {type: string}
+        project_version: {type: integer, minimum: 1}
+        version: {type: string}
+        manifest_sha256: {$ref: '#/components/schemas/Sha256'}
+        bundle_sha256: {$ref: '#/components/schemas/Sha256'}
+        status: {const: draft}
+        draft_url: {type: string, format: uri-reference}
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        request_id: {type: string}
+        details: {type: object}

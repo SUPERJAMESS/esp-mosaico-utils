@@ -1,38 +1,25 @@
 # Ideas 自定义展示资源 v1
 
-本格式用于发布时已经确定的应用名称和描述。云端为所选语言生成所需资源，设备
-保存到 NAND，在下载确认页和离线信息页使用；不把字体写进应用 NOR 分区。
-字体子集不是完整的系统字体，也不支持任意新增动态文本。改变文字、字号或语言
-需要重新生成展示资源并发布新 release。
+本文描述 `display/1`、`MIFF/1` 的内部格式。完整的上传、直接 GET 外层 manifest、
+目录化下载及中英离线切换见[文件发布协议](../../mosaico-tools/docs/ideas-file-release/README.zh-CN.md)。
 
-## 下载依赖
+发布工具为 zh-CN 和 en 分别生成 `device/<locale>/display.json` 及相邻字体和图标。
+设备预览先读所选语言；确认后保存并校验两套资源，完整目录才成为 current。
+`display.json` 是语言、名称、描述、字体和图标的唯一来源，外层只声明文件路径、
+大小、摘要。固件依赖来自 `firmware/manifest.json` 的原始 Iris 清单。
 
-`mosaico-ideas/download/1` 在现有应用安装清单外声明：
+每种语言最多两个字体，所有声明资源必须恰好被引用，字体和图标使用当前语言
+目录内的 basename。每语言资源总计不超过 1 MiB，双语合计 2 MiB；display 最多
+32 KiB，图标为 64×64、8 bit RGBA、非交错静态 PNG，最多 64 KiB。
+设备集合含根清单最多 32 个文件、32 MiB。完整限制以协议为准。
 
-```json
-{
-  "presentation": "display.json",
-  "fonts": ["title.mif", "body.mif"],
-  "icon": "icon.png"
-}
-```
+字形子集用于发布时确定的文本；文字变化须生成新的不可变 release。
+系统固定文案使用独立内置中文字体，用户语言保存在 sysmeta 的 settings NVS，
+首次默认中文；Idea 的默认语言不能覆盖该偏好。系统界面、列表名称及本地详情
+均可离线切换。列表复用 name 字形块，不要求系统字体包含所有 Idea 字符。
 
-以上文件必须全部出现在 `files` 中，具有独立的 `name/path/size/sha256`。
-名称只能引用当前清单内的文件。固件、展示 JSON、字体和图标不能重复占用同一文件；
-所有文件必须被引用。`fonts` 最多两个且都必须被文字块使用。字体不能再声明依赖，
-因此没有循环或递归下载。总清单最多 12 个文件、8 个固件组件、32 MiB，展示资源
-合计最多 1 MiB。安装用的 `esp-iris-system-update/0.2` 清单保持不变。
-
-解析请求增加 `download_schema`、`display_schema`、`font_format`，值分别为
-`mosaico-ideas/download/1`、`mosaico-ideas/display/1`、`MIFF/1`。
-
-V0.2 尚未正式发布，直接修改 `/1` 开发契约，不新增 `/2`，也不保留旧 GSPB
-清单兼容路径。下载清单、展示描述和字体文件的版本各自独立；正式发布并冻结后，
-只有对应格式发生不兼容变更时才升级其版本。
-
-云端和发布工具统一生成当前契约。旧 GSPB 清单与临时 `/2` NAND 测试包不会被
-识别为当前可用 Ideas；需要输入六位编号重新下载，由完整新包替换。此变更不自动
-迁移或清空 NAND，也不改变 NOR 中已有应用的启动目标。
+不读取旧 download/1 或 V0.1，不批量迁移、删除已有 NAND 数据，也不因切换
+语言改变开机目标。已有不支持格式或身份冲突的目录会保留并报告错误。
 
 ## display.json
 
@@ -62,7 +49,7 @@ V0.2 尚未正式发布，直接修改 `/1` 开发契约，不新增 `/2`，也�
 
 - UTF-8、最多 32 KiB；拒绝重复键、未知键、嵌入 NUL、深度超过 8、尾随数据。
 - `text`、`locale`、`icon` 必须与外层 application 及 icon 字段一致；无图标时 `icon` 为 `""`。
-- `font` 对应外层 `fonts` 的一个文件名，不能是 URL 或其他资源。
+- `font` 对应当前语言 `assets` 中的一个字体 basename，不能是 URL 或其他资源。
 - 名称块最大 328×84，描述块最大 416×176；尺寸是排版区域，不是屏幕绝对坐标。
 - `glyphs` 最多 512 条 `[glyph_id, x, baseline_y]`，坐标以该文字块左上角为原点、
   x 向右、y 向下，单位为整数像素。字形实际位图必须完整落在块内。非空文本须有字形。
@@ -117,7 +104,11 @@ advance 和行高保留排版度量，当前固定文案的实际位置以 JSON 
 元数据一致性、字形边界验证和通用 RGB565 混合。这两部分只使用标准 C 和 cJSON，
 可直接用于其他 UI。GSP 相关调用仅在 `vibe_ui.c` 中，接收普通像素和 PNG。
 
-发布工具还生成 `presentation.json` 供云端组装清单，它不是设备资源。云端必须把
-`display.json/title.mif/body.mif/icon.png` 及对应哈希纳入新 release 的 files。
-设备先下载这些资源并校验，再显示确认页；取消只释放内存。确认后复用缓存写入
-NAND，并下载固件；只有用户另行设置开机应用时才安装到 NOR。
+`tools/prepare_idea_presentation.py --name ... --description ... --locale zh-CN
+--font ... --icon ... --output DIR` 生成纯展示文件，向 stdout 输出文件描述，
+不需要六位编号，也不生成 presentation.json。`project package` 调用相同生成器，
+把两种语言的 display、字体及可选图标直接纳入 ZIP。
+
+确认前只使用 RAM；取消释放缓存。确认后保留目录层级写入 NAND，并下载普通
+应用固件。只有用户另行设置开机应用时才安装到 NOR。目录外 `.roots` 保存本地
+提交日志与根摘要，不属于发布内容，不能由服务器覆盖。

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
+#include "esp_gsp.h"
+#include "vibe_transfer.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "esp_gsp.h"
-#include "vibe_transfer.h"
 
 #define VIBE_AP_MAX 16
 #define VIBE_BUNDLE_MAX 16
@@ -43,7 +43,8 @@ typedef enum {
     VIBE_START_IDEA,
     VIBE_PREVIEW_IDEA,
     VIBE_RESOLVE_IDEA,
-    VIBE_CANCEL_IDEA
+    VIBE_CANCEL_IDEA,
+    VIBE_SET_LANGUAGE
 } vibe_command_t;
 typedef struct {
     char ssid[33];
@@ -58,6 +59,7 @@ typedef struct {
 } vibe_bundle_t;
 typedef struct {
     vibe_net_t network;
+    unsigned language;
     bool credentials_saved, scanning, usb_owner, tcp_owner, session;
     char ssid[33], ip[16], hostname[48], token[65];
     unsigned tcp_port;
@@ -90,6 +92,7 @@ typedef struct {
     void (*snapshot)(void *ctx, vibe_snapshot_t *out);
     int (*command)(void *ctx, vibe_command_t command, const char *first, const char *second);
     void *(*icon)(void *ctx, const char *code, size_t *size);
+    void *(*title)(void *ctx, const char *code, size_t *size);
     /* malloc-owned copies: title/body RGB565, then encoded icon PNG. */
     void *(*preview)(void *ctx, uint32_t request, unsigned slot, size_t *size);
 } vibe_services_t;
@@ -110,10 +113,12 @@ typedef struct {
 esp_gsp_err_t vibe_ui_create(esp_gsp_handle_t ui, const vibe_services_t *services, vibe_ui_t **out);
 /* Copy observable UI state without exposing secrets. Render task only. */
 void vibe_ui_get_status(const vibe_ui_t *state, vibe_ui_status_t *out);
-/* Detach callbacks and clear secrets on the render task before UI destruction. */
+/* Detach callbacks and clear secrets on the render task before UI destruction.
+ */
 void vibe_ui_deinit(vibe_ui_t *state);
 /* Open the six-digit download page on the render task for live state.
- * Returns the service command result; never call directly from an Iris worker. */
+ * Returns the service command result; never call directly from an Iris worker.
+ */
 int vibe_ui_open_bridge(vibe_ui_t *state);
 /* Refresh state from copied service callbacks and update the current page.
  * state must be a live controller; call only on the render task. */

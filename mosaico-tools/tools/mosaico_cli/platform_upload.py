@@ -1,344 +1,111 @@
-"""Explicit create/update upload orchestration, without Gateway or device leases."""
-
+"""Single immutable ZIP upload; persistent receipt and idempotency binding."""
 from __future__ import annotations
 
 import hashlib
 import json
-import sys
-import urllib.parse
-import uuid
+import re
 from pathlib import Path
-from typing import Any
+import sys
+import time
+import uuid
 
-from .bundle_plan import inspect_bundle_plan
-from .errors import OperationError, SelectionError
-from .gateway import ensure_iris_tools
-from .platform_client import (
-    PlatformClient,
-    PlatformError,
-    credential,
-    private_root,
-    read_state,
-    server_url,
-    write_state,
-)
-from .platform_manifest import (
-    file_info,
-    load_manifest,
-    rewritten_readme,
-    upload_version,
-    validate_bundle,
-)
-from .project import resolve_project
-from .runtime import resolve_idf_path, run_idf_target
+from .errors import SelectionError
+from .ideas_content import require
+from .ideas_release import validate_release
+from .ideas_transport import ReleaseClient
+from .platform_client import PlatformError, credential, private_root, read_state, server_url, write_state
 
 
-def _segment(value: str) -> str:
-    return urllib.parse.quote(value, safe="")
-
-
-def select_target(
-    arguments: Any, client: PlatformClient, version: str
-) -> dict[str, Any] | None:
-    interactive = sys.stdin.isatty() and not arguments.json
-    create, target_id = arguments.create, arguments.update
-    if not create and not target_id:
-        if not interactive:
-            raise SelectionError(
-                "Non-interactive and --json uploads require --create or --update APPLICATION_ID."
-            )
-        choice = (
-            input("Create a new application [c] or update an owned application [u]? ")
-            .strip()
-            .lower()
-        )
-        if choice not in {"c", "u"}:
-            raise SelectionError("Select c or u explicitly.")
-        create = choice == "c"
-    if create:
-        if not arguments.yes and (
-            not interactive
-            or input("Create a new application at version " + version + "? [y/N] ")
-            .strip()
-            .lower()
-            != "y"
-        ):
-            raise SelectionError(
-                "Creation was not confirmed; use --yes for an unattended upload."
-            )
-        return None
-    targets = client.request("GET", "/firmware-projects/upload-targets")
-    if isinstance(targets, dict):
-        targets = targets.get("items", [])
-    if not target_id:
-        if not targets:
-            raise SelectionError("You do not own any upload targets.")
-        for index, target in enumerate(targets, 1):
-            print(
-                "{}: {} | {} | {} | {}{}".format(
-                    index,
-                    target["title"],
-                    target["current_version"],
-                    target["visibility"],
-                    target["id"],
-                    " | blocked: " + str(target["blocked_reason"])
-                    if not target["can_update"]
-                    else "",
-                ),
-                file=sys.stderr,
-            )
-        try:
-            selected = int(input("Select application number: "))
-            if not 1 <= selected <= len(targets):
-                raise ValueError()
-            target_id = targets[selected - 1]["id"]
-        except ValueError as error:
-            raise SelectionError("Invalid application selection.") from error
-    target = next((item for item in targets if item["id"] == target_id), None)
-    if target is None:
-        raise SelectionError("The application is not an owned upload target.")
-    if not target["can_update"]:
-        raise SelectionError(
-            "Application cannot be updated: " + str(target.get("blocked_reason"))
-        )
-    message = "Update {} ({}) from {} to {}".format(
-        target["title"], target["id"], target["current_version"], version
-    )
-    if target.get("draft_revision_id"):
-        message += "; this replaces the existing draft"
-    if not arguments.json:
-        print(message, file=sys.stderr)
-    if not arguments.yes and (
-        not interactive or input(message + "? [y/N] ").strip().lower() != "y"
-    ):
-        raise SelectionError(
-            "Update was not confirmed; use --yes to confirm replacing the draft."
-        )
-    return target
-
-
-def upload_file(
-    client: PlatformClient,
-    path: Path,
-    info: dict[str, Any],
-    endpoint: str,
-    fallback: str,
-    key: str,
-    ledger: dict[str, Any],
-    ledger_path: Path,
-) -> Any:
-    completed = ledger.setdefault("assets", {})
-    if key in completed:
-        return completed[key]
-    data = path.read_bytes()
-    if hashlib.sha256(data).hexdigest() != info["sha256"]:
-        raise SelectionError("A resource changed after validation; run upload again.")
-    generations = ledger.setdefault("upload_generations", {})
-    for attempt in range(3):
-        generation = generations.get(key, 0)
-        try:
-            grant = client.request(
-                "POST", endpoint, info, key=key + ":" + str(generation)
-            )
-            if grant.get("completed_asset"):
-                result = grant["completed_asset"]
-            else:
-                client.put_object(grant, data)
-                result = client.request(
-                    "POST", "/asset-uploads/" + _segment(grant["id"]) + "/complete"
-                )
-        except PlatformError as error:
-            if error.code == "DIRECT_UPLOAD_UNAVAILABLE":
-                result = client.multipart(
-                    fallback,
-                    info["filename"],
-                    info["media_type"],
-                    data,
-                    key=key + ":multipart",
-                )
-            elif error.code == "UPLOAD_EXPIRED" and attempt < 2:
-                generations[key] = generation + 1
-                write_state(ledger_path, ledger)
-                continue
-            elif error.code == "NETWORK_ERROR" and attempt < 2:
-                continue
-            else:
-                raise
-        completed[key] = result
-        write_state(ledger_path, ledger)
-        return result
-    raise PlatformError("UPLOAD_EXPIRED")
-
-
-def project_upload(arguments: Any, context: Any) -> dict[str, Any]:
-    if (
-        not arguments.create
-        and not arguments.update
-        and (arguments.json or not sys.stdin.isatty())
-    ):
-        raise SelectionError(
-            "Non-interactive and --json uploads require --create or --update APPLICATION_ID."
-        )
-    if arguments.bundle and arguments.skip_build:
-        raise SelectionError("--bundle and --skip-build cannot be combined.")
-    server = server_url(arguments.server)
-    client = PlatformClient(server, credential(server))
-    project = resolve_project(
-        context.workspace, arguments.project, Path.cwd()
-    ).resolve()
-    manifest = load_manifest(project)
-    build_version = None
-    if arguments.bundle:
-        bundle = Path(arguments.bundle).expanduser().resolve()
-    else:
-        if not arguments.skip_build:
-            python, _ = ensure_iris_tools(context)
-            run_idf_target(
-                context,
-                idf_path=resolve_idf_path(context.workspace, project),
-                project=project,
-                build_dir=project / "build",
-                target="system-update-bundle",
-                definitions={"ESP_IRIS_PYTHON": str(python)},
-                timeout=3600,
-            )
-        try:
-            description = json.loads(
-                (project / "build/project_description.json").read_text(encoding="utf-8")
-            )
-            build_version = description["project_version"]
-            bundle = (
-                project
-                / "build"
-                / (description["project_name"] + "-system-update.irisfw")
-            )
-        except (OSError, ValueError, KeyError) as error:
-            raise SelectionError(
-                "A complete build/project_description.json is required."
-            ) from error
-    if bundle.suffix != ".irisfw" or not bundle.is_file():
-        raise SelectionError("Upload requires a local .irisfw bundle.")
-    info = file_info(bundle, firmware=True)
-    plan = inspect_bundle_plan(context, bundle)
-    validate_bundle(plan)
-    version = upload_version(plan, arguments.release_version, build_version)
-    target = select_target(arguments, client, version)
-    metadata = manifest["project"]
-    fingerprint = hashlib.sha256(
-        json.dumps(
-            {
-                "project": str(project),
-                "target": target["id"] if target else "create",
-                "metadata": metadata,
-                "markdown": manifest["markdown"],
-                "changelog": manifest["changelog"],
-                "version": version,
-                "bundle": info,
-                "files": {str(path): item for path, item in manifest["files"].items()},
-                "groups": {
-                    name: [str(path) for path in paths]
-                    for name, paths in manifest["groups"].items()
-                },
-            },
-            sort_keys=True,
-        ).encode()
-    ).hexdigest()
-    ledger_path = private_root(server) / ("upload-" + fingerprint + ".json")
+def upload_archive(client, package, request, ledger_path, *, wait_seconds=600, poll_seconds=2):
     ledger = read_state(ledger_path)
     if not ledger:
-        ledger = {"key": str(uuid.uuid4()), "assets": {}}
+        ledger = {"key": str(uuid.uuid4()), "request": request, "package": str(package), "server": client.server}
         write_state(ledger_path, ledger)
-    key = ledger["key"]
-    if "project" not in ledger:
-        if target:
-            selected = {"id": target["id"], "version": target["version"]}
-        else:
-            selected = client.request(
-                "POST",
-                "/firmware-projects",
-                {
-                    **metadata,
-                    "description": "",
-                    "firmware_variants": [],
-                    "cover_images": [],
-                    "current_version": version,
-                },
-                key=key + ":create",
-            )
-        ledger["project"] = selected
-        write_state(ledger_path, ledger)
-    selected = ledger["project"]
-    project_path = "/firmware-projects/" + _segment(selected["id"])
-    if "draft" not in ledger:
-        ledger["draft"] = client.request(
-            "POST",
-            project_path + "/draft",
-            {"expected_project_version": selected["version"]},
-            key=key + ":draft",
-        )
-        write_state(ledger_path, ledger)
-    draft = ledger["draft"]
-    revision_path = project_path + "/revisions/" + _segment(draft["revision_id"])
-    uploaded_bundle = upload_file(
-        client,
-        bundle,
-        {**info, "kind": "firmware"},
-        revision_path + "/iris-uploads",
-        revision_path + "/iris-files",
-        key + ":bundle",
-        ledger,
-        ledger_path,
-    )
-    article_path = (
-        "/articles/"
-        + _segment(draft["article_id"])
-        + "/revisions/"
-        + _segment(draft["revision_id"])
-    )
-    uploaded = {}
-    for index, (path, resource) in enumerate(manifest["files"].items()):
-        uploaded[path] = upload_file(
-            client,
-            path,
-            {**resource, "kind": "article_resource"},
-            article_path + "/uploads",
-            article_path + "/files",
-            key + ":resource:" + str(index),
-            ledger,
-            ledger_path,
-        )
-    attachments = []
-    for path in manifest["groups"]["attachments"]:
-        asset = uploaded[path]
-        attachments.append(
-            {
-                "id": asset["id"],
-                "name": asset["filename"],
-                "size": asset["size"],
-                "media_type": asset["media_type"],
-                "upload_id": asset["id"],
-            }
-        )
-    result = client.request(
-        "PUT",
-        project_path + "/draft/iris-version",
-        {
-            **metadata,
-            "revision_id": draft["revision_id"],
-            "expected_project_version": draft["version"],
-            "expected_revision_version": draft["revision_version"],
-            "bundle_asset_id": uploaded_bundle["id"],
-            "current_version": version,
-            "changelog": manifest["changelog"],
-            "description": rewritten_readme(manifest, uploaded),
-            "cover_images": [
-                uploaded[path]["url"] for path in manifest["groups"]["covers"]
-            ],
-            "attachments": attachments,
-        },
-        key=key + ":finalize",
-    )
-    if result.get("status") != "draft":
-        raise OperationError("Mosaico Ideas returned an unexpected final upload status.")
-    ledger_path.unlink()
+    require(ledger["request"] == request and ledger["server"] == client.server,
+            "Upload state does not match the frozen archive and target")
+    if ledger.get("status") == "complete":
+        return ledger["result"]
+    if ledger.get("status") == "failed":
+        if ledger.get("finished_at", 0) + 7*86400 <= time.time():
+            raise PlatformError("UPLOAD_EXPIRED")
+        raise PlatformError(ledger["error"]["code"])
+    if ledger.get("upload_id"):
+        response = client.request("GET", "/ideas/uploads/" + ledger["upload_id"])
+    else:
+        response = client.request("POST", "/ideas/uploads", request, package=package, key=ledger["key"])
+    identifier = response.get("upload_id")
+    require(isinstance(identifier, str) and 0 < len(identifier) <= 128
+            and all(c.isalnum() or c in "-_" for c in identifier), "Invalid upload identity")
+    require(not ledger.get("upload_id") or ledger["upload_id"] == identifier, "Upload identity changed")
+    ledger["upload_id"] = identifier
+    write_state(ledger_path, ledger)
+    deadline, interval = time.monotonic() + wait_seconds, poll_seconds
+    while True:
+        status = response.get("status")
+        require(status in ("validating", "complete", "failed") and response.get("upload_id") == identifier,
+                "Invalid upload state response")
+        if response.get("archive_sha256") is not None:
+            require(response["archive_sha256"] == request["archive"]["sha256"], "Upload archive identity changed")
+        if status in ("complete", "failed"):
+            field = "result" if status == "complete" else "error"
+            require(isinstance(response.get(field), dict), "Missing upload result")
+            require(response.get("archive_sha256") == request["archive"]["sha256"], "Missing upload archive identity")
+            if status == "complete":
+                result = response[field]
+                require(result.get("status") == "draft", "Upload unexpectedly published content")
+                for name in ("application_id", "revision_id", "release_id"):
+                    require(isinstance(result.get(name), str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", result[name]),
+                            "Invalid result identity", name)
+                require(isinstance(result.get("code"), str) and re.fullmatch(r"[0-9]{6}", result["code"]), "Invalid application code")
+                require(type(result.get("project_version")) is int and result["project_version"] > 0, "Invalid draft version")
+                for name in ("manifest_sha256", "bundle_sha256"):
+                    require(isinstance(result.get(name), str) and re.fullmatch(r"[0-9a-f]{64}", result[name]), "Invalid result digest", name)
+                if request["mode"] == "update":
+                    require(result["application_id"] == request["application_id"] and
+                            result["project_version"] == request["expected_project_version"] + 1, "Upload target changed")
+            else:
+                code = response[field].get("code")
+                require(isinstance(code, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,79}", code), "Invalid failure code")
+            ledger.update(status=status, finished_at=time.time(), **{field: response[field]})
+            write_state(ledger_path, ledger)
+            if status == "failed":
+                raise PlatformError(response[field].get("code", "VALIDATION_FAILED"))
+            return response[field]
+        if time.monotonic() + interval >= deadline:
+            return {"status": "validating", "upload_id": identifier, "state_file": str(ledger_path)}
+        time.sleep(interval)
+        interval = min(10, interval*2)
+        response = client.request("GET", "/ideas/uploads/" + identifier, deadline=deadline)
+
+
+def project_upload(arguments, context):
+    if not arguments.create and not arguments.update:
+        raise SelectionError("Choose --create or --update APPLICATION_ID explicitly.")
+    if arguments.update and arguments.expected_project_version is None:
+        raise SelectionError("--update requires --expected-project-version for concurrency protection.")
+    if arguments.create and arguments.expected_project_version is not None:
+        raise SelectionError("--expected-project-version is only valid with --update.")
+    if not arguments.yes:
+        if arguments.json or not sys.stdin.isatty() or input("Upload this ZIP as an Ideas draft? [y/N] ").strip().lower() != "y":
+            raise SelectionError("Use --yes to confirm the explicit draft upload.")
+    package = Path(arguments.package).expanduser().resolve()
+    release = validate_release(package)
+    server = server_url(arguments.server)
+    token = credential(server)
+    client = ReleaseClient(server, token, ca_file=arguments.ca_file)
+    request = {"mode": "create" if arguments.create else "update",
+               "archive": {"size": package.stat().st_size, "sha256": release.archive_sha256}}
+    if arguments.update:
+        require(arguments.expected_project_version >= 0, "Expected project version must be nonnegative")
+        request.update(application_id=arguments.update, expected_project_version=arguments.expected_project_version)
+    identity = client.request("GET", "/auth/cli/token").get("user", {})
+    owner = identity.get("id") if isinstance(identity, dict) else None
+    require(isinstance(owner, str) and 0 < len(owner) <= 128, "Account response has no stable user ID")
+    fingerprint = hashlib.sha256((owner + "\0" + json.dumps(request, sort_keys=True)).encode()).hexdigest()
+    ledger_path = private_root(server) / ("zip-upload-" + fingerprint + ".json")
+    result = upload_archive(client, package, request, ledger_path, wait_seconds=arguments.wait_timeout)
+    if result.get("status") == "draft":
+        require(result.get("manifest_sha256") == hashlib.sha256(release.files["manifest.json"]).hexdigest()
+                and result.get("bundle_sha256") == release.manifest["firmware"]["sha256"]
+                and result.get("version") == release.firmware["release"], "Upload receipt does not match validated content")
     return {"command": "project upload", **result}

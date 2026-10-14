@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 #include <assert.h>
+#include <openssl/sha.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <openssl/sha.h>
 
 typedef int esp_err_t;
 #define ESP_OK 0
@@ -20,11 +20,18 @@ typedef int esp_err_t;
 #define EXT_RAM_BSS_ATTR
 #define CONFIG_IRIS_FACTORY_BRIDGE_SERVER_URL "https://ideas.test"
 #define CONFIG_IRIS_FACTORY_BRIDGE_BOARD_ID "test-s31"
-#define CONFIG_IRIS_FACTORY_IDEAS_LOCALE "en"
+#define CONFIG_IRIS_FACTORY_IDEAS_SERVER_URL "https://ideas.test"
+#define CONFIG_IRIS_FACTORY_IDEAS_CA_FILE ""
+#define ESP_ERR_INVALID_VERSION 0x10a
 #define MALLOC_CAP_SPIRAM 1
 #define MALLOC_CAP_8BIT 2
+#define MALLOC_CAP_INTERNAL 4
+#define MALLOC_CAP_DMA 8
+#define tskNO_AFFINITY -1
 #define pdPASS 1
 #define pdTRUE 1
+#define pdMS_TO_TICKS(ms) (ms)
+uint32_t esp_random(void);
 #define portMAX_DELAY UINT32_MAX
 #define NVS_READONLY 0
 #define NVS_READWRITE 1
@@ -33,18 +40,23 @@ typedef int esp_err_t;
 #define PSA_SUCCESS 0
 #define PSA_ALG_SHA_256 1
 #define PSA_HASH_OPERATION_INIT                                                                    \
-    {                                                                                              \
-        0                                                                                          \
-    }
+    { 0 }
 #define esp_flash_default_chip NULL
 
 typedef struct mock_mutex *SemaphoreHandle_t;
 SemaphoreHandle_t xSemaphoreCreateMutex(void);
 int xSemaphoreTake(SemaphoreHandle_t mutex, uint32_t timeout);
 int xSemaphoreGive(SemaphoreHandle_t mutex);
-int xTaskCreate(void (*task)(void *), const char *name, unsigned stack, void *arg,
-                unsigned priority, void *handle);
-void vTaskDelete(void *task);
+void vSemaphoreDelete(SemaphoreHandle_t mutex);
+typedef struct mock_queue *QueueHandle_t;
+typedef struct mock_task *TaskHandle_t;
+QueueHandle_t xQueueCreate(unsigned count, unsigned size);
+int xQueueSend(QueueHandle_t queue, const void *item, unsigned timeout);
+int xQueueReceive(QueueHandle_t queue, void *item, unsigned timeout);
+void vQueueDelete(QueueHandle_t queue);
+int xTaskCreatePinnedToCoreWithCaps(void (*task)(void *), const char *name, unsigned stack,
+                                  void *arg, unsigned priority, TaskHandle_t *handle,
+                                  int core, unsigned caps);
 void vTaskDelay(unsigned ticks);
 int64_t esp_timer_get_time(void);
 void *heap_caps_malloc(size_t size, unsigned caps);
@@ -52,17 +64,28 @@ const char *esp_err_to_name(esp_err_t err);
 void esp_restart(void);
 
 typedef struct mock_http *esp_http_client_handle_t;
+#define HTTP_EVENT_ON_HEADER 1
+typedef struct {
+    int event_id;
+    char *header_key, *header_value;
+} esp_http_client_event_t;
+typedef struct {
+    char version[32];
+} esp_app_desc_t;
+const esp_app_desc_t *esp_app_get_description(void);
 typedef struct {
     const char *url;
     unsigned timeout_ms, buffer_size;
     bool disable_auto_redirect;
     int method;
     esp_err_t (*crt_bundle_attach)(void *);
+    esp_err_t (*event_handler)(esp_http_client_event_t *);
 } esp_http_client_config_t;
 esp_err_t esp_crt_bundle_attach(void *config);
 esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *config);
 esp_err_t esp_http_client_set_header(esp_http_client_handle_t client, const char *key,
                                      const char *value);
+esp_err_t esp_http_client_set_timeout_ms(esp_http_client_handle_t client, int timeout);
 esp_err_t esp_http_client_open(esp_http_client_handle_t client, int length);
 int esp_http_client_write(esp_http_client_handle_t client, const char *data, int size);
 int64_t esp_http_client_fetch_headers(esp_http_client_handle_t client);
@@ -108,14 +131,20 @@ typedef struct {
         MOCK_NOT_FOUND,
         MOCK_REDIRECT,
         MOCK_READ_ERROR,
-        MOCK_WRONG_LENGTH
+        MOCK_WRONG_LENGTH,
+        MOCK_SERVICE_UNAVAILABLE
     } fault;
-    bool network, lease, storage_busy, fail_task, fail_commit;
+    bool network, lease, storage_busy, fail_send, fail_commit, deny_new_tasks;
+    unsigned fail_init_step, tasks_created, tasks_entered, jobs_finished, mutex_live, queue_live;
     unsigned writes, resolves, assets, firmware, http_live, installs, commits, restarts;
-    unsigned cancels, requests_with_identity;
+    unsigned cancels, requests_with_identity, fault_limit, fault_hits, firmware_reads;
+    uint64_t flash_read_bytes;
     char flash_version;
+    void (*observe)(void);
 } mock_environment_t;
 mock_environment_t *mock_environment(void);
 void mock_run_worker(void);
+void mock_run_one_job(void);
+void mock_stop_worker(void);
 void mock_assert_idle(void);
 void mock_corrupt_flash(void);

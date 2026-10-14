@@ -6,13 +6,14 @@ idf_component_register(
         "src/factory_ui_dispatch.c"
         "src/iris_screen_mirror.c"
         "src/vibe_bundle.c"
+        "src/vibe_lcd_budget.c"
         "src/vibe_png_inflate.c"
         "src/vibe_transfer.c"
         "src/vibe_ui.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "private"
     REQUIRES esp-gsp
-    PRIV_REQUIRES app_network app_ideas app_nand_update app_system_update app_bridge esp_iris esp-mosaico-bsp esp_display_present esp_lcd esp_timer esp_wifi
+    PRIV_REQUIRES app_network app_ideas app_nand_update app_system app_system_update app_bridge esp_iris esp-mosaico-bsp esp_display_present esp_lcd esp_driver_spi esp_timer esp_wifi
 )
 
 # GSP's prebuilt package exports its public touch adapter as an INTERFACE
@@ -37,6 +38,10 @@ gsp_add_bundle(${COMPONENT_LIB}
     PIXEL_FORMAT rgb565
     SYMBOL bundle)
 target_link_options(${COMPONENT_LIB} INTERFACE
+    "-Wl,-u,__wrap_spi_bus_initialize"
+    "-Wl,-u,__wrap_esp_lcd_new_panel_io_spi"
+    "-Wl,--wrap=spi_bus_initialize"
+    "-Wl,--wrap=esp_lcd_new_panel_io_spi"
     "-Wl,--wrap=esp_display_presenter_submit_buffer"
     "-Wl,--wrap=tinfl_decompress")
 

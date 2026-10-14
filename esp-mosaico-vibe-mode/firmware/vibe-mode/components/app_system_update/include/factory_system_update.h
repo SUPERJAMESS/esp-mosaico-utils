@@ -4,9 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "cJSON.h"
 #include "esp_err.h"
 #include "esp_iris_system_update.h"
-#include "cJSON.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +14,11 @@ extern "C" {
 
 #define FACTORY_SYSTEM_UPDATE_FILENAME_BYTES 129U
 #define FACTORY_SYSTEM_UPDATE_PATH_BYTES 256U
+
+bool factory_system_update_recovery_supports(const char *minimum);
+/* Read-only validation for a complete, hash-verified ordinary Idea in NAND.
+ * Never reserves an update, changes boot state or writes NOR. */
+esp_err_t factory_system_update_check_idea(const char *manifest, const char *directory);
 
 typedef enum {
     FACTORY_SYSTEM_UPDATE_OWNER_NONE = 0,
@@ -58,7 +63,8 @@ esp_err_t factory_system_update_source_reserve(
 esp_err_t factory_system_update_source_reserve_idea(const uint8_t operation_id[16]);
 
 /* Validate bounded manifest bytes for the reserved owner/operation_id.
- * Borrows input only for this call; no transport may authorize target addresses. */
+ * Borrows input only for this call; no transport may authorize target
+ * addresses. */
 esp_err_t factory_system_update_source_prepare(
     factory_system_update_owner_t owner, const uint8_t *manifest, size_t manifest_size,
     const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES]);
@@ -72,7 +78,8 @@ esp_err_t factory_system_update_source_prepare_bridge(
  * Only the serialized owning source may enumerate an active plan. */
 size_t factory_system_update_source_component_count(factory_system_update_owner_t owner);
 /* Copy descriptor and filename at index for the prepared owner.
- * Both outputs are required; returns invalid-argument for ownership/range errors. */
+ * Both outputs are required; returns invalid-argument for ownership/range
+ * errors. */
 esp_err_t
 factory_system_update_source_component(factory_system_update_owner_t owner, size_t index,
                                        esp_iris_system_update_component_t *component,
@@ -83,7 +90,8 @@ esp_err_t
 factory_system_update_source_begin_component(factory_system_update_owner_t owner,
                                              const esp_iris_system_update_component_t *component);
 /* Write size bytes from borrowed data at the next sequential offset.
- * owner/component must match the active transaction; returns write/state errors. */
+ * owner/component must match the active transaction; returns write/state
+ * errors. */
 esp_err_t
 factory_system_update_source_write_component(factory_system_update_owner_t owner,
                                              const esp_iris_system_update_component_t *component,

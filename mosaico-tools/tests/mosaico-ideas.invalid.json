@@ -1,5 +1,38 @@
 {
-  "schema": "mosaico-ideas/project-upload/v1",
-  "project": {"title": "Invalid platform identity", "categories": ["sensors"], "application_id": "must-not-be-committed"},
-  "content": {"readme": "../README.md"}
+  "schema": "mosaico-ideas/project-release/1",
+  "project": {
+    "title": "Temperature sensor",
+    "categories": [
+      "sensors"
+    ],
+    "license": "MIT"
+  },
+  "firmware": "build/temperature-system-update.irisfw",
+  "website": {
+    "readme": "website/README.md",
+    "covers": [
+      "website/cover.png"
+    ],
+    "attachments": []
+  },
+  "device": {
+    "default_locale": "zh-CN",
+    "presentations": {
+      "zh-CN": {
+        "mode": "generate",
+        "name": "温度计",
+        "description": "本地温度显示。",
+        "font": "assets/NotoSansSC.ttf",
+        "icon": "assets/icon.png"
+      },
+      "en": {
+        "mode": "generate",
+        "name": "Thermometer",
+        "description": "Local temperature display.",
+        "font": "assets/NotoSansSC.ttf",
+        "icon": "assets/icon.png",
+        "display": "mixed-mode.json"
+      }
+    }
+  }
 }

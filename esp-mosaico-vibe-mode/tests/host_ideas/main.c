@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "sdk.h"
 #include "factory_ideas.h"
+#include "factory_locale.h"
+#include "sdk.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,21 +9,18 @@
 #include <sys/stat.h>
 
 static const char *code = "042731";
-static factory_ideas_snapshot_t snapshot(void)
-{
+static factory_ideas_snapshot_t snapshot(void) {
     factory_ideas_snapshot_t out;
     assert(factory_ideas_snapshot(&out) == ESP_OK);
     return out;
 }
-static void run(factory_ideas_command_t command)
-{
-    assert(factory_ideas_request(command, command == IDEAS_SCAN ? NULL : code) == ESP_OK);
+static void run(factory_ideas_command_t command) {
+    assert(factory_ideas_request(command, (command == IDEAS_SCAN || command == IDEAS_RELOCALIZE) ? NULL : code) == ESP_OK);
     assert(snapshot().busy);
     mock_run_worker();
     assert(!snapshot().busy);
 }
-static uint32_t preview(void)
-{
+static uint32_t preview(void) {
     run(IDEAS_RESOLVE);
     factory_ideas_snapshot_t s = snapshot();
     if (!s.preview_ready)
@@ -32,25 +30,22 @@ static uint32_t preview(void)
     assert(!strcmp(s.preview.code, code));
     return s.preview_id;
 }
-static void dismiss(void)
-{
+static void dismiss(void) {
     assert(factory_ideas_cancel() == ESP_OK);
     mock_run_worker();
     assert(!snapshot().preview_ready && !snapshot().terminal);
 }
-static void confirm(uint32_t id)
-{
+static void confirm(uint32_t id) {
     assert(factory_ideas_confirm(id, true) == ESP_OK);
     assert(factory_ideas_confirm(id, true) == ESP_ERR_INVALID_STATE);
     assert(factory_ideas_request(IDEAS_SCAN, NULL) == ESP_ERR_INVALID_STATE);
     mock_run_worker();
 }
-static void library(const char *version)
-{
+static void library(const char *version) {
     factory_ideas_snapshot_t s = snapshot();
     assert(s.count == 1 && !s.invalid && !strcmp(s.items[0].version, version));
-    FILE *f = fopen("/nand/ideas/042731/current/app.bin", "rb");
-    assert(f && fgetc(f) == version[0]);
+    FILE *f = fopen("/nand/ideas/042731/current/firmware/app.bin", "rb");
+    assert(f && fseek(f, 48, SEEK_SET) == 0 && fgetc(f) == version[0]);
     fclose(f);
     DIR *dir = opendir("/nand/ideas/042731");
     assert(dir);
@@ -59,20 +54,36 @@ static void library(const char *version)
     while ((entry = readdir(dir))) {
         if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
             continue;
-        assert(!strcmp(entry->d_name, "current"));
+        assert(!strcmp(entry->d_name, "current") || !strcmp(entry->d_name, ".roots"));
         generations++;
     }
     closedir(dir);
-    assert(generations == 1);
+    assert(generations == 2);
 }
-static void download(void)
-{
+static unsigned phases, last_phase, verify_samples;
+static uint64_t verify_bytes;
+static void observe_progress(void) {
+    factory_ideas_snapshot_t s = snapshot();
+    assert(s.phase >= last_phase);
+    last_phase = s.phase;
+    phases |= 1U << s.phase;
+    if (s.phase == IDEAS_PHASE_VERIFY_FILES) {
+        assert(s.received >= verify_bytes && s.received <= s.total);
+        if (s.received > verify_bytes) ++verify_samples;
+        verify_bytes = s.received;
+        assert(s.files_verified <= s.file_count);
+    }
+    if (s.phase >= IDEAS_PHASE_CHECK_IMAGE) {
+        assert(s.files_verified == s.file_count && s.file_count > 0);
+        assert(s.received == s.total);
+    }
+}
+static void download(void) {
     confirm(preview());
     factory_ideas_snapshot_t s = snapshot();
     assert(s.terminal && !s.failed && s.received == s.total && s.total > 4096);
 }
-static void copy_preview(uint32_t id)
-{
+static void copy_preview(uint32_t id) {
     for (unsigned slot = 0; slot < 3; slot++) {
         size_t size = 0;
         void *data = factory_ideas_copy_preview(id, slot, &size);
@@ -87,21 +98,70 @@ static void copy_preview(uint32_t id)
     }
 }
 
-int main(int argc, char **argv)
-{
+static bool handed_off;
+static void handoff(void) {
+    factory_ideas_snapshot_t s = snapshot();
+    if (!handed_off && !s.busy && s.preview_ready) {
+        handed_off = true;
+        assert(factory_ideas_cancel() == ESP_OK);
+        assert(snapshot().busy);
+    }
+}
+
+int main(int argc, char **argv) {
     assert(argc == 4);
     const char *scenario = argv[1];
     mock_environment_t *env = mock_environment();
     env->fixture_dir = argv[2];
     env->mount_dir = argv[3];
+    if (!strcmp(scenario, "init-retry")) {
+        for (unsigned step = 1; step <= 5; ++step) {
+            env->fail_init_step = step;
+            assert(factory_ideas_init() == ESP_ERR_NO_MEM);
+            assert(!env->mutex_live && !env->queue_live && !env->tasks_created);
+            factory_ideas_snapshot_t state;
+            assert(factory_ideas_snapshot(&state) == ESP_ERR_INVALID_ARG);
+            assert(factory_ideas_request(IDEAS_SCAN, NULL) == ESP_ERR_INVALID_STATE);
+            env->fail_init_step = 0;
+        }
+    }
+    assert(factory_ideas_init() == ESP_OK);
     assert(factory_ideas_init() == ESP_OK);
     mock_run_worker();
     assert(snapshot().count == 0 && snapshot().scan_error == ESP_OK && env->writes == 0);
 
-    if (!strcmp(scenario, "preview")) {
+    if (!strcmp(scenario, "init-retry") || !strcmp(scenario, "worker-reuse")) {
+        env->deny_new_tasks = true;
+        for (unsigned i = 0; i < 30; ++i) {
+            preview();
+            dismiss();
+            run(IDEAS_SCAN);
+            assert(factory_ideas_init() == ESP_OK);
+            assert(env->tasks_created == 1 && env->mutex_live == 1 && env->queue_live == 1);
+        }
+        assert(env->jobs_finished == 91);
+    } else if (!strcmp(scenario, "worker-handoff")) {
+        assert(factory_ideas_request(IDEAS_RESOLVE, code) == ESP_OK);
+        env->observe = handoff;
+        mock_run_one_job();
+        env->observe = NULL;
+        assert(handed_off && snapshot().busy);
+        mock_run_worker();
+        assert(!snapshot().busy && !snapshot().preview_ready && !snapshot().terminal);
+        assert(env->tasks_created == 1 && env->jobs_finished == 3);
+    } else if (!strcmp(scenario, "download-stages")) {
+        uint32_t id = preview();
+        env->observe = observe_progress;
+        confirm(id);
+        env->observe = NULL;
+        factory_ideas_snapshot_t s = snapshot();
+        assert(s.terminal && !s.failed && s.phase == IDEAS_PHASE_COMPLETE);
+        assert(phases == ((1U << (IDEAS_PHASE_COMPLETE + 1)) - 2));
+        assert(verify_bytes == s.total && verify_samples >= s.file_count);
+    } else if (!strcmp(scenario, "preview")) {
         uint32_t id = preview();
         copy_preview(id);
-        assert(env->resolves == 1 && env->assets == 3 && !env->firmware && !env->writes);
+        assert(env->resolves == 1 && env->assets == 4 && !env->firmware && !env->writes);
         assert(factory_ideas_request(IDEAS_INSTALL, code) == ESP_ERR_INVALID_STATE);
         assert(factory_ideas_confirm(id + 1, true) == ESP_ERR_INVALID_STATE);
         dismiss();
@@ -116,13 +176,12 @@ int main(int argc, char **argv)
         if (!strcmp(scenario, "cancel-queued"))
             assert(factory_ideas_cancel() == ESP_OK);
         else
-            env->cancel_on_read =
-                !strcmp(scenario, "cancel-resolve") ? "resolve" : "v1-display.json";
+            env->cancel_on_read = !strcmp(scenario, "cancel-resolve") ? "resolve" : "display.json";
         mock_run_worker();
         factory_ideas_snapshot_t s = snapshot();
         assert(!s.preview_ready && !s.resolving && !s.preview_id && !s.terminal);
         assert(!env->writes && !env->firmware);
-        assert(env->assets == (!strcmp(scenario, "cancel-asset") ? 1 : 0));
+        assert(env->assets == (!strcmp(scenario, "cancel-asset") ? 2 : 0));
         assert(factory_ideas_confirm(id, true) == ESP_ERR_INVALID_STATE);
         assert(env->cancels == (!strcmp(scenario, "cancel-queued") ? 0 : 1));
         preview();
@@ -133,35 +192,72 @@ int main(int argc, char **argv)
         confirm(id);
         assert(snapshot().terminal && !snapshot().failed);
         library("1.0");
-        assert(env->resolves == 1 && env->assets == 3 && env->firmware == 2);
+        assert(env->resolves == 1 && env->assets == 7 && env->firmware == 2);
         assert(!env->installs && !env->commits && !env->restarts);
         env->release = "v1";
         run(IDEAS_CHECK);
         assert(snapshot().terminal && !snapshot().failed && !snapshot().preview_ready);
-        assert(env->assets == 3 && env->requests_with_identity == 1);
+        assert(env->assets == 8 && env->requests_with_identity == 0);
         id = preview();
         assert(snapshot().already_downloaded);
         unsigned writes = env->writes;
         confirm(id);
         assert(snapshot().return_library && !snapshot().terminal);
         assert(env->writes == writes && env->firmware == 2);
-    } else if (!strcmp(scenario, "task-failure")) {
-        env->fail_task = true;
-        assert(factory_ideas_request(IDEAS_RESOLVE, code) == ESP_ERR_NO_MEM);
+    } else if (!strcmp(scenario, "queue-failure")) {
+        env->fail_send = true;
+        assert(factory_ideas_request(IDEAS_RESOLVE, code) == ESP_ERR_INVALID_STATE);
         assert(!snapshot().busy && !snapshot().resolving && !snapshot().preview_id);
         uint32_t id = preview();
-        env->fail_task = true;
-        assert(factory_ideas_confirm(id, true) == ESP_ERR_NO_MEM);
+        env->fail_send = true;
+        assert(factory_ideas_confirm(id, true) == ESP_ERR_INVALID_STATE);
         assert(snapshot().preview_ready && snapshot().preview_id == id && !snapshot().busy);
         copy_preview(id);
         confirm(id);
         library("1.0");
+    } else if ((!strcmp(scenario, "retry-manifest") || !strcmp(scenario, "retry-read"))) {
+        env->fault_file = !strcmp(scenario, "retry-manifest") ? "resolve" : "display.json";
+        env->fault = !strcmp(scenario, "retry-read") ? MOCK_READ_ERROR : MOCK_SERVICE_UNAVAILABLE;
+        env->fault_limit = 2;
+        preview();
+        assert(env->fault_hits == 3 && !env->writes && !env->firmware);
+        dismiss();
+    } else if (!strcmp(scenario, "retry-limit")) {
+        env->fault_file = "resolve";
+        env->fault = MOCK_SERVICE_UNAVAILABLE;
+        run(IDEAS_RESOLVE);
+        assert(snapshot().failed && env->fault_hits == 4 && !env->writes);
+    } else if (!strcmp(scenario, "bilingual-offline")) {
+        download();
+        unsigned firmware_reads = env->firmware_reads;
+        env->network = false;
+        unsigned requests = env->resolves + env->assets + env->firmware;
+        for (unsigned locale = 0; locale < 2; ++locale) {
+            assert(factory_locale_set(locale) == ESP_OK);
+            run(IDEAS_RELOCALIZE);
+            run(IDEAS_PREVIEW);
+            factory_ideas_snapshot_t s = snapshot();
+            assert(s.preview_ready && s.view_only);
+            copy_preview(s.preview_id);
+            dismiss();
+            size_t size = 0;
+            void *title = factory_ideas_copy_title(code, &size);
+            if (!title) {
+                assert(snapshot().busy);
+                mock_run_worker();
+                title = factory_ideas_copy_title(code, &size);
+            }
+            assert(title && size > 14 && !memcmp(title, "qoif", 4));
+            free(title);
+        }
+        assert(requests == env->resolves + env->assets + env->firmware);
+        assert(firmware_reads == env->firmware_reads);
     } else if (!strncmp(scenario, "reject-", 7)) {
         const char *bad = scenario + 7;
         if (!strncmp(bad, "bad-", 4))
             env->release = bad;
         else {
-            env->fault_file = "v1-display.json";
+            env->fault_file = "display.json";
             if (!strcmp(bad, "hash"))
                 env->fault = MOCK_CORRUPT;
             else if (!strcmp(bad, "truncated"))
@@ -194,7 +290,7 @@ int main(int argc, char **argv)
         download();
         env->release = "v2";
         uint32_t id = preview();
-        env->fault_file = "v2-app.bin";
+        env->fault_file = "app.bin";
         env->fault = !strcmp(scenario, "rollback-hash") ? MOCK_CORRUPT : MOCK_TRUNCATE;
         confirm(id);
         assert(snapshot().terminal && snapshot().failed);
@@ -218,7 +314,7 @@ int main(int argc, char **argv)
         assert(icon && size);
         free(icon);
         if (!strcmp(scenario, "install-corrupt")) {
-            FILE *f = fopen("/nand/ideas/042731/current/font.mif", "r+b");
+            FILE *f = fopen("/nand/ideas/042731/current/device/en/font.miff", "r+b");
             assert(f && fputc('X', f) != EOF && fclose(f) == 0);
         }
         if (!strcmp(scenario, "install-commit-failure"))
@@ -236,6 +332,31 @@ int main(int argc, char **argv)
             assert(factory_ideas_request(IDEAS_START, code) == ESP_ERR_INVALID_STATE);
         }
         assert(requests == env->resolves + env->assets + env->firmware);
+    } else if (!strcmp(scenario, "io-budget")) {
+        download();
+        unsigned reads = env->firmware_reads;
+        run(IDEAS_SCAN);
+        run(IDEAS_RELOCALIZE);
+        assert(env->firmware_reads == reads);
+        uint64_t flash_reads = env->flash_read_bytes;
+        run(IDEAS_INSTALL);
+        assert(!snapshot().failed && snapshot().items[0].boot);
+        /* One preflight NAND pass, one installer pass. The fake installer
+         * owns NOR verification; the service must not hash it again. */
+        assert(env->firmware_reads - reads == 2);
+        assert(env->flash_read_bytes == flash_reads);
+        reads = env->firmware_reads;
+        run(IDEAS_CHECK);
+        assert(!snapshot().failed && !snapshot().preview_ready);
+        assert(env->firmware_reads - reads == 1);
+        reads = env->firmware_reads;
+        env->release = "v2";
+        run(IDEAS_CHECK);
+        assert(snapshot().preview_ready);
+        assert(env->firmware_reads == reads);
+        confirm(snapshot().preview_id);
+        assert(!snapshot().failed && env->firmware_reads - reads == 1);
+        assert(env->flash_read_bytes == flash_reads);
     } else if (!strcmp(scenario, "boot-identity")) {
         download();
         run(IDEAS_INSTALL);
@@ -255,7 +376,7 @@ int main(int argc, char **argv)
         assert(factory_ideas_request(IDEAS_START, code) == ESP_ERR_INVALID_STATE);
     } else if (!strcmp(scenario, "repair-current")) {
         download();
-        FILE *f = fopen("/nand/ideas/042731/current/app.bin", "r+b");
+        FILE *f = fopen("/nand/ideas/042731/current/firmware/app.bin", "r+b");
         assert(f && fputc('X', f) != EOF && fclose(f) == 0);
         uint32_t id = preview();
         assert(!snapshot().already_downloaded);
@@ -295,6 +416,7 @@ int main(int argc, char **argv)
     } else
         assert(false);
     mock_assert_idle();
+    mock_stop_worker();
     puts(scenario);
     return 0;
 }

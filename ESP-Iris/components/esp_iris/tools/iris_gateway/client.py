@@ -1,4 +1,4 @@
-"""Public, standard-library-only local host API, version 1.
+"""Public, standard-library-only local host API, version 2.
 
 Consumers select a state root and project identity; storage layout, locks and
 schema compatibility belong to Iris. Readers never launch a service, migrate a
@@ -18,10 +18,25 @@ from typing import Any
 from .link import EndpointLock
 from .source_identity import source_identity
 
-__all__ = ["API_MAJOR", "LocalProject", "LocalStateError", "registry_snapshot", "source_identity"]
+__all__ = ["API_MAJOR", "LocalProject", "LocalStateError", "inspect_system_update_bundle", "registry_snapshot", "source_identity"]
 
 API_MAJOR = 2
 REGISTRY_VERSION = 200
+
+
+def inspect_system_update_bundle(source: Any) -> dict[str, Any]:
+    """Validate a local path or raw .irisfw bytes without starting a Gateway.
+
+    Returns owned metadata, including validated component descriptors. Loading
+    optional bundle dependencies is deferred until this explicit operation.
+    Bundle format/cryptographic checks stay owned by Iris; product partition
+    policies remain the caller's responsibility. Raises ValueError on failure.
+    """
+    from .system_update import load_system_update_bundle
+
+    bundle = load_system_update_bundle(source)
+    return {"chip_id": bundle.chip_id, "flash_size": bundle.flash_size,
+            "components": [component.as_dict() for component in bundle.components]}
 
 
 class LocalStateError(RuntimeError):

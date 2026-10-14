@@ -1,0 +1,28 @@
+{
+  "schema": "esp-iris-system-update/0.2",
+  "release": "1.2.0",
+  "minimum_recovery_version": "0.2.0",
+  "target": {
+    "chip_id": 32,
+    "flash_size": 16777216
+  },
+  "target_layout_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "components": [
+    {
+      "id": 1,
+      "kind": "partition_table",
+      "target_offset": 32768,
+      "size": 4096,
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "file": "partition-table.bin"
+    },
+    {
+      "id": 2,
+      "kind": "application",
+      "target_offset": 2162688,
+      "size": 1048576,
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "file": "app.bin"
+    }
+  ]
+}

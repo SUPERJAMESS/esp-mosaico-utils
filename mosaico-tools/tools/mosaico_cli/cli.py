@@ -161,12 +161,20 @@ def build_parser() -> argparse.ArgumentParser:
     from .app_commands import add_commands
     add_commands(commands, project_commands)
 
-    upload_parser = project_commands.add_parser("upload", help="Upload an unsigned Iris application/version as a Mosaico Ideas draft")
+    package_parser = project_commands.add_parser("package", help="Build and validate an immutable Ideas ZIP offline")
+    package_parser.set_defaults(command="project-package")
+    package_parser.add_argument("--project", help="Application directory containing mosaico-ideas.json")
+    package_parser.add_argument("--bundle", help="Override the author configuration's local .irisfw path")
+    package_parser.add_argument("--output", required=True, help="Output release ZIP")
+    validate_parser = project_commands.add_parser("validate", help="Validate an existing Ideas release ZIP offline")
+    validate_parser.set_defaults(command="project-validate")
+    validate_parser.add_argument("package", help="Existing release ZIP")
+    upload_parser = project_commands.add_parser("upload", help="Upload one validated Ideas ZIP as a draft")
     upload_parser.set_defaults(command="project-upload")
-    upload_parser.add_argument("--project", help="Application directory with mosaico-ideas.json")
-    upload_parser.add_argument("--skip-build", action="store_true")
-    upload_parser.add_argument("--bundle", help="Existing .irisfw bundle; no build is performed")
-    upload_parser.add_argument("--version", dest="release_version", help="Exact release version; must match other version sources")
+    upload_parser.add_argument("package", help="Existing release ZIP; never rebuilt during upload")
+    upload_parser.add_argument("--expected-project-version", type=int, help="Required optimistic concurrency version for updates")
+    upload_parser.add_argument("--ca-file", help="Configured server CA trust PEM for a test/private origin")
+    upload_parser.add_argument("--wait-timeout", type=positive_timeout, default=600, help="Seconds to wait for validation; preserves upload_id on timeout")
     upload_target = upload_parser.add_mutually_exclusive_group()
     upload_target.add_argument("--create", action="store_true")
     upload_target.add_argument("--update", metavar="APPLICATION_ID")
@@ -564,8 +572,7 @@ def _normalize_globals(argv: Sequence[str]) -> list[str]:
     index = 0
     while index < len(argv):
         value = argv[index]
-        upload_version_flag = value == "--version" and "project" in argv[:index] and "upload" in argv[:index]
-        if value in {"--json", "--verbose", "--version"} and not upload_version_flag:
+        if value in {"--json", "--verbose", "--version"}:
             globals_found.append(value)
         elif value == "--workspace":
             globals_found.append(value)
@@ -716,18 +723,19 @@ def _main(
             _emit_error(error, arguments.json, arguments.verbose)
             return error.exit_code
 
-    if arguments.command == "project-upload":
+    if arguments.command in {"project-upload", "project-package", "project-validate"}:
         from .platform_upload import project_upload
+        from .ideas_archive import project_package, project_validate
         try:
-            result = project_upload(arguments, RunContext(workspace, arguments.command, arguments.verbose, arguments.json))
+            handler = {"project-upload": project_upload, "project-package": project_package, "project-validate": project_validate}[arguments.command]
+            result = handler(arguments, RunContext(workspace, arguments.command, arguments.verbose, arguments.json))
         except MosaicoError as error:
             _emit_error(error, arguments.json, arguments.verbose)
             return error.exit_code
         if arguments.json:
             print(json.dumps({"ok": True, **result}, ensure_ascii=False, sort_keys=True))
         else:
-            print("Draft saved: {} ({})".format(result["application_id"], result["version"]))
-            print("Draft URL: " + result["draft_url"])
+            print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
     if arguments.command in {"session", "device"}:
