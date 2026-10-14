@@ -45,8 +45,8 @@ def core(tmp_path_factory):
     cjson = next((RECOVERY / "managed_components/espressif__cjson").rglob("cJSON.c"))
     result = subprocess.run([shutil.which("cc"), "-shared", "-fPIC", "-std=gnu11",
         "-Wall", "-Wextra", "-Werror", "-Wno-sign-compare", "-I" + str(build),
-        "-I" + str(cjson.parent), str(RECOVERY / "main/ideas_package.c"),
-        str(RECOVERY / "main/ideas_store.c"), str(cjson), "-o", str(build / "core.so")],
+        "-I" + str(cjson.parent), "-I" + str(RECOVERY / "components/app_ideas/include"), "-I" + str(RECOVERY / "components/app_ideas/private"), str(RECOVERY / "components/app_ideas/src/ideas_package.c"),
+        str(RECOVERY / "components/app_ideas/src/ideas_store.c"), str(cjson), "-o", str(build / "core.so")],
         text=True, capture_output=True)
     assert result.returncode == 0, result.stderr
     lib = C.CDLL(str(build / "core.so"))

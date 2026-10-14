@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "esp_err.h"
-#include "bsp/esp_mosaico.h"
-#include "driver/gpio.h"
+#include "app_system_startup.h"
+#include "app_iris_storage.h"
+#include "app_iris_ui.h"
+#include "factory_nand_update.h"
+#include "factory_ideas.h"
 #include "esp_iris.h"
 #include "esp_log.h"
-#include "esp_ota_ops.h"
 #include "factory_network.h"
 #include "iris_bridge.h"
 #include "factory_recovery_control.h"
@@ -13,9 +15,7 @@
 #include "factory_system_metadata.h"
 #include "factory_system_update.h"
 #include "factory_ui.h"
-#include "factory_ui_input.h"
 #include "recovery_ota_support.h"
-#include "iris_screen_mirror.h"
 #include "nvs_flash.h"
 #include "mosaico_boot.h"
 #include "freertos/FreeRTOS.h"
@@ -24,32 +24,9 @@
 
 static const char *TAG = "factory";
 
-static void log_boot_selection(bool requested, esp_err_t intent_err)
-{
-    const esp_partition_t *selected = esp_ota_get_boot_partition();
-    esp_ota_img_states_t state = ESP_OTA_IMG_UNDEFINED;
-    const esp_err_t state_err = selected == NULL ? ESP_ERR_NOT_FOUND :
-        esp_ota_get_state_partition(selected, &state);
-    ESP_LOGI(TAG, "Vibe boot: AI=%d intent=%d (%s) selected=%s state=%d (%s)",
-             gpio_get_level(BSP_BUTTON_AI_GPIO), requested, esp_err_to_name(intent_err),
-             selected == NULL ? "none" : selected->label,
-             (int)state, esp_err_to_name(state_err));
-}
-
 void app_main(void)
 {
-    /* Software restart can retain the application's amplifier state. Keep
-     * the speaker physically muted before starting any Recovery services. */
-    const gpio_config_t pa_config = {
-        .pin_bit_mask = 1ULL << BSP_AUDIO_PA_CTRL,
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_ENABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    ESP_ERROR_CHECK(gpio_set_level(BSP_AUDIO_PA_CTRL, 0));
-    ESP_ERROR_CHECK(gpio_config(&pa_config));
-    ESP_ERROR_CHECK(gpio_hold_dis(BSP_AUDIO_PA_CTRL));
+    ESP_ERROR_CHECK(app_system_mute_audio());
 
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_iris_boot_probe());
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -69,10 +46,18 @@ void app_main(void)
      * after the transport is running. */
     ESP_ERROR_CHECK(factory_system_inventory_register());
     ESP_ERROR_CHECK(factory_system_update_register());
-    ESP_ERROR_CHECK(factory_recovery_control_register());
+    ESP_ERROR_CHECK(factory_nand_update_init());
+    ESP_ERROR_CHECK(app_iris_storage_register());
+    const app_iris_ui_t ui_commands = {
+        .open_download = factory_ui_open_bridge,
+        .touch = factory_ui_inject_touch,
+    };
+    ESP_ERROR_CHECK(factory_recovery_control_register(&ui_commands));
     recovery_ota_support_start();
 
-    const esp_err_t ui_err = factory_ui_start();
+    esp_err_t ui_err = factory_ideas_init();
+    if (ui_err == ESP_OK)
+        ui_err = factory_ui_start();
     if (ui_err != ESP_OK) {
         /* Keep the already-started USB writer available for a corrected
          * image, but do not announce a healthy Recovery with a broken UI. */
@@ -82,18 +67,17 @@ void app_main(void)
     }
     ESP_LOGI(TAG, "UI initialization stack headroom: %u bytes",
              (unsigned)uxTaskGetStackHighWaterMark(NULL));
-    const esp_err_t input_err = factory_ui_input_register();
+    const esp_err_t input_err = app_iris_input_register(&ui_commands);
     if (input_err != ESP_OK) {
         ESP_LOGE(TAG, "Vibe Mode input failed: %s; USB maintenance remains active",
                  esp_err_to_name(input_err));
         return;
     }
 
-#if CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE && \
-    CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE_AUTO_START
+#if CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE && CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE_AUTO_START
     if (CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE_MANIFEST_PATH[0] != '\0') {
-        const esp_err_t update_err = factory_system_update_start_nand(
-            CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE_MANIFEST_PATH);
+        const esp_err_t update_err =
+            factory_system_update_start_nand(CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE_MANIFEST_PATH);
         if (update_err != ESP_OK) {
             ESP_LOGE(TAG, "Could not start configured NAND system update: %s",
                      esp_err_to_name(update_err));
@@ -108,7 +92,7 @@ void app_main(void)
     /* This is the Recovery acceptance boundary used by the host's closed-loop
      * self-update workflow.  esp_iris_mark_healthy() replays the event when a
      * USB session connects after this point. */
-    log_boot_selection(requested, intent_err);
+    app_system_log_boot_selection(requested, intent_err);
     ESP_ERROR_CHECK(esp_iris_mark_healthy());
     ESP_LOGI(TAG, "ESP-Mosaico Vibe Mode firmware is ready");
 }

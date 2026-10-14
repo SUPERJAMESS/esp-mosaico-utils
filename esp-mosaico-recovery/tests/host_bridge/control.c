@@ -34,7 +34,7 @@ void iris_bridge_get_snapshot(iris_bridge_snapshot_t *out)
 {
     *out = state;
 }
-esp_err_t factory_ui_open_bridge(void)
+esp_err_t factory_ui_open_bridge(void *ctx)
 {
     opened++;
     strcpy(state.state, "REGISTERING");
@@ -43,39 +43,40 @@ esp_err_t factory_ui_open_bridge(void)
 }
 int main(void)
 {
-    assert(factory_recovery_control_register() == 0);
+    const app_iris_ui_t ui = {.open_download = factory_ui_open_bridge};
+    assert(factory_recovery_control_register(&ui) == 0);
     assert(!handlers[3]);
     assert(handlers[4] && handlers[5]);
     esp_iris_rpc_request_t request = {0};
     uint8_t buffer[1024];
     size_t size = 0;
-    assert(handlers[5](&request, buffer, sizeof(buffer), &size, NULL) == 0);
+    assert(handlers[5](&request, buffer, sizeof(buffer), &size, &s_control) == 0);
     assert(!opened);
     assert(strstr((char *)buffer, "IDLE"));
     usb = false;
-    assert(handlers[4](&request, buffer, sizeof(buffer), &size, NULL) ==
+    assert(handlers[4](&request, buffer, sizeof(buffer), &size, &s_control) ==
            ESP_ERR_NOT_ALLOWED);
-    assert(handlers[5](&request, buffer, sizeof(buffer), &size, NULL) ==
+    assert(handlers[5](&request, buffer, sizeof(buffer), &size, &s_control) ==
            ESP_ERR_NOT_ALLOWED);
     assert(!opened);
     usb = true;
     request.payload_size = 1;
-    assert(handlers[4](&request, buffer, sizeof(buffer), &size, NULL) ==
+    assert(handlers[4](&request, buffer, sizeof(buffer), &size, &s_control) ==
            ESP_ERR_INVALID_SIZE);
     assert(!opened);
     request.payload_size = 0;
-    assert(handlers[4](&request, buffer, sizeof(buffer), &size, NULL) == 0);
+    assert(handlers[4](&request, buffer, sizeof(buffer), &size, &s_control) == 0);
     assert(opened == 1);
     strcpy(state.code, "ABCDE-12345");
     strcpy(state.server_url, "https://flash.example.com");
     strcpy(state.state, "PAIRING");
-    assert(handlers[5](&request, buffer, sizeof(buffer), &size, NULL) == 0);
+    assert(handlers[5](&request, buffer, sizeof(buffer), &size, &s_control) == 0);
     assert(opened == 1);
     cJSON *json = cJSON_Parse((char *)buffer);
     assert(json);
     assert(!cJSON_GetObjectItem(json, "token"));
     assert(!strcmp(cJSON_GetObjectItem(json, "code")->valuestring, "ABCDE-12345"));
     cJSON_Delete(json);
-    assert(handlers[5](&request, buffer, 8, &size, NULL) == ESP_ERR_INVALID_SIZE);
+    assert(handlers[5](&request, buffer, 8, &size, &s_control) == ESP_ERR_INVALID_SIZE);
     puts("USB-only Bridge control and side-effect-free status passed");
 }

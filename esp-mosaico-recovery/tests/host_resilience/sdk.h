@@ -61,7 +61,8 @@ void *esp_gsp_timer_create(esp_gsp_handle_t, unsigned, mock_gsp_callback_t, void
 #define CONFIG_ESP_IRIS_TCP_PORT 7777
 #define CONFIG_IRIS_FACTORY_WIFI_MAX_NETWORKS 16
 #define CONFIG_IRIS_FACTORY_WIFI_CONNECT_TIMEOUT_MS 15000
-#define ESP_IRIS_SYSTEM_OPERATION_ID_BYTES 16
+#include "esp_iris_system_inventory.h"
+typedef struct cJSON cJSON;
 #define WIFI_EVENT 1
 #define IP_EVENT 2
 #define ESP_EVENT_ANY_ID -1

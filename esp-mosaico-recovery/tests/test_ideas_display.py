@@ -48,8 +48,8 @@ def core(tmp_path_factory):
     cjson = next((RECOVERY / "managed_components/espressif__cjson").rglob("cJSON.c"))
     output = directory / "reader.so"
     subprocess.run([shutil.which("cc"), "-std=c11", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
-        "-I" + str(cjson.parent), str(RECOVERY / "main/ideas_font.c"),
-        str(RECOVERY / "main/ideas_presentation.c"), str(cjson), "-o", str(output)], check=True)
+        "-I" + str(cjson.parent), "-I" + str(RECOVERY / "components/app_ideas/include"), "-I" + str(RECOVERY / "components/app_ideas/private"), str(RECOVERY / "components/app_ideas/src/ideas_font.c"),
+        str(RECOVERY / "components/app_ideas/src/ideas_presentation.c"), str(cjson), "-o", str(output)], check=True)
     lib = C.CDLL(str(output))
     lib.ideas_font_open.argtypes = [C.c_char_p, C.c_size_t, C.POINTER(Font)]
     lib.ideas_font_open.restype = C.c_bool

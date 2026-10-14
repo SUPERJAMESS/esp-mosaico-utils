@@ -54,14 +54,14 @@ static void join_poll_thread(void)
 static void *poll_entry(void *arg)
 {
     in_poll = true;
-    cancel_poll_run(arg);
+    bridge_cancel_poll_run(arg);
     return NULL;
 }
 static void *result_entry(void *arg)
 {
     in_result = true;
     atomic_store(&result_started, true);
-    report_result_run(arg);
+    bridge_report_result_run(arg);
     return NULL;
 }
 int xTaskCreate(void (*fn)(void *), const char *name, int stack,
@@ -70,13 +70,13 @@ int xTaskCreate(void (*fn)(void *), const char *name, int stack,
     (void)name; (void)stack; (void)pri; (void)task;
     if (mock_create_fail)
         return 0;
-    if (fn == cancel_poll_run) {
+    if (fn == bridge_cancel_poll_run) {
         join_poll_thread();
         atomic_store(&poll_sleeping, false);
         assert(pthread_create(&poll_thread, NULL, poll_entry, arg) == 0);
         poll_joinable = true;
         while (!atomic_load(&poll_sleeping)) host_pause();
-    } else if (fn == report_result_run) {
+    } else if (fn == bridge_report_result_run) {
         assert(persisted_results || mock_commit_error);
         atomic_store(&result_started, false);
         assert(pthread_create(&result_thread, NULL, result_entry, arg) == 0);
@@ -109,11 +109,11 @@ void vTaskDelay(unsigned ms)
         host_pause();
         return;
     }
-    if (atomic_load(&cancel_poll_running) && !direct_poll_time) {
+    if (atomic_load(&s_bridge.cancel_poll_running) && !direct_poll_time) {
         host_pause();
         return;
     }
-    if (atomic_load(&report_running)) host_pause();
+    if (atomic_load(&s_bridge.report_running)) host_pause();
     mock_time += (int64_t)ms * 1000;
     if (activate_after_delays && --activate_after_delays == 0) {
         assert(requests == 1); /* No background polling or re-registration. */
@@ -136,7 +136,7 @@ void vTaskDelete(void *arg)
 }
 void esp_restart(void)
 {
-    assert(!atomic_load(&cancel_poll_running));
+    assert(!atomic_load(&s_bridge.cancel_poll_running));
     assert(mock_wifi_ps == WIFI_PS_MIN_MODEM);
     join_poll_thread();
     restarted_at = mock_time;
@@ -145,8 +145,8 @@ void esp_restart(void)
         assert(pthread_join(result_thread, NULL) == 0);
         result_joinable = false;
     }
-    close_client(&main_client);
-    close_client(&download_client);
+    bridge_close_client(&s_bridge.main_client);
+    bridge_close_client(&s_bridge.download_client);
     restart_count++;
     longjmp(worker_exit, 2);
 }
@@ -321,13 +321,13 @@ esp_err_t factory_system_update_source_prepare(factory_system_update_owner_t own
     assert(root);
     assert(!cJSON_GetObjectItem(root, "remote_bridge"));
     const cJSON *c = cJSON_GetArrayItem(cJSON_GetObjectItem(root, "components"), 0);
-    descriptor.size = num(c, "size");
+    descriptor.size = bridge_num(c, "size");
     descriptor.id = 1;
-    descriptor.target_offset = num(c, "target_offset");
-    descriptor.kind = !strcmp(str(c, "kind"), "recovery")
+    descriptor.target_offset = bridge_num(c, "target_offset");
+    descriptor.kind = !strcmp(bridge_str(c, "kind"), "recovery")
                           ? ESP_IRIS_SYSTEM_UPDATE_COMPONENT_RECOVERY
                           : ESP_IRIS_SYSTEM_UPDATE_COMPONENT_DATA;
-    const char *sha = str(c, "sha256");
+    const char *sha = bridge_str(c, "sha256");
     for (int i = 0; i < 32; i++) {
         unsigned b;
         sscanf(sha + 2 * i, "%2x", &b);
@@ -480,37 +480,37 @@ static iris_bridge_config_t config = {.server_url = "https://flash.example.com",
 static void reset(void)
 {
     assert(mock_wifi_ps == WIFI_PS_MIN_MODEM);
-    assert(!atomic_load(&cancel_poll_running));
+    assert(!atomic_load(&s_bridge.cancel_poll_running));
     join_poll_thread();
     /* Direct execute() calls below emulate the worker cleanup on return. */
-    close_client(&main_client);
-    close_client(&download_client);
+    bridge_close_client(&s_bridge.main_client);
+    bridge_close_client(&s_bridge.download_client);
     assert(http_live == 0);
     persisted_results = 0;
     block_result = false;
     atomic_store(&release_result, false);
-    write_deadline = 0;
-    atomic_store(&telemetry_revision, 0);
-    atomic_store(&report_running, false);
+    s_bridge.write_deadline = 0;
+    atomic_store(&s_bridge.telemetry_revision, 0);
+    atomic_store(&s_bridge.report_running, false);
     http_allocations = 0;
     mock_keep_alive = slow_poll = download_during_poll = direct_poll_time = false;
     atomic_store(&poll_sleeping, false);
     atomic_store(&poll_blocked, false);
     atomic_store(&release_poll, false);
-    atomic_store(&cancel_poll_stop, false);
+    atomic_store(&s_bridge.cancel_poll_stop, false);
     test_case++;
     system_prepares = 0;
     system_allow_bootloader = false;
-    cfg.enable_system_update = false;
-    cfg.enable_bootloader_update = false;
+    s_bridge.cfg.enable_system_update = false;
+    s_bridge.cfg.enable_bootloader_update = false;
     expire_on_delay = false;
     activate_after_delays = 0;
     pause_on_poll = false;
-    atomic_store(&bridge_active, true);
-    atomic_store(&bridge_running, false);
-    atomic_store(&stop_requested, false);
-    memset(session, 0, sizeof(session));
-    memset(token, 0, sizeof(token));
+    atomic_store(&s_bridge.bridge_active, true);
+    atomic_store(&s_bridge.bridge_running, false);
+    atomic_store(&s_bridge.stop_requested, false);
+    memset(s_bridge.session, 0, sizeof(s_bridge.session));
+    memset(s_bridge.token, 0, sizeof(s_bridge.token));
     mock_time = 0;
     mock_network = true;
     mock_stop_on_delay = false;
@@ -527,8 +527,8 @@ static void reset(void)
     mock_backend_alloc_fail = 0;
     replies_count = 0;
     reply_index = 0;
-    cancelled = false;
-    set_state("IDLE", 0, 0);
+    s_bridge.cancelled = false;
+    bridge_set_state(&s_bridge, "IDLE", 0, 0);
 }
 static void reply(const char *path, int status, const char *body, bool stop)
 {
@@ -537,7 +537,7 @@ static void reply(const char *path, int status, const char *body, bool stop)
 static void run_worker(void)
 {
     if (!setjmp(worker_exit))
-        mock_worker(NULL);
+        mock_worker(&s_bridge);
 }
 static const char *registration =
     "{\"session_id\":\"12345678901234567890123456789012\",\"auth_token\":\"SECRET\","
@@ -546,7 +546,7 @@ static cJSON *plan(const char *mode)
 {
     cJSON *p = cJSON_CreateObject();
     char hash[65];
-    assert(flash_hash(0x8000, 4096, hash));
+    assert(bridge_flash_hash(0x8000, 4096, hash));
     cJSON_AddStringToObject(p, "mode", mode);
     cJSON_AddStringToObject(p, "source_table_sha256", hash);
     cJSON_AddStringToObject(p, "target_table_sha256", hash);
@@ -559,8 +559,8 @@ static cJSON *plan(const char *mode)
     cJSON_AddNumberToObject(im, "offset", 0x210000);
     cJSON_AddNumberToObject(im, "size", 4);
     uint8_t digest_bytes[32];
-    digest("data", 4, digest_bytes);
-    hex(digest_bytes, 32, hash);
+    bridge_digest("data", 4, digest_bytes);
+    bridge_hex(digest_bytes, 32, hash);
     cJSON_AddStringToObject(im, "sha256", hash);
     cJSON *m = cJSON_AddObjectToObject(p, "factory_manifest");
     cJSON_AddStringToObject(m, "board_id", "test-s31");
@@ -578,21 +578,21 @@ static cJSON *system_plan(void)
     cJSON_AddStringToObject(im, "kind", "data");
     cJSON *manifest = cJSON_AddObjectToObject(p, "system_manifest");
     cJSON_AddStringToObject(manifest, "schema", "esp-iris-system-update/0.2");
-    cJSON_AddStringToObject(manifest, "target_layout_sha256", str(p, "target_table_sha256"));
+    cJSON_AddStringToObject(manifest, "target_layout_sha256", bridge_str(p, "target_table_sha256"));
     cJSON_AddBoolToObject(manifest, "preserve_layout", true);
     cJSON *components = cJSON_AddArrayToObject(manifest, "components");
-    cJSON_AddItemToArray(components, component(1, "data", 0x210000, 4,
-                                             str(im, "sha256"), "image"));
+    cJSON_AddItemToArray(components, bridge_component(1, "data", 0x210000, 4,
+                                             bridge_str(im, "sha256"), "image"));
     return p;
 }
 
 static void run_poll_clock(void)
 {
     direct_poll_time = true;
-    atomic_store(&cancel_poll_running, true);
+    atomic_store(&s_bridge.cancel_poll_running, true);
     if (!setjmp(worker_exit))
-        cancel_poll_run(NULL);
-    assert(!atomic_load(&cancel_poll_running));
+        bridge_cancel_poll_run(&s_bridge);
+    assert(!atomic_load(&s_bridge.cancel_poll_running));
     direct_poll_time = false;
 }
 static void test_cancel_poll(void)
@@ -601,18 +601,18 @@ static void test_cancel_poll(void)
     reset();
     descriptor = (esp_iris_system_update_component_t){
         .id = 1, .kind = ESP_IRIS_SYSTEM_UPDATE_COMPONENT_DATA, .size = 4};
-    digest("data", 4, descriptor.sha256);
+    bridge_digest("data", 4, descriptor.sha256);
     slow_poll = download_during_poll = true;
     reply("/files/", 200, "data", false);
     reply("/poll", 200, "{\"flash\":{\"cancel_requested\":true}}", false);
-    assert(cancel_poll_start() == ESP_OK);
-    assert(transfer("image", &descriptor, NULL) == ESP_OK);
-    assert(mock_writes == 1 && atomic_load(&poll_blocked) && !cancelled);
+    assert(bridge_cancel_poll_start(&s_bridge) == ESP_OK);
+    assert(bridge_transfer(&s_bridge, "image", &descriptor, NULL) == ESP_OK);
+    assert(mock_writes == 1 && atomic_load(&poll_blocked) && !s_bridge.cancelled);
     /* Deliver remote cancellation only after the file made progress. */
     atomic_store(&release_poll, true);
-    while (atomic_load(&cancel_poll_running)) host_pause();
-    cancel_poll_join();
-    assert(should_cancel() && !http_live);
+    while (atomic_load(&s_bridge.cancel_poll_running)) host_pause();
+    bridge_cancel_poll_join(&s_bridge);
+    assert(bridge_should_cancel(&s_bridge) && !http_live);
 
     /* Completed polls reuse one TLS client and retain a remote cancellation. */
     reset();
@@ -620,14 +620,14 @@ static void test_cancel_poll(void)
     reply("/poll", 200, "{\"flash\":{\"cancel_requested\":false}}", false);
     reply("/poll", 200, "{\"flash\":{\"cancel_requested\":true}}", false);
     run_poll_clock();
-    assert(requests == 2 && http_allocations == 1 && !http_live && cancelled);
+    assert(requests == 2 && http_allocations == 1 && !http_live && s_bridge.cancelled);
     assert(request_started[0] == 5000000 && request_started[1] == 10000000);
 
     /* A slow failed poll backs off from completion and respects Retry-After.
      * It cannot overwrite the foreground request's status/header state. */
     reset();
     mock_keep_alive = true;
-    main_response = (http_response_t){.status = 202, .retry_after_seconds = 77};
+    s_bridge.main_response = (http_response_t){.status = 202, .retry_after_seconds = 77};
     reply("/poll", 503, "{}", false);
     replies[0].delay_us = 7000000;
     replies[0].retry_after = "12";
@@ -636,8 +636,8 @@ static void test_cancel_poll(void)
     run_poll_clock();
     assert(request_started[0] == 5000000 && request_started[1] == 24000000 &&
            request_started[2] == 29000000);
-    assert(http_allocations == 2 && !http_live && cancelled);
-    assert(main_response.status == 202 && main_response.retry_after_seconds == 77);
+    assert(http_allocations == 2 && !http_live && s_bridge.cancelled);
+    assert(s_bridge.main_response.status == 202 && s_bridge.main_response.retry_after_seconds == 77);
 
     /* Malformed responses discard the connection; never reuse unread/error data. */
     reset();
@@ -645,27 +645,27 @@ static void test_cancel_poll(void)
     reply("/poll", 200, "{", false);
     reply("/poll", 200, "{\"flash\":{\"cancel_requested\":true}}", false);
     run_poll_clock();
-    assert(http_allocations == 2 && !http_live && cancelled);
+    assert(http_allocations == 2 && !http_live && s_bridge.cancelled);
     assert(request_started[1] == 15000000);
 
     /* Local stop during a blocked query joins and releases its HTTP client. */
     reset();
     slow_poll = true;
     reply("/poll", 200, "{}", false);
-    assert(cancel_poll_start() == ESP_OK);
+    assert(bridge_cancel_poll_start(&s_bridge) == ESP_OK);
     mock_time = 6000000;
     while (!atomic_load(&poll_blocked)) host_pause();
     iris_bridge_stop();
-    assert(should_cancel());
+    assert(bridge_should_cancel(&s_bridge));
     atomic_store(&release_poll, true);
-    cancel_poll_join();
+    bridge_cancel_poll_join(&s_bridge);
     assert(!http_live);
 
     /* Failing to allocate the observer must abort before any component write. */
     reset();
     mock_create_fail = 1;
     cJSON *p = plan("partitions");
-    assert(execute("12345678901234567890123456789012", p) == ESP_ERR_NO_MEM);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) == ESP_ERR_NO_MEM);
     assert(!mock_reserved && !requests && !mock_writes && !mock_commits);
     cJSON_Delete(p);
     reset();
@@ -680,7 +680,7 @@ static void test_authorization_and_result(void)
     reply("/files/", 200, "data", false);
     reply("/authorize", 200, "{\"phase\":\"COMMITTING\",\"authorized\":true}", false);
     reply("/progress", 200, "{\"phase\":\"DONE\"}", false);
-    if (!setjmp(worker_exit)) execute("12345678901234567890123456789012", p);
+    if (!setjmp(worker_exit)) bridge_execute(&s_bridge, "12345678901234567890123456789012", p);
     assert(mock_commits == 1 && persisted_results == 1 && restart_count == 1);
     assert(http_allocations == 2 && !http_live); /* File and control, DONE reuses control. */
     cJSON_Delete(p);
@@ -705,18 +705,18 @@ static void test_authorization_and_result(void)
     assert(iris_bridge_start(&config) == ESP_OK);
     run_worker();
     assert(mock_writes == 1 && mock_commits == 0 && restart_count == 0 && requests == 6);
-    assert(http_allocations == 3 && !http_live && write_deadline > mock_time);
+    assert(http_allocations == 3 && !http_live && s_bridge.write_deadline > mock_time);
     free(registered); free(accepted); cJSON_Delete(p);
 
     /* Fully consumed component downloads reuse one handle across file URLs. */
     reset();
     mock_keep_alive = true;
     descriptor = (esp_iris_system_update_component_t){.id=1, .kind=ESP_IRIS_SYSTEM_UPDATE_COMPONENT_DATA, .size=4};
-    digest("data", 4, descriptor.sha256);
+    bridge_digest("data", 4, descriptor.sha256);
     reply("/files/one", 200, "data", false);
     reply("/files/two", 200, "data", false);
-    assert(transfer("one", &descriptor, NULL) == ESP_OK);
-    assert(transfer("two", &descriptor, NULL) == ESP_OK);
+    assert(bridge_transfer(&s_bridge, "one", &descriptor, NULL) == ESP_OK);
+    assert(bridge_transfer(&s_bridge, "two", &descriptor, NULL) == ESP_OK);
     assert(http_allocations == 1 && http_live == 1 && mock_writes == 2);
 
     /* HTTP 200 alone does not grant critical write permission. */
@@ -724,7 +724,7 @@ static void test_authorization_and_result(void)
     p = plan("partitions");
     reply("/files/", 200, "data", false);
     reply("/authorize", 200, "{}", false);
-    assert(execute("12345678901234567890123456789012", p) != ESP_OK);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) != ESP_OK);
     assert(mock_writes && !mock_commits && !mock_reserved);
     cJSON_Delete(p);
 
@@ -735,7 +735,7 @@ static void test_authorization_and_result(void)
     reply("/files/", 200, "data", false);
     reply("/authorize", 200, "{\"phase\":\"COMMITTING\",\"authorized\":true}", false);
     reply("/progress", 200, "{\"phase\":\"DONE\"}", false);
-    if (!setjmp(worker_exit)) execute("12345678901234567890123456789012", p);
+    if (!setjmp(worker_exit)) bridge_execute(&s_bridge, "12345678901234567890123456789012", p);
     assert(restarted_at == 2000000 && mock_commits == 1 && persisted_results == 1);
     cJSON_Delete(p);
 
@@ -746,25 +746,25 @@ static void test_authorization_and_result(void)
     reply("/second", 200, "{}", false);
     reply("/third", 503, "{}", false);
     reply("/fourth", 200, "{}", false);
-    cJSON_Delete(request("/first", NULL));
-    cJSON_Delete(request("/second", NULL));
+    cJSON_Delete(bridge_request(&s_bridge, "/first", NULL));
+    cJSON_Delete(bridge_request(&s_bridge, "/second", NULL));
     assert(http_allocations == 1 && http_live == 1);
-    assert(!request("/third", NULL) && !http_live);
-    cJSON_Delete(request("/fourth", NULL));
+    assert(!bridge_request(&s_bridge, "/third", NULL) && !http_live);
+    cJSON_Delete(bridge_request(&s_bridge, "/fourth", NULL));
     assert(http_allocations == 2 && http_live == 1);
 
     /* A lost progress POST is retried; explicit remote cancellation still stops. */
     reset();
     reply("/progress", 503, "{}", false);
     reply("/progress", 200, "{\"phase\":\"WRITING\",\"cancel_requested\":true}", false);
-    notify_progress(30);
+    bridge_notify_progress(&s_bridge, 30);
     run_poll_clock();
     assert(requests == 2 && request_started[0] == 1000000 &&
-           request_started[1] == 11000000 && cancelled);
+           request_started[1] == 11000000 && s_bridge.cancelled);
     reset();
-    write_deadline = 1;
+    s_bridge.write_deadline = 1;
     mock_time = 2;
-    assert(should_cancel() && !authorize_commit() && !requests);
+    assert(bridge_should_cancel(&s_bridge) && !bridge_authorize_commit(&s_bridge) && !requests);
     reset();
 }
 
@@ -800,7 +800,7 @@ int main(void)
     assert(iris_bridge_start(&config) == 0);
     run_worker();
     iris_bridge_get_snapshot(&out);
-    assert(!out.running && !out.code[0] && !token[0]);
+    assert(!out.running && !out.code[0] && !s_bridge.token[0]);
     assert(!strcmp(out.state, "ENDED"));
     assert(requests == 2);
     assert(pairing_snapshots > 0);
@@ -857,34 +857,34 @@ int main(void)
     for (int i = 0; i < 3; ++i) reply("/progress", 200, "{}", false);
     assert(iris_bridge_start(&config) == 0);
     run_worker();
-    assert(!token[0]);
+    assert(!s_bridge.token[0]);
     iris_bridge_get_snapshot(&out);
     assert(!strcmp(out.state, "CANCELLED"));
     reset();
     assert(iris_bridge_start(&config) == 0);
-    atomic_store(&bridge_running, false);
+    atomic_store(&s_bridge.bridge_running, false);
     cJSON *p = plan("factory");
     mock_alloc_fail = 1;
-    assert(execute("12345678901234567890123456789012", p) == ESP_ERR_NO_MEM);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) == ESP_ERR_NO_MEM);
     assert(!mock_reserved && !mock_writes && !mock_commits);
     cJSON_Delete(p);
     reset();
     p = plan("factory");
     cJSON_ReplaceItemInObject(cJSON_GetObjectItem(p, "factory_manifest"), "board_id",
                               cJSON_CreateString("wrong"));
-    assert(execute("12345678901234567890123456789012", p) == ESP_ERR_INVALID_VERSION);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) == ESP_ERR_INVALID_VERSION);
     assert(!mock_reserved && !requests);
     cJSON_Delete(p);
     reset();
     p = plan("partitions");
     mock_reserved = 1;
-    assert(execute("12345678901234567890123456789012", p) == ESP_ERR_INVALID_STATE);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) == ESP_ERR_INVALID_STATE);
     assert(!requests && !mock_abort);
     cJSON_Delete(p);
     reset();
     p = plan("factory");
     reply("/files/", 200, "data", true);
-    assert(execute("12345678901234567890123456789012", p) != 0);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) != 0);
     assert(!mock_writes && !mock_commits && !mock_reserved);
     cJSON_Delete(p);
     /* A rejected critical acknowledgement must never invoke commit. */
@@ -892,7 +892,7 @@ int main(void)
     p = plan("partitions");
     reply("/files/", 200, "data", false);
     reply("/authorize", 409, "{}", false);
-    assert(execute("12345678901234567890123456789012", p) != 0);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) != 0);
     assert(mock_writes == 1 && !mock_commits && !mock_reserved);
     cJSON_Delete(p);
     /* Once authorized, local cancellation cannot interrupt critical commit. */
@@ -902,7 +902,7 @@ int main(void)
     reply("/authorize", 200, "{\"phase\":\"COMMITTING\",\"authorized\":true}", true);
     reply("/progress", 401, "{}", false);
     if (!setjmp(worker_exit))
-        execute("12345678901234567890123456789012", p);
+        bridge_execute(&s_bridge, "12345678901234567890123456789012", p);
     assert(mock_commits == 1 && restart_count == 1);
     cJSON_Delete(p);
     reset();
@@ -912,18 +912,18 @@ int main(void)
     reply("/authorize", 200, "{\"phase\":\"COMMITTING\",\"authorized\":true}", false);
     reply("/progress", 200, "{\"phase\":\"DONE\"}", false);
     if (!setjmp(worker_exit))
-        execute("12345678901234567890123456789012", p);
+        bridge_execute(&s_bridge, "12345678901234567890123456789012", p);
     assert(mock_commits == 1 && restart_count == 1);
     cJSON_Delete(p);
     reset();
     p = plan("partitions");
     cJSON_ReplaceItemInObject(p, "boot_partition", cJSON_CreateString("ota_0"));
-    assert(save_boot(p) == ESP_OK && pending_size);
+    assert(bridge_save_boot(p) == ESP_OK && pending_size);
     if (!setjmp(worker_exit))
         iris_bridge_resume_boot();
     assert(restart_count == 1 && !pending_size && erased_boot_records == 1);
     assert(iris_bridge_resume_boot() == ESP_OK && restart_count == 1);
-    assert(save_boot(p) == ESP_OK);
+    assert(bridge_save_boot(p) == ESP_OK);
     ((boot_record_t *)pending_boot)->table_hash[0] ^= 1;
     assert(iris_bridge_resume_boot() == ESP_ERR_INVALID_VERSION && !pending_size);
     pending_size = sizeof(pending_boot);
@@ -937,56 +937,56 @@ int main(void)
     p = plan("layout");
     char original_hash[65];
     uint8_t sha[32], table[4096];
-    digest(raw, 3072, sha);
-    hex(sha, 32, original_hash);
+    bridge_digest(raw, 3072, sha);
+    bridge_hex(sha, 32, original_hash);
     cJSON_AddNumberToObject(p, "table_size", 3072);
     cJSON_AddStringToObject(p, "table_upload_id", "table");
     cJSON_AddStringToObject(p, "table_sha256", original_hash);
     reply("/files/", 200, raw, false);
-    assert(get_table(p, table) == ESP_OK);
+    assert(bridge_get_table(&s_bridge, p, table) == ESP_OK);
     for (size_t i = 0; i < sizeof(table); i++)
         assert(table[i] == 0xff);
     cJSON_ReplaceItemInObject(p, "table_sha256", cJSON_CreateString("bad"));
     reply("/files/", 200, raw, false);
-    assert(get_table(p, table) != ESP_OK);
+    assert(bridge_get_table(&s_bridge, p, table) != ESP_OK);
     reply("/files/", 410, "{}", false);
-    assert(get_table(p, table) != ESP_OK);
+    assert(bridge_get_table(&s_bridge, p, table) != ESP_OK);
     assert(!mock_writes && !mock_commits);
     cJSON_Delete(p);
     /* Full bundle mode is locally gated before writer or network activity. */
     reset();
     p = system_plan();
-    assert(execute("12345678901234567890123456789012", p) == ESP_ERR_NOT_SUPPORTED);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) == ESP_ERR_NOT_SUPPORTED);
     assert(!mock_reserved && !requests && !system_prepares);
     cJSON_Delete(p);
     /* A leased descriptor mismatch cannot reach the backend. */
     reset();
-    cfg.enable_system_update = true;
+    s_bridge.cfg.enable_system_update = true;
     p = system_plan();
     cJSON_ReplaceItemInObject(cJSON_GetArrayItem(cJSON_GetObjectItem(p, "images"), 0),
                               "component_id", cJSON_CreateNumber(2));
-    assert(execute("12345678901234567890123456789012", p) == ESP_ERR_INVALID_ARG);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) == ESP_ERR_INVALID_ARG);
     assert(!mock_reserved && !requests && !system_prepares);
     cJSON_Delete(p);
     /* Source layout is rechecked under the shared reservation. */
     reset();
-    cfg.enable_system_update = true;
+    s_bridge.cfg.enable_system_update = true;
     p = system_plan();
     cJSON_ReplaceItemInObject(p, "source_table_sha256", cJSON_CreateString("stale"));
-    assert(execute("12345678901234567890123456789012", p) == ESP_ERR_INVALID_VERSION);
+    assert(bridge_execute(&s_bridge, "12345678901234567890123456789012", p) == ESP_ERR_INVALID_VERSION);
     assert(!mock_reserved && !requests && !system_prepares && mock_abort == 1);
     cJSON_Delete(p);
     /* The actual new worker branch streams through the shared backend and
      * restarts after commit; no extra Recovery-sized transport buffer exists. */
     reset();
-    cfg.enable_system_update = true;
-    cfg.enable_bootloader_update = true;
+    s_bridge.cfg.enable_system_update = true;
+    s_bridge.cfg.enable_bootloader_update = true;
     p = system_plan();
     reply("/files/", 200, "data", false);
     reply("/authorize", 200, "{\"phase\":\"COMMITTING\",\"authorized\":true}", false);
     reply("/progress", 200, "{\"phase\":\"DONE\"}", false);
     if (!setjmp(worker_exit))
-        execute("12345678901234567890123456789012", p);
+        bridge_execute(&s_bridge, "12345678901234567890123456789012", p);
     assert(system_prepares == 1 && system_allow_bootloader);
     assert(mock_writes == 1 && mock_commits == 1 && restart_count == 1);
     cJSON_Delete(p);

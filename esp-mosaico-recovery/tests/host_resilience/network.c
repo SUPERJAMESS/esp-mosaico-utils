@@ -71,7 +71,7 @@ void nvs_close(nvs_handle_t h) { }
 
 static void reset(void)
 {
-    cleanup_failed_start();
+    cleanup_failed_start(&s_network);
     if (s_network.lock) vSemaphoreDelete(s_network.lock);
     memset(&s_network, 0, sizeof(s_network));
     step = fail_step = 0; saved_credentials = saved_connect_fails = false;

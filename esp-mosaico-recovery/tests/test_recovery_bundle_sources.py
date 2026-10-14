@@ -9,7 +9,7 @@ import pytest
 
 
 @pytest.mark.parametrize("changed", [
-    "components/iris_bridge/iris_bridge.c",
+    "components/app_bridge/src/iris_bridge.c",
     "../../components/esp_mosaico_boot/mosaico_boot.c",
     "../../include/mosaico_recovery_contract.h",
     "../../product_contract.json",

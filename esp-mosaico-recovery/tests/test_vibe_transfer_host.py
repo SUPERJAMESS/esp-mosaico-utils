@@ -7,7 +7,7 @@ import subprocess
 def test_payload_rate_and_progress_boundaries(tmp_path):
     compiler = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
     assert compiler, "A host C compiler is required"
-    main = Path(__file__).resolve().parents[1] / "firmware/recovery/main"
+    main = Path(__file__).resolve().parents[1] / "firmware/recovery/components/app_ui"
     source = tmp_path / "transfer.c"
     source.write_text(r'''
 #include <assert.h>
@@ -63,7 +63,7 @@ int main(void)
 }
 ''', encoding="utf-8")
     executable = tmp_path / "transfer-test.exe"
-    subprocess.run([compiler, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", str(main),
-                    str(source), str(main / "vibe_transfer.c"), "-o", str(executable)],
+    subprocess.run([compiler, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", str(main / "include"),
+                    str(source), str(main / "src/vibe_transfer.c"), "-o", str(executable)],
                    check=True, capture_output=True, text=True)
     subprocess.run([str(executable)], check=True, capture_output=True, text=True)

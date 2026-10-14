@@ -8,7 +8,7 @@ import subprocess
 def test_recovery_version_transition(tmp_path: pathlib.Path) -> None:
     compiler = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
     assert compiler, "A host C compiler is required"
-    source_dir = pathlib.Path(__file__).parents[1] / "firmware" / "recovery" / "main"
+    source_dir = pathlib.Path(__file__).parents[1] / "firmware" / "recovery" / "components" / "app_system_update" / "private"
     source = tmp_path / "version.c"
     source.write_text(
         r'''

@@ -489,7 +489,7 @@ USB 命令打开同一个页面并等待配对码；重复打开不换码。控�
 方法 4 打开，方法 5 只查询状态，旧方法 3 已移除。服务地址、板型缺失时提示
 重新配置构建。两个方法均拒绝 TCP，不返回或记录设备 token。
 
-设备端实现位于 [iris_bridge 组件](components/iris_bridge/)。
+设备端实现位于 [app_bridge 组件](components/app_bridge/README.md)。
 旧本地 HTTP server、URL 下载 RPC、`http-update-code` 和 `--manifest-url`
 已移除，USB bundle 和 NAND 更新继续使用共享写入后端。
 
@@ -579,13 +579,41 @@ ESP-Mosaico workspace 时，`mosaico.py recover` 会根据宿主 workspace 的
 保证 Vibe Mode、设备工具与普通应用使用同一 Iris 版本。
 
 
+## 运行时组件架构
+
+`main` 只编译入口，按“硬件静音与 sysmeta → provider/文件卷注册 → Iris USB →
+Ideas/UI/输入 → 自动更新及网络 → HEALTHY”的顺序组装组件。UI/输入启动失败不发布
+健康事件，已启动的 USB 保留；网络和 NAND 媒体故障不关闭 USB。bootloader 是独立构建边界。
+
+| 组件 | 职责 | 应用组件依赖 |
+| --- | --- | --- |
+| [app_system](components/app_system/README.md) | 启动安全与保留元数据 | 无 |
+| [app_storage](components/app_storage/README.md) | NAND 文件系统与访问控制 | 无 |
+| [app_network](components/app_network/README.md) | Wi-Fi 与发现 | app_system |
+| [app_system_update](components/app_system_update/README.md) | 系统更新策略与事务 | app_system |
+| [app_nand_update](components/app_nand_update/README.md) | 离线系统更新来源 | app_storage、app_system_update、app_system |
+| [app_ideas](components/app_ideas/README.md) | Ideas 库与展示资源 | app_network、app_storage、app_nand_update、app_system |
+| [app_bridge](components/app_bridge/README.md) | HTTPS 维护 Bridge | app_network、app_system_update、app_system |
+| [app_ui](components/app_ui/README.md) | 显示、输入与可移植控制器 | app_network、app_ideas、app_nand_update、app_system_update、app_bridge |
+| [app_iris](components/app_iris/README.md) | Iris 产品服务适配 | app_system、app_storage、app_network、app_system_update、app_nand_update、app_bridge |
+
+依赖方向为入口到服务、服务到存储/系统/更新后端；更新核心不注册来源，Iris 控制通过
+入口注入的回调操作 UI。`app_update` 是 SDK 的 OTA 组件，产品更新后端使用
+`app_system_update`，不能覆盖 SDK 原名。公共接口位于各组件 `include/`，可变状态在私有
+上下文中；组件之间只交换请求、快照和资源副本。组件 README 提供最小用法和并发约束。
+
+PC 后端从公共控制器接口创建实例并读取无凭据状态，不能访问 `vibe_ui_t` 内部成员。
+[第三方依赖说明](third_party/README.md)记录版本和补丁流程。架构回归
+`tests/test_firmware_component_boundaries.py`检查组件图、包含边界及入口职责。
+构建、主机回归与真机覆盖范围见[本次验证记录](../../docs/validation-runtime-components.md)。
+
 ## Vibe Mode 界面与构建
 
 用户可见名称为 **Vibe Mode**；工程 `factory`、协议角色 `recovery`、
-`recover` 命令和 Recovery ABI 1 保持不变；当前源码固件版本为 `0.1.4`。
-九个页面由 `ui/main.json` 和可移植的 `main/vibe_ui.c` 实现，PC 与设备共享
+`recover` 命令和 Recovery ABI 2 保持不变；固件兼容版本由 `sdkconfig.recovery.defaults` 独立维护。
+界面页面由 `ui/main.json` 和可移植的 `components/app_ui/src/vibe_ui.c` 实现，PC 与设备共享
 同一控制器及 `ui/profile.yaml` RGB565 编译配置。
-`main/factory_ui.c` 适配网络、Bridge、NAND 和更新状态；
+`components/app_ui/src/ui_services.c` 适配网络、Bridge、NAND 和更新状态；
 异步状态在 GSP 渲染上下文汇总，外部打开下载页的请求通过队列提交。
 
 使用 Component Registry 的 **ESP-GSP 1.4.0**，BSP 开启硬件显示但关闭

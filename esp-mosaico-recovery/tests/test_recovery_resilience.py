@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-MAIN = ROOT / "firmware/recovery/main"
+COMPONENTS = ROOT / "firmware/recovery/components"
 FIXTURE = ROOT / "tests/host_resilience"
 
 
@@ -20,19 +20,24 @@ FIXTURE = ROOT / "tests/host_resilience"
 def test_recovery_resilience(tmp_path, kind, source):
     cc = shutil.which("cc")
     assert cc, "Recovery service regression tests require a C compiler"
-    headers = re.findall(r'#include "([^"]+)"', (MAIN / source).read_text())
-    headers += ["esp_err.h", "esp_gsp.h", "esp_iris_system_inventory.h"]
+    component = COMPONENTS / {"ui": "app_ui", "network": "app_network", "ota": "app_iris"}[kind]
+    implementation = component / "src" / source
+    headers = re.findall(r'#include "([^"]+)"', implementation.read_text())
+    headers += ["esp_err.h", "esp_gsp.h", "esp_iris_system_inventory.h", "esp_iris_system_update.h", "cJSON.h"]
+    actual_headers = {"esp_iris_system_update.h", "esp_iris_system_inventory.h"} | {path.name for path in COMPONENTS.glob("*/include/*.h")} | {
+        path.name for path in (component / "private").glob("*.h")}
     for name in headers:
-        if name.startswith(("factory_", "recovery_", "vibe_")):
+        if name in actual_headers:
             continue
         header = tmp_path / name
         header.parent.mkdir(parents=True, exist_ok=True)
         header.write_text('#include "sdk.h"\n')
     output = tmp_path / ("resilience.exe" if os.name == "nt" else "resilience")
     command = [cc, "-std=c11", "-D_POSIX_C_SOURCE=200809L", "-Wall", "-Wextra",
-               "-Werror", "-Wno-unused-parameter", f'-DSOURCE="{(MAIN / source).as_posix()}"',
-               "-I" + str(tmp_path), "-I" + str(FIXTURE), "-I" + str(MAIN),
-               "-I" + str(ROOT / "include"), str(FIXTURE / (kind + ".c")),
+               "-Werror", "-Wno-unused-parameter", f'-DSOURCE="{implementation.as_posix()}"',
+               "-I" + str(tmp_path), "-I" + str(FIXTURE), *["-I" + str(path) for path in COMPONENTS.glob("*/include")],
+               "-I" + str(component / "private"),
+               "-I" + str(ROOT / "include"), "-I" + str(ROOT.parent / "ESP-Iris/components/esp_iris/include"), str(FIXTURE / (kind + ".c")),
                str(FIXTURE / "sdk.c"), "-o", str(output)]
     if os.environ.get("IRIS_HOST_SANITIZERS") == "1":
         command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-g"]

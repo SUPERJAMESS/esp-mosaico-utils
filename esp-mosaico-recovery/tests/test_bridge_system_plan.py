@@ -32,7 +32,8 @@ class SystemPlanTests(unittest.TestCase):
         command = [
             os.environ.get("CC", "cc"), "-std=c11", "-Wall", "-Wextra", "-Werror",
             "-shared", "-fPIC", "-I", str(out), "-I", str(source.parent),
-            str(root / "firmware/recovery/components/iris_bridge/system_plan.c"), str(source),
+            "-I", str(root / "firmware/recovery/components/app_bridge/private"),
+            str(root / "firmware/recovery/components/app_bridge/src/system_plan.c"), str(source),
             "-o", str(library),
         ]
         if os.name == "nt":

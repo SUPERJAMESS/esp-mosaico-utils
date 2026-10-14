@@ -14,3 +14,5 @@ dependencies:
   joltwallet/littlefs:
     version: "^1.22.0"
   espressif/esp-gsp: "==1.4.0"
+  # Preserve the validated presenter while restructuring the component graph.
+  espressif/esp_display_present: "==1.1.1"

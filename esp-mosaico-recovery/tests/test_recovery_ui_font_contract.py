@@ -10,10 +10,13 @@ def test_compiled_update_font_covers_device_and_simulator_states():
     scene = json.loads((RECOVERY / 'ui/main.json').read_text())
     objects = {item.get('name'): item for item in scene['objects']}
     titles = []
-    for source in ('main/factory_ui.c', 'pc/platform_pc.c'):
-        for line in (RECOVERY / source).read_text().splitlines():
-            if 'COPY(update_title,' in line or 'snprintf(model.update_title,' in line:
-                titles.extend(text for text in re.findall(r'"([^"\\]*)"', line) if text != '%s')
+    for source in ('components/app_ui/src/ui_services.c', 'pc/platform_pc.c'):
+        statements = re.findall(
+            r'(?:COPY\s*\(\s*update_title|snprintf\s*\(\s*model\.update_title)[^;]+;',
+            (RECOVERY / source).read_text(), re.S)
+        for statement in statements:
+            titles.extend(text for text in re.findall(r'"([^"\\]*)"', statement)
+                          if text != '%s')
     assert titles, 'update title producers were not found'
     for name in ('update_title', 'result_title'):
         obj = objects[name]

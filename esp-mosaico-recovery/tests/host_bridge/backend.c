@@ -157,9 +157,9 @@ esp_err_t factory_system_update_nand_register(void)
 static uint8_t op[16] = {1};
 static void setup(void)
 {
-    s_layout_needs_reload = false;
-    update_state_reset();
-    update_owner_release();
+    s_backend.layout_needs_reload = false;
+    update_state_reset(&s_backend);
+    update_owner_release(&s_backend);
     memset(flash, 0xff, sizeof(flash));
     erased = mock_writes = persisted = corrupt_readback = mock_alloc_fail =
         mock_commit_error = 0;
@@ -188,7 +188,7 @@ static char *manifest(bool preserve, const char *kind, uint32_t offset, uint32_t
 {
     uint8_t digest[32];
     char hash[65];
-    hash_flash_region(0x8000, 4096, digest);
+    update_hash_flash_region(0x8000, 4096, digest);
     for (int i = 0; i < 32; i++)
         sprintf(hash + 2 * i, "%02x", digest[i]);
     cJSON *root = cJSON_CreateObject();
@@ -218,7 +218,7 @@ static char *manifest(bool preserve, const char *kind, uint32_t offset, uint32_t
 static char *recovery_manifest(const uint8_t *image)
 {
     uint8_t sha[32];
-    hash_memory(image, 0x1c0000, sha);
+    update_hash_memory(image, 0x1c0000, sha);
     char *json = manifest(true, "recovery", 0x20000, 0x1c0000);
     cJSON *root = cJSON_Parse(json);
     free(json);
@@ -249,7 +249,7 @@ static char *layout_manifest(bool complete)
     free(json);
     uint8_t digest[32];
     char hash[65];
-    hash_memory(new_table, 4096, digest);
+    update_hash_memory(new_table, 4096, digest);
     for (int i = 0; i < 32; i++)
         sprintf(hash + 2 * i, "%02x", digest[i]);
     cJSON_ReplaceItemInObject(root, "target_layout_sha256", cJSON_CreateString(hash));
@@ -346,10 +346,10 @@ int main(void)
     assert(factory_system_update_source_reserve(FACTORY_SYSTEM_UPDATE_OWNER_NAND, op) ==
            ESP_ERR_INVALID_STATE);
     factory_system_update_source_abort(FACTORY_SYSTEM_UPDATE_OWNER_NAND, op, ESP_FAIL);
-    assert(update_owner_is(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE));
+    assert(update_owner_is(&s_backend, FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE));
     factory_system_update_source_abort(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, op,
                                        ESP_FAIL);
-    assert(update_owner_is(FACTORY_SYSTEM_UPDATE_OWNER_NONE));
+    assert(update_owner_is(&s_backend, FACTORY_SYSTEM_UPDATE_OWNER_NONE));
     /* JSON alone cannot opt USB/NAND into the remote policy. */
     setup();
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND,
@@ -379,8 +379,8 @@ int main(void)
         memset(flash + 0x210000, 0x55, 0x100000);
         assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                        manifest(true, "application", 0x210000, image_size)) == ESP_OK);
-        esp_iris_system_update_component_t app_component = s_update.plan[0].descriptor;
-        assert(begin_component(&app_component, NULL) == ESP_OK);
+        esp_iris_system_update_component_t app_component = s_backend.transaction.plan[0].descriptor;
+        assert(update_begin_component(&app_component, &s_backend) == ESP_OK);
         size_t rounded = (image_size + 4095) & ~4095U;
         assert(flash[0x210000] == 0xff && flash[0x210000 + rounded - 1] == 0xff);
         assert(flash[0x210000 + rounded] == 0x55 && flash[0x30ffff] == 0x55);
@@ -389,8 +389,8 @@ int main(void)
     memset(flash + 0x200000, 0x55, 0x10000);
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                    manifest(true, "data", 0x200000, 4)) == ESP_OK);
-    esp_iris_system_update_component_t data_component = s_update.plan[0].descriptor;
-    assert(begin_component(&data_component, NULL) == ESP_OK);
+    esp_iris_system_update_component_t data_component = s_backend.transaction.plan[0].descriptor;
+    assert(update_begin_component(&data_component, &s_backend) == ESP_OK);
     assert(flash[0x200000] == 0xff && flash[0x20ffff] == 0xff);
     /* Actual source table hash and protected prefix are independently checked. */
     setup();
@@ -407,7 +407,7 @@ int main(void)
     setup();
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                    manifest(true, "data", 0x200000, 4)) == 0);
-    esp_iris_system_update_component_t c = s_update.plan[0].descriptor;
+    esp_iris_system_update_component_t c = s_backend.transaction.plan[0].descriptor;
     assert(factory_system_update_source_begin_component(
                FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, &c) == 0);
     assert(factory_system_update_source_write_component(
@@ -422,34 +422,34 @@ int main(void)
     setup();
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                    manifest(true, "data", 0x200000, 4)) == 0);
-    c = s_update.plan[0].descriptor;
-    assert(begin_component(&c, NULL) == 0);
-    assert(write_component(&c, 0, (uint8_t *)"data", 4, NULL) == 0);
+    c = s_backend.transaction.plan[0].descriptor;
+    assert(update_begin_component(&c, &s_backend) == 0);
+    assert(update_write_component(&c, 0, (uint8_t *)"data", 4, &s_backend) == 0);
     corrupt_readback = 1;
-    assert(end_component(&c, c.sha256, NULL) == ESP_ERR_INVALID_CRC);
-    assert(commit_update(op, NULL) != 0);
+    assert(update_end_component(&c, c.sha256, &s_backend) == ESP_ERR_INVALID_CRC);
+    assert(update_commit_update(op, &s_backend) != 0);
     /* Factory staging failure cannot erase the running image. */
     setup();
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                    manifest(true, "recovery", 0x20000, 0x1c0000)) == 0);
     mock_alloc_fail = 1;
-    c = s_update.plan[0].descriptor;
-    assert(begin_component(&c, NULL) == ESP_ERR_NO_MEM);
+    c = s_backend.transaction.plan[0].descriptor;
+    assert(update_begin_component(&c, &s_backend) == ESP_ERR_NO_MEM);
     assert(!erased && !mock_writes);
     /* A malformed staged Recovery is rejected before dangerous writes. */
     mock_alloc_fail = 0;
-    assert(begin_component(&c, NULL) == 0);
-    memset(s_update.recovery_image, 0, 0x1c0000);
-    s_update.received = 0x1c0000;
-    assert(end_component(&c, c.sha256, NULL) == ESP_ERR_IMAGE_INVALID);
+    assert(update_begin_component(&c, &s_backend) == 0);
+    memset(s_backend.transaction.recovery_image, 0, 0x1c0000);
+    s_backend.transaction.received = 0x1c0000;
+    assert(update_end_component(&c, c.sha256, &s_backend) == ESP_ERR_IMAGE_INVALID);
     assert(!erased && !mock_writes);
     /* Layout still requires every mutable application image. */
     setup();
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, layout_manifest(false)) == 0);
-    c = s_update.plan[0].descriptor;
-    assert(begin_component(&c, NULL) == 0);
-    assert(write_component(&c, 0, new_table, 4096, NULL) == 0);
-    assert(end_component(&c, c.sha256, NULL) != 0);
+    c = s_backend.transaction.plan[0].descriptor;
+    assert(update_begin_component(&c, &s_backend) == 0);
+    assert(update_write_component(&c, 0, new_table, 4096, &s_backend) == 0);
+    assert(update_end_component(&c, c.sha256, &s_backend) != 0);
     assert(!erased);
 
     /* Omitted filesystem data is allowed, including when the target moves.
@@ -465,13 +465,13 @@ int main(void)
         assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                        layout_manifest_without_data()) == ESP_OK);
         for (size_t i = 0; i < 2; i++) {
-            c = s_update.plan[i].descriptor;
-            assert(begin_component(&c, NULL) == ESP_OK);
+            c = s_backend.transaction.plan[i].descriptor;
+            assert(update_begin_component(&c, &s_backend) == ESP_OK);
             const uint8_t *data = i ? (const uint8_t *)"data" : new_table;
-            assert(write_component(&c, 0, data, c.size, NULL) == ESP_OK);
-            assert(end_component(&c, c.sha256, NULL) == ESP_OK);
+            assert(update_write_component(&c, 0, data, c.size, &s_backend) == ESP_OK);
+            assert(update_end_component(&c, c.sha256, &s_backend) == ESP_OK);
         }
-        assert(commit_update(op, NULL) == ESP_OK);
+        assert(update_commit_update(op, &s_backend) == ESP_OK);
         assert(erased == 2 && mock_writes == 2 && last_write == 0x8000);
         for (size_t i = 0; i < 0x10000; ++i) {
             assert(flash[0x200000 + i] == 0x55);
@@ -488,13 +488,13 @@ int main(void)
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                    layout_manifest_without_data()) == 0);
     for (size_t i = 0; i < 2; i++) {
-        c = s_update.plan[i].descriptor;
-        assert(begin_component(&c, NULL) == 0);
+        c = s_backend.transaction.plan[i].descriptor;
+        assert(update_begin_component(&c, &s_backend) == 0);
         const uint8_t *data = i ? (const uint8_t *)"data" : new_table;
-        assert(write_component(&c, 0, data, c.size, NULL) == 0);
-        assert(end_component(&c, c.sha256, NULL) == 0);
+        assert(update_write_component(&c, 0, data, c.size, &s_backend) == 0);
+        assert(update_end_component(&c, c.sha256, &s_backend) == 0);
     }
-    assert(commit_update(op, NULL) == 0);
+    assert(update_commit_update(op, &s_backend) == 0);
     assert(last_write == 0x8000);
 
     setup();
@@ -504,26 +504,26 @@ int main(void)
     assert(telemetry.total_size == 4096 + 4 + 4 && telemetry.received_size == 0);
     uint64_t accepted = 0;
     for (size_t i = 0; i < 3; i++) {
-        c = s_update.plan[i].descriptor;
-        assert(begin_component(&c, NULL) == 0);
+        c = s_backend.transaction.plan[i].descriptor;
+        assert(update_begin_component(&c, &s_backend) == 0);
         assert(factory_system_update_get_status(&telemetry) == ESP_OK);
         assert(telemetry.received_size == accepted && telemetry.completed_size == accepted);
         const uint8_t *data = i ? (const uint8_t *)"data" : new_table;
-        assert(write_component(&c, 0, data, c.size / 2, NULL) == 0);
+        assert(update_write_component(&c, 0, data, c.size / 2, &s_backend) == 0);
         assert(factory_system_update_get_status(&telemetry) == ESP_OK);
         assert(telemetry.received_size == accepted + c.size / 2);
-        assert(write_component(&c, 0, data, c.size / 2, NULL) != ESP_OK);
+        assert(update_write_component(&c, 0, data, c.size / 2, &s_backend) != ESP_OK);
         assert(factory_system_update_get_status(&telemetry) == ESP_OK);
         assert(telemetry.received_size == accepted + c.size / 2); /* rejected replay */
-        assert(write_component(&c, c.size / 2, data + c.size / 2, c.size - c.size / 2, NULL) == 0);
+        assert(update_write_component(&c, c.size / 2, data + c.size / 2, c.size - c.size / 2, &s_backend) == 0);
         accepted += c.size;
-        assert(end_component(&c, c.sha256, NULL) == 0);
+        assert(update_end_component(&c, c.sha256, &s_backend) == 0);
         assert(factory_system_update_get_status(&telemetry) == ESP_OK);
         assert(telemetry.received_size == accepted && telemetry.completed_size == accepted);
         assert(telemetry.update.completed_components == i + 1);
         assert(!memcmp(flash + 0x8000 + 5 * 32 + 4, "\0\0\x20\0", 4));
     }
-    assert(commit_update(op, NULL) == 0);
+    assert(update_commit_update(op, &s_backend) == 0);
     assert(last_write == 0x8000);
     assert(!memcmp(flash + 0x8000, new_table, 4096));
     /* A complete Recovery image validates in PSRAM before its single copy commit. */
@@ -546,13 +546,13 @@ int main(void)
     image[end - 1] = checksum;
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                    recovery_manifest(image)) == 0);
-    c = s_update.plan[0].descriptor;
-    assert(begin_component(&c, NULL) == 0);
-    assert(write_component(&c, 0, image, c.size, NULL) == 0);
-    assert(end_component(&c, c.sha256, NULL) == 0);
+    c = s_backend.transaction.plan[0].descriptor;
+    assert(update_begin_component(&c, &s_backend) == 0);
+    assert(update_write_component(&c, 0, image, c.size, &s_backend) == 0);
+    assert(update_end_component(&c, c.sha256, &s_backend) == 0);
     assert(!erased);
     mock_commit_error = ESP_FAIL;
-    assert(commit_update(op, NULL) == ESP_FAIL);
+    assert(update_commit_update(op, &s_backend) == ESP_FAIL);
     assert(
         factory_system_update_source_needs_restart(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE));
     assert(last_write == 0x20000 && !memcmp(flash + 0x20000, image, 0x1c0000));
@@ -567,10 +567,10 @@ int main(void)
     image[end - 1] = checksum;
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                    recovery_manifest(image)) == 0);
-    c = s_update.plan[0].descriptor;
-    assert(begin_component(&c, NULL) == 0);
-    assert(write_component(&c, 0, image, c.size, NULL) == 0);
-    assert(end_component(&c, c.sha256, NULL) == ESP_ERR_INVALID_VERSION);
+    c = s_backend.transaction.plan[0].descriptor;
+    assert(update_begin_component(&c, &s_backend) == 0);
+    assert(update_write_component(&c, 0, image, c.size, &s_backend) == 0);
+    assert(update_end_component(&c, c.sha256, &s_backend) == ESP_ERR_INVALID_VERSION);
     assert(!erased && !mock_writes);
     free(image);
     /* Only an explicit local Bridge policy may grant bootloader replacement. */
@@ -583,7 +583,7 @@ int main(void)
     assert(!erased && !mock_writes);
     setup();
     assert(prepare_bridge(bootloader_manifest(), true) == ESP_OK);
-    assert(update_owner_is(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE) && s_update.plan_count == 4);
+    assert(update_owner_is(&s_backend, FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE) && s_backend.transaction.plan_count == 4);
     assert(!erased && !mock_writes);
     /* Remote JSON cannot override the generic API's local policy. */
     setup();
@@ -618,7 +618,7 @@ int main(void)
     setup();
     assert(factory_system_update_source_reserve(FACTORY_SYSTEM_UPDATE_OWNER_NAND, op) == ESP_OK);
     assert(prepare_bridge(bootloader_manifest(), true) == ESP_ERR_INVALID_STATE);
-    assert(update_owner_is(FACTORY_SYSTEM_UPDATE_OWNER_NAND));
+    assert(update_owner_is(&s_backend, FACTORY_SYSTEM_UPDATE_OWNER_NAND));
     assert(!erased && !mock_writes);
     setup();
     json = bootloader_manifest();
@@ -636,16 +636,16 @@ int main(void)
     assert(mosaico_boot_request_recovery() == ESP_OK);
     assert(factory_system_update_source_commit_deferred(op) == ESP_ERR_INVALID_STATE);
     for (size_t i = 0; i < 2; i++) {
-        c = s_update.plan[i].descriptor;
-        assert(begin_component(&c, NULL) == ESP_OK);
+        c = s_backend.transaction.plan[i].descriptor;
+        assert(update_begin_component(&c, &s_backend) == ESP_OK);
         const uint8_t *bytes = i ? (const uint8_t *)"data" : new_table;
-        assert(write_component(&c, 0, bytes, c.size, NULL) == ESP_OK);
-        assert(end_component(&c, c.sha256, NULL) == ESP_OK);
+        assert(update_write_component(&c, 0, bytes, c.size, &s_backend) == ESP_OK);
+        assert(update_end_component(&c, c.sha256, &s_backend) == ESP_OK);
     }
     mock_create_fail = 1; /* commit must succeed even when scheduling is impossible */
     assert(factory_system_update_source_commit_deferred(op) == ESP_OK);
-    assert(boot == &s_update.plan[1].target_partition && boot->address == 0x210000);
-    assert(s_status.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED);
+    assert(boot == &s_backend.transaction.plan[1].target_partition && boot->address == 0x210000);
+    assert(s_backend.status.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED);
     assert(factory_system_update_source_reserve(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, op) == ESP_ERR_INVALID_STATE);
     assert(factory_system_update_writer_busy());
     assert(factory_system_update_source_reserve_idea(op) == ESP_OK);
@@ -656,11 +656,11 @@ int main(void)
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND, layout_manifest_without_data()) == ESP_OK);
     assert(mosaico_boot_request_recovery() == ESP_OK);
     for (size_t i = 0; i < 2; i++) {
-        c = s_update.plan[i].descriptor;
-        assert(begin_component(&c, NULL) == ESP_OK);
+        c = s_backend.transaction.plan[i].descriptor;
+        assert(update_begin_component(&c, &s_backend) == ESP_OK);
         const uint8_t *bytes = i ? (const uint8_t *)"data" : new_table;
-        assert(write_component(&c, 0, bytes, c.size, NULL) == ESP_OK);
-        assert(end_component(&c, c.sha256, NULL) == ESP_OK);
+        assert(update_write_component(&c, 0, bytes, c.size, &s_backend) == ESP_OK);
+        assert(update_end_component(&c, c.sha256, &s_backend) == ESP_OK);
     }
     assert(factory_system_update_source_commit_deferred(op) == ESP_OK);
     assert(boot->address == 0x210000 && !memcmp(flash + 0x210000, "data", 4));

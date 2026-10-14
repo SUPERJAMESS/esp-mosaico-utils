@@ -4,7 +4,7 @@ import shutil
 import subprocess
 
 
-MAIN = Path(__file__).resolve().parents[1] / "firmware/recovery/main"
+MAIN = Path(__file__).resolve().parents[1] / "firmware/recovery/components/app_ui/src"
 
 
 def compile_run(tmp_path, sources, program):
