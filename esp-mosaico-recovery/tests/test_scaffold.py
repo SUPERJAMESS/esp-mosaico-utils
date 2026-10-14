@@ -18,6 +18,7 @@ sys.path.insert(0, str(TOOL_ROOT / "tools"))
 from mosaico_cli.cli import main
 from mosaico_cli.errors import EnvironmentError, OperationError, SelectionError
 from mosaico_cli.scaffold import initialize_project
+from mosaico_cli.project_defaults import management_files
 from mosaico_cli.workspace import load_workspace
 
 
@@ -40,7 +41,7 @@ class ScaffoldTests(unittest.TestCase):
         (self.root / ".mosaico.json").write_text(json.dumps(config), encoding="utf-8")
         self.workspace = load_workspace(TOOL_ROOT, explicit=str(self.root))
         # No board-specific application, source language or shared script is
-        # needed by this fixture: the descriptor owns the entire file layout.
+        # needed by this fixture: the descriptor owns the application layout.
         (self.template / "entry.txt").write_text("App: original\nLink: original\n", encoding="utf-8")
         (self.template / "payload.dat").write_bytes(b"\x00\xff\r\n")
         self.description = {
@@ -63,7 +64,7 @@ class ScaffoldTests(unittest.TestCase):
         return {str(path.relative_to(self.root)): path.read_bytes() if path.is_file() else None
                 for path in self.root.rglob("*")}
 
-    def test_generates_only_declared_files_and_preserves_workspace(self) -> None:
+    def test_generates_declared_and_management_files_and_preserves_workspace(self) -> None:
         (self.template / "ignored.txt").write_text("local data", encoding="utf-8")
         before = self.snapshot()
         result = initialize_project(self.workspace, "My_app2")
@@ -71,7 +72,7 @@ class ScaffoldTests(unittest.TestCase):
         self.assertEqual(result["status"], "created")
         self.assertEqual(result["template"], str(self.workspace.init_template))
         self.assertEqual(project, self.root / "apps/nested/My_app2")
-        self.assertEqual(result["files"], ["source/deep/start.txt", "assets/payload.bin"])
+        self.assertEqual(result["files"], ["source/deep/start.txt", "assets/payload.bin", *management_files(self.workspace, Path(result["project"]))])
         self.assertEqual((project / "assets/payload.bin").read_bytes(), b"\x00\xff\r\n")
         text = (project / "source/deep/start.txt").read_text()
         self.assertIn("App: My_app2", text)
@@ -123,7 +124,7 @@ class ScaffoldTests(unittest.TestCase):
         result = json.loads(output.getvalue())
         self.assertTrue(result["ok"])
         self.assertEqual(result["status"], "dry_run")
-        self.assertEqual(result["files"], ["source/deep/start.txt", "assets/payload.bin"])
+        self.assertEqual(result["files"], ["source/deep/start.txt", "assets/payload.bin", *management_files(self.workspace, Path(result["project"]))])
         self.assertEqual(before, self.snapshot())
 
     def test_unconfigured_init_is_an_explicit_error(self) -> None:

@@ -1,7 +1,6 @@
 idf_component_register(
-    SRCS "game_module.c" "game.c"
-    INCLUDE_DIRS "."
-    REQUIRES examples_common ${RAYLIB_LITE_BOARD})
+    SRCS "game_entry.c"
+    PRIV_REQUIRES app_game_runtime examples_common ${RAYLIB_LITE_BOARD})
 if(TARGET idf::espressif2022__raylib-lite-engine)
     idf_component_get_property(RAYLIB_LITE_ENGINE_ROOT espressif2022__raylib-lite-engine COMPONENT_DIR)
 else()

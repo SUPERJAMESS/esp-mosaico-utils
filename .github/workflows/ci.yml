@@ -94,6 +94,12 @@ jobs:
           --deselect=esp-mosaico-recovery/tests/test_cli.py::HostCompatibilityTests::test_python38_runtime_hands_idf_to_a_newer_python
           --deselect=esp-mosaico-recovery/tests/test_cli.py::RecoveryCommandTests::test_idf_wrapper_reports_bounded_cmake_diagnostic
           --junitxml=tools-results.xml
+      - name: Validate generated project hooks
+        env:
+          MOSAICO_TEST_PRE_COMMIT: "1"
+        run: |
+          python -m pip install --disable-pip-version-check pre-commit==3.5.0
+          python -m pytest -q mosaico-tools/tests/test_project_management.py -k "real or twice"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

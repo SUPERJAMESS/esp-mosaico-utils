@@ -11,7 +11,10 @@ import sys
 
 from .errors import EnvironmentError, SelectionError
 from .project import discover_artifacts, resolve_project
-from .scaffold import initialize_project
+from .scaffold import finish_engine_project, initialize_project, project_destination
+from .project_defaults import management_files
+from .project_git import git_executable
+from .project_setup import print_setup
 
 GAME_TEMPLATES = {"shooter": "raylib_shooter", "sky-hop": "sky_hop", "tower-defense": "tower_defense"}
 DEFAULT_GAME_TEMPLATE = "blank"
@@ -94,6 +97,7 @@ def add_commands(commands, project_commands):
     preview = project_commands.add_parser("sim", help="Preview a GSP application with its native PC backend")
     preview.set_defaults(command="sim", public_command="project sim")
     preview.add_argument("--project")
+    preview.add_argument("--scene", help="Preview one scene without the PC backend; path relative to the project or absolute")
     preview.add_argument("--scene-only", action="store_true")
     mode = preview.add_mutually_exclusive_group()
     mode.add_argument("--headless", action="store_true")
@@ -142,14 +146,16 @@ def run(arguments, workspace):
             value = getattr(arguments, flag)
             if value is not None:
                 command.extend(("--" + flag.replace("_", "-"), str(value)))
+        if arguments.scene is not None:
+            command.append(arguments.scene)
         return subprocess.call(command)
 
     if arguments.game_action in {"create", "new"}:
         if arguments.template != DEFAULT_GAME_TEMPLATE:
             engine = _engine(workspace, "creating a game")
-            destination = workspace.projects_dir / arguments.name
-            if not arguments.name.isascii() or not arguments.name.replace("_", "").isalnum() or not arguments.name[0].isalpha():
-                raise SelectionError("Game names must start with an ASCII letter and contain letters, digits or underscores.")
+            destination = project_destination(workspace, arguments.name)
+            common = management_files(workspace, destination)
+            git = git_executable()
             command = [sys.executable, str(engine / "tools/game_cli.py"), "create", str(destination),
                        "--template", arguments.template, "--json"]
             if arguments.dry_run:
@@ -158,9 +164,12 @@ def run(arguments, workspace):
             if completed.returncode:
                 raise SelectionError(completed.stderr.strip() or "Engine game creation failed.")
             result = json.loads(completed.stdout)
+            result = finish_engine_project(workspace, destination, result, common, git, dry_run=arguments.dry_run)
             result["status"] = "dry_run" if arguments.dry_run else "created"
             result["install_command"] = "python mosaico.py game build " + str(destination) + " --target iris"
             print(json.dumps(result) if arguments.json else f"game: {result['status']}\nProject: {result['project']}\n{result['install_command']}")
+            if not arguments.json:
+                print_setup(result, show_files=arguments.dry_run)
             return 0
         template = tools_root / "templates/blank_game/mosaico-template.json"
         if not template.is_file():
@@ -174,6 +183,7 @@ def run(arguments, workspace):
             print(json.dumps({"ok": True, **result}, ensure_ascii=False, sort_keys=True))
         else:
             print(f"game: {result['status']}\nProject: {result['project']}\n{result['install_command']}")
+            print_setup(result, show_files=arguments.dry_run)
         return 0
 
     if arguments.project and arguments.project_path:

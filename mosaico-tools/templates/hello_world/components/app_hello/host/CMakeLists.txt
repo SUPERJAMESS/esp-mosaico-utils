@@ -6,7 +6,7 @@ if(NOT ESP_GSP_COMPONENT_DIR AND DEFINED ENV{ESP_GSP_COMPONENT_DIR})
 endif()
 if(NOT ESP_GSP_COMPONENT_DIR)
     foreach(candidate IN ITEMS
-            "${CMAKE_CURRENT_LIST_DIR}/../managed_components/espressif__esp-gsp")
+            "${CMAKE_CURRENT_LIST_DIR}/../../../managed_components/espressif__esp-gsp")
         get_filename_component(candidate "${candidate}" ABSOLUTE)
         if(EXISTS "${candidate}/tools/sim_bridge/CMakeLists.txt")
             set(ESP_GSP_COMPONENT_DIR "${candidate}")
@@ -21,6 +21,6 @@ endif()
 
 add_subdirectory("${ESP_GSP_COMPONENT_DIR}/tools/sim_bridge" sim_bridge)
 gsp_add_backend(hello_backend
-    SOURCES ../main/hello_ui.c platform_pc.c
-    INCLUDE_DIRECTORIES ../main
+    SOURCES ../app_hello.c platform_pc.c
+    INCLUDE_DIRECTORIES ../include
     SCENES ../ui/main.json)

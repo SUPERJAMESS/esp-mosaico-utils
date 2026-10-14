@@ -30,6 +30,7 @@ from .errors import MosaicoError, SelectionError
 from .platform_client import DEFAULT_SERVER
 from .runtime import RunContext
 from .scaffold import initialize_project
+from .project_setup import print_setup
 from .workspace import load_workspace
 
 TOOL_ROOT = Path(__file__).resolve().parents[2]
@@ -757,6 +758,7 @@ def _main(
                 print("Checks passed; no files were written.")
             print(f"From workspace: {workspace.root}")
             print(result["install_command"])
+            print_setup(result)
         return 0
 
     if arguments.command == "list":

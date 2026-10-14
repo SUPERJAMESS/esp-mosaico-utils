@@ -12,7 +12,7 @@ The integration below adds the complete Mosaico application update workflow.
 
 The tools repository owns `templates/hello_world/mosaico-template.json` and the
 public `mosaico.py project init` / `project sim` commands. Creation needs Python
-3.8+ and this utilities checkout, with no IDF, BSP or device requirement.
+3.8+, Git 2.28+ and this utilities checkout, with no IDF, BSP or device requirement.
 
 Template schema v1 provides `workspace`, `template`, `utils`, `tools`, `bsp`,
 `esp_iris`, and `engine` path anchors. Paths are rendered relative to each
@@ -23,6 +23,23 @@ to copy a maintained game with its private shared launcher/Board. The blank
 template uses the exclusive application writer; Engine copies also refuse to
 overwrite an existing project. Configure `dependencies.raylib`
 for the engine location; it is only required for games.
+
+All creators supplement missing files from the tools-owned project management
+profile (`templates/common/git_quality/mosaico-template.json`) and initialize a
+separate Git repository on `main`. This profile contains configuration and guides;
+its hooks reference `tools/quality/check_project.py` in the same utils checkout
+used by the workspace. The checker is maintained and tested centrally, and its
+version follows the workspace's pinned utils revision. It is not copied into apps. Existing template
+configuration is preserved and reported; paths that conflict as files/directories
+are errors. Project creation does not install hooks or make a first commit.
+The generated quality guide documents enabling pre-commit, its eight categories
+of checks, and manual Cppcheck analysis using the actual compilation database.
+Custom templates retain schema v1 and their application layout. The public JSON
+result adds `git` (status/branch) and `quality` (guide, preserved files and setup
+commands); `files` includes management files but excludes internal Git metadata.
+Dry-run reports the planned setup without writing. An Engine dry-run uses the
+Engine's reported file inventory to identify preserved configuration; if the
+Engine omits that inventory, preservation is determined during actual creation.
 
 The blank game provides shared C state/update/rendering with separate device and
 Host adapters, generated project identity and the retained Vibe Mode layout. It
@@ -53,12 +70,14 @@ in the effective configuration; do not override the generated flashing arguments
 Optional GSP components are `mosaico-tools/components/esp_mosaico_gsp_bundle`
 (ui_bundle_open) and `esp_mosaico_gsp_iris` (iris_screen_mirror_init/attach).
 The latter owns the display-presenter link wrapper. Application display and touch
-policy stays in the template's board_display.c. Both components retain ESP-GSP
+policy stays in the template's `app_display` component. Both components retain ESP-GSP
 1.5.1 and the MOSGSP resource format.
 
 Use `cmake/gsp_compiler.cmake` before IDF to resolve the pinned GSPC. Include
 `cmake/gsp_bundle.cmake` in the application component, then call
-`mosaico_gsp_add_ui_bundle(${COMPONENT_LIB} "../ui/main.json")`.
+`mosaico_gsp_add_ui_bundle(${COMPONENT_LIB} "ui/main.json")`. Keep authored scenes
+and fonts under the owning component's `ui/` directory; generated bindings and
+bundles remain build outputs.
 Applications use GSPC 0.6.1 with ESP-GSP 1.5.1. Vibe Mode independently retains
 GSPC 0.5.0 with ESP-GSP 1.4.0, selecting `MOSAICO_GSPC_VERSION` before including
 the shared compiler bootstrap. Explicit `GSPC_EXECUTABLE` overrides must match

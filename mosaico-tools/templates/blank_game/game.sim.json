@@ -1,7 +1,8 @@
 {
   "schema": "raylib-lite-game-sim/v1",
   "sources": [
-    "main/game_module.c",
-    "main/game.c"
+    "main/game_entry.c",
+    "components/app_game/app_game.c",
+    "components/app_game_runtime/app_game_runtime.c"
   ]
 }

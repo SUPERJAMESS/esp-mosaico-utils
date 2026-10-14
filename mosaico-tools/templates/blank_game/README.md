@@ -21,12 +21,32 @@ already configured; the engine starts Iris and accepts the image after its first
 frame. USB High-Speed remains owned by Iris. Physical input/display behavior
 still requires device validation after Host checks.
 
-- `main/game.c`: shared state, pointer input, fixed-step update and rendering.
-  Add game logic to `game_update()` and Raylib Lite drawing to `game_render()`.
-- `main/game.h`: portable interface with an opaque instance owned by its loop.
-- `main/game_config.h`: project identity and display/tick constants.
-- `main/game_module.c`: shared Host/native lifecycle, controls and JSON state.
-- `game.sim.json`: sources compiled into the native Host module.
+- `components/app_game`: pure C state and gameplay rules, no graphics dependency.
+- `components/app_game_runtime`: Engine input/lifecycle adapter, rendering and JSON.
+- `components/app_game_runtime/private/game_config.h`: identity, pixel dimensions
+  and tick frequency; never included by another component.
+- `main/game_entry.c`: selects the adapter for the unchanged Engine module ABI.
+- `game.sim.json`: explicit list of the same sources used by the Host module.
+
+Dependencies flow `main -> app_game_runtime -> app_game`, with the Engine as a
+platform dependency of the runtime. The model never depends on its caller or on
+rendering. Public headers live under each component's `include/`; internal state
+and configuration stay private. Component READMEs document contracts and usage.
+
+Keep new application components cohesive and prefixed `app_`; keep dependencies
+acyclic and entry points limited to composition/startup. Exchange handles and
+value snapshots, never extern business globals or private structures. Keep public
+API comments within three lines; put detailed contracts in the component README
+and document units/ranges beside fields. Add an
+abstraction only when a concrete independent responsibility requires it.
+Third-party code retains upstream names. Pins and workspace overrides live in
+`main/idf_component.yml` and the root CMake configuration. Apply local patches in
+a dedicated dependency checkout selected by `override_path`; never edit
+`managed_components/` in place. The prefix hook checks naming;
+code review and behavior tests establish architectural and API correctness.
+
+Git, editor and hook entry files stay at the root; format rules, project policy
+and hook setup instructions live in `tools/quality/`.
 
 Host state exposes `phase`, `tick`, `pointer_x`, `pointer_y`, `pointer_down` and
 `state_hash` for automation. Touch/pointer input records coordinates without

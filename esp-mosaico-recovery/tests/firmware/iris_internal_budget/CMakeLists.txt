@@ -11,6 +11,9 @@ set(EXTRA_COMPONENT_DIRS
     "${MOSAICO_UTILS_ROOT}/esp-mosaico-recovery/components/esp_mosaico_app_recovery"
     "${MOSAICO_UTILS_ROOT}/mosaico-tools/components/esp_mosaico_gsp_bundle"
     "${MOSAICO_UTILS_ROOT}/mosaico-tools/components/esp_mosaico_gsp_iris")
+if(IS_DIRECTORY "${MOSAICO_TEST_APPLICATION}/components")
+    list(APPEND EXTRA_COMPONENT_DIRS "${MOSAICO_TEST_APPLICATION}/components")
+endif()
 include("${MOSAICO_UTILS_ROOT}/mosaico-tools/cmake/gsp_compiler.cmake")
 include("${MOSAICO_UTILS_ROOT}/esp-mosaico-recovery/cmake/mosaico_idf_project.cmake")
 project(iris_internal_budget VERSION 1.0.0)

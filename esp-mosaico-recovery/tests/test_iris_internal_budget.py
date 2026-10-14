@@ -1,6 +1,11 @@
 """Configuration and linker-ledger regressions for the internal-RAM profile."""
 import importlib.util
+import os
 from pathlib import Path
+import shutil
+import subprocess
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests/firmware/iris_internal_budget"
@@ -29,6 +34,50 @@ def test_fixture_preserves_partitions_and_uses_real_ui():
     cmake = (FIXTURE / "CMakeLists.txt").read_text()
     assert 'MOSAICO_TEST_APPLICATION' in cmake
     assert 'target_sources(${app_main}' in cmake
+
+
+@pytest.mark.parametrize("component_layout", [True, False])
+def test_fixture_discovers_application_components(tmp_path, component_layout):
+    cmake = shutil.which("cmake")
+    if cmake is None:
+        pytest.skip("CMake is required to check fixture component discovery")
+    application = tmp_path / "application with spaces"
+    (application / "main").mkdir(parents=True)
+    (application / "main/CMakeLists.txt").write_text("# application entrypoint\n")
+    if component_layout:
+        for name in ("app_display", "app_hello"):
+            component = application / "components" / name
+            component.mkdir(parents=True)
+            (component / "CMakeLists.txt").write_text("# application component\n")
+    fake_idf = tmp_path / "idf"
+    entry = fake_idf / "tools/cmake/project.cmake"
+    entry.parent.mkdir(parents=True)
+    entry.write_text(
+        'file(WRITE "${CMAKE_BINARY_DIR}/component-dirs.txt" "${EXTRA_COMPONENT_DIRS}")\n'
+        'message(FATAL_ERROR "test reached IDF component discovery")\n'
+    )
+    build = tmp_path / "build"
+    result = subprocess.run(
+        [cmake, "-S", str(FIXTURE), "-B", str(build),
+         "-DMOSAICO_TEST_APPLICATION=" + str(application),
+         "-DGSPC_EXECUTABLE=" + str(tmp_path / "unused-gspc")],
+        env=dict(os.environ, IDF_PATH=str(fake_idf)),
+        capture_output=True, text=True, timeout=30,
+    )
+    assert "test reached IDF component discovery" in result.stdout + result.stderr
+    search_paths = [Path(value).resolve() for value in
+                    (build / "component-dirs.txt").read_text().split(";")]
+    # Match IDF's discovery of direct components and directories containing them.
+    found = set()
+    for directory in search_paths:
+        assert directory.is_dir()
+        if (directory / "CMakeLists.txt").is_file():
+            found.add(directory.name)
+        else:
+            found.update(path.parent.name for path in directory.glob("*/CMakeLists.txt"))
+    assert "main" in found
+    if component_layout:
+        assert {"app_display", "app_hello"} <= found
 
 
 def test_map_ledger_counts_only_live_internal_input_sections():
