@@ -39,6 +39,7 @@ struct mock_http {
     size_t expected_body, body_size, size, cursor, readable;
     unsigned char *data;
     bool post, content_type, closed;
+    char locale[6];
     int fault;
 };
 
@@ -298,6 +299,8 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
         strcpy(client->file, "resolve");
         strcpy(client->alias, "resolve");
         env.resolves++;
+        strcpy(client->locale, strstr(config->url, "&locale=zh-CN") ? "zh-CN" : "en");
+        assert(strstr(config->url, "&locale="));
     } else {
         const char *sha = strrchr(config->url, '/') + 1;
         assert(strlen(sha) == 64);
@@ -329,7 +332,8 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
         }
         assert(found);
     }
-    client->fault = env.fault_file && !strcmp(env.fault_file, client->alias) ? env.fault : MOCK_OK;
+    client->fault = env.fault_file && (!strcmp(env.fault_file, client->alias) ||
+        (!strcmp(client->alias, "resolve") && !strcmp(env.fault_file, "display.json"))) ? env.fault : MOCK_OK;
     if (client->fault != MOCK_OK) {
         ++env.fault_hits;
         if (env.fault_limit && env.fault_hits > env.fault_limit)
@@ -340,6 +344,10 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
 }
 esp_err_t esp_http_client_set_header(esp_http_client_handle_t c, const char *key,
                                      const char *value) {
+    if (!strcmp(key, "Accept")) {
+        assert(!strcmp(value, "multipart/related") && !strcmp(c->file, "resolve"));
+        return ESP_OK;
+    }
     assert(!strcmp(key, "Accept-Encoding") && !strcmp(value, "identity"));
     c->content_type = true;
     return ESP_OK;
@@ -359,7 +367,7 @@ int esp_http_client_write(esp_http_client_handle_t c, const char *data, int size
 int64_t esp_http_client_fetch_headers(esp_http_client_handle_t c) {
     char path[4096];
     if (!strcmp(c->file, "resolve"))
-        snprintf(path, sizeof(path), "%s/%s.json", env.fixture_dir, env.release);
+        snprintf(path, sizeof(path), "%s/%s-%s.multipart", env.fixture_dir, env.release, c->locale);
     else
         snprintf(path, sizeof(path), "%s/%s", env.fixture_dir, c->file);
     FILE *f = fopen(path, "rb");
@@ -378,11 +386,21 @@ int64_t esp_http_client_fetch_headers(esp_http_client_handle_t c) {
         snprintf(etag + 1 + i * 2, 3, "%02x", digest[i]);
     etag[65] = '"';
     etag[66] = 0;
+    if (c->fault == MOCK_ETAG) etag[1] = etag[1] == '0' ? '1' : '0';
     esp_http_client_event_t event = {
         .event_id = HTTP_EVENT_ON_HEADER, .header_key = "ETag", .header_value = etag};
     c->event_handler(&event);
     event.header_key = "Content-Type";
-    event.header_value = "application/json";
+    char media[192] = "application/octet-stream";
+    if (!strcmp(c->file, "resolve")) {
+        snprintf(path, sizeof(path), "%s/%s-%s.media", env.fixture_dir, env.release, c->locale);
+        f = fopen(path, "rb");
+        assert(f);
+        size_t n = fread(media, 1, sizeof(media)-1, f);
+        media[n] = 0;
+        fclose(f);
+    }
+    event.header_value = media;
     c->event_handler(&event);
     if (c->fault == MOCK_CORRUPT)
         c->data[0] ^= 1;
@@ -400,16 +418,18 @@ int64_t esp_http_client_get_content_length(esp_http_client_handle_t c) {
     return c->size + (c->fault == MOCK_WRONG_LENGTH ? 1 : 0);
 }
 int esp_http_client_read(esp_http_client_handle_t c, char *data, int size) {
-    if (env.cancel_on_read && !strcmp(env.cancel_on_read, c->alias)) {
+    if (env.cancel_on_read && (!strcmp(env.cancel_on_read, c->alias) ||
+        (!strcmp(c->alias, "resolve") && !strcmp(env.cancel_on_read, "display.json") && c->cursor > c->size / 2))) {
         env.cancel_on_read = NULL;
         assert(factory_ideas_cancel() == ESP_OK);
         env.cancels++;
     }
-    if (c->fault == MOCK_READ_ERROR)
+    if (c->fault == MOCK_READ_ERROR && c->cursor > c->size / 2)
         return -1;
     size_t n = size;
-    if (n > 37)
-        n = 37;
+    size_t limit = env.read_chunk ? env.read_chunk : 37;
+    if (n > limit)
+        n = limit;
     if (n > c->readable - c->cursor)
         n = c->readable - c->cursor;
     memcpy(data, c->data + c->cursor, n);

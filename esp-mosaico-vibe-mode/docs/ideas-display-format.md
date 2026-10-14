@@ -4,7 +4,8 @@
 目录化下载及中英离线切换见[文件发布协议](../../mosaico-tools/docs/ideas-file-release/README.zh-CN.md)。
 
 发布工具为 zh-CN 和 en 分别生成 `device/<locale>/display.json` 及相邻字体和图标。
-设备预览先读所选语言；确认后保存并校验两套资源，完整目录才成为 current。
+设备通过一次 multipart/related 响应取得根清单、固件清单及所选语言的全部展示资源；
+确认后复用缓存，下载另一语言和固件组件，保存并校验完整目录后才成为 current。
 `display.json` 是语言、名称、描述、字体和图标的唯一来源，外层只声明文件路径、
 大小、摘要。固件依赖来自 `firmware/manifest.json` 的原始 Iris 清单。
 
@@ -48,7 +49,7 @@
 ```
 
 - UTF-8、最多 32 KiB；拒绝重复键、未知键、嵌入 NUL、深度超过 8、尾随数据。
-- `text`、`locale`、`icon` 必须与外层 application 及 icon 字段一致；无图标时 `icon` 为 `""`。
+- `text`、`locale`、`icon` 由本文件定义；locale 必须与语言目录一致，引用须匹配根清单声明；无图标时 `icon` 为 `""`。
 - `font` 对应当前语言 `assets` 中的一个字体 basename，不能是 URL 或其他资源。
 - 名称块最大 328×84，描述块最大 416×176；尺寸是排版区域，不是屏幕绝对坐标。
 - `glyphs` 最多 512 条 `[glyph_id, x, baseline_y]`，坐标以该文字块左上角为原点、

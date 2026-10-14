@@ -29,14 +29,14 @@ System Update 清单使用 `esp-iris-system-update/0.2`，基础包 manifest 使
 
 ### Ideas 下载与开机应用（当前源码）
 
-Download Ideas 输入六位应用编号（字符串，保留前导零），点击 **View app** 查询最新发布。
+Download Ideas 输入六位应用编号（字符串，保留前导零），点击 **View app** 查询当前设备的最新兼容发布。
 先展示应用名称、图标、描述、版本与包大小；再次点击 **Download** 才保存到 NAND。
 不注册配对会话，也不后台预取配对码。编号必须由云端永久、唯一地映射到 application ID。
 这部分源码使用下面的新云端契约；现有 Bridge 服务是否实现该契约仍需联调确认。
 
 - **下载**：将固件、清单及展示资源写入 `/nand/ideas/<code>/current/`，不写应用 NOR、
   不切换启动目标、不重启。每个编号只保留一个完整版本，最多 16 个 Ideas。
-- **检查更新**：以已下载的 application ID、release ID 查询最新发布。已是最新版本时直接提示；
+- **检查更新**：以编号和设备能力获取最新兼容发布，再与本地 application ID、release ID 比较。已是最新版本时直接提示；
   有更新时进入同一确认页。“Download latest” 也先展示信息，确认后替换 NAND 当前版本，
   保持 NOR 中原应用及其开机标记。
 - **设为开机应用**：完全离线，从 NAND 重新校验所有文件，然后写 NOR、验证读回、
@@ -47,7 +47,7 @@ Download Ideas 输入六位应用编号（字符串，保留前导零），点�
 - 新包先在 `.incoming` 完整下载并校验，再通过目录重命名替换 `current`；`.previous`
   只用于中断恢复，并在替换完成或下次扫描时删除，不提供历史版本列表。
 
-预览阶段仅获取清单、展示 JSON、字形子集和图标，经大小及 SHA-256 校验后暂存在内存，不创建 `.incoming`，
+预览阶段一次请求取得根清单、固件清单、展示 JSON、字形子集和图标，经大小及 SHA-256 校验后暂存在内存，不创建 `.incoming`，
 不下载应用镜像或分区表。解析出的 release ID、清单和文件路径在确认期间固定；
 确认不会再次查询最新发布，已缓存展示资源直接复用。取消清理预览，迟到响应不能启动下载。
 等待确认期间不占用 NAND 租约或下载任务；重复确认及失效请求编号会被拒绝。
@@ -58,85 +58,34 @@ Download Ideas 输入六位应用编号（字符串，保留前导零），点�
 Vibe Mode 镜像。分区表改变后，普通 USB/TCP OTA 写入须等重启重新加载分区描述；
 Ideas 可继续使用经过验证的新分区表描述重新安装。
 
-#### 云端契约 `mosaico-ideas/download/1`
+#### 云端契约 `mosaico-ideas/device-release/1`
 
-V0.2 尚未正式发布，下载清单以同一个 `/1` 开发契约收敛到自定义展示资源，
-不为开发迭代增加协议版本或保留旧 GSPB 清单兼容分支。正式发布并冻结契约后，
-再为不兼容的结构变更增加 schema 版本。
+完整字段与流程以[文件发布协议](../../../mosaico-tools/docs/ideas-file-release/README.zh-CN.md)
+和[单响应预览格式](../../../mosaico-tools/docs/ideas-file-release/preview-response.zh-CN.md)为准。
+不支持旧 download/1 或 V0.1，不调用 POST resolve。
 
-沿用 `CONFIG_IRIS_FACTORY_BRIDGE_SERVER_URL` 的 HTTPS origin 和
-`CONFIG_IRIS_FACTORY_BRIDGE_BOARD_ID`；语言由 `CONFIG_IRIS_FACTORY_IDEAS_LOCALE`
-指定（默认 `en`）。证书验证开启，不跟随重定向。
+设备使用 CONFIG_IRIS_FACTORY_IDEAS_SERVER_URL 配置的 HTTPS origin，验证 TLS，
+直接 GET `/api/v1/ideas/{code}/manifest.json`，携带 profile、chip_id、flash_size、
+recovery_version、当前系统 locale，以及 `Accept: multipart/related`。服务器一次
+返回最新兼容发布的根清单、固件清单及当前语言 display、字体、图标的原始字节。
+预览阶段没有额外文件 GET。服务器仍提供原始根 JSON 表示供诊断和固定发布读取。
 
-`POST /api/v1/ideas/resolve` 请求示例：
+设备有界流式解析，HTTP ETag 校验整个 multipart 响应；单独计算根清单原始字节
+摘要，并按引用校验每个部分的长度与 SHA-256。根清单最多 64 KiB，固件清单
+3072 字节，当前语言资源合计 1 MiB，整个响应最多 1121280 字节。缺失、重复、
+错误路径/语言/长度、截断或摘要不符直接拒绝，不追加请求修补。
 
-```json
-{
-  "code": "042731",
-  "board_id": "esp-mosaico",
-  "locale": "zh-CN",
-  "recovery_abi": 2,
-  "layout_version": 5,
-  "download_schema": "mosaico-ideas/download/1",
-  "display_schema": "mosaico-ideas/display/1",
-  "font_format": "MIFF/1",
-  "flash_size": 16777216,
-  "application_id": "weather-station",
-  "current_release_id": "weather-20261012-1"
-}
-```
-
-首次下载不发送后两个字段。成功始终返回 HTTP 200 和**完整最新发布描述**；
-无此编号返回 404。设备按 release ID 判断更新，不按版本字符串排序。
-云端按 board、ABI、layout、Flash 容量过滤发布，选择当前语言或明确的回退语言。
-响应结构如下（SHA-256 字段应填写实际 64 位小写十六进制摘要）：
-
-```json
-{
-  "schema": "mosaico-ideas/download/1",
-  "application": {
-    "code": "042731", "id": "weather-station",
-    "release_id": "weather-20261012-2", "version": "1.2.0",
-    "name": "天气站", "description": "今日天气与预报", "locale": "zh-CN"
-  },
-  "system_manifest": {
-    "schema": "esp-iris-system-update/0.2", "release": "1.2.0",
-    "target": {"chip_id": 32, "flash_size": 16777216},
-    "target_layout_sha256": "<partition-table SHA-256>",
-    "components": [
-      {"id": 1, "kind": "partition_table", "target_offset": 32768,
-       "size": 4096, "sha256": "<partition-table SHA-256>", "file": "partition-table.bin"},
-      {"id": 2, "kind": "application", "target_offset": 2162688,
-       "size": 1048576, "sha256": "<application SHA-256>", "file": "app.bin"}
-    ]
-  },
-  "files": [
-    {"name": "partition-table.bin", "path": "/api/v1/ideas/files/table-blob", "size": 4096, "sha256": "<partition-table SHA-256>"},
-    {"name": "app.bin", "path": "/api/v1/ideas/files/app-blob", "size": 1048576, "sha256": "<application SHA-256>"},
-    {"name": "display.json", "path": "/api/v1/ideas/files/display-blob", "size": 2048, "sha256": "<display SHA-256>"},
-    {"name": "title.mif", "path": "/api/v1/ideas/files/title-blob", "size": 3072, "sha256": "<title font SHA-256>"},
-    {"name": "body.mif", "path": "/api/v1/ideas/files/body-blob", "size": 6144, "sha256": "<body font SHA-256>"},
-    {"name": "icon.png", "path": "/api/v1/ideas/files/icon-blob", "size": 6105, "sha256": "<icon SHA-256>"}
-  ],
-  "presentation": "display.json", "icon": "icon.png",
-  "fonts": ["title.mif", "body.mif"]
-}
-```
-
-`GET files[].path` 返回不可变原始文件。只允许同 origin 的
-`/api/v1/ideas/files/<单段标识>`，不接受外部 URL、查询参数或路径穿越。
-固件文件名、长度和摘要必须与 `system_manifest.components` 一一对应；分区表必须
-是第一个组件，且只能有一个 `0x210000` 应用。额外数据组件仍受 Recovery Flash
-策略验证。描述最多 16 KiB，内嵌 system manifest 最多 3 KiB，最多 8 个固件组件、
-12 个文件，总计最多 32 MiB。未被固件或展示字段引用的文件会被拒绝。
+确认后复用预览缓存，仅通过 `/api/v1/ideas/files/{sha256}` 获取固件组件和另一
+语言资源。根清单落盘保持原始 JSON，固件位于 firmware/，展示位于 device/zh-CN/
+与 device/en/。完整集合最多 32 MiB/32 文件，全部通过才提交 current。
 
 #### 固定文字、图标及字体子集
 
-`presentation` 指向 `mosaico-ideas/display/1` JSON（最多 32 KiB），`fonts`
-列出它直接引用的 MIFF/1 字形文件（最多两个），`icon` 指向可选 PNG（最多
-64 KiB、96×96）。全部展示资源合计不超过 1 MiB；所有引用都必须在 `files`
-中声明、唯一归属并通过长度与 SHA-256 校验。没有递归依赖、远端字体 URL、
-GSP 场景、组件名或动作。JSON 中的名称、描述、语言和图标引用必须与下载描述一致。
+各语言 display.json 使用 `mosaico-ideas/display/1`（最多 32 KiB），直接引用最多
+两个 MIFF 字形文件和可选图标。图标固定为 64×64、8-bit RGBA、非交错静态 PNG，
+最多 64 KiB。每语言展示集合最多 1 MiB，双语合计最多 2 MiB。资源须在根清单
+该语言的 presentations 声明中唯一出现，按目录解析 basename，并通过内容校验。
+名称、描述、语言和图标引用只由 display 定义，没有外层重复文案。
 详见[自定义展示资源格式](../../docs/ideas-display-format.md)。
 
 发布端进行排版、换行和字形子集化，保存字形 ID、灰度位图及每个字形的位置，

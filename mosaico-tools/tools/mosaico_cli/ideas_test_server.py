@@ -22,6 +22,7 @@ import uuid
 
 from .ideas_content import ARCHIVE_BYTES, ContentError, digest, encoded, require as content_require, strict_json, version_tuple
 from .ideas_test_store import Store
+from .ideas_preview import preview_response
 
 def require(condition, message, path=None, *, code="INVALID_REQUEST"):
     content_require(condition, message, path, code=code)
@@ -31,7 +32,7 @@ ERROR_STATUS = {"AUTH_REQUIRED":401, "FORBIDDEN":403, "APPLICATION_NOT_FOUND":40
     "UPLOAD_NOT_FOUND":404, "FILE_NOT_FOUND":404, "NO_COMPATIBLE_RELEASE":409,
     "IDEMPOTENCY_CONFLICT":409, "PROJECT_VERSION_CONFLICT":409, "UPLOAD_IN_PROGRESS":409,
     "UPLOAD_EXPIRED":410, "ARCHIVE_TOO_LARGE":413, "PACKAGE_TOO_LARGE":413,
-    "UNSUPPORTED_MEDIA_TYPE":415, "ARCHIVE_HASH_MISMATCH":422,
+    "UNSUPPORTED_MEDIA_TYPE":415, "NOT_ACCEPTABLE":406, "ARCHIVE_HASH_MISMATCH":422,
     "FILE_SIZE_MISMATCH":422, "FILE_HASH_MISMATCH":422, "INVALID_PRESENTATION":422,
     "INVALID_FIRMWARE":422, "MISSING_FILES":422, "SERVICE_UNAVAILABLE":503}
 
@@ -82,13 +83,15 @@ class Handler(BaseHTTPRequestHandler):
         print(json.dumps({"event":"http", "method":self.command,
                           "path":urlsplit(self.path).path, "message":fmt % args}), flush=True)
 
-    def send_bytes(self, status, data, *, media="application/json", cache="no-store", etag=None):
+    def send_bytes(self, status, data, *, media="application/json", cache="no-store", etag=None, vary=None):
         self.send_response(status)
         self.send_header("Content-Type", media)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", cache)
         if etag:
             self.send_header("ETag", '"' + etag + '"')
+        if vary:
+            self.send_header("Vary", vary)
         if status in (429, 503) or status == 409 and b"UPLOAD_IN_PROGRESS" in data:
             self.send_header("Retry-After", "2")
         self.send_header("Connection", "close")
@@ -128,12 +131,24 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/api/v1/ideas/([0-9]{6})(?:/releases/([A-Za-z0-9][A-Za-z0-9._-]{0,63}))?/manifest.json", parsed.path)
             if match:
                 capabilities = None
+                locale = None
+                require(len(self.headers.get_all("Accept", [])) <= 1, "Duplicate Accept header")
+                accept = self.headers.get("Accept", "application/json")
+                require(accept in ("application/json", "multipart/related", "*/*"),
+                        "Unsupported manifest representation", code="NOT_ACCEPTABLE")
                 if match[2]:
                     require(not parsed.query, "Fixed release requests cannot select another version")
+                    require(accept != "multipart/related", "Fixed release returns the raw JSON manifest")
                 else:
                     fields = parse_qs(parsed.query, keep_blank_values=True, max_num_fields=8)
-                    require(set(fields) == {"profile", "chip_id", "flash_size", "recovery_version"}
+                    expected = {"profile", "chip_id", "flash_size", "recovery_version"}
+                    if accept == "multipart/related":
+                        expected.add("locale")
+                    require(set(fields) == expected
                             and all(len(v) == 1 and v[0] for v in fields.values()), "Missing, duplicate or unknown capability parameter")
+                    if accept == "multipart/related":
+                        locale = fields.pop("locale")[0]
+                        require(locale in ("zh-CN", "en"), "Invalid preview locale")
                     capabilities = {k:v[0] for k,v in fields.items()}
                     for name in ("chip_id", "flash_size"):
                         require(re.fullmatch(r"[0-9]{1,10}", capabilities[name]) is not None, "Invalid device capability")
@@ -142,7 +157,12 @@ class Handler(BaseHTTPRequestHandler):
                             and capabilities["flash_size"] % 4096 == 0, "Invalid device hardware capability")
                     version_tuple(capabilities["recovery_version"])
                 raw, sha = self.server.store.manifest(match[1], capabilities, match[2])
-                self.send_bytes(200, raw, etag=sha, cache="public, max-age=31536000, immutable" if match[2] else "no-store")
+                media = "application/json"
+                if locale:
+                    raw, media = preview_response(raw, locale, lambda sha: self.server.store.blob(sha).read_bytes())
+                    sha = digest(raw)
+                self.send_bytes(200, raw, media=media, etag=sha, vary="Accept",
+                                cache="public, max-age=31536000, immutable" if match[2] else "no-store")
                 return
             match = re.fullmatch(r"/api/v1/ideas/files/([0-9a-f]{64})", parsed.path)
             if match:

@@ -78,7 +78,9 @@ applications 序列划分编号区间，保持已分配编号不变。
 2. 使用消费工作区 mosaico.py 的既有部署方式安装候选固件；ROM Download Mode
    使用 recover。核对硬件 MAC、Device ID、Boot ID、候选固件摘要与 ABI 2/layout 5。
    本流程不发布 Vibe Mode 自更新服务，也不替换仓库内已审核 bundle。
-3. 输入发布 code。预览应显示当前系统语言的名称、描述、图标；取消不得创建
+3. 输入发布 code。网络日志应只有一次带 locale 和 Accept: multipart/related 的 manifest GET，
+   响应同时包含根清单、固件清单、当前语言 display/字体/图标；预览前不得有文件 GET。
+   预览应显示当前系统语言的名称、描述、图标、版本与大小；取消不得创建
    新目录。确认后下载同一固定 release 的固件和两套语言资源。
 4. 检查 /nand/ideas/CODE/current 下的 manifest.json、firmware/ 和 device/zh-CN、
    device/en；原始字节、大小和摘要逐项等于服务器快照。提交日志 .roots 位于
@@ -228,3 +230,15 @@ CMake 只向 `ideas_worker.c` 注入测试头：使用同样的 16 KiB 栈大小
 适配入口（LTO 构建需显式保留）。随后在下载、双语切换和重复安装中检查 `panel_io_spi_tx_color`、`TE ticket`、
 `Display render failed` 的错误记录。模拟器不包含真实 LCD DMA 分配，不能替代
 这一项。判断当前运行需按启动范围截取日志，Gateway 快照可能保留旧候选的错误。
+
+
+## 单请求预览回归
+
+传输定义见 [单响应预览格式](preview-response.zh-CN.md)。设备端 ideas_multipart.c
+按部分流式填充 PSRAM 缓存，校验整个响应 ETag 和清单引用的各文件 SHA-256。
+确认后只下载固件组件和另一语言，根清单以原始 JSON 字节保存。
+
+协议主机测试用独立 MIME 解析器检查真实 HTTP 响应的中文/英文闭包、原始字节、
+摘要、发布隔离和参数拒绝。设备 worker 测试覆盖请求数量、单字节分片、部分响应
+重试、取消、缺失/重复/错误语言/路径/长度/摘要、超限头、尾随内容和离线双语。
+同一次正常预览的 manifest 请求计数为 1，文件请求计数为 0。

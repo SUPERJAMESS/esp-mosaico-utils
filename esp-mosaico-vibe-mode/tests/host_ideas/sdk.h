@@ -132,12 +132,13 @@ typedef struct {
         MOCK_REDIRECT,
         MOCK_READ_ERROR,
         MOCK_WRONG_LENGTH,
-        MOCK_SERVICE_UNAVAILABLE
+        MOCK_SERVICE_UNAVAILABLE,
+        MOCK_ETAG
     } fault;
     bool network, lease, storage_busy, fail_send, fail_commit, deny_new_tasks;
     unsigned fail_init_step, tasks_created, tasks_entered, jobs_finished, mutex_live, queue_live;
     unsigned writes, resolves, assets, firmware, http_live, installs, commits, restarts;
-    unsigned cancels, requests_with_identity, fault_limit, fault_hits, firmware_reads;
+    unsigned cancels, requests_with_identity, fault_limit, fault_hits, firmware_reads, read_chunk;
     uint64_t flash_read_bytes;
     char flash_version;
     void (*observe)(void);

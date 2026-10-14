@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "esp_random.h"
 #include "ideas_internal.h"
+#include "ideas_multipart.h"
 #include <time.h>
 
 /* Requests run on the single Ideas worker. Header state never crosses a
  * request. */
 static struct {
-    char etag[68], retry_after[96];
-    bool invalid, encoded, json;
-    unsigned etags;
+    char etag[68], retry_after[96], media[192];
+    bool invalid, encoded;
+    unsigned etags, media_count;
 } headers;
 static esp_err_t header_event(esp_http_client_event_t *event) {
     if (event->event_id != HTTP_EVENT_ON_HEADER)
@@ -20,10 +21,12 @@ static esp_err_t header_event(esp_http_client_event_t *event) {
             strcpy(headers.etag, event->header_value);
     } else if (!strcasecmp(event->header_key, "Content-Encoding"))
         headers.encoded |= strcasecmp(event->header_value, "identity") != 0;
-    else if (!strcasecmp(event->header_key, "Content-Type"))
-        headers.json = !strcasecmp(event->header_value, "application/json") ||
-                       !strncasecmp(event->header_value, "application/json;", 17);
-    else if (!strcasecmp(event->header_key, "Retry-After"))
+    else if (!strcasecmp(event->header_key, "Content-Type")) {
+        if (++headers.media_count != 1 || strlen(event->header_value) >= sizeof(headers.media))
+            headers.invalid = true;
+        else
+            strcpy(headers.media, event->header_value);
+    } else if (!strcasecmp(event->header_key, "Retry-After"))
         snprintf(headers.retry_after, sizeof(headers.retry_after), "%s", event->header_value);
     return ESP_OK;
 }
@@ -96,7 +99,7 @@ static void progress(ideas_context_t *ctx, int64_t bytes) {
 }
 static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *path, void *memory,
                             size_t capacity, size_t *size, const char *destination, bool root,
-                            bool manifest) {
+                            bool manifest, ideas_multipart_t *preview) {
     const char *origin = CONFIG_IRIS_FACTORY_IDEAS_SERVER_URL;
     const char *host = origin + (strlen(origin) >= 8 ? 8 : 0);
     if (strncmp(origin, "https://", 8) || !*host || strpbrk(host, "/?#@\r\n"))
@@ -107,12 +110,13 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
         return ESP_ERR_INVALID_SIZE;
     factory_io_metrics_t metrics = {.started = factory_io_now()};
     int64_t deadline = esp_timer_get_time() + (manifest ? 30000000LL : 600000000LL);
-    uint8_t *block = destination ? malloc(IO_BYTES) : NULL;
-    if (destination && !block)
+    uint8_t *block = destination || preview ? malloc(IO_BYTES) : NULL;
+    if ((destination || preview) && !block)
         return ESP_ERR_NO_MEM;
     esp_err_t err = ESP_FAIL;
     for (unsigned attempt = 0; attempt < 4; ++attempt) {
         size_t used = 0;
+        psa_hash_operation_t hash = PSA_HASH_OPERATION_INIT;
         bool retry = false;
         FILE *file = NULL;
         if (cancelled(ctx, request)) {
@@ -142,6 +146,8 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
             break;
         }
         esp_http_client_set_header(client, "Accept-Encoding", "identity");
+        if (preview)
+            esp_http_client_set_header(client, "Accept", "multipart/related");
         err = esp_http_client_open(client, 0);
         if (err != ESP_OK)
             retry = true;
@@ -158,13 +164,20 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
                 err = status == 404 ? ESP_ERR_NOT_FOUND : ESP_FAIL;
                 retry = status == 429 || status == 502 || status == 503 || status == 504;
             } else if (headers.invalid || headers.encoded ||
-                       (root && (!headers.json || strlen(headers.etag) != 66 ||
+                       (root && (headers.media_count != 1 || strlen(headers.etag) != 66 ||
                                  headers.etag[0] != '"' || headers.etag[65] != '"')))
                 err = ESP_ERR_INVALID_ARG;
         }
         int64_t length = esp_http_client_get_content_length(client);
         if (err == ESP_OK && length >= 0 && (root ? length > capacity : length != capacity))
             err = ESP_ERR_INVALID_SIZE;
+        if (err == ESP_OK && preview) {
+            err = ideas_multipart_begin(preview, preview->pending, preview->code, preview->language,
+                                        headers.media);
+            if (err == ESP_OK && (psa_crypto_init() != PSA_SUCCESS ||
+                                  psa_hash_setup(&hash, PSA_ALG_SHA_256) != PSA_SUCCESS))
+                err = ESP_FAIL;
+        }
         if (err == ESP_OK && destination) {
             file = fopen(destination, "wb");
             if (!file)
@@ -184,7 +197,9 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
             char extra;
             size_t room = capacity - used;
             int want = room > IO_BYTES ? IO_BYTES : room ? (int)room : 1;
-            char *target = !room ? &extra : destination ? (char *)block : (char *)memory + used;
+            char *target = !room                      ? &extra
+                           : (destination || preview) ? (char *)block
+                                                      : (char *)memory + used;
             int64_t started = factory_io_now();
             int count = esp_http_client_read(client, target, want);
             metrics.read += factory_io_now() - started;
@@ -209,13 +224,19 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
                     break;
                 }
             }
+            if (preview) {
+                if (psa_hash_update(&hash, (uint8_t *)target, count) != PSA_SUCCESS)
+                    err = ESP_FAIL;
+                else
+                    err = ideas_multipart_feed(preview, target, count);
+            }
             used += count;
             if (file)
                 progress(ctx, count);
             vTaskDelay(1);
         }
-        if (err == ESP_OK &&
-            (!esp_http_client_is_complete_data_received(client) || (!root && used != capacity))) {
+        if (err == ESP_OK && (!esp_http_client_is_complete_data_received(client) ||
+                              (length >= 0 && used != length) || (!root && used != capacity))) {
             err = ESP_ERR_TIMEOUT;
             retry = true; /* incomplete network transfer */
         }
@@ -231,11 +252,21 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
             }
             metrics.sync += factory_io_now() - started;
         }
-        if (err == ESP_OK && root) {
+        if (err == ESP_OK && preview) {
+            uint8_t digest[32];
+            size_t n = 0;
             char sha[65];
-            if (!ideas_hash_data(memory, used, sha) || memcmp(sha, headers.etag + 1, 64))
+            if (!ideas_multipart_complete(preview))
+                err = ESP_ERR_INVALID_ARG;
+            else if (psa_hash_finish(&hash, digest, sizeof(digest), &n) != PSA_SUCCESS || n != 32)
+                err = ESP_FAIL;
+            else {
+                ideas_hex(digest, sha);
+                if (memcmp(sha, headers.etag + 1, 64))
                 err = ESP_ERR_INVALID_CRC;
         }
+        }
+        psa_hash_abort(&hash);
         esp_http_client_close(client);
         esp_http_client_cleanup(client);
         if (err == ESP_OK) {
@@ -259,14 +290,13 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
         while (!cancelled(ctx, request) && esp_timer_get_time() < until)
             vTaskDelay(pdMS_TO_TICKS(20));
     }
-    factory_io_report("http", path, &metrics, block ? block : memory, block ? IO_BYTES : capacity, err);
+    factory_io_report("http", path, &metrics, block ? block : memory, block ? IO_BYTES : capacity,
+                      err);
     free(block);
     return err;
 }
 
-esp_err_t ideas_resolve(ideas_context_t *ctx, const job_t *job, const ideas_package_t *local,
-                        char **json, size_t *size) {
-    (void)local;
+esp_err_t ideas_fetch_preview(ideas_context_t *ctx, const job_t *job, pending_t *pending) {
     factory_network_snapshot_t network;
     if (factory_network_get_snapshot(&network) != ESP_OK ||
         network.state != FACTORY_NETWORK_CONNECTED)
@@ -291,27 +321,18 @@ esp_err_t ideas_resolve(ideas_context_t *ctx, const job_t *job, const ideas_pack
         }
     }
     version[used] = 0;
+    unsigned language = factory_locale_get();
     char path[256];
     int length = snprintf(path, sizeof(path),
                           "/api/v1/ideas/%s/"
                           "manifest.json?profile=esp-mosaico%%2Fv2&chip_id=32&"
-                          "flash_size=%lu&recovery_version=%s",
-                          job->code, (unsigned long)flash_size, version);
+                          "flash_size=%lu&recovery_version=%s&locale=%s",
+                          job->code, (unsigned long)flash_size, version, language ? "en" : "zh-CN");
     if (length < 0 || length >= sizeof(path))
         return ESP_ERR_INVALID_SIZE;
-    char *buffer = malloc(IDEAS_DESCRIPTOR_BYTES + 1);
-    if (!buffer)
-        return ESP_ERR_NO_MEM;
-    err = fetch_http(ctx, job->request_id, path, buffer, IDEAS_DESCRIPTOR_BYTES, &used, NULL, true,
-                     true);
-    if (err != ESP_OK) {
-        free(buffer);
-        return err;
-    }
-    buffer[used] = 0;
-    *json = buffer;
-    *size = used;
-    return ESP_OK;
+    ideas_multipart_t preview = {.pending = pending, .code = job->code, .language = language};
+    return fetch_http(ctx, job->request_id, path, NULL, IDEAS_PREVIEW_BYTES, NULL, NULL, true, true,
+                      &preview);
 }
 
 esp_err_t ideas_fetch_file(const ideas_file_t *file, const char *path, void *argument) {
@@ -338,7 +359,7 @@ esp_err_t ideas_fetch_file(const ideas_file_t *file, const char *path, void *arg
         return ok ? ESP_OK : ESP_FAIL;
     }
     return fetch_http(ctx, 0, file->path, NULL, file->size, NULL, path, false,
-                      !strcmp(file->name, "firmware/manifest.json"));
+                      !strcmp(file->name, "firmware/manifest.json"), NULL);
 }
 
 esp_err_t ideas_fetch_asset(ideas_context_t *ctx, const job_t *job, pending_t *pending,
@@ -368,7 +389,7 @@ esp_err_t ideas_fetch_asset(ideas_context_t *ctx, const job_t *job, pending_t *p
         fclose(f);
     } else {
         err = fetch_http(ctx, job->request_id, file->path, asset->data, file->size, &used, NULL,
-                         false, !strcmp(file->name, "firmware/manifest.json"));
+                         false, !strcmp(file->name, "firmware/manifest.json"), NULL);
     }
     uint8_t digest[32];
     size_t size = 0;

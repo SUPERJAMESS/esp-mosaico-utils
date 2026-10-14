@@ -158,10 +158,13 @@ int main(int argc, char **argv) {
         assert(s.terminal && !s.failed && s.phase == IDEAS_PHASE_COMPLETE);
         assert(phases == ((1U << (IDEAS_PHASE_COMPLETE + 1)) - 2));
         assert(verify_bytes == s.total && verify_samples >= s.file_count);
-    } else if (!strcmp(scenario, "preview")) {
+    } else if (!strcmp(scenario, "preview") || !strcmp(scenario, "preview-zh") ||
+               !strcmp(scenario, "preview-single-byte")) {
+        if (!strcmp(scenario, "preview-zh")) assert(factory_locale_set(0) == ESP_OK);
+        if (!strcmp(scenario, "preview-single-byte")) env->read_chunk = 1;
         uint32_t id = preview();
         copy_preview(id);
-        assert(env->resolves == 1 && env->assets == 4 && !env->firmware && !env->writes);
+        assert(env->resolves == 1 && env->assets == 0 && !env->firmware && !env->writes);
         assert(factory_ideas_request(IDEAS_INSTALL, code) == ESP_ERR_INVALID_STATE);
         assert(factory_ideas_confirm(id + 1, true) == ESP_ERR_INVALID_STATE);
         dismiss();
@@ -181,7 +184,7 @@ int main(int argc, char **argv) {
         factory_ideas_snapshot_t s = snapshot();
         assert(!s.preview_ready && !s.resolving && !s.preview_id && !s.terminal);
         assert(!env->writes && !env->firmware);
-        assert(env->assets == (!strcmp(scenario, "cancel-asset") ? 2 : 0));
+        assert(env->assets == 0);
         assert(factory_ideas_confirm(id, true) == ESP_ERR_INVALID_STATE);
         assert(env->cancels == (!strcmp(scenario, "cancel-queued") ? 0 : 1));
         preview();
@@ -192,12 +195,12 @@ int main(int argc, char **argv) {
         confirm(id);
         assert(snapshot().terminal && !snapshot().failed);
         library("1.0");
-        assert(env->resolves == 1 && env->assets == 7 && env->firmware == 2);
+        assert(env->resolves == 1 && env->assets == 3 && env->firmware == 2);
         assert(!env->installs && !env->commits && !env->restarts);
         env->release = "v1";
         run(IDEAS_CHECK);
         assert(snapshot().terminal && !snapshot().failed && !snapshot().preview_ready);
-        assert(env->assets == 8 && env->requests_with_identity == 0);
+        assert(env->assets == 3 && env->requests_with_identity == 0);
         id = preview();
         assert(snapshot().already_downloaded);
         unsigned writes = env->writes;
@@ -258,7 +261,9 @@ int main(int argc, char **argv) {
             env->release = bad;
         else {
             env->fault_file = "display.json";
-            if (!strcmp(bad, "hash"))
+            if (!strcmp(bad, "etag"))
+                env->fault = MOCK_ETAG;
+            else if (!strcmp(bad, "hash"))
                 env->fault = MOCK_CORRUPT;
             else if (!strcmp(bad, "truncated"))
                 env->fault = MOCK_TRUNCATE;

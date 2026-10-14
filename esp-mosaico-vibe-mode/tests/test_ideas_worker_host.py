@@ -1,7 +1,7 @@
 """Run the real Ideas service against immutable releases and a temporary NAND.
 
 No published Idea, network connection, device or consuming workspace is needed.
-Only SDK and adjacent component boundaries are faked; all nine app_ideas source
+Only SDK and adjacent component boundaries are faked; all app_ideas source
 files compile separately and scenarios call its public service interface.
 """
 import hashlib
@@ -19,19 +19,22 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENTS = ROOT / "firmware/vibe-mode/components"
 FIXTURE = ROOT / "tests/host_ideas"
+BAD_MULTIPART = ["missing", "duplicate", "path", "locale", "length", "oversize", "hash", "epilogue", "header", "media"]
 SCENARIOS = [
     "download-stages", "retry-manifest", "retry-read", "retry-limit", "bilingual-offline",
-    "preview", "cancel-queued", "cancel-resolve", "cancel-asset", "fixed-release",
+    "preview", "preview-zh", "preview-single-byte", "cancel-queued", "cancel-resolve", "cancel-asset", "fixed-release",
     "queue-failure", "init-retry", "worker-reuse", "worker-handoff", "reject-bad-font", "reject-bad-display", "reject-bad-icon",
-    "reject-hash", "reject-truncated", "reject-missing", "reject-redirect",
+    "reject-hash", "reject-etag", "reject-truncated", "reject-missing", "reject-redirect",
     "reject-read-error", "reject-wrong-length", "reject-unknown-code", "reject-resolve-truncated",
     "reject-bad-descriptor", "reject-bad-flash", "rollback-hash", "rollback-truncated",
     "offline", "install-corrupt", "install-commit-failure", "boot-identity",
     "interrupted-generation", "admission", "repair-current", "io-budget",
-]
+] + ["reject-bad-multipart-" + kind for kind in BAD_MULTIPART]
 
 
 sys.path.insert(0, str(ROOT / "tests/fixtures"))
+sys.path.insert(0, str(ROOT.parent / "mosaico-tools/tools"))
+from mosaico_cli.ideas_preview import preview_response
 from ideas_release import descriptor, encoded, ref, png
 
 
@@ -57,7 +60,29 @@ def write_release(directory, release, version="1.0"):
         alias = "inner.json" if path == "firmware/manifest.json" else path.split("/")[-1]
         index[sha] = dict(alias=alias, firmware=path.startswith("firmware/") and path != "firmware/manifest.json")
     (directory / (release + "-index.json")).write_bytes(encoded(index))
-    (directory / (release + ".json")).write_bytes(b"{broken" if release == "bad-descriptor" else encoded(document))
+    (directory / (release + ".json")).write_bytes(encoded(document))
+    blobs = {hashlib.sha256(data).hexdigest(): data for data in payloads.values()}
+    for locale in ("en", "zh-CN"):
+        wire, media = preview_response(encoded(document), locale, blobs.__getitem__)
+        if release == "bad-descriptor":
+            wire = wire.replace(encoded(document), b"!" + encoded(document)[1:], 1)
+        if release.startswith("bad-multipart-"):
+            kind = release.removeprefix("bad-multipart-")
+            marker = b"--" + media.split('boundary="')[1][:-1].encode()
+            pieces = wire.split(marker)
+            if kind == "missing": wire = marker.join(pieces[:-2] + pieces[-1:])
+            elif kind == "duplicate": wire = marker.join(pieces[:2] + pieces[1:])
+            elif kind == "path": wire = wire.replace(b"Content-Location: firmware/", b"Content-Location: ../", 1)
+            elif kind == "locale": wire = wire.replace(f"Content-Location: device/{locale}/".encode(), b"Content-Location: device/fr/", 1)
+            elif kind == "length": wire = wire.replace(f"Content-Length: {len(encoded(document))}".encode(), f"Content-Length: {len(encoded(document))+1}".encode(), 1)
+            elif kind == "oversize": wire = wire.replace(f"Content-Length: {len(encoded(document))}".encode(), b"Content-Length: 65537", 1)
+            elif kind == "hash": wire = wire.replace(payloads["firmware/manifest.json"], payloads["firmware/manifest.json"].replace(b'"release":"1.0"', b'"release":"9.0"'), 1)
+            elif kind == "epilogue": wire += b"unexpected"
+            elif kind == "header": wire = wire.replace(b"Content-Type: application/json", b"Content-Type: application/json\r\nContent-Type: application/json", 1)
+            elif kind == "media": media = media.replace('type="application/json"', 'type="application/json"; type="application/json"')
+        (directory / f"{release}-{locale}.multipart").write_bytes(wire)
+        (directory / f"{release}-{locale}.media").write_text(media)
+
 
 
 @pytest.fixture(scope="module")
@@ -95,7 +120,7 @@ def worker(tmp_path_factory):
     assert result.returncode == 0, result.stdout + result.stderr
     fixtures = build / "releases"
     fixtures.mkdir()
-    for release in ("v1", "v2", "bad-font", "bad-display", "bad-icon", "bad-descriptor", "bad-flash"):
+    for release in ["v1", "v2", "bad-font", "bad-display", "bad-icon", "bad-descriptor", "bad-flash", *["bad-multipart-" + k for k in BAD_MULTIPART]]:
         write_release(fixtures, release, "2.0" if release == "v2" else "1.0")
     return executable, fixtures
 

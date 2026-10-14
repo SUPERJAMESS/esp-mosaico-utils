@@ -63,8 +63,16 @@ paths:
         - {in: query, name: chip_id, required: true, schema: {type: integer, minimum: 0}}
         - {in: query, name: flash_size, required: true, schema: {type: integer, minimum: 1}}
         - {in: query, name: recovery_version, required: true, schema: {type: string, minLength: 1}}
+        - in: header
+          name: Accept
+          schema: {type: string, enum: [multipart/related, application/json, '*/*'], default: application/json}
+          description: Devices request multipart/related to obtain a complete preview in one response. JSON is the raw manifest representation for inspection.
+        - in: query
+          name: locale
+          schema: {type: string, enum: [zh-CN, en]}
+          description: Required exactly once for multipart/related; forbidden for JSON. Selects preview assets, never the release or root bytes.
       responses:
-        '200': {$ref: '#/components/responses/Manifest'}
+        '200': {$ref: '#/components/responses/PreviewOrManifest'}
         '409':
           description: NO_COMPATIBLE_RELEASE; no visible release satisfies capabilities.
           content:
@@ -103,6 +111,17 @@ components:
       required: true
       schema: {type: string, pattern: '^[0-9]{6}$'}
   responses:
+    PreviewOrManifest:
+      description: One snapshot. Multipart contains exact root, firmware manifest, selected display and all selected assets in declared order (4-6 parts); no firmware binary. Root is at most 64 KiB, firmware manifest 3072 bytes, locale resources 1 MiB, framing 4096 bytes, whole body 1121280 bytes. See preview-response.zh-CN.md for the bounded MIME profile. No fallback file GET for preview.
+      headers:
+        ETag: {schema: {type: string}, description: Required strong quoted SHA-256 of the entire response body including multipart framing. Never use a multipart ETag as the root manifest digest.}
+        Cache-Control: {schema: {const: no-store}}
+        Vary: {schema: {const: Accept}}
+      content:
+        multipart/related:
+          schema: {type: string, format: binary}
+        application/json:
+          schema: {$ref: download-manifest.schema.json}
     Manifest:
       description: Raw device manifest, never an envelope. Latest is no-store; fixed releases immutable. No 304. Unknown or duplicate query parameters rejected.
       headers:

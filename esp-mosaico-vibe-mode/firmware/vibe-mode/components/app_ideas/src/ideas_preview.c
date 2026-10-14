@@ -130,15 +130,8 @@ esp_err_t ideas_prepare_download(ideas_context_t *ctx, job_t *job) {
     if (err == ESP_OK && ideas_cancelled(ctx, job->request_id))
         err = ESP_ERR_INVALID_STATE;
     if (err == ESP_OK)
-        err = ideas_resolve(ctx, job, existing == ESP_OK ? local : NULL, &pending->json,
-                            &pending->json_size);
+        err = ideas_fetch_preview(ctx, job, pending);
     ideas_package_t *remote = &pending->package;
-    if (err == ESP_OK)
-        err = ideas_package_parse(pending->json, pending->json_size, job->code, remote);
-    if (err == ESP_OK)
-        err = ideas_fetch_asset(ctx, job, pending, 0, false);
-    if (err == ESP_OK)
-        err = ideas_package_firmware(remote, pending->assets[0].data, pending->assets[0].size);
     if (err == ESP_OK && !factory_system_update_recovery_supports(remote->minimum_recovery_version))
         err = ESP_ERR_INVALID_VERSION;
     uint32_t flash_size = 0;

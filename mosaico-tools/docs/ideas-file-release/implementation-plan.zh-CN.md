@@ -112,11 +112,11 @@ ESP-Iris 继续负责通用 irisfw 解析和安装契约，工具复用公共主
 
 ### 第六批 直接获取 manifest 与下载确认
 
-修改 factory_ideas.c，首个请求直接 GET /api/v1/ideas/{code}/manifest.json，附带设备实值 profile/chip_id/flash_size/recovery_version。服务端返回最新兼容发布；设备读取并校验强 ETag、响应原始字节和容量，验证根清单后按摘要获取内层清单、当前语言展示及后续文件。新通路不得调用 resolve 或获取临时下载 URL。
+修改 factory_ideas.c，首个请求直接 GET /api/v1/ideas/{code}/manifest.json，附带设备实值 profile/chip_id/flash_size/recovery_version、locale 和 Accept: multipart/related。服务端一次返回最新兼容发布的根清单、固件清单和当前语言完整展示资源；设备有界流式解析、验证整体 ETag 与逐文件长度/摘要，不追加预览 GET，确认下载后才获取剩余文件。新通路不得调用 resolve 或获取临时下载 URL。
 
 预览不写 NAND、不下载固件镜像。固定 release_id、根摘要和请求代号后等待用户；确认时复用已验证资源并获取另一语言及组件，取消或过期响应不能触发写入。全部内容通过后提交目录；下载成功不修改 NOR、不重启。
 
-通过条件：抓取 HTTP 请求序列证明第一步即带能力 GET 并直接返回完整 manifest；最新发布不兼容时选中较旧兼容发布，无兼容候选返回 409 NO_COMPATIBLE_RELEASE。显式 release_id 不替换版本，预览后切换服务器发布不混入新版；弱/缺失/不符 ETag、超限/截断响应、400/404、限流、离线、取消与重复确认均有明确行为。
+通过条件：抓取 HTTP 请求序列证明首个带能力和语言的 GET 即取得完整预览、预览期间没有文件 GET；最新发布不兼容时选中较旧兼容发布，无兼容候选返回 409 NO_COMPATIBLE_RELEASE。显式 release_id 不替换版本，预览后切换服务器发布不混入新版；弱/缺失/不符 ETag、超限/截断响应、400/404、限流、离线、取消与重复确认均有明确行为。
 
 ### 第七批 系统与 Ideas 双语 UI
 

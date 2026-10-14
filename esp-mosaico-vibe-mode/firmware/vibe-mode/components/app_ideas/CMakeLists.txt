@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "src/factory_ideas.c"
         "src/ideas_cloud.c"
+        "src/ideas_multipart.c"
         "src/ideas_font.c"
         "src/ideas_integrity.c"
         "src/ideas_image.c"

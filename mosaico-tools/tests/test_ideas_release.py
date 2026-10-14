@@ -1,5 +1,7 @@
 """Real ZIP validators and HTTP/SQLite protocol round-trips, without hardware."""
 import copy
+from email.parser import BytesParser
+from email.policy import default as email_policy
 import hashlib
 import http.client
 import io
@@ -121,14 +123,65 @@ def publish_draft(client, directory, version="1.0.0", mode="create", **target):
     return result, request, path
 
 
-def get(server, path):
+def get(server, path, accept="application/json"):
     c = http.client.HTTPConnection("127.0.0.1", server.server_port)
-    c.request("GET", path, headers={"If-None-Match":"*"})
+    c.request("GET", path, headers={"If-None-Match":"*", "Accept":accept})
     response = c.getresponse(); data = response.read(); status = response.status; headers = dict(response.getheaders()); c.close()
     return status, headers, data
 
 
 CAPS = "?profile=esp-mosaico%2Fv2&chip_id=32&flash_size=16777216&recovery_version=0.2.0"
+
+
+@pytest.mark.parametrize("locale", ["zh-CN", "en"])
+def test_one_response_contains_complete_preview_of_one_snapshot(server, tmp_path, locale):
+    http, client, store = server
+    result, _, _ = publish_draft(client, tmp_path)
+    latest = "/api/v1/ideas/" + result["code"] + "/manifest.json"
+    query = latest + CAPS + "&locale=" + locale
+    assert get(http, query, "multipart/related")[0] == 404
+    store.publish(result["release_id"])
+    status, headers, raw = get(http, query, "multipart/related")
+    assert status == 200 and headers["Cache-Control"] == "no-store" and headers["Vary"] == "Accept"
+    assert headers["ETag"] == '"' + hashlib.sha256(raw).hexdigest() + '"'
+    message = BytesParser(policy=email_policy).parsebytes(
+        ("Content-Type: " + headers["Content-Type"] + "\r\n\r\n").encode() + raw)
+    assert not message.defects and message.get_content_type() == "multipart/related"
+    parts = list(message.iter_parts())
+    files = {part["Content-Location"]: part.get_payload(decode=True) for part in parts}
+    assert len(files) == len(parts)
+    for part in parts:
+        assert len(part.get_payload(decode=True)) == int(part["Content-Length"])
+    root = json.loads(files["manifest.json"])
+    assert root["release_id"] == result["release_id"]
+    view = next(p for p in root["device"]["presentations"] if p["display"]["path"] == f"device/{locale}/display.json")
+    refs = [root["firmware"]["manifest"], view["display"], *view["assets"]]
+    assert list(files) == ["manifest.json", *[r["path"] for r in refs]]
+    for ref in refs:
+        assert len(files[ref["path"]]) == ref["size"]
+        assert hashlib.sha256(files[ref["path"]]).hexdigest() == ref["sha256"]
+    fixed = latest.replace("/manifest.json", "/releases/" + result["release_id"] + "/manifest.json")
+    assert get(http, fixed)[2] == files["manifest.json"]
+    assert get(http, query, "multipart/related")[2] == raw
+    # Neither a firmware binary nor the other language is needed to render.
+    assert not any(path.endswith(".bin") for path in files)
+    assert get(http, latest + CAPS, "text/html")[0] == 406
+    assert get(http, latest + CAPS, "multipart/related")[0] == 400
+    assert get(http, query + "&locale=" + locale, "multipart/related")[0] == 400
+    assert get(http, latest + CAPS + "&locale=fr", "multipart/related")[0] == 400
+    assert get(http, query)[0] == 400
+    assert get(http, fixed, "multipart/related")[0] == 400
+
+
+def test_preview_rejects_damaged_published_asset(server, tmp_path):
+    http, client, store = server
+    result, _, _ = publish_draft(client, tmp_path)
+    store.publish(result["release_id"])
+    root, _ = store.manifest(result["code"], release_id=result["release_id"])
+    ref = json.loads(root)["device"]["presentations"][0]["display"]
+    store.blob(ref["sha256"]).write_bytes(b"damaged")
+    path = "/api/v1/ideas/" + result["code"] + "/manifest.json" + CAPS + "&locale=zh-CN"
+    assert get(http, path, "multipart/related")[0] == 503
 
 
 def test_draft_publication_immutable_get_and_bilingual_download(server, tmp_path):
