@@ -5,7 +5,7 @@ static int fail_step, step;
 static unsigned netifs, wifi, handlers, starts, scans, connects, nvs_erases, update_requests;
 static bool saved_credentials, saved_connect_fails;
 static esp_netif_t netif;
-void factory_update_check_request(void) { ++update_requests; }
+void factory_update_check_request(bool manual) { (void)manual; ++update_requests; }
 static esp_err_t next(void) { return ++step == fail_step ? ESP_FAIL : ESP_OK; }
 esp_err_t esp_netif_init(void) { return next(); }
 esp_err_t esp_event_loop_create_default(void)

@@ -176,6 +176,15 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     unsigned action = e->action_id;
     if (s->snapshot.updating && !s->snapshot.batch && action != VUI_VIBE_ACT_ID_CANCEL_DOWNLOAD) return true;
     switch (action) {
+    case VUI_VIBE_ACT_ID_FIRMWARE_CHECK:
+        if (s->page != VIBE_ABOUT || s->firmware_check == CHECK_PENDING) break;
+        if (s->snapshot.network != VIBE_NET_CONNECTED) {
+            s->firmware_check = CHECK_OFFLINE;
+            break;
+        }
+        s->firmware_check_generation = s->snapshot.release_generation;
+        s->firmware_check = vibe_command(s, VIBE_CHECK_FIRMWARE, NULL, NULL) ? CHECK_FAILED : CHECK_PENDING;
+        break;
     case VUI_VIBE_ACT_ID_FIRMWARE_START:
         if (s->page == VIBE_FIRMWARE_NOTICE) {
             if (!s->snapshot.release_installable) {
@@ -202,7 +211,10 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     case VUI_VIBE_ACT_ID_SHOW_BOOT_TIP: vibe_show(s, VIBE_BOOT_TIP); break;
     case VUI_VIBE_ACT_ID_NAV_LANGUAGE: vibe_show(s, VIBE_LANGUAGE); break;
     case VUI_VIBE_ACT_ID_NAV_SHARED: vibe_show(s, VIBE_SHARED); break;
-    case VUI_VIBE_ACT_ID_NAV_ABOUT: vibe_show(s, VIBE_ABOUT); break;
+    case VUI_VIBE_ACT_ID_NAV_ABOUT:
+        s->firmware_check = CHECK_IDLE;
+        vibe_show(s, VIBE_ABOUT);
+        break;
     case VUI_VIBE_ACT_ID_NAV_RESET:
         if (!s->snapshot.idea_busy && commit_delete(s)) vibe_show(s, VIBE_RESET);
         break;
@@ -512,6 +524,16 @@ void vibe_product_poll(vibe_ui_t *s)
         TEXT(s, TOGGLE_HAPTICS_LABEL, v->settings.haptics ? "Haptics: on" : "Haptics: off");
         FORMAT(s, DISPLAY_SUMMARY, "Brightness %u%% · timeout %u s", v->settings.brightness, v->settings.screen_off_seconds);
     } else if (s->page == VIBE_ABOUT) {
+        if (s->firmware_check == CHECK_PENDING && !v->release_checking && v->release_generation != s->firmware_check_generation) {
+            s->firmware_check = v->release_error ? CHECK_FAILED : CHECK_CURRENT;
+            if (!v->release_error && v->release_available) {
+                vibe_show(s, VIBE_FIRMWARE_NOTICE);
+                return;
+            }
+        }
+        TEXT(s, ABOUT_CHECK, s->firmware_check == CHECK_PENDING ? "Checking..." :
+            s->firmware_check == CHECK_CURRENT ? "Up to date" : s->firmware_check == CHECK_FAILED ? "Check failed" :
+            s->firmware_check == CHECK_OFFLINE ? "Connect Wi-Fi first" : "Check updates");
         FORMAT(s, ABOUT_VERSION, "%s", v->firmware_version);
         FORMAT(s, ABOUT_MAC, "%s", v->mac);
         FORMAT(s, ABOUT_STORAGE, "%llu / %llu MiB", (unsigned long long)(v->storage_used / 1048576), (unsigned long long)(v->storage_total / 1048576));

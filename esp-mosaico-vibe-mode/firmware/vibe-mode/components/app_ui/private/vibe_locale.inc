@@ -329,6 +329,9 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"Verifying firmware", "正在校验固件"},
     {"Writing firmware", "正在写入固件"},
     {"Restarting Vibe Mode", "正在重启 Vibe Mode"},
+    {"Checking...", "正在检查…"},
+    {"Up to date", "已是最新"},
+    {"Check failed", "检查失败"},
 };
 static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {
     {VUI_VIBE_BIND_PAIRING_ENDPOINT, "Connect Wi-Fi first"},
@@ -473,11 +476,12 @@ static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = 
     {VUI_VIBE_BIND_SHARED_FIELD, "Key"},
     {VUI_VIBE_BIND_SHARED_REVEAL_LABEL, "Show"},
     {VUI_VIBE_BIND_SHARED_DELETE_LABEL, "Delete"},
-    {VUI_VIBE_BIND_ABOUT_KEY_0, "Version"},
     {VUI_VIBE_BIND_ABOUT_KEY_1, "Device"},
     {VUI_VIBE_BIND_ABOUT_DEVICE, "ESP-Mosaico"},
     {VUI_VIBE_BIND_ABOUT_KEY_2, "MAC"},
     {VUI_VIBE_BIND_ABOUT_KEY_3, "Storage"},
+    {VUI_VIBE_BIND_ABOUT_KEY_0, "Version"},
+    {VUI_VIBE_BIND_ABOUT_CHECK, "Check updates"},
     {VUI_VIBE_BIND_ROW_TITLE_ABOUT_PAIRING, "TCP pairing"},
     {VUI_VIBE_BIND_ROW_SUB_ABOUT_PAIRING, "Connect your development tools"},
     {VUI_VIBE_BIND_ROW_TITLE_ABOUT_DOWNLOAD, "Find Ideas"},

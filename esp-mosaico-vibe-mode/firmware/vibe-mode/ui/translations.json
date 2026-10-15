@@ -327,5 +327,8 @@
   "Downloading firmware": "正在下载固件",
   "Verifying firmware": "正在校验固件",
   "Writing firmware": "正在写入固件",
-  "Restarting Vibe Mode": "正在重启 Vibe Mode"
+  "Restarting Vibe Mode": "正在重启 Vibe Mode",
+  "Checking...": "正在检查…",
+  "Up to date": "已是最新",
+  "Check failed": "检查失败"
 }

@@ -42,6 +42,9 @@ static EXT_RAM_BSS_ATTR ui_services_context_t s_services;
 static int service_command(void *ctx, vibe_command_t cmd, const char *a, const char *b) {
     (void)ctx;
     switch (cmd) {
+    case VIBE_CHECK_FIRMWARE:
+        factory_update_check_request(true);
+        return ESP_OK;
     case VIBE_INSTALL_FIRMWARE: {
         factory_update_check_snapshot_t release = {0};
         factory_update_check_snapshot(&release);
@@ -131,6 +134,9 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     iris_bridge_snapshot_t bridge = {0};
     factory_update_check_snapshot_t release = {0};
     factory_update_check_snapshot(&release);
+    out->release_checking = release.checking;
+    out->release_generation = release.generation;
+    out->release_error = release.error;
     out->release_available = release.available;
     out->release_installable = release.installable;
     out->firmware_update = false;
