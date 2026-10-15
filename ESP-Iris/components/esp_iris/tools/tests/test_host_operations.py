@@ -30,13 +30,15 @@ from iris_gateway.store import GatewayStore
 
 
 class HostHub:
-    def __init__(self):
+    def __init__(self, composite=False):
         self.connected = True
         self.endpoint = "usb:location=host-operation-test"
+        self.composite = composite
         self.info = {"device_id": "device-a", "boot_id": 1, "firmware_mode": "normal",
                      "app_version": "old", "endpoint": self.endpoint, "capability_names": ["ota"]}
         self._mirror_states = {}
         self.actions = []
+        self.resumed = set()
 
     def active_mirrors(self, device_id):
         return []
@@ -49,11 +51,14 @@ class HostHub:
         return [self.info.copy()] if self.connected else []
 
     def list_endpoints(self):
-        return [{"endpoint": self.endpoint, "state": "ready" if self.connected else "host_operation"}]
+        endpoints = [self.endpoint, self.endpoint + "-data"] if self.composite else [self.endpoint]
+        return [{"endpoint": endpoint, "state": "ready" if self.connected else "host_operation",
+                 "device_id": "device-a"} for endpoint in endpoints] + [
+                     {"endpoint": "usb:other-board", "state": "ready", "device_id": "device-b"}]
 
     def host_endpoint(self, identifier):
-        assert identifier == self.endpoint
-        return {"endpoint": self.endpoint, "device_id": "device-a"}
+        assert identifier == self.endpoint or (self.composite and identifier == self.endpoint + "-data")
+        return {"endpoint": identifier, "device_id": "device-a"}
 
     async def status(self, device_id):
         assert self.connected
@@ -72,15 +77,17 @@ class HostHub:
 
     async def resume_after_host(self, endpoint, *, connect=False):
         self.actions.append("resume")
+        self.resumed.add(endpoint)
         self.connected = True
 
 
 @pytest.mark.parametrize("outcome", ["success", "foreign", "old_boot", "failed", "timeout_read", "pipe_failure"])
-def test_host_operation_has_one_record_and_always_finishes_after_writer(tmp_path, outcome):
+@pytest.mark.parametrize("composite", [False, True])
+def test_host_operation_has_one_record_and_always_finishes_after_writer(tmp_path, outcome, composite):
     async def scenario():
         store = GatewayStore(tmp_path)
         service = GatewayService(store, instance_id="host-test")
-        hub = HostHub()
+        hub = HostHub(composite)
         service.attach_hub(hub)
         client = TestClient(TestServer(create_app(service)))
         await client.start_server()
@@ -94,6 +101,9 @@ def test_host_operation_has_one_record_and_always_finishes_after_writer(tmp_path
 
             def write(self, data):
                 self.spec = json.loads(data)
+                assert self.spec["locks"] == ([hub.endpoint, hub.endpoint + "-data"]
+                                              if composite else [hub.endpoint])
+                assert self.spec["write_endpoint"] == hub.endpoint
 
             async def drain(self):
                 if outcome == "pipe_failure":
@@ -148,6 +158,7 @@ def test_host_operation_has_one_record_and_always_finishes_after_writer(tmp_path
             assert operation["status"] == ("succeeded" if outcome in {"success", "timeout_read"}
                                             else "failed" if outcome in {"failed", "pipe_failure"} else "outcome_unknown")
             assert hub.actions.index("writer_exit") < hub.actions.index("resume")
+            assert hub.actions.count("detach") == len(hub.resumed) == (2 if composite else 1)
             assert not service.operations._exclusive
             assert len(store.operations()) == 1
             # A failed verification retains evidence, never a persistent reservation.
@@ -414,3 +425,44 @@ def test_host_worker_uses_reenumerated_device_path(tmp_path, monkeypatch):
     result = host_worker.run(spec)
     assert result["returncode"] == 0
     assert result["stdout"].strip() == port
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX lock descriptor inheritance")
+def test_native_flash_borrows_worker_lock_without_releasing_it(tmp_path, monkeypatch):
+    from iris_gateway import host_worker
+
+    operation_id = str(uuid.uuid4())
+    endpoint = "usb:location=" + operation_id
+    monkeypatch.setattr(host_worker, "resolve_usb_port", lambda _: {
+        "device_path": "fake", "location": operation_id})
+    child = f'''
+from iris_usb_flash import ports as usb
+from iris_gateway.link import EndpointLock
+origin = usb.Port("fake", 0x303A, 0x4002, "30eda0f40c10", {operation_id!r}, "ESP-Iris 0.2 console")
+usb.ports = lambda: [origin]
+def protected():
+    other = EndpointLock({endpoint!r})
+    try:
+        try:
+            other.acquire()
+        except RuntimeError:
+            return
+        raise AssertionError("parent lock was released")
+    finally:
+        other.close()
+with usb.claim_device(origin):
+    protected()
+protected()
+print("protected")
+'''
+    result = host_worker.run({
+        "operation_id": operation_id, "resources": [endpoint], "endpoints": [],
+        "locks": [endpoint], "write_endpoint": endpoint, "log_path": str(tmp_path / "native.log"),
+        "commands": [{"argv": [sys.executable, "-c", child]}],
+    })
+    assert result["stdout"].strip() == "protected"
+    lock = EndpointLock(endpoint)
+    try:
+        lock.acquire()
+    finally:
+        lock.close()

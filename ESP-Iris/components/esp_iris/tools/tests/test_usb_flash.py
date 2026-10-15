@@ -8,8 +8,9 @@ from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
 
-import iris_usb_flash as integration
 import pytest
+
+import iris_usb_flash as integration
 from iris_usb_flash import ports as usb
 
 VID, PID = 0x303A, 0x4002
@@ -72,6 +73,24 @@ def test_rom_start_uses_hardware_identity_without_reset(monkeypatch):
     monkeypatch.setattr(usb, "enter_download", lambda p: pytest.fail("already in ROM"))
     monkeypatch.setattr(usb.serial, "Serial", lambda *a, **kw: pytest.fail("must not open ROM before flash"))
     assert usb.prepare_rom(rom, VID, PID) == (rom, MAC)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX lock descriptors")
+@pytest.mark.parametrize("value", ["not-json", "[]", '{"board": -1}', '{"board": 999999}'])
+def test_invalid_inherited_lock_does_not_replace_normal_locking(tmp_path, monkeypatch, value):
+    monkeypatch.setenv("ESP_IRIS_HOST_LOCK_FDS", value)
+    path = tmp_path / "lock"
+    path.touch()
+    assert usb.inherited_lock("board", path) is None
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX lock descriptors")
+def test_inherited_lock_must_match_the_endpoint_file(tmp_path, monkeypatch):
+    path = tmp_path / "lock"
+    path.touch()
+    with (tmp_path / "unrelated").open("w+b") as other:
+        monkeypatch.setenv("ESP_IRIS_HOST_LOCK_FDS", json.dumps({"board": other.fileno()}))
+        assert usb.inherited_lock("board", path) is None
 
 
 def test_missing_topology_does_not_reset(monkeypatch):

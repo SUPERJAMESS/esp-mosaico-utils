@@ -92,11 +92,14 @@ def run(spec: dict) -> dict:
     outputs = []
     with contextlib.ExitStack() as stack:
         descriptors = []
+        endpoint_descriptors = {}
         for key in ["host-operation:" + operation_id, *sorted(set(spec["locks"]))]:
             lock = EndpointLock(key)
             stack.callback(lock.close)
             lock.acquire()
             descriptors.append(lock.fileno())
+            if key in spec["locks"]:
+                endpoint_descriptors[key] = lock.fileno()
         record.write_text(json.dumps({
             "operation_id": operation_id, "resources": spec["resources"],
             "endpoints": spec["endpoints"], "pid": os.getpid(),
@@ -112,6 +115,9 @@ def run(spec: dict) -> dict:
             environment = os.environ.copy()
             environment.update({key: value.replace("{port}", port)
                                 for key, value in step.get("env", {}).items()})
+            environment.pop("ESP_IRIS_HOST_LOCK_FDS", None)
+            if os.name != "nt":
+                environment["ESP_IRIS_HOST_LOCK_FDS"] = json.dumps(endpoint_descriptors)
             # Commands are foreground executors. Their complete process lifetime
             # is protected, including nested idf.py/CMake/esptool invocations.
             with open(spec["log_path"], "ab") as log:

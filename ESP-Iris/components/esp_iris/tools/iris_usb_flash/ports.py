@@ -12,13 +12,15 @@ import sys
 import time
 from contextlib import ExitStack
 from dataclasses import dataclass
+from pathlib import Path
 
 import serial
+from serial.tools import list_ports
+
 from iris_gateway.discovery import usb_endpoint
 from iris_gateway.hardware_reset import execute_reset, reset_steps
 from iris_gateway.link import EndpointLock
 from iris_gateway.usb_ownership import usb_admission
-from serial.tools import list_ports
 
 ROM_IDS = (0x303A, 0x0020)
 
@@ -103,6 +105,13 @@ def claim_device(origin: Port) -> ExitStack:
         with usb_admission():
             for key in sorted(keys):
                 lock = EndpointLock(key)
+                inherited = inherited_lock(key, lock.path)
+                if inherited is not None:
+                    # Closing an unacquired, separate descriptor leaves the
+                    # worker's flock intact. Never unlock the borrowed one.
+                    lock.close()
+                    stack.callback(os.close, inherited)
+                    continue
                 stack.callback(lock.close)
                 lock.acquire()
     except RuntimeError as error:
@@ -113,6 +122,26 @@ def claim_device(origin: Port) -> ExitStack:
         stack.close()
         raise
     return stack
+
+
+def inherited_lock(endpoint: str, path: Path) -> int | None:
+    """Borrow only a verified POSIX descriptor passed by the host worker."""
+    if os.name == "nt":
+        return None
+    import fcntl
+    import json
+
+    try:
+        descriptors = json.loads(os.environ.get("ESP_IRIS_HOST_LOCK_FDS", "{}"))
+        descriptor = descriptors.get(endpoint)
+        if not isinstance(descriptor, int) or descriptor < 3:
+            return None
+        if not os.path.samestat(os.fstat(descriptor), path.stat()):
+            return None
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return os.dup(descriptor)
+    except (OSError, ValueError, AttributeError):
+        return None
 
 
 def enter_download(port: Port) -> None:

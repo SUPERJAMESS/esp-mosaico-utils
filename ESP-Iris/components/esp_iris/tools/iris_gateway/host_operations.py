@@ -64,6 +64,16 @@ class HostOperations:
         else:
             writer = primary
         device_id = device_id or primary.get("device_id")
+        # ROM entry re-enumerates the whole USB device. Detach every live USB
+        # interface with the same verified identity, including the data CDC.
+        if device_id:
+            selected = {item["endpoint"] for item in endpoints}
+            for peer in hub.list_endpoints():
+                endpoint = str(peer["endpoint"])
+                if (endpoint.startswith("usb:") and endpoint not in selected
+                        and peer.get("state") == "ready" and peer.get("device_id") == device_id):
+                    endpoints.append(hub.host_endpoint(endpoint))
+                    selected.add(endpoint)
         resources = sorted({str(item.get("device_id") or "endpoint::" + item["endpoint"])
                             for item in endpoints} | {item["endpoint"] for item in endpoints})
         key = device_id or "endpoint::" + primary["endpoint"]
