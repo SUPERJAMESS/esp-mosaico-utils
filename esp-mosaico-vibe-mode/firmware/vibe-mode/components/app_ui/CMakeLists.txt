@@ -8,6 +8,7 @@ idf_component_register(
         "src/vibe_lcd_budget.c"
         "src/vibe_transfer.c"
         "src/vibe_ui.c"
+        "src/vibe_home_motion.c"
         "src/vibe_product.c"
         "light/vui.c"
         "light/vui_decode.c"

@@ -538,6 +538,15 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
     if (s->page == VIBE_SLEEP && pressed) { wake(s); s->pointer_down = pressed; return; }
     if (pressed && !s->pointer_down) { s->gesture_consumed = false; s->hold_consumed = false; s->pointer_page = s->page; s->pointer_page_ready = s->tick - s->page_enter_tick >= 3; s->pointer_x = x; s->pointer_y = y; haptic(s, 1); }
     if (pressed && s->pointer_down && (abs(x - s->pointer_x) > 24 || abs(y - s->pointer_y) > 24)) s->gesture_consumed = true;
+    if (!pressed && s->pointer_down && s->page == VIBE_HOME &&
+        s->pointer_page == VIBE_HOME && s->pointer_page_ready &&
+        s->tick >= s->suppress_until && !s->gesture_consumed &&
+        abs(x - s->pointer_x) <= 24 && abs(y - s->pointer_y) <= 24 &&
+        s->pointer_x >= VIBE_HOME_DOTS_X && s->pointer_x < VIBE_HOME_DOTS_X + VIBE_HOME_DOTS_SIZE &&
+        s->pointer_y >= VIBE_HOME_DOTS_Y && s->pointer_y < VIBE_HOME_DOTS_Y + VIBE_HOME_DOTS_SIZE) {
+        vibe_home_motion_tap(&s->home_motion, vui_now_ms(ui),
+                             x - VIBE_HOME_DOTS_X, y - VIBE_HOME_DOTS_Y);
+    }
     if (s->page == VIBE_RESET || s->page == VIBE_DELETE_CONFIRM) {
         bool inside = x >= 24 && x < 456 && y >= 348 && y < 444;
         bool started_inside = s->pointer_x >= 24 && s->pointer_x < 456 &&

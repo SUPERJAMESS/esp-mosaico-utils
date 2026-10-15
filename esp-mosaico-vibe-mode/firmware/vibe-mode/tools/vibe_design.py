@@ -108,7 +108,7 @@ def apply(scene):
     text(0,'home_version','',132,20,60,24,16,color=MUTED,overflow='ellipsis')
     text(0,'home_page','Home',192,20,96,24,18,'medium',MUTED, 'center')
     text(0,'home_status','',324,20,112,24,16,color=MUTED,align='right')
-    add('image',0,180,60,120,120,name='home_hero',image='assets/anim/home.dots.json')
+    add('dots',0,180,60,120,120,name='home_hero')
     en=add('layer',0,0,0,480,480,name='home_heading_en',bind='home_heading_en_visible',bind_target='visible')
     text(en,'home_headline','Make Ideas',108,182,199,37,28,'title')
     text(en,'home_run','Run',307,182,85,37,28,'title',ORANGE)

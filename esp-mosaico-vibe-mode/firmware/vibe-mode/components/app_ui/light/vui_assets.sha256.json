@@ -1,8 +1,7 @@
 {
-  "components/app_ui/light/vui_assets.bin": "b0ae876354e2e766a8c9c84e574ab1000c4b939059d2eb1074556ebe6b45bc4e",
+  "components/app_ui/light/vui_assets.bin": "217c8a27fbcdc2f209a70f38217a0958b2720013a1c84572dd07a6d7aacc13e2",
   "components/app_ui/private/vui_ids.h": "648f961d980f08806ec9cddf1512bffed25e9b4df579124d2e304de4f8b02621",
-  "tools/compile_vui.py": "4e2c3180b58920c787fcca630d0f25b11cfa29d7bab4fa838e91959b30c79a77",
-  "ui/assets/anim/home.dots.json": "91dafaa774fb7e528a652ae04102965d4d87b87cb11d11d737100985b456d5f1",
+  "tools/compile_vui.py": "bd2cbd2df94606829c5098c21272f2e677f2833dd35fd109866d33ba0ae7779b",
   "ui/assets/icons/back-32-white.png": "319ef3fac418b5408d4bfb2d908211259334a4293faa98439f8f2c1d740897b0",
   "ui/assets/icons/backspace-32-white.png": "3c275c7ab5c06b64769e356670d50b5be39c8b2bf197ee42da8299fc533e1730",
   "ui/assets/icons/battery_charging-20-white.png": "fe793dcd557490d9f1fccf58bb7ed1455ea580fb7bd832a63db22dc4178af957",
@@ -39,7 +38,7 @@
   "ui/fonts/VibeDisplay.otf": "b5555a94c73709aaafb0f40a2b7a2f20115fcd1b72289ea9588c0e584310f71d",
   "ui/fonts/VibeInter.otf": "1ad011abc250bb283a5ee853d233c929fd14795080f30e306b529aa509b75ccb",
   "ui/fonts/VibeMedium.otf": "38342dba9ffec2b5a275cb9fa4d56f0eba26817c6e470bd74fd3c0d4b931a621",
-  "ui/main.json": "fa37c93ed65dfb64cc52aaec44ae6139e406f15edfc02d61200424e134879cdc",
+  "ui/main.json": "6b6871e9d16e42a2be8de8e914a082ee43d10137efcc494792ea6c709c215269",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3"
 }

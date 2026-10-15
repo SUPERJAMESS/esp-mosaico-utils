@@ -1,5 +1,6 @@
 #pragma once
 #include "vibe_ui.h"
+#include "vibe_home_motion.h"
 
 /* Render-task-owned controller state. Never exposed to device/PC callers. */
 struct vibe_ui {
@@ -9,6 +10,8 @@ struct vibe_ui {
     vibe_page_t page;
     vui_list_t networks, bundles;
     void *timer;
+    void *home_timer;
+    vibe_home_motion_t home_motion;
     bool download_pending, password_visible, preview_active, batch_cancel_pending, result_cancelled;
     vibe_page_t preview_return;
     bool prefetch_attempted;

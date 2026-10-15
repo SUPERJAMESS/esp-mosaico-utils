@@ -11,6 +11,7 @@ add_custom_command(OUTPUT "${asset_c}"
     DEPENDS "${ui}/light/vui_assets.bin" "${CMAKE_CURRENT_LIST_DIR}/embed_assets.py"
     VERBATIM)
 add_library(vibe_ui SHARED platform_pc.c ${ui}/src/vibe_ui.c ${ui}/src/vibe_product.c
+    ${ui}/src/vibe_home_motion.c
     ${ui}/src/vibe_transfer.c ${ui}/light/vui.c ${ui}/light/vui_decode.c
     "${asset_c}")
 target_include_directories(vibe_ui PRIVATE ${ui}/include ${ui}/private ${ui}/light

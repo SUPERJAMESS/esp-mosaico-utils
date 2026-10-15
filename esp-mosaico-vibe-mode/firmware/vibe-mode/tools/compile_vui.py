@@ -26,6 +26,7 @@ TYPES = [
     "list",
     "progress",
     "keyboard",
+    "dots",
 ]
 NODE = "<5h15HI"
 
@@ -59,26 +60,6 @@ def svg(path):
 
     draw(tree)
     return im.resize((im.width // scale, im.height // scale), Image.Resampling.LANCZOS)
-
-
-def dot_frames(path):
-    """Rasterize filled circles without GIF palette/transparency artifacts."""
-    spec = json.loads(path.read_text())
-    scale = 8
-    frames = []
-    for rows in spec["frames"]:
-        im = Image.new("RGBA", (spec["width"] * scale, spec["height"] * scale))
-        draw = ImageDraw.Draw(im)
-        radius = spec["radius"] * scale
-        for row, values in enumerate(rows):
-            for col, value in enumerate(values):
-                x = (spec["origin"][0] + col * spec["pitch"][0]) * scale
-                y = (spec["origin"][1] + row * spec["pitch"][1]) * scale
-                draw.ellipse((x - radius, y - radius, x + radius - 1, y + radius - 1),
-                             fill=spec["palette"][value])
-        # Area averaging gives a smooth edge without ringing around the disc.
-        frames.append(im.resize((spec["width"], spec["height"]), Image.Resampling.BOX))
-    return frames, spec["duration"]
 
 
 def compile_assets():
@@ -281,13 +262,9 @@ def compile_assets():
             0,
         )
     for i, path in enumerate(images):
-        if path.endswith(".dots.json"):
-            source_frames, duration = dot_frames(UI / path)
-            im = source_frames[0]
-        else:
-            im = svg(UI / path) if path.endswith(".svg") else Image.open(UI / path)
-            source_frames = ImageSequence.Iterator(im)
-            duration = im.info.get("duration", 100)
+        im = svg(UI / path) if path.endswith(".svg") else Image.open(UI / path)
+        source_frames = ImageSequence.Iterator(im)
+        duration = im.info.get("duration", 100)
         frames = []
         for f in source_frames:
             data = bytearray()

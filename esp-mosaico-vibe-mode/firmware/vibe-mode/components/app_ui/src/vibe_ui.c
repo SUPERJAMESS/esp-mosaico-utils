@@ -176,6 +176,11 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
     if (previous != page)
         (void)vui_set_visible(s->ui, visibility[previous], false);
     (void)vui_set_visible(s->ui, visibility[page], true);
+    if (page == VIBE_HOME && (previous != page || !s->home_timer)) {
+        vibe_home_motion_enter(&s->home_motion, vui_now_ms(s->ui));
+        (void)vui_set_dots(s->ui, VUI_VIBE_OBJ_KEY_HOME_HERO,
+                           s->home_motion.dots, VIBE_HOME_DOT_COUNT);
+    }
     if (page == VIBE_WIFI) {
         TEXT(s, WIFI_NOTE,
              s->download_pending ? "Connect Wi-Fi to download ideas"
@@ -698,6 +703,14 @@ void vibe_ui_poll(vibe_ui_t *s) {
     }
     vibe_product_poll(s);
 }
+static void home_tick(vui_handle_t ui, void *ctx)
+{
+    vibe_ui_t *s = ctx;
+    if (s->page != VIBE_HOME) return;
+    vibe_home_motion_sample(&s->home_motion, vui_now_ms(ui));
+    (void)vui_set_dots(ui, VUI_VIBE_OBJ_KEY_HOME_HERO,
+                       s->home_motion.dots, VIBE_HOME_DOT_COUNT);
+}
 static void tick(vui_handle_t ui, void *ctx)
 {
     (void)ui;
@@ -730,6 +743,11 @@ vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *services, vibe_
     vui_err_t err = vui_on_event(ui, event, s);
     if (err != VUI_OK)
         return err;
+    vibe_home_motion_enter(&s->home_motion, vui_now_ms(ui));
+    err = vui_set_dots(ui, VUI_VIBE_OBJ_KEY_HOME_HERO,
+                       s->home_motion.dots, VIBE_HOME_DOT_COUNT);
+    if (err != VUI_OK)
+        return err;
     s->services.snapshot(s->services.ctx, &s->snapshot);
     /* The first snapshot already contains library rows. Seed list totals before
      * poll compares subsequent snapshots, including the direct preview path. */
@@ -739,7 +757,8 @@ vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *services, vibe_
     vibe_ui_poll(s);
     vibe_product_init(s);
     s->timer = vui_timer_create(ui, 50, tick, s);
-    return s->timer ? VUI_OK : VUI_ERR_NO_MEM;
+    s->home_timer = vui_timer_create(ui, 40, home_tick, s);
+    return s->timer && s->home_timer ? VUI_OK : VUI_ERR_NO_MEM;
 }
 void vibe_ui_deinit(vibe_ui_t *s) {
     if (!s || !s->ui)
@@ -748,11 +767,15 @@ void vibe_ui_deinit(vibe_ui_t *s) {
     (void)command(s, VIBE_STOP_BRIDGE, NULL, NULL);
     if (s->timer)
         (void)vui_timer_delete(s->ui, s->timer);
+    if (s->home_timer)
+        (void)vui_timer_delete(s->ui, s->home_timer);
+    (void)vui_set_dots(s->ui, VUI_VIBE_OBJ_KEY_HOME_HERO, NULL, 0);
     (void)vui_on_event(s->ui, NULL, NULL);
     (void)vui_set_pointer_observer(s->ui, NULL, NULL);
     clear_secret(s->snapshot.token, sizeof(s->snapshot.token));
     s->ui = NULL;
     s->timer = NULL;
+    s->home_timer = NULL;
 }
 
 void vibe_ui_get_status(const vibe_ui_t *s, vibe_ui_status_t *out) {
