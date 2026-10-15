@@ -12,7 +12,7 @@ COMPONENT = Path(__file__).resolve().parents[2]
 HOST = Path(__file__).parent / "runtime_host"
 
 
-@pytest.mark.parametrize("service_profile", ["none", "ota", "inventory", "system-update",
+@pytest.mark.parametrize("service_profile", ["none", "native-console", "ota", "inventory", "system-update",
                                             "ota-large", "system-update-large"])
 @pytest.mark.parametrize("multi_transport", [False, True])
 @pytest.mark.parametrize("persistent", [False, True])
@@ -42,6 +42,8 @@ def test_firmware_runtime(tmp_path: Path, multi_transport: bool, service_profile
                   "-DCONFIG_ESP_IRIS_SYSTEM_UPDATE_MANIFEST_BYTES=3072",
                   "-DCONFIG_ESP_IRIS_SYSTEM_UPDATE_SIGNATURE_BYTES=512",
                   "-DCONFIG_ESP_IRIS_SYSTEM_UPDATE_CHUNK_BYTES=3968"]
+    if service_profile == "native-console":
+        flags += ["-DCONFIG_ESP_IRIS_REDIRECT_STDIO=0"]
     if multi_transport:
         flags += ["-DCONFIG_ESP_IRIS_TRANSPORT_USB=1"]
     if persistent:
