@@ -28,6 +28,8 @@ _Static_assert(sizeof(vui_node_t) == 44 && sizeof(vui_glyph_t) == 20 && sizeof(v
 typedef struct {
     char *text;
     uint8_t *image;
+    vui_dot_t *dots;
+    size_t dot_count, dot_capacity;
     void *canvas, *release_ctx;
     void (*release)(void *);
     size_t stride;
@@ -157,6 +159,7 @@ static void release_value(value_t *v)
         free(v->text);
     }
     free(v->image);
+    free(v->dots);
     if (v->release)
         v->release(v->release_ctx);
     memset(v, 0, sizeof(*v));
@@ -362,6 +365,39 @@ vui_err_t vui_canvas_push(vui_handle_t u, uint16_t id, void *pixels, size_t stri
     damage_node(u, id);
     return VUI_OK;
 }
+vui_err_t vui_set_dots(vui_handle_t u, uint16_t id, const vui_dot_t *dots, size_t count)
+{
+    if (!valid(u, id) || u->nodes[id - 1].kind != VUI_DOTS ||
+        count > VUI_MAX_DOTS || (count && !dots))
+        return VUI_ERR_INVALID_ARG;
+    /* Bound the raster arithmetic even for caller-supplied point data. */
+    for (size_t i = 0; i < count; ++i)
+        if (dots[i].x < -WIDTH * 16 || dots[i].x > WIDTH * 16 ||
+            dots[i].y < -HEIGHT * 16 || dots[i].y > HEIGHT * 16 ||
+            dots[i].radius > WIDTH * 16)
+            return VUI_ERR_INVALID_ARG;
+    value_t *v = &u->values[id - 1];
+    if (!count) {
+        if (v->dot_count) damage_node(u, id);
+        free(v->dots);
+        v->dots = NULL;
+        v->dot_count = v->dot_capacity = 0;
+        return VUI_OK;
+    }
+    if (count == v->dot_count && !memcmp(v->dots, dots, count * sizeof(*dots)))
+        return VUI_OK;
+    if (count > v->dot_capacity) {
+        vui_dot_t *copy = vui_alloc(count * sizeof(*dots));
+        if (!copy) return VUI_ERR_NO_MEM;
+        free(v->dots);
+        v->dots = copy;
+        v->dot_capacity = count;
+    }
+    memcpy(v->dots, dots, count * sizeof(*dots));
+    v->dot_count = count;
+    damage_node(u, id);
+    return VUI_OK;
+}
 vui_list_t vui_list_bind_component(vui_handle_t u, uint16_t id, vui_row_cb_t callback, void *ctx)
 {
     if (!valid(u, id) || u->nodes[id - 1].kind != VUI_LIST)
@@ -514,6 +550,10 @@ int vui_scroll_offset(vui_handle_t u, uint16_t id)
     int limit;
     int *position = scroll_position(u, id, &limit);
     return position ? *position : 0;
+}
+uint64_t vui_now_ms(vui_handle_t u)
+{
+    return u ? u->now : 0;
 }
 void vui_tick(vui_handle_t u, uint32_t elapsed)
 {
@@ -779,6 +819,35 @@ static void bitmap(vui_handle_t u, rect_t r, rect_t clip, const uint8_t *data, u
         }
     }
 }
+static void draw_dots(vui_handle_t u, rect_t r, rect_t clip, const value_t *v)
+{
+    for (size_t i = 0; i < v->dot_count; ++i) {
+        const vui_dot_t *d = &v->dots[i];
+        if (!d->radius || !d->brightness) continue;
+        int cx = r.x * 16 + d->x, cy = r.y * 16 + d->y;
+        int outer = d->radius + 8, inner = max(0, (int)d->radius - 8);
+        int outer2 = outer * outer, inner2 = inner * inner;
+        rect_t bounds = {max(clip.x, (cx - outer) / 16),
+                         max(clip.y, (cy - outer) / 16), 0, 0};
+        int right = min(clip.x + clip.w, (cx + outer + 15) / 16);
+        int bottom = min(clip.y + clip.h, (cy + outer + 15) / 16);
+        unsigned red = (d->red * d->brightness + 127) / 255;
+        unsigned green = (d->green * d->brightness + 127) / 255;
+        unsigned blue = (d->blue * d->brightness + 127) / 255;
+        uint16_t color = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
+        for (int y = bounds.y; y < bottom; ++y) {
+            int dy = y * 16 + 8 - cy;
+            for (int x = bounds.x; x < right; ++x) {
+                int dx = x * 16 + 8 - cx;
+                int distance2 = dx * dx + dy * dy;
+                if (distance2 >= outer2) continue;
+                unsigned alpha = distance2 <= inner2 ? 255 :
+                    (unsigned)(outer2 - distance2) * 255 / (outer2 - inner2);
+                pixel(u, x, y, color, alpha);
+            }
+        }
+    }
+}
 static void hit(vui_handle_t u, rect_t r, rect_t clip, unsigned node, vui_event_t event)
 {
     r = intersect(r, clip);
@@ -804,6 +873,8 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
             box(u, r, paint, n->radius, n->bg);
         if (n->border_width)
             outline(u, r, paint, n->radius, n->border_width, n->border);
+        if (n->kind == VUI_DOTS)
+            draw_dots(u, r, paint, v);
         if (n->kind == VUI_PROGRESS) {
             rect_t bar = {r.x, r.y, r.w * v->value / 100, r.h};
             if (v->indeterminate) {

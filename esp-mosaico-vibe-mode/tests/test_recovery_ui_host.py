@@ -194,6 +194,55 @@ def sim(tmp_path, native_build, request):
         instance.close()
 
 
+def test_home_dot_motion_tap_navigation_and_sleep(sim):
+    sim.rpc("wait", frames=120)  # Complete the entrance.
+    sim.capture("dots-idle")
+    sim.tap(210, 105)
+    sim.rpc("wait", frames=15)
+    sim.capture("dots-ripple")
+    with Image.open(sim.directory / "dots-idle.png") as a, Image.open(
+        sim.directory / "dots-ripple.png"
+    ) as b:
+        changed = ImageChops.difference(a.convert("RGB"), b.convert("RGB")).getbbox()
+        assert changed is not None
+        assert 180 <= changed[0] < changed[2] <= 300
+        assert 60 <= changed[1] < changed[3] <= 180
+        def orange_pixels(image):
+            return sum(
+                r > 80 and r > g * 1.5 and r > b * 2
+                for r, g, b in image.convert("RGB").crop((180, 60, 300, 180)).getdata()
+            )
+        # Breathing alone changes brightness too; require the touch wave's
+        # orange points beyond the idle core to verify actual input routing.
+        assert orange_pixels(b) > orange_pixels(a) + 50
+    # A gesture starting on the hero still navigates to the Ideas grid.
+    sim.swipe(260, 120, 90, 120)
+    sim.wait(page=19)
+    sim.swipe(90, 120, 300, 120)
+    sim.wait(page=0)
+    # Navigation remains available while the entrance is still running.
+    sim.tap(390, 360)
+    sim.wait(page=11)
+    sim.capture("dots-settings")
+    sim.rpc("wait", frames=100)
+    sim.capture("dots-settings-later")
+    assert (sim.directory / "dots-settings.png").read_bytes() == (
+        sim.directory / "dots-settings-later.png"
+    ).read_bytes()
+    sim.tap(38, 36)
+    sim.wait(page=0)
+    sim.control("ai")
+    sim.wait(page=21)
+    sim.capture("dots-sleep")
+    sim.rpc("wait", frames=100)
+    sim.capture("dots-sleep-later")
+    assert (sim.directory / "dots-sleep.png").read_bytes() == (
+        sim.directory / "dots-sleep-later.png"
+    ).read_bytes()
+    sim.tap(240, 120)
+    sim.wait(page=0)
+
+
 def test_keyboard_limits_masking_and_cancel(sim):
     sim.capture("home")
     sim.download()

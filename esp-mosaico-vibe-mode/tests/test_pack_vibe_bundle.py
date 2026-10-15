@@ -48,7 +48,9 @@ def test_embedded_assets_match_sources_and_have_bounded_records():
             text,
         ) = node
         assert -1 <= parent < count and parent != i
-        assert w >= 0 and h >= 0 and kind < 8 and font < font_count
+        assert w >= 0 and h >= 0 and kind < 9 and font < font_count
+        if kind == 8:  # Procedural dots have no bitmap frames.
+            assert image == 0
         assert image <= image_count and template <= count and text < size
         assert b"\0" in raw[text:]
         seen = {i}
@@ -75,3 +77,4 @@ def test_embedded_assets_match_sources_and_have_bounded_records():
         assert data + w * h * frames * 3 <= size
     # Keep the resource budget explicit alongside the full firmware slot check.
     assert len(packed) < 200 * 1024
+    assert len(raw) < 1024 * 1024

@@ -1951,14 +1951,13 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文"
     },
     {
-      "type": "image",
+      "type": "dots",
       "parent": 0,
       "x": 180,
       "y": 60,
       "w": 120,
       "h": 120,
-      "name": "home_hero",
-      "image": "assets/anim/home.dots.json"
+      "name": "home_hero"
     },
     {
       "type": "layer",

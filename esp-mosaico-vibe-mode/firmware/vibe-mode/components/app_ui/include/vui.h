@@ -29,6 +29,17 @@ typedef void (*vui_timer_cb_t)(vui_handle_t, void *);
 vui_err_t vui_create(vui_handle_t *out);
 void vui_destroy(vui_handle_t ui);
 void vui_tick(vui_handle_t ui, uint32_t elapsed_ms);
+uint64_t vui_now_ms(vui_handle_t ui);
+/* Procedural circles, in node-local 1/16 pixel units. RGB and brightness are
+ * independent 0..255 channels. The renderer copies the points and reuses its
+ * allocation across frames; NULL/0 clears them. No bitmap frames are retained. */
+typedef struct {
+    int16_t x, y;
+    uint16_t radius;
+    uint8_t red, green, blue, brightness;
+} vui_dot_t;
+#define VUI_MAX_DOTS 64
+vui_err_t vui_set_dots(vui_handle_t ui, uint16_t id, const vui_dot_t *dots, size_t count);
 /* pixels is a retained 480x480 RGB565 surface. A new surface receives a full
  * repaint; subsequent calls preserve pixels outside the returned damage. */
 typedef struct { int x, y, w, h; } vui_area_t;
