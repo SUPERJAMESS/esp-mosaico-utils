@@ -379,6 +379,26 @@ UI 初始化等待上限为五秒；USB 打开 Download Ideas 的请求（含串
 
 <a id="recovery-自更新接受-rom-兜底"></a>
 
+### 联网检查 Vibe Mode 更新
+
+Wi-Fi 获取 IP 后，后台读取独立清单
+`https://dl.espressif.com/mosaico/esp-mosaico-vibe-mode-stable.json`。
+通过 `CONFIG_IRIS_FACTORY_UPDATE_MANIFEST_URL` 可更换地址，空值关闭检查；
+`CONFIG_IRIS_FACTORY_UPDATE_PRODUCT` 默认是 `esp-mosaico-vibe-mode`。
+它沿用 Settings 的 `schema_version: 1` JSON 格式，不使用普通应用的版本源。
+正式发布需使用 `tools/prepare_online_release.py` 从已验证 bin 生成包含文件大小和哈希的清单。
+
+发现更高版本后，在首页显示一次独立的 **Update Vibe Mode / 更新 Vibe Mode** 提示页及版本号；处于配网、
+下载或安装页面时延后提示，同一版本每次启动只提示一次。用户可选择“开始更新”或“跳过”。
+开始更新会从同一下载目录取得 `firmware.file`，校验大小、SHA-256、项目、版本及镜像后，
+通过共享后端原地更新 Vibe Mode 并重启。确认页和更新页持续提示“请勿断电或关机”。
+旧清单没有 `firmware` 元数据时仅提示版本，不允许开始安装。
+完整命名规则、清单生成和发布验收流程见 [在线固件更新](../../docs/online-firmware-update.zh-CN.md)。
+
+请求启用 HTTPS 证书校验，超时 10 秒，响应最多 4 KiB，不跟随重定向。
+失败仅记录日志，不弹出错误；网络重连可触发新检查，请求间隔至少 60 秒，
+已有请求执行期间不重复启动。尚未上传清单时的 HTTP 404 不影响正常使用。
+
 ### Vibe Mode 自更新（接受 ROM 兜底）
 
 维护者可从当前 Vibe Mode 构建生成只含一个 `recovery` 组件的专用包：

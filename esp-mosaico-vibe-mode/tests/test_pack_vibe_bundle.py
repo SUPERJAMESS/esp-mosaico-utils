@@ -75,6 +75,6 @@ def test_embedded_assets_match_sources_and_have_bounded_records():
         data, w, h, frames, duration = struct.unpack_from("<I4H", raw, images + i * 12)
         assert w > 0 and h > 0 and frames > 0 and duration > 0
         assert data + w * h * frames * 3 <= size
-    # Keep the resource budget explicit alongside the full firmware slot check.
-    assert len(packed) < 200 * 1024
-    assert len(raw) < 1024 * 1024
+    # Include bilingual firmware-update pages; the full image still has its fixed slot check.
+    assert len(packed) < 256 * 1024
+    assert len(raw) < 1152 * 1024

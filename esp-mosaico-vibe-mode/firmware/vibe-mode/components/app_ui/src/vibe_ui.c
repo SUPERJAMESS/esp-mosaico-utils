@@ -155,6 +155,7 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         VUI_VIBE_BIND_OPEN_CONFIRM_VISIBLE, VUI_VIBE_BIND_SLEEP_VISIBLE,
         VUI_VIBE_BIND_BOOT_TIP_VISIBLE, VUI_VIBE_BIND_DELETE_CONFIRM_VISIBLE,
         VUI_VIBE_BIND_HELP_VISIBLE, VUI_VIBE_BIND_GUIDE_VISIBLE,
+        VUI_VIBE_BIND_FIRMWARE_NOTICE_VISIBLE, VUI_VIBE_BIND_FIRMWARE_PROGRESS_VISIBLE,
     };
     if (!vibe_product_leave(s, page)) return;
     const vibe_page_t previous = s->page;
@@ -583,7 +584,11 @@ void vibe_ui_poll(vibe_ui_t *s) {
         s->preview_active = false;
         show(s, v->idea_return_library ? VIBE_NAND : s->preview_return);
     }
-    if (v->updating && !v->batch) {
+    if (v->firmware_update && (v->updating ||
+        (v->update_terminal && v->update_revision != s->acknowledged_update))) {
+        s->acknowledged_update = v->update_revision;
+        if (s->page != VIBE_FIRMWARE_PROGRESS) show(s, VIBE_FIRMWARE_PROGRESS);
+    } else if (v->updating && !v->batch) {
         if (s->page != VIBE_UPDATE)
             show(s, VIBE_UPDATE);
         TEXT(s, UPDATE_TITLE, T(s, v->update_title));
@@ -610,7 +615,23 @@ void vibe_ui_poll(vibe_ui_t *s) {
             show(s, VIBE_RESULT);
         s->batch_cancel_pending = false;
     }
+    /* Firmware notices wait for idle Home, never interrupting setup or downloads. */
+    if (s->page == VIBE_HOME && !s->first_run && !v->updating && !v->idea_busy && !s->preview_active &&
+        v->release_available && v->release_version[0] && strcmp(s->notified_firmware, v->release_version)) {
+        show(s, VIBE_FIRMWARE_NOTICE);
+    }
     switch (s->page) {
+    case VIBE_FIRMWARE_PROGRESS:
+        TEXT(s, FIRMWARE_PROGRESS_TITLE, T(s, v->update_title));
+        TEXT(s, FIRMWARE_PHASE, T(s, v->update_detail));
+        FORMAT(s, FIRMWARE_PERCENT, "%u%%", v->progress / 10);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_FIRMWARE_FAILED_VISIBLE, v->update_failed);
+        break;
+    case VIBE_FIRMWARE_NOTICE:
+        snprintf(s->notified_firmware, sizeof(s->notified_firmware), "%s", v->release_version);
+        TEXT(s, FIRMWARE_VERSION, v->release_version);
+        TEXT(s, FIRMWARE_READY, v->release_installable ? " " : T(s, "Firmware file not published yet"));
+        break;
     case VIBE_HOME:
         TEXT(s, USB_STATUS,
              v->usb_owner ? T(s, "Active")

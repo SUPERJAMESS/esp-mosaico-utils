@@ -1,4 +1,5 @@
 #include "factory_network.h"
+#include "factory_update_check.h"
 
 #include <stdatomic.h>
 #include <stdio.h>
@@ -333,6 +334,7 @@ static void network_event(void *arg, esp_event_base_t base, int32_t id, void *da
         const ip_event_got_ip_t *event = data;
         char ip[FACTORY_NETWORK_IP_BYTES] = {0};
         esp_ip4addr_ntoa(&event->ip_info.ip, ip, sizeof(ip));
+        factory_update_check_request();
 
         bool save = false;
         char ssid[FACTORY_NETWORK_SSID_BYTES] = {0};

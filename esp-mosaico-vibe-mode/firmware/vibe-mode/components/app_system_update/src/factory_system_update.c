@@ -62,7 +62,8 @@ factory_system_update_source_reserve(factory_system_update_owner_t owner,
 {
     update_context_t *ctx = &s_backend;
     ESP_RETURN_ON_FALSE((owner == FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE ||
-                         owner == FACTORY_SYSTEM_UPDATE_OWNER_NAND) &&
+                         owner == FACTORY_SYSTEM_UPDATE_OWNER_NAND ||
+                         owner == FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE) &&
                             update_operation_id_valid(operation_id),
                         ESP_ERR_INVALID_ARG, TAG, "invalid system-update reservation");
     ESP_RETURN_ON_FALSE(update_owner_claim(ctx, owner), ESP_ERR_INVALID_STATE, TAG,
@@ -128,7 +129,8 @@ esp_err_t update_source_prepare(update_context_t *ctx, factory_system_update_own
         .component_count = (uint8_t)component_count,
     };
     memcpy(descriptor.operation_id, operation_id, sizeof(descriptor.operation_id));
-    if (owner != FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE && owner != FACTORY_SYSTEM_UPDATE_OWNER_NAND) {
+    if (owner != FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE && owner != FACTORY_SYSTEM_UPDATE_OWNER_NAND &&
+        owner != FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE) {
         cJSON_Delete(root);
         return ESP_ERR_INVALID_ARG;
     }

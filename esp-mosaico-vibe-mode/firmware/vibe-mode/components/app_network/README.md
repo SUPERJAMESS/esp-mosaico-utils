@@ -4,7 +4,7 @@
 
 ## 依赖与边界
 
-app_system；ESP-IDF Wi-Fi/netif/event、NVS、mDNS、ESP-Iris 公共身份接口。
+app_system、app_update_check；ESP-IDF Wi-Fi/netif/event、NVS、mDNS、ESP-Iris 公共身份接口。
 
 公共头文件仅在 `include/`，内部头文件通过 `PRIV_INCLUDE_DIRS` 使用。其他组件不得包含 `private/` 或持有本组件内部结构。
 
@@ -20,3 +20,5 @@ factory_network_request_scan();
 ## 约束
 
 事件回调使用私有上下文；快照锁跨失败重试保留；密码只在连接成功后持久化。
+
+获取 IP 后异步触发 Vibe Mode 固件版本检查；HTTP 请求不在网络事件回调中执行。

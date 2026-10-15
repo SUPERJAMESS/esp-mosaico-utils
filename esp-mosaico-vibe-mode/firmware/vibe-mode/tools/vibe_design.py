@@ -509,6 +509,8 @@ def runtime_charsets(root, translations):
     for name in ('update_detail','result_detail'): values.setdefault(name,set()).update(details)
     # The verb is formatted through a variable, outside TEXT/FORMAT literals.
     values.setdefault('update_rate', set()).update(('Download', 'Read', 'Receive'))
+    values.setdefault('firmware_progress_title', set()).update(('Updating firmware', 'Firmware update failed'))
+    values.setdefault('firmware_phase', set()).update(('Downloading firmware', 'Verifying firmware', 'Writing firmware', 'Restarting Vibe Mode'))
     for i in range(6):values.setdefault('cell_name_'+str(i),set()).add('Add Idea')
     values.setdefault('bundles_detail',set()).update(('Current','Update available','Updating · %u%%','Waiting'))
     values.setdefault('shared_field',set()).update(('Key','Value','Saving settings...','Please use a-z, 0-9 and _'))

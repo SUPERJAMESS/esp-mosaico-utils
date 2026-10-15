@@ -167,6 +167,22 @@ def generate():
         if obj.get("name", "").startswith(("cell_current_", "cell_default_")):
             obj.update(bind=obj["name"] + "_visible", bind_target="visible")
 
+    firmware = page("firmware_notice", "Update Vibe Mode")
+    label(firmware, "firmware_available", "Update available", y=100, size=24, align="center")
+    label(firmware, "firmware_version", "", y=152, size=24, align="center")
+    label(firmware, "firmware_warning", "Do not unplug or power off.", y=212, h=40, color=COLORS["red"], align="center")
+    label(firmware, "firmware_ready", "", y=270, h=48, size=16, align="center")
+    button(firmware, "firmware_later", "Skip", 24, 360, 204, action="home")
+    button(firmware, "firmware_start", "Start update", 252, 360, 204, primary=True)
+
+    installing = add("layer", -1, 0, 0, 480, 480, name="firmware_progress", bind="firmware_progress_visible", bind_target="visible", hidden=True)
+    label(installing, "firmware_progress_title", "Updating firmware", y=36, size=24, align="center")
+    label(installing, "firmware_phase", "", y=132, align="center")
+    label(installing, "firmware_percent", "", y=196, size=32, align="center")
+    label(installing, "firmware_power_warning", "Do not unplug or power off.", y=268, color=COLORS["red"], align="center")
+    failed = add("layer", installing, 0, 0, 480, 480, name="firmware_failed", bind="firmware_failed_visible", bind_target="visible", hidden=True)
+    button(failed, "firmware_failure_back", "Back", 96, 380, 288, action="home")
+
     translations = json.loads((UI / "translations.json").read_text())
     from vibe_design import runtime_charsets
     dynamic_chars = runtime_charsets(ROOT, translations)

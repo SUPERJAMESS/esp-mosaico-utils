@@ -243,6 +243,60 @@ def test_home_dot_motion_tap_navigation_and_sleep(sim):
     sim.wait(page=0)
 
 
+@pytest.mark.parametrize("language", [1, 2])
+def test_release_notice_waits_for_home_and_is_not_repeated(sim, language):
+    if language == 2:
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
+    sim.wifi()
+    sim.wait(page=1)
+    sim.control("release-available")
+    sim.wait(page=1)
+    sim.wifi_back()
+    sim.wait(page=26)
+    time.sleep(.5)
+    sim.capture("release-available")
+    with Image.open(sim.directory / "release-available.png") as frame:
+        assert frame.convert("RGB").crop((180, 152, 300, 192)).getbbox(), "release version must be visible"
+    sim.tap_ui("button_firmware_later")
+    sim.wait(page=0)
+    time.sleep(1)
+    sim.wait(page=0)
+
+
+@pytest.mark.parametrize("language", [1, 2])
+def test_firmware_install_warns_and_blocks_navigation(sim, language):
+    if language == 2:
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
+    sim.control("release-available")
+    sim.wait(page=26)
+    # A refreshed feed must install the version currently displayed.
+    sim.control("release-available 0.2.2")
+    sim.wait(page=26)
+    sim.tap_ui("button_firmware_start")
+    sim.wait(page=27, progress=250)
+    time.sleep(.5)
+    sim.capture("firmware-install")
+    with Image.open(sim.directory / "firmware-install.png") as frame:
+        assert frame.convert("RGB").crop((24, 268, 456, 308)).getbbox(), "power warning must be visible"
+    sim.tap(38, 36)
+    sim.control("ai")
+    sim.wait(page=27, asleep=False)
+    sim.control("firmware-complete")
+    sim.wait(page=27, progress=1000)
+    sim.control("firmware-fail")
+    sim.wait(page=27)
+    sim.tap_ui("button_firmware_failure_back")
+    sim.wait(page=0)
+
+
 def test_keyboard_limits_masking_and_cancel(sim):
     sim.capture("home")
     sim.download()

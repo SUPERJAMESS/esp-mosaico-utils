@@ -320,5 +320,12 @@
   "Current": "当前运行",
   "Update available": "有可用更新",
   "Ideas %u/%u": "Idea %u/%u",
-  "%u Ideas · %llu.%u of %llu MB used": "%u 个 Idea · 已用 %llu.%u / %llu MB"
+  "%u Ideas · %llu.%u of %llu MB used": "%u 个 Idea · 已用 %llu.%u / %llu MB",
+  "Do not unplug or power off.": "请勿断电或关机。",
+  "Start update": "开始更新",
+  "Firmware file not published yet": "固件文件尚未发布",
+  "Downloading firmware": "正在下载固件",
+  "Verifying firmware": "正在校验固件",
+  "Writing firmware": "正在写入固件",
+  "Restarting Vibe Mode": "正在重启 Vibe Mode"
 }

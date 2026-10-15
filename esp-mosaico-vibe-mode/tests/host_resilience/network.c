@@ -2,12 +2,13 @@
 #include SOURCE
 
 static int fail_step, step;
-static unsigned netifs, wifi, handlers, starts, scans, connects, nvs_erases;
+static unsigned netifs, wifi, handlers, starts, scans, connects, nvs_erases, update_requests;
 static bool saved_credentials, saved_connect_fails;
 static bool fail_shared_commit;
 static struct { char ssid[33], password[65]; bool has_ssid, has_password; } shared, staged;
 static wifi_config_t configured;
 static esp_netif_t netif;
+void factory_update_check_request(void) { ++update_requests; }
 static esp_err_t next(void) { return ++step == fail_step ? ESP_FAIL : ESP_OK; }
 esp_err_t esp_netif_init(void) { return next(); }
 esp_err_t esp_event_loop_create_default(void)
@@ -146,6 +147,9 @@ int main(void)
     assert(factory_network_connect("replacement-ap", "password") == ESP_OK);
     assert(s_network.snapshot.state == FACTORY_NETWORK_CONNECTING);
     assert(connects && scans);
+    ip_event_got_ip_t event = {0};
+    network_event(&s_network, IP_EVENT, IP_EVENT_STA_GOT_IP, &event);
+    assert(update_requests == 1 && s_network.snapshot.state == FACTORY_NETWORK_CONNECTED);
     reset();
     /* Existing private credentials migrate, reconnect and become shared. */
     saved_credentials = true;

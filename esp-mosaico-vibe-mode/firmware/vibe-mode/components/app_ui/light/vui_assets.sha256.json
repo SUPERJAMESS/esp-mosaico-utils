@@ -1,6 +1,6 @@
 {
-  "components/app_ui/light/vui_assets.bin": "217c8a27fbcdc2f209a70f38217a0958b2720013a1c84572dd07a6d7aacc13e2",
-  "components/app_ui/private/vui_ids.h": "648f961d980f08806ec9cddf1512bffed25e9b4df579124d2e304de4f8b02621",
+  "components/app_ui/light/vui_assets.bin": "3531a8a0d9af14e0cbbb6246d092636fada7a58b0df592f00273485264445f3d",
+  "components/app_ui/private/vui_ids.h": "6526acea448c66740a9b61527153b5d0354563d48036042b31e74dfd0b4af19f",
   "tools/compile_vui.py": "bd2cbd2df94606829c5098c21272f2e677f2833dd35fd109866d33ba0ae7779b",
   "ui/assets/icons/back-32-white.png": "319ef3fac418b5408d4bfb2d908211259334a4293faa98439f8f2c1d740897b0",
   "ui/assets/icons/backspace-32-white.png": "3c275c7ab5c06b64769e356670d50b5be39c8b2bf197ee42da8299fc533e1730",
@@ -35,10 +35,10 @@
   "ui/assets/mosaic/hero_empty-80.png": "3da2a5899a707efa6e6ddf5dbad348d1fd58dc42d6b6d6ffb5e88ae6879a6cf8",
   "ui/assets/qr/develop@198.png": "2f3ac9f017fafb72e4d8e1dfdf61a32181ac242919613d3e557e91cc07e78b34",
   "ui/fonts/NotoSansSC-Bold.otf": "7b261fdfd2c11e864afb59d6370ca716d847d3ec894da05a8981dec472e4d3fd",
-  "ui/fonts/VibeDisplay.otf": "b5555a94c73709aaafb0f40a2b7a2f20115fcd1b72289ea9588c0e584310f71d",
-  "ui/fonts/VibeInter.otf": "1ad011abc250bb283a5ee853d233c929fd14795080f30e306b529aa509b75ccb",
-  "ui/fonts/VibeMedium.otf": "38342dba9ffec2b5a275cb9fa4d56f0eba26817c6e470bd74fd3c0d4b931a621",
-  "ui/main.json": "6b6871e9d16e42a2be8de8e914a082ee43d10137efcc494792ea6c709c215269",
+  "ui/fonts/VibeDisplay.otf": "4dcfa7ec6a3c16b831efe78b3b06cc5c5165b1c07f06b79b4107106e64354780",
+  "ui/fonts/VibeInter.otf": "34716d16fd14aaefba86428692286d37296e1003b0aaa8307091c5b7dd218bf5",
+  "ui/fonts/VibeMedium.otf": "1cf01d1997672a2825a9c6a487dce5365a47df4be6ce89cfc3ef25cd04922f57",
+  "ui/main.json": "204fba0a5cf67e390d16f4792f781a35ba0e55d433f23948a874650fcc1e4d61",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3"
 }

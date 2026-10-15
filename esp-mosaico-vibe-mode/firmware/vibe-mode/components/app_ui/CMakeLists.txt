@@ -15,7 +15,7 @@ idf_component_register(
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "private"
     REQUIRES app_settings app_device
-    PRIV_REQUIRES app_network app_ideas app_nand_update app_system app_system_update app_bridge esp_iris esp-mosaico-bsp esp_display_present esp_lcd esp_lcd_touch esp_driver_spi esp_timer esp_wifi esp_app_format
+    PRIV_REQUIRES app_update_check app_network app_ideas app_nand_update app_system app_system_update app_bridge esp_iris esp-mosaico-bsp esp_display_present esp_lcd esp_lcd_touch esp_driver_spi esp_timer esp_wifi esp_app_format
     EMBED_FILES "light/vui_assets.bin"
 )
 # Raster loops run for every scroll frame. Keep the product's size-oriented

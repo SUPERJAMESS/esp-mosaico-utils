@@ -17,6 +17,7 @@
 #include "bootloader_utility.h"
 #include "bootloader_common.h"
 #include "bootloader_flash_priv.h"
+#include "esp_private/bootloader_flash_internal.h"
 #include "hal/gpio_ll.h"
 #include "hal/usb_utmi_ll.h"
 #include "mosaico_boot_splash.h"
