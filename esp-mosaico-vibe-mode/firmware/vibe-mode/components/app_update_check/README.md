@@ -7,5 +7,5 @@ Wi-Fi 获取 IP 后异步读取独立 HTTPS 清单，发布是否有新版本及
 依赖 app_system_update 公共接口，不包含其私有头文件。
 
 检查之间至少间隔 60 秒，执行期间合并请求；失败只记录日志并保留上次成功结果。
-默认读取 `https://dl.espressif.com/mosaico/esp-mosaico-vibe-mode-stable.json`，验证 product 为 `esp-mosaico-vibe-mode`。
+默认读取 `https://mosaico-vibe-rec-ver.esp-claw.com/esp-mosaico-vibe-mode-stable.json`，验证 product 为 `esp-mosaico-vibe-mode`。
 HTTP 响应必须为 200，限制 4 KiB、10 秒超时、开启证书校验且不跟随重定向。

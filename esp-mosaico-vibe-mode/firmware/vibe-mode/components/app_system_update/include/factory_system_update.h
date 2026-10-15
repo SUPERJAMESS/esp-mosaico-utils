@@ -36,6 +36,7 @@ typedef struct {
     uint64_t total_size;
     uint64_t received_size;
     uint64_t completed_size;
+    uint32_t commit_written, commit_total;
 } factory_system_update_status_t;
 
 /* Register the Recovery-resident, product-owned Flash-policy backend.

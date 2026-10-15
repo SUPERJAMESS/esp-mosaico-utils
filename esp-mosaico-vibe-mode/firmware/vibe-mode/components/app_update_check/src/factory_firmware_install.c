@@ -157,8 +157,19 @@ done:
 static void install_task(void *argument)
 {
     install_request_t *request = argument;
-    uint8_t *image = heap_caps_malloc(SLOT_BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    esp_err_t err = ESP_ERR_NO_MEM;
+    uint8_t *image = NULL;
+    bool reserved = false;
+    esp_err_t err = factory_system_update_source_reserve(OWNER, request->operation);
+    if (err != ESP_OK) goto done;
+    reserved = true;
+    esp_iris_ota_status_t ota = {0};
+    err = esp_iris_ota_get_status(&ota);
+    if (err == ESP_ERR_NOT_FOUND || err == ESP_ERR_NOT_SUPPORTED) err = ESP_OK;
+    if (err == ESP_OK && ota.active) err = ESP_ERR_INVALID_STATE;
+    if (err != ESP_OK) goto done;
+    progress(FIRMWARE_DOWNLOADING, 0, ESP_OK);
+    image = heap_caps_malloc(SLOT_BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    err = ESP_ERR_NO_MEM;
     if (!image) goto done;
     memset(image, 0xff, SLOT_BYTES);
     TRY(download(&request->release, image));
@@ -175,7 +186,7 @@ static void install_task(void *argument)
 done:
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Firmware update failed: %s", esp_err_to_name(err));
-        factory_system_update_source_abort(OWNER, request->operation, err);
+        if (reserved) factory_system_update_source_abort(OWNER, request->operation, err);
         factory_firmware_status_t status;
         factory_firmware_install_status(&status);
         progress(FIRMWARE_FAILED, status.received, err);
@@ -189,37 +200,37 @@ esp_err_t factory_firmware_install_start(const factory_update_check_snapshot_t *
 {
     if (!release || !release->available || !release->installable || release->size > SLOT_BYTES) return ESP_ERR_NOT_SUPPORTED;
     const esp_partition_t *running = esp_ota_get_running_partition();
-    if (!running || running->subtype != ESP_PARTITION_SUBTYPE_APP_TEST || running->address != SLOT_OFFSET || running->size != SLOT_BYTES)
+    if (!running || running->subtype != ESP_PARTITION_SUBTYPE_APP_TEST || running->address != SLOT_OFFSET || running->size != SLOT_BYTES) {
+        ESP_LOGE(TAG, "Update rejected: running slot subtype=0x%x offset=0x%lx size=0x%lx",
+                 running ? running->subtype : 0xff, running ? (unsigned long)running->address : 0,
+                 running ? (unsigned long)running->size : 0);
         return ESP_ERR_INVALID_STATE;
+    }
     portENTER_CRITICAL(&s_lock);
     bool busy = s_starting || (s_status.phase != FIRMWARE_IDLE && s_status.phase != FIRMWARE_FAILED);
     if (!busy) s_starting = true;
     portEXIT_CRITICAL(&s_lock);
-    if (busy) return ESP_ERR_INVALID_STATE;
+    if (busy) {
+        ESP_LOGE(TAG, "Update rejected: firmware installer is busy");
+        return ESP_ERR_INVALID_STATE;
+    }
     install_request_t *request = malloc(sizeof(*request));
     esp_err_t err = ESP_ERR_NO_MEM;
     if (!request) goto done;
     request->release = *release;
     esp_fill_random(request->operation, sizeof(request->operation));
     request->operation[0] |= 1;
-    err = factory_system_update_source_reserve(OWNER, request->operation);
-    if (err != ESP_OK) goto done;
-    esp_iris_ota_status_t ota = {0};
-    err = esp_iris_ota_get_status(&ota);
-    if (err == ESP_ERR_NOT_FOUND || err == ESP_ERR_NOT_SUPPORTED) err = ESP_OK;
-    if (err == ESP_OK && ota.active) err = ESP_ERR_INVALID_STATE;
-    if (err == ESP_OK) {
-        portENTER_CRITICAL(&s_lock);
-        s_status.total = release->size;
-        portEXIT_CRITICAL(&s_lock);
-        progress(FIRMWARE_DOWNLOADING, 0, ESP_OK);
-        if (xTaskCreate(install_task, "vibe_install", 20 * 1024, request, 4, NULL) == pdPASS) {
-            request = NULL;
-        } else err = ESP_ERR_NO_MEM;
-    }
-    if (err != ESP_OK) {
-        factory_system_update_source_abort(OWNER, request->operation, err);
+    portENTER_CRITICAL(&s_lock);
+    s_status.total = release->size;
+    portEXIT_CRITICAL(&s_lock);
+    progress(FIRMWARE_PREPARING, 0, ESP_OK);
+    if (xTaskCreate(install_task, "vibe_install", 20 * 1024, request, 4, NULL) == pdPASS) {
+        request = NULL;
+        err = ESP_OK;
+    } else {
+        err = ESP_ERR_NO_MEM;
         progress(FIRMWARE_FAILED, 0, err);
+        ESP_LOGE(TAG, "Failed to create firmware installer task");
     }
 done:
     free(request);

@@ -33,7 +33,7 @@ int main(void)
 {
     factory_update_check_snapshot_t release = setup();
     assert(factory_firmware_install_start(&release) == ESP_OK);
-    assert(s_status.phase == FIRMWARE_DOWNLOADING && commits == 0);
+    assert(s_status.phase == FIRMWARE_PREPARING && commits == 0 && !reserved);
     pending_task(pending_argument);
     assert(commits == 1 && prepared == 1 && aborts == 0 && s_status.phase == FIRMWARE_RESTARTING);
     assert(!memcmp(staged, remote, remote_size));
@@ -54,9 +54,13 @@ int main(void)
     release = setup(); create_error = 1;
     assert(factory_firmware_install_start(&release) == ESP_ERR_NO_MEM && !reserved && !pending_task);
     release = setup(); ota_active = 1;
-    assert(factory_firmware_install_start(&release) == ESP_ERR_INVALID_STATE && !reserved && !pending_task);
+    assert(factory_firmware_install_start(&release) == ESP_OK && !reserved);
+    pending_task(pending_argument);
+    assert(s_status.phase == FIRMWARE_FAILED && !reserved && opens == 0);
     release = setup(); reserve_error = 1;
-    assert(factory_firmware_install_start(&release) == ESP_ERR_INVALID_STATE && !pending_task);
+    assert(factory_firmware_install_start(&release) == ESP_OK);
+    pending_task(pending_argument);
+    assert(s_status.phase == FIRMWARE_FAILED && aborts == 0 && opens == 0);
     release = setup(); release.installable = false;
     assert(factory_firmware_install_start(&release) == ESP_ERR_NOT_SUPPORTED && !pending_task);
     free(staged);

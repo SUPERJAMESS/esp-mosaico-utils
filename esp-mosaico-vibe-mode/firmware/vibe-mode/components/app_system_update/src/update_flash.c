@@ -237,8 +237,7 @@ esp_err_t update_persist_result(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERA
     return factory_system_metadata_store_last_result(operation_id, result);
 }
 
-esp_err_t update_commit_protected_image(const factory_update_plan_component_t *plan,
-                                        const uint8_t *image)
+esp_err_t update_commit_protected_image(update_context_t *ctx, const factory_update_plan_component_t *plan, const uint8_t *image)
 {
     if (plan == NULL) {
         return ESP_OK;
@@ -246,10 +245,22 @@ esp_err_t update_commit_protected_image(const factory_update_plan_component_t *p
     ESP_RETURN_ON_FALSE(image != NULL && plan->completed, ESP_ERR_INVALID_STATE, TAG,
                         "protected image is incomplete");
     const esp_iris_system_update_component_t *component = &plan->descriptor;
+    bool recovery = component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_RECOVERY;
+    if (recovery) {
+        taskENTER_CRITICAL(&ctx->lock);
+        ctx->status.commit_written = 0;
+        ctx->status.commit_total = component->size;
+        taskEXIT_CRITICAL(&ctx->lock);
+    }
     uint8_t digest[32];
     ESP_RETURN_ON_ERROR(update_hash_flash_region(component->target_offset, component->size, digest),
                         TAG, "hash current protected component");
     if (update_bytes_equal(digest, component->sha256, 32)) {
+        if (recovery) {
+            taskENTER_CRITICAL(&ctx->lock);
+            ctx->status.commit_written = component->size;
+            taskEXIT_CRITICAL(&ctx->lock);
+        }
         ESP_LOGI(TAG, "protected component already matches; skipping write: id=%u", component->id);
         return ESP_OK;
     }
@@ -262,8 +273,20 @@ esp_err_t update_commit_protected_image(const factory_update_plan_component_t *p
 
     ret = esp_flash_erase_region(esp_flash_default_chip, component->target_offset, component->size);
     if (ret == ESP_OK) {
-        ret = esp_flash_write(esp_flash_default_chip, image, component->target_offset,
-                              component->size);
+        /* Yield between Recovery writes so the UI can paint real Flash progress. */
+        for (uint32_t written = 0; ret == ESP_OK && written < component->size;) {
+            uint32_t count = component->size - written;
+            if (recovery && count > 64 * 1024) count = 64 * 1024;
+            ret = esp_flash_write(esp_flash_default_chip, image + written, component->target_offset + written, count);
+            if (ret != ESP_OK) break;
+            written += count;
+            if (recovery) {
+                taskENTER_CRITICAL(&ctx->lock);
+                ctx->status.commit_written = written;
+                taskEXIT_CRITICAL(&ctx->lock);
+                vTaskDelay(1);
+            }
+        }
     }
 
     esp_err_t protect_ret = esp_flash_set_dangerous_write_protection(esp_flash_default_chip, true);
@@ -353,7 +376,7 @@ esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERAT
         ESP_LOGI(TAG, "committing bootloader");
     }
     ESP_RETURN_ON_ERROR(
-        update_commit_protected_image(bootloader, ctx->transaction.bootloader_image), TAG,
+        update_commit_protected_image(ctx, bootloader, ctx->transaction.bootloader_image), TAG,
         "commit bootloader");
     if (bootloader != NULL) {
         uint32_t image_length = 0;
@@ -364,7 +387,7 @@ esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERAT
     if (recovery != NULL) {
         ESP_LOGW(TAG, "committing running recovery image from PSRAM");
     }
-    ESP_RETURN_ON_ERROR(update_commit_protected_image(recovery, ctx->transaction.recovery_image),
+    ESP_RETURN_ON_ERROR(update_commit_protected_image(ctx, recovery, ctx->transaction.recovery_image),
                         TAG, "commit recovery");
     if (recovery != NULL) {
         esp_partition_pos_t recovery_position = {
@@ -383,7 +406,7 @@ esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERAT
         taskEXIT_CRITICAL(&ctx->lock);
     }
     ESP_RETURN_ON_ERROR(
-        update_commit_protected_image(partition_table, ctx->transaction.partition_table_image), TAG,
+        update_commit_protected_image(ctx, partition_table, ctx->transaction.partition_table_image), TAG,
         "commit partition table");
     if (partition_table != NULL) {
         ESP_LOGI(TAG, "partition table committed and verified");

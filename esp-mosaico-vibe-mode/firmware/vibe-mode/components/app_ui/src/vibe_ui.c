@@ -606,8 +606,8 @@ void vibe_ui_poll(vibe_ui_t *s) {
             show(s, VIBE_RESULT);
         s->batch_cancel_pending = false;
     }
-    /* Firmware notices wait for idle Home, never interrupting setup or downloads. */
-    if (s->page == VIBE_HOME && !s->first_run && !v->updating && !v->idea_busy && !s->preview_active &&
+    /* Background Ideas checks must not delay firmware notices on Home. */
+    if (s->page == VIBE_HOME && !s->first_run && !v->updating && !s->preview_active &&
         v->release_available && v->release_version[0] && strcmp(s->notified_firmware, v->release_version)) {
         show(s, VIBE_FIRMWARE_NOTICE);
     }
