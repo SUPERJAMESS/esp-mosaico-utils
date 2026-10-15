@@ -336,6 +336,7 @@ python -m pip install -r firmware/vibe-mode/tools/requirements.txt
 python mosaico.py iris list
 python mosaico.py recover
 python mosaico.py iris app-update --project projects/<project>
+python mosaico.py iris logs
 ```
 
 - `iris list` 实时发现设备，并区分在线连接与离线缓存。
@@ -344,9 +345,9 @@ python mosaico.py iris app-update --project projects/<project>
 - `iris app-update` 构建并通过 ESP-Iris 安装普通应用；不会自动执行 `recover`。
 - `iris app-update` 默认实时显示构建、Vibe Mode 切换、传输进度、重连和固件校验阶段；
   `--json` 模式保持稳定机器输出，详细过程仍保存在运行日志中。
-- Vibe Mode 日志直接输出到原生 UART0，波特率 115200。关闭
-  `CONFIG_ESP_IRIS_REDIRECT_STDIO`，启动 ESP-Iris 后也不重定向 `stdout/stderr`；
-  USB/TCP 继续用于调试协议，`iris logs` 不再接收 Vibe Mode 的应用日志。
+- Vibe Mode 默认启用 `CONFIG_ESP_IRIS_REDIRECT_STDIO`，ESP-Iris 启动后通过 Iris 输出应用日志。
+  `iris logs` 先显示保留日志，再持续跟随；按 `Ctrl+C` 正常结束。
+  如需原生 UART0 日志（115200 波特率），可关闭该选项；USB/TCP 调试协议仍可使用。
 
 Vibe Mode 屏幕在 OTA 更新期间同时显示当前阶段、已传输/总容量、百分比与速率。
 Bridge 使用 `Download`，USB/TCP 使用 `Receive`，NAND 使用 `Write`；速率单位
