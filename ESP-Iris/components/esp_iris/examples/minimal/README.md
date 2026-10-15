@@ -54,6 +54,27 @@ USB CDC0, the first image normally uses UART/Serial-JTAG or a manually entered
 ROM downloader. Stop the Gateway before flashing through a USB Serial/JTAG
 endpoint used by ESP-Iris.
 
+The S31 application USB profile enables `CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD`.
+After installing it once, `idf.py -p CONSOLE_PORT flash monitor` can use the
+same high-speed USB connector: CDC0 recognizes the BSP-style DTR/RTS download
+handshake, while CDC1 remains the data interface. The project `idf_ext.py`
+loads Iris's host extension before the first build. It builds before reset,
+follows the selected USB location into ROM, verifies the hardware MAC, calls
+IDF's original flash target, and waits for the matching application console
+before starting monitor with `--no-reset`. Multiple boards require explicit
+`-p` selection. Release both Gateway connections and any other monitor first.
+The extension reserves both CDC interfaces until monitor exits.
+Exit monitor before starting another flash; its built-in reflash shortcut does
+not yet hand off the parent process's USB locks to its child.
+
+For other projects, load the component's `idf_ext.py` through IDF's trusted
+component extension mechanism, or explicitly import `action_extensions` from
+`tools/iris_usb_flash` in a project `idf_ext.py` as this example does. Reconfigure
+existing build directories after enabling the option. This handshake requires
+the new firmware on the device; old firmware still needs manual Boot/ROM entry
+for its first installation. The automatic path requires USB physical-location
+and interface metadata (validated with Linux-style enumeration).
+
 After the Gateway connects, logs should contain the device ID and periodic
 status lines. A local `esp_iris_stop()`/`esp_iris_start()` cycle keeps the same
 `boot_id`; a real reboot produces a new one.

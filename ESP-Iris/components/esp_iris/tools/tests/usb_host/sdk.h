@@ -53,7 +53,7 @@ typedef struct {
         bDeviceProtocol, bMaxPacketSize0, idVendor, idProduct, bcdDevice,
         iManufacturer, iProduct, iSerialNumber, bNumConfigurations;
 } tusb_desc_device_t;
-typedef struct { struct { bool dtr; } line_state_changed_data; } cdcacm_event_t;
+typedef struct { struct { bool dtr, rts; } line_state_changed_data; } cdcacm_event_t;
 typedef struct { int id; } tinyusb_event_t;
 typedef struct {
     struct { unsigned size; } task;
@@ -105,3 +105,34 @@ static void usb_utmi_ll_reset_register(void)
 { assert(stop_step == 1 && clock_enabled); stop_step = 2; }
 static void usb_utmi_ll_enable_bus_clock(bool enabled)
 { assert(stop_step == 2 && !enabled); stop_step = 3; clock_enabled = false; }
+
+#if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
+#define LP_SYSTEM_REG_SYS_CTRL_REG 1
+#define LP_SYSTEM_REG_FORCE_DOWNLOAD_BOOT 4
+static unsigned download_boot, restart_calls, timers;
+static int64_t now_us;
+static bool fail_timer;
+typedef struct { void (*callback)(void *); const char *name; } esp_timer_create_args_t;
+typedef struct { void (*callback)(void *); uint64_t delay; bool active; } fake_timer_t;
+typedef fake_timer_t *esp_timer_handle_t;
+static fake_timer_t fake_timer;
+static int64_t esp_timer_get_time(void) { return now_us; }
+static esp_err_t esp_timer_create(const esp_timer_create_args_t *args, esp_timer_handle_t *timer)
+{
+    if (fail_timer) return ESP_FAIL;
+    ++timers; fake_timer = (fake_timer_t){.callback = args->callback};
+    *timer = &fake_timer; return ESP_OK;
+}
+static esp_err_t esp_timer_stop(esp_timer_handle_t timer)
+{ timer->active = false; return ESP_OK; }
+static esp_err_t esp_timer_delete(esp_timer_handle_t timer)
+{ assert(!timer->active); --timers; return ESP_OK; }
+static esp_err_t esp_timer_start_once(esp_timer_handle_t timer, uint64_t delay)
+{ timer->delay = delay; timer->active = true; return ESP_OK; }
+static esp_err_t esp_timer_restart(esp_timer_handle_t timer, uint64_t delay)
+{ return esp_timer_start_once(timer, delay); }
+static void set_download_boot(unsigned reg, unsigned value)
+{ assert(reg == 1 && stop_step == 3 && !clock_enabled); download_boot |= value; }
+#define REG_SET_BIT(reg, bit) set_download_boot(reg, bit)
+static void esp_restart(void) { ++restart_calls; shutdown_handler(); }
+#endif

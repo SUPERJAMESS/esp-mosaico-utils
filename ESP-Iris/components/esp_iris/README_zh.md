@@ -7,7 +7,8 @@ ESP-Iris 减少嵌入式开发中不必要的编译和烧录时间，让设备�
 零散的串口调试，变成一个统一、结构化、可恢复的设备开发流程。
 
 ESP-Iris 0.2 在标准 ESP-IDF 控制台上增加命令和有界、可打印的 API 记录。
-不安装主机扩展、不启动 Gateway，也能使用原版 `idf.py flash monitor`。
+不启动 Gateway，也能使用 `idf.py flash monitor`。UART 和 USB Serial/JTAG
+使用 IDF 原生复位；S31 应用 USB 使用随组件提供的 Iris 扩展进入 ROM 并跟踪端口重枚举。
 单个 worker 服务控制链路与可选的独立数据链路，后者承载连续媒体、文件和固件。
 设备侧不运行
 HTTP server、WebSocket server、JSON parser、framebuffer mirror，也不进行
@@ -86,6 +87,8 @@ Component config > ESP-Iris device link > Device transports
 - **TCP** 提供可打印控制台及独立、经过认证的数据端口。
 - **USB** 使用 CDC0 文本/控制接口和 CDC1 数据接口，配置
   `CONFIG_TINYUSB_CDC_COUNT=2`，通过接口描述符发现角色。
+  S31 可启用 `CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD`，在 CDC0 识别下载握手；
+  主机扩展加载与首次安装见 [minimal USB 烧录说明](examples/minimal/README.md#run-and-verify)。
 - **USB Serial/JTAG / UART** 保留原生控制台和复位。Gateway 与 monitor、
   烧录工具互斥占用同一端口；没有数据链路也能 RPC、Job、输入及按需截图。
 - 已有 ESP-IDF REPL 的产品启用 `CONFIG_ESP_IRIS_CONSOLE_EXTERNAL_INPUT`，

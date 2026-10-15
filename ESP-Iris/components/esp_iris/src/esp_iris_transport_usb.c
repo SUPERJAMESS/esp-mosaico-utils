@@ -10,6 +10,47 @@
 #include "tinyusb_default_config.h"
 #include "tusb.h"
 
+#if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
+#include "esp_timer.h"
+#include "soc/lp_system_reg.h"
+#include "soc/soc.h"
+#include "esp_iris_usb_download.h"
+
+/* Adapted from esp-mosaico-bsp 3d0dcb5 usb_console.c. Keep the Iris PID and
+ * one USB owner; the host extension explicitly sends the BSP reset sequence. */
+static esp_timer_handle_t s_download_timer;
+static atomic_bool s_download_requested;
+static iris_usb_download_sequence_t s_download_sequence;
+
+static void usb_download_restart(void *arg)
+{
+    (void)arg;
+    if (atomic_load(&s_download_requested)) esp_restart();
+}
+
+static void usb_download_cancel(void)
+{
+    atomic_store(&s_download_requested, false);
+    if (s_download_timer) (void)esp_timer_stop(s_download_timer);
+    s_download_sequence = (iris_usb_download_sequence_t){0};
+}
+
+static void usb_download_line_state(bool dtr, bool rts)
+{
+    if (atomic_load(&s_download_requested)) {
+        /* Let the final control transfer complete before USB disappears. */
+        if (!dtr && !rts) (void)esp_timer_restart(s_download_timer, 50000);
+        return;
+    }
+    if (iris_usb_download_sequence(&s_download_sequence, dtr, rts, esp_timer_get_time())) {
+        atomic_store(&s_download_requested, true);
+        /* Also finish when the host disconnects before releasing both lines. */
+        if (esp_timer_start_once(s_download_timer, 500000) != ESP_OK)
+            atomic_store(&s_download_requested, false);
+    }
+}
+#endif
+
 #if CONFIG_ESP_IRIS_DATA_LINK
 #define IRIS_USB_CDC_COUNT 2
 #else
@@ -37,10 +78,22 @@ static void usb_shutdown(void)
     dcd_int_disable(IRIS_USB_RHPORT);
     usb_utmi_ll_reset_register();
     usb_utmi_ll_enable_bus_clock(false);
+#if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
+    /* Set the boot condition only after the old DMA engine is quiescent. */
+    if (atomic_load(&s_download_requested))
+        REG_SET_BIT(LP_SYSTEM_REG_SYS_CTRL_REG, LP_SYSTEM_REG_FORCE_DOWNLOAD_BOOT);
+#endif
 }
 
 static void usb_driver_uninstall(void)
 {
+#if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
+    usb_download_cancel();
+    if (s_download_timer) {
+        (void)esp_timer_delete(s_download_timer);
+        s_download_timer = NULL;
+    }
+#endif
     const esp_err_t err = esp_unregister_shutdown_handler(usb_shutdown);
     if (err != ESP_OK) ESP_LOGW("iris_usb", "shutdown unregister: %s", esp_err_to_name(err));
     (void)tinyusb_driver_uninstall();
@@ -98,7 +151,11 @@ static void cdc_rx_callback(int itf, cdcacm_event_t *event)
 static void cdc_line_state_callback(int itf, cdcacm_event_t *event)
 {
     if (itf < 0 || itf >= IRIS_USB_CDC_COUNT || s_state[itf] == NULL) return;
+    if (atomic_load(&s_shutting_down)) return;
     const bool opened = event->line_state_changed_data.dtr;
+#if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
+    if (itf == 0) usb_download_line_state(opened, event->line_state_changed_data.rts);
+#endif
     if (!opened) atomic_store(&s_state[itf]->disconnect_pending, true);
     atomic_store(&s_state[itf]->host_open, opened);
     cdc_rx_callback(itf, event);
@@ -108,6 +165,9 @@ static void usb_device_event_callback(tinyusb_event_t *event, void *arg)
 {
     (void)arg;
     if (event == NULL || event->id != TINYUSB_EVENT_DETACHED) return;
+#if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
+    s_download_sequence = (iris_usb_download_sequence_t){0};
+#endif
     for (unsigned i = 0; i < IRIS_USB_CDC_COUNT; ++i) {
         if (s_state[i] == NULL) continue;
         atomic_store(&s_state[i]->host_open, false);
@@ -147,6 +207,16 @@ static esp_err_t usb_start(iris_runtime_t *runtime, iris_transport_state_t *stat
             (void)tinyusb_driver_uninstall();
             return err;
         }
+#if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
+        const esp_timer_create_args_t timer = {
+            .callback = usb_download_restart, .name = "iris_usb_rom",
+        };
+        err = esp_timer_create(&timer, &s_download_timer);
+        if (err != ESP_OK) {
+            usb_driver_uninstall();
+            return err;
+        }
+#endif
     }
     atomic_store(&state->host_open, false);
     atomic_store(&state->disconnect_pending, false);
@@ -175,6 +245,9 @@ static void usb_stop(iris_runtime_t *runtime, iris_transport_state_t *state)
     if (atomic_load(&s_shutting_down)) return;
     const unsigned itf = interface_for(runtime);
     (void)tinyusb_cdcacm_deinit(itf);
+#if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
+    if (itf == 0) usb_download_cancel();
+#endif
     s_runtime[itf] = NULL;
     s_state[itf] = NULL;
     if (--s_users == 0) usb_driver_uninstall();

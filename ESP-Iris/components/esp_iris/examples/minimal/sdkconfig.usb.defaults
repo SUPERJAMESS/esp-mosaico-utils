@@ -6,9 +6,10 @@ CONFIG_ESPTOOLPY_FLASHSIZE_2MB=y
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 
-# CDC0 carries text/control; CDC1 carries binary data. Flash through a ROM
-# download interface; stock monitor may use CDC0 when Gateway releases it.
+# CDC0 carries text/control and the native flash download handshake; CDC1
+# carries binary data. Release Gateway ownership before native flash/monitor.
 CONFIG_ESP_IRIS_TRANSPORT_USB=y
+CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD=y
 CONFIG_TINYUSB_CDC_COUNT=2
 CONFIG_ESP_IRIS_TASK_STACK_SIZE=3328
 

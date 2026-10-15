@@ -582,6 +582,18 @@ config ESP_IRIS_USB_VID
     range 0x0001 0xFFFF
     default 0x303A
 
+config ESP_IRIS_USB_AUTO_DOWNLOAD
+    bool "Allow USB console entry into ROM download mode"
+    depends on ESP_IRIS_TRANSPORT_USB && IDF_TARGET_ESP32S31
+    default y
+    help
+        Recognize esptool DTR/RTS download sequences on CDC0 only. CDC1 keeps
+        its independent Iris data session. The Iris idf.py extension follows
+        the same physical device through ROM and application re-enumeration
+        for flash/app-flash followed by monitor. The USB VID/PID is unchanged.
+        Firmware without this feature still needs manual Boot/ROM entry for
+        the first installation. This local USB action does not use Iris RPC.
+
 config ESP_IRIS_USB_PID
     hex "USB product ID"
     depends on ESP_IRIS_TRANSPORT_USB

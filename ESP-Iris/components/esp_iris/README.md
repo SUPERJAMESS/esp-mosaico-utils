@@ -9,8 +9,9 @@ It turns scattered serial debugging into a unified, structured, and resumable
 device-development workflow.
 
 ESP-Iris 0.2 extends the standard ESP-IDF console with commands and bounded
-printable API records. Stock `idf.py flash monitor` works without a host
-extension or Gateway. One worker serves the control link and an optional,
+printable API records. `idf.py flash monitor` works without a Gateway. UART
+and USB Serial/JTAG use IDF's native reset; S31 application USB uses the bundled
+Iris extension to enter ROM and follow USB re-enumeration. One worker serves the control link and an optional,
 independently bound data link for media, files and firmware. It does not run
 an HTTP server, WebSocket server, JSON parser, framebuffer mirror, or
 allocate media-sized buffers.
@@ -93,6 +94,9 @@ Component config > ESP-Iris device link > Device transports
 - **TCP** exposes a printable console and an independent authenticated data port.
 - **USB** exposes CDC0 for text/control and CDC1 for binary data. Set
   `CONFIG_TINYUSB_CDC_COUNT=2`; interface descriptors identify their roles.
+  `CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD` enables CDC0 download handshakes on S31;
+  see [minimal's USB flash setup](examples/minimal/README.md#run-and-verify)
+  for loading the host extension and installing the first image.
 - **USB Serial/JTAG** and **UART** retain the native console and hardware reset.
   Stop the Gateway before opening stock monitor or flashing on that endpoint.
   RPC, jobs, input and on-demand screenshots work without a data link.

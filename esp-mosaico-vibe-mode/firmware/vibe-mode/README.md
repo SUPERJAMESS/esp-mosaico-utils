@@ -1,5 +1,21 @@
 # Vibe Mode 0.2
 
+本工程支持通过高速 USB console 执行 `idf.py -p PORT flash monitor`。
+`CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD=y` 在 CDC0 识别下载握手；CDC1 保持 Iris data
+用途。VID/PID 保持 `303A:4002`。项目 `idf_ext.py` 显式加载 Iris 扩展，构建完成后
+跟踪同一 USB 位置、核对 ROM MAC，调用原有 flash 目标，再等待同一设备的 console
+并以 `monitor --no-reset` 附着。原有 `flash`/`app-flash` 写入范围和参数保持不变。
+
+升级已有构建目录时先执行 `idf.py reconfigure build`。设备上旧固件没有下载握手时，
+首次仍需手动进入 Boot/ROM 或通过消费工作区 `mosaico.py recover --source current`
+安装；`prebuilt/recovery` 不随源码修改更新。之后选择 **console** 端口运行组合命令。
+多板连接必须用 `-p` 指定设备；关闭占用该板 console/data 的 Gateway 或 monitor。
+扩展持有两路接口的主机锁，避免烧录和 monitor 交接期间被 Gateway 重连占用。
+连续烧录请先退出 monitor，再运行组合命令；monitor 内置重烧录快捷键的父子进程
+锁交接尚未适配。
+ROM 身份不符、端口不唯一或重枚举超时会停止，不尝试其它板子。
+本次实现的主机模拟和构建验证不替代首次安装及连续烧录的设备验收。
+
 当前源码使用 ESP-Iris 0.2、Recovery ABI 2 和 `mosaico-retained-test-2m-v2`
 布局。`vibe_mode` 为 `app/test`，`main_app` 为 `app/ota_0`。固件工程名为
 `vibe-mode`，新构建产物为 `vibe-mode.bin`、`vibe-mode.elf`，候选包的
