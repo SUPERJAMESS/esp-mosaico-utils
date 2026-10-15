@@ -205,87 +205,12 @@ Flash/cache 故障的诊断能力。USB Serial/JTAG 控制器不受此处理影�
 不得运行 `update-recovery-prebuilt` 发布候选。产品原生应用 flash 不写维护镜像；
 本维护工程自身的 flash 清单明确将 `vibe-mode.bin` 写入 `vibe_mode`。
 
-## 以下为 0.1 发布记录和历史操作资料
+## 固件与恢复入口
 
-以下内容保留旧版本的真实测试结果，不能用来证明 0.2 已验收。
-旧布局、manifest、ABI、版本号和旧命令入口均以各段原发布环境为准；
-新工程按上面的 0.2 文档迁移，不使用历史包与新工具混搭。
-
-# ESP-Mosaico Vibe Mode
-
-**Vibe Mode** 是 ESP-Mosaico 内置的应用安装与设备维护模式，运行 ESP-Iris，
-提供应用更新、Wi-Fi 配置和 Download Ideas。**ROM Download Mode（ROM 下载模式）**
-是芯片底层烧录模式，不运行 Vibe Mode 或 ESP-Iris。
-
-从可达的正常应用进入 Vibe Mode 使用 `iris test enter-recovery`，不写入固件；
-`recover` 则通过 ROM 路径重建基础固件，再验证 Vibe Mode 就绪。
-有效的配套 bootloader 通过 AI 键（GPIO7）选择 Vibe Mode；
-Boot 键（GPIO61）用于 ROM 下载入口，仅在恢复流程要求时手动进入。
-
-历史工程名为 `factory`，现工程名为 `vibe-mode`；`recover` 命令、
-`firmware_mode=recovery` 和 ABI 保持兼容。
-`vibe-mode` 是 `esp-mosaico-vibe-mode` 内置的 Vibe Mode 保留固件，
-其源码和评审 bundle 与 `mosaico.py recover` 一同维护。普通应用从宿主
-workspace 的 `projects/hello_world` 创建，不应将本工程作为应用安装到 `ota_0`。
-
-当前源码构建的 Vibe Mode 固件版本为 `0.1.4`，由
-`sdkconfig.recovery.defaults` 中的 `CONFIG_APP_PROJECT_VER` 定义。
-`0.1.4` 保持 ESP-GSP `1.4.0` 和 GSPC `0.5.0`，源码构建自动准备
-独立 GSP 编译器。应用模板的 GSP 升级不改变 Vibe Mode 的依赖版本；
-已评审的预编译包版本见下文及包 manifest。
-`0.1.3` 将 USB/TCP System Update 与 NAND 本地安装的组件上限从 4 提高到 8，
-manifest 上限同步提高到 3 KiB；标准应用包可包含分区表、应用和六个资源镜像。
-使用新容量的包需要先升级 Vibe Mode；Bridge 的独立组件上限保持不变。
-`prebuilt/recovery` 基础包使用 `0.1.4`，其 manifest 记录各镜像的大小与 SHA-256。
-2026-09-28 的 ESP-174 优化在 ESP32-S31 实机通过 USB OTA、System Update、
-Vibe Mode 自更新及应用健康验收：OTA 按镜像大小预擦除，System Update 数据块
-提高到 3968 字节；Gateway 在成功握手后重置重连退避。相同 515,312 字节应用的
-OTA 传输约从 68 KiB/s 提升到 236–255 KiB/s，完整操作从 15.85 秒缩短到
-11.87–12.09 秒。协议、版本线、Recovery ABI 和分区布局不变。
-
-当前包以 `43cd13e28ea47f6bb2ae39f584a2d2ac980f45d2` 加本次修改构建，manifest
-如实记录源码 dirty 状态。`factory.bin` 为 1,817,040 字节，固定槽位剩余
-17,968 字节，ELF SHA-256 为
-`4b9c3296d2e218977d0a88d205f69f328ebb0a5867cd3fbde0e15a5fc6afc55b`。
-整包通过 `prepare_recovery.py` 重新生成、校验并原子替换；保留以下历史包的
-bootloader、基础分区表和初始 OTA 数据字节，纳入实机验证过的 Vibe Mode 镜像。
-测量口径、操作 ID、哈希及验证边界见
-[USB 更新吞吐验证](../../docs/usb-update-throughput-validation.zh-CN.md)。
-
-<details>
-<summary>2026-09-24 基础包的历史验收记录</summary>
-
-此前包来自源码提交 `0b0d9bc1af83f42471fd2c7e879290cb9837361f`（源码工作树干净），
-基于已合入的 `0.1.3`，保持 ESP-GSP `1.4.0` 和 GSPC `0.5.0`。
-以下为已评审包的历史验证记录，其中 Recovery 指 Vibe Mode：
-
-2026-09-24 在 ESP32-S31（Base MAC `30:ed:a0:f4:60:56`）上通过应用工作区的
-`mosaico.py recover --source current` 完成整包 ROM 烧录及哈希校验，重连确认
-Recovery `0.1.4`、相同硬件身份、OTA/System Update 能力及匹配的 ELF SHA-256。
-操作 ID 为 `75d799e2-99c0-4412-833b-759b76d1d07b`，首次 Boot ID 为
-`17470610007971261482`；正式预编译包与这次实测包逐字节一致。
-通过 System Update 安装 `tests/firmware/iris_acceptance` 后，验证应用健康状态、
-ELF 哈希和 RPC 计数，并完成 normal → Recovery → normal 往返；每次重启
-保持相同 Device ID，产生新的 Boot ID，bootloader 与分区表哈希始终一致。
-最终停留在 Recovery `0.1.4`，Boot ID 为 `12340589603743011809`。
-Recovery ELF SHA-256 为
-`8cb8d4e40d30667884da1c892a2eff5503acabf979710a2d2dc6151f1481b5db`。
-8 个组件和 3 KiB manifest 的接收边界通过宿主 C 运行时与制包回归测试；
-本次真机验收使用两个组件的应用包，未执行 8 组件应用更新。
-源码来源与 dirty 状态以 `prebuilt/recovery/manifest.json` 为准。
-本次使用固定的 ESP-IDF `7b9cc1ac79f865983f59bb8ff3ff43eb74ff1dbe` 和仓库默认配置完整构建；
-构建环境保留已有 DVP camera 修改，manifest 中 IDF 描述如实记录 `-dirt`。
-BSP 固定于组件 manifest 中的 `05e067de0613a0aa3fe2af42e75616804decbf4b`：
-`factory.bin` 为 1,817,440 字节，固定槽位剩余 17,568 字节；INFO 日志
-`bootloader.bin` 为 24,432 字节，距离分区表剩余 144 字节。
-默认 `recover` 使用该包，`recover --source current` 使用当前源码重新构建。
-Recovery ABI 与分区布局由工程配置和包 manifest 约束。
-
-</details>
-
-System Update 版本检查将 `0.1.4` 解析为同一语义版本线，只接受同一主版本线、且
-最低版本要求不高于当前 Vibe Mode 的更新包。Vibe Mode 自更新拒绝降级或
-跨主版本线的镜像。
+Vibe Mode 是保留维护固件；ROM Download Mode 是芯片底层烧录模式，不运行 ESP-Iris。
+从正常应用进入 Vibe Mode 使用 `iris test enter-recovery`；`recover` 通过 ROM 路径重建基础固件。
+AI 键（GPIO7）选择 Vibe Mode，Boot 键（GPIO61）用于 ROM 下载入口。
+固件版本以 `sdkconfig.recovery.defaults` 为准，预编译包身份以 `prebuilt/recovery/manifest.json` 为准。
 
 ## 静态开机 Logo
 
@@ -620,7 +545,6 @@ Ideas/UI/输入 → 自动更新及网络 → HEALTHY”的顺序组装组件。
 PC 后端从公共控制器接口创建实例并读取无凭据状态，不能访问 `vibe_ui_t` 内部成员。
 [第三方依赖说明](third_party/README.md)记录版本和补丁流程。架构回归
 `tests/test_firmware_component_boundaries.py`检查组件图、包含边界及入口职责。
-构建、主机回归与真机覆盖范围见[本次验证记录](../../docs/validation-runtime-components.md)。
 
 ## Vibe Mode 界面与构建
 
