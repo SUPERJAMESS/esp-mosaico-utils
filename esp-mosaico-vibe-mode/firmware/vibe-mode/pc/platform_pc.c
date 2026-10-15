@@ -45,6 +45,7 @@ static void trace_state(vui_handle_t ui, void *ctx)
             snprintf(model.release_version, sizeof(model.release_version), "0.2.1");
             (void)sscanf(command, "release-available %31s", model.release_version);
         }
+        if (!strcmp(command, "ideas-refresh-busy")) model.idea_busy = true;
         if (!strcmp(command, "firmware-fail")) {
             model.updating = false;
             model.update_terminal = model.update_failed = true;

@@ -290,8 +290,13 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
         out->batch = out->cancellable = false;
         out->update_revision = ctx->revision;
         out->progress = vibe_transfer_permille(firmware.received, firmware.total);
+        if (firmware.phase == FIRMWARE_WRITING || (out->update_failed && system.owner == FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE && system.commit_total)) {
+            out->progress = vibe_transfer_permille(system.commit_written, system.commit_total);
+            if (out->progress >= 1000) out->progress = 999;
+        }
         COPY(update_title, out->update_failed ? "Firmware update failed" : "Updating firmware");
-        const char *detail = firmware.phase == FIRMWARE_DOWNLOADING ? "Downloading firmware" :
+        const char *detail = firmware.phase == FIRMWARE_PREPARING ? "Preparing update" :
+            firmware.phase == FIRMWARE_DOWNLOADING ? "Downloading firmware" :
             firmware.phase == FIRMWARE_VERIFYING ? "Verifying firmware" :
             firmware.phase == FIRMWARE_WRITING ? "Writing firmware" : "Restarting Vibe Mode";
         if (out->update_failed) snprintf(out->update_detail, sizeof(out->update_detail), "Error 0x%08x", (unsigned)firmware.error);

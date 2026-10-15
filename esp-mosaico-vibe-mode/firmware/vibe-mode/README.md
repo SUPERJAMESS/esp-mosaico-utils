@@ -66,10 +66,12 @@ Download Ideas 输入六位应用编号（字符串，保留前导零），点�
   完全一致才跳过写入。未保存开发内容时只提供“放弃并打开 / 取消”。
 - **管理**：启动联网后检查更新，支持逐个确认更新和后台批量更新；更新只替换 NAND 副本，
   下次点击“打开”才写入运行槽。删除须长按确认，四秒内可以撤销；当前 Idea 不允许删除。
-- 开机应用身份保存在保留的 `sysmeta` 分区独立 `ideas` 命名空间；标记同时核对
+- 开机应用身份保存在保留的 `sysmeta` 分区独立 `ideas` 命名空间；显式验证时核对
   实际 NOR 应用与分区表的 SHA-256。它不依赖 NAND 中当前版本是否等于 NOR 版本。
 - 新包先在 `.incoming` 完整下载并校验，再通过目录重命名替换 `current`；`.previous`
   只用于中断恢复，并在替换完成或下次扫描时删除，不提供历史版本列表。
+
+开机和列表刷新只读取应用描述以显示开发应用名称、版本，不再全量读取或计算 NOR 主程序、资源分区的哈希。保存状态在没有校验依据时按未确认处理，保留覆盖前的提醒。完整校验仅在用户主动保存、运行或打开应用时执行。
 
 预览阶段一次请求取得根清单、固件清单、展示 JSON、字形子集和图标，经大小及 SHA-256 校验后暂存在内存，不创建 `.incoming`，
 不下载应用镜像或分区表。解析出的 release ID、清单和文件路径在确认期间固定；
@@ -334,7 +336,6 @@ python -m pip install -r firmware/vibe-mode/tools/requirements.txt
 python mosaico.py iris list
 python mosaico.py recover
 python mosaico.py iris app-update --project projects/<project>
-python mosaico.py iris logs
 ```
 
 - `iris list` 实时发现设备，并区分在线连接与离线缓存。
@@ -343,7 +344,9 @@ python mosaico.py iris logs
 - `iris app-update` 构建并通过 ESP-Iris 安装普通应用；不会自动执行 `recover`。
 - `iris app-update` 默认实时显示构建、Vibe Mode 切换、传输进度、重连和固件校验阶段；
   `--json` 模式保持稳定机器输出，详细过程仍保存在运行日志中。
-- `iris logs` 先显示保留日志，再持续跟随；按 `Ctrl+C` 正常结束。
+- Vibe Mode 日志直接输出到原生 UART0，波特率 115200。关闭
+  `CONFIG_ESP_IRIS_REDIRECT_STDIO`，启动 ESP-Iris 后也不重定向 `stdout/stderr`；
+  USB/TCP 继续用于调试协议，`iris logs` 不再接收 Vibe Mode 的应用日志。
 
 Vibe Mode 屏幕在 OTA 更新期间同时显示当前阶段、已传输/总容量、百分比与速率。
 Bridge 使用 `Download`，USB/TCP 使用 `Receive`，NAND 使用 `Write`；速率单位
@@ -382,7 +385,7 @@ UI 初始化等待上限为五秒；USB 打开 Download Ideas 的请求（含串
 ### 联网检查 Vibe Mode 更新
 
 Wi-Fi 获取 IP 后，后台读取独立清单
-`https://dl.espressif.com/mosaico/esp-mosaico-vibe-mode-stable.json`。
+`https://mosaico-vibe-rec-ver.esp-claw.com/esp-mosaico-vibe-mode-stable.json`。
 通过 `CONFIG_IRIS_FACTORY_UPDATE_MANIFEST_URL` 可更换地址，空值关闭检查；
 `CONFIG_IRIS_FACTORY_UPDATE_PRODUCT` 默认是 `esp-mosaico-vibe-mode`。
 它沿用 Settings 的 `schema_version: 1` JSON 格式，不使用普通应用的版本源。
@@ -390,7 +393,7 @@ Wi-Fi 获取 IP 后，后台读取独立清单
 
 发现更高版本后，在首页显示一次独立的 **Update Vibe Mode / 更新 Vibe Mode** 提示页及版本号；处于配网、
 下载或安装页面时延后提示，同一版本每次启动只提示一次。用户可选择“开始更新”或“跳过”。
-开始更新会从同一下载目录取得 `firmware.file`，校验大小、SHA-256、项目、版本及镜像后，
+开始更新会从 `https://dl.espressif.com/mosaico/` 取得 `firmware.file`，校验大小、SHA-256、项目、版本及镜像后，
 通过共享后端原地更新 Vibe Mode 并重启。确认页和更新页持续提示“请勿断电或关机”。
 旧清单没有 `firmware` 元数据时仅提示版本，不允许开始安装。
 完整命名规则、清单生成和发布验收流程见 [在线固件更新](../../docs/online-firmware-update.zh-CN.md)。

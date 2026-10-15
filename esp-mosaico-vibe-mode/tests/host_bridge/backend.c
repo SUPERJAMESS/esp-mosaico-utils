@@ -14,7 +14,9 @@ static uint8_t flash[0x1000000];
 static int erased, persisted, corrupt_readback;
 static unsigned image_checks, boot_checks, boot_selections;
 static bool fail_image;
-static uint32_t last_write;
+static uint32_t last_write, last_progress, progress_samples;
+static int fail_write_at;
+static bool write_protected = true;
 static const esp_partition_t *boot;
 static size_t cjson_allocations;
 
@@ -35,7 +37,14 @@ static void counted_cjson_free(void *memory)
 
 void vTaskDelay(unsigned ms)
 {
-    (void)ms;
+    if (ms == 1 && s_backend.status.commit_total) {
+        factory_system_update_status_t status;
+        assert(factory_system_update_get_status(&status) == ESP_OK);
+        assert(status.commit_written > last_progress && status.commit_written <= status.commit_total);
+        assert(status.commit_written - last_progress <= 64 * 1024);
+        last_progress = status.commit_written;
+        ++progress_samples;
+    }
 }
 void vTaskDelete(void *task)
 {
@@ -83,7 +92,7 @@ esp_err_t esp_partition_write(const esp_partition_t *p, uint32_t offset,
 esp_err_t esp_flash_set_dangerous_write_protection(void *chip, bool enabled)
 {
     (void)chip;
-    (void)enabled;
+    write_protected = enabled;
     return 0;
 }
 esp_err_t esp_flash_erase_region(void *chip, uint32_t offset, size_t size)
@@ -97,6 +106,7 @@ esp_err_t esp_flash_erase_region(void *chip, uint32_t offset, size_t size)
 esp_err_t esp_flash_write(void *chip, const void *data, uint32_t offset, size_t size)
 {
     (void)chip;
+    if (fail_write_at && mock_writes + 1 == fail_write_at) return ESP_FAIL;
     memcpy(flash + offset, data, size);
     last_write = offset;
     mock_writes++;
@@ -167,6 +177,9 @@ static uint8_t op[16] = {1};
 static void setup(void)
 {
     s_backend.layout_needs_reload = false;
+    s_backend.status.commit_written = s_backend.status.commit_total = 0;
+    last_progress = progress_samples = fail_write_at = 0;
+    write_protected = true;
     update_state_reset(&s_backend);
     update_owner_release(&s_backend);
     memset(flash, 0xff, sizeof(flash));
@@ -585,7 +598,7 @@ int main(void)
     assert(update_commit_update(op, &s_backend) == ESP_FAIL);
     assert(
         factory_system_update_source_needs_restart(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE));
-    assert(last_write == 0x20000 && !memcmp(flash + 0x20000, image, 0x1c0000));
+    assert(last_write == 0x1d0000 && !memcmp(flash + 0x20000, image, 0x1c0000));
     /* Online firmware has its own owner and cannot install application/layout plans. */
     setup();
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, layout_manifest(true)) != ESP_OK);
@@ -604,7 +617,16 @@ int main(void)
     assert(factory_system_update_source_end_component(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, &c, c.sha256) == ESP_OK);
     assert(!erased);
     assert(factory_system_update_source_commit(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, op) == ESP_OK);
-    assert(last_write == 0x20000 && !memcmp(flash + 0x20000, image, 0x1c0000));
+    assert(last_write == 0x1d0000 && !memcmp(flash + 0x20000, image, 0x1c0000));
+    assert(progress_samples == 28 && last_progress == c.size && write_protected);
+    int writes_before = mock_writes;
+    assert(update_commit_protected_image(&s_backend, &s_backend.transaction.plan[0], image) == ESP_OK);
+    assert(mock_writes == writes_before && s_backend.status.commit_written == c.size);
+    flash[0x20000] ^= 1;
+    last_progress = progress_samples = 0;
+    fail_write_at = mock_writes + 3;
+    assert(update_commit_protected_image(&s_backend, &s_backend.transaction.plan[0], image) == ESP_FAIL);
+    assert(s_backend.status.commit_written == 2 * 65536 && progress_samples == 2 && write_protected);
     /* Older Recovery images cannot replace the 0.1.2 release. */
     setup();
     esp_app_desc_t *old_app =

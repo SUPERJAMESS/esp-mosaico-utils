@@ -156,7 +156,7 @@ config IRIS_FACTORY_NAND_SYSTEM_UPDATE_MANIFEST_PATH
 
 config IRIS_FACTORY_UPDATE_MANIFEST_URL
     string "Vibe Mode release manifest HTTPS URL"
-    default "https://dl.espressif.com/mosaico/esp-mosaico-vibe-mode-stable.json"
+    default "https://mosaico-vibe-rec-ver.esp-claw.com/esp-mosaico-vibe-mode-stable.json"
     help
         Check this manifest asynchronously when Wi-Fi obtains an IP address.
         Empty disables checking. Uses the Settings schema_version=1 JSON format.

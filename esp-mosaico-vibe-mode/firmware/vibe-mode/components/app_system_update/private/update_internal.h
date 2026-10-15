@@ -157,8 +157,7 @@ esp_err_t update_end_component(const esp_iris_system_update_component_t *compone
                                void *user_ctx);
 esp_err_t update_persist_result(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES],
                                 esp_err_t result);
-esp_err_t update_commit_protected_image(const factory_update_plan_component_t *plan,
-                                        const uint8_t *image);
+esp_err_t update_commit_protected_image(update_context_t *ctx, const factory_update_plan_component_t *plan, const uint8_t *image);
 const factory_update_plan_component_t *
 update_plan_for_kind(update_context_t *ctx, esp_iris_system_update_component_kind_t kind);
 void update_restart_task(void *arg);
