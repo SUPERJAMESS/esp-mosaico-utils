@@ -69,7 +69,9 @@ typedef struct {
     int event_id;
     char *header_key, *header_value;
 } esp_http_client_event_t;
+#define ESP_APP_DESC_MAGIC_WORD 0xabcd5432U
 typedef struct {
+    uint32_t magic_word;
     char project_name[32], version[32];
 } esp_app_desc_t;
 const esp_app_desc_t *esp_app_get_description(void);

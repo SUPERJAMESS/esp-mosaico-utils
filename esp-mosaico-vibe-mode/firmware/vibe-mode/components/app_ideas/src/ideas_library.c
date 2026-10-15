@@ -175,7 +175,7 @@ esp_err_t ideas_save_boot(void *ctx) {
     return err;
 }
 
-esp_err_t ideas_scan(ideas_context_t *ctx, bool audit_boot) {
+esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development) {
     factory_io_metrics_t metrics = {.started = factory_io_now()};
     DIR *dir = opendir(ROOT);
     if (!dir && errno != ENOENT)
@@ -190,16 +190,10 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool audit_boot) {
         return ESP_ERR_NO_MEM;
     }
     boot_record_t boot = {0};
-    bool has_boot = ideas_boot_record(&boot, audit_boot);
-    if (audit_boot) {
-        ctx->boot_verified = has_boot;
-        ctx->verified_boot = boot;
-    } else {
-        /* Reuse only NOR verification from this boot/our completed install.
-         * A changed boot record or boot selection invalidates this result. */
-        has_boot = has_boot && ctx->boot_verified &&
-                   !memcmp(&boot, &ctx->verified_boot, sizeof(boot));
-    }
+    bool has_boot = ideas_boot_record(&boot, false);
+    /* A refresh cannot establish image integrity without an explicit verification. */
+    if (refresh_development) ctx->boot_verified = false;
+    has_boot = has_boot && ctx->boot_verified && !memcmp(&boot, &ctx->verified_boot, sizeof(boot));
     icon_t icons[IDEAS_MAX_ITEMS] = {0};
     struct dirent *entry;
     size_t count = 0, invalid = 0, examined = 0;
@@ -288,8 +282,8 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool audit_boot) {
         free(ctx->titles[i].image.data);
         memset(&ctx->titles[i], 0, sizeof(ctx->titles[i]));
     }
-    /* Metadata changes can replace/delete the only saved copy. Reuse the
-     * audited NOR identity without rehashing flash during every download. */
+    /* Metadata changes can replace/delete the only saved copy. Reuse only
+     * the identity established by an explicit save or install. */
     ctx->state->development_saved = false;
     for (size_t i = 0; ctx->state->development_available && i < count; ++i)
         if (!strcmp(items[i].release_id, ctx->development_release_id) ||
@@ -308,10 +302,10 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool audit_boot) {
         ctx->state->storage_used = used;
         xSemaphoreGive(ctx->lock);
     }
-    if (audit_boot) ideas_development_status(ctx);
+    if (refresh_development) ideas_development_status(ctx);
     free(items);
     free(p);
-    factory_io_report("scan", audit_boot ? "audit" : "metadata", &metrics, NULL, 0, ESP_OK);
+    factory_io_report("scan", "metadata", &metrics, NULL, 0, ESP_OK);
     return ESP_OK;
 }
 

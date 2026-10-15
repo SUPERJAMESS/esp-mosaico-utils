@@ -97,7 +97,7 @@ esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected)
 esp_err_t ideas_verify_installed(const ideas_package_t *package, ideas_context_t *ctx);
 bool ideas_boot_record(boot_record_t *record, bool verify);
 esp_err_t ideas_save_boot(void *ctx);
-esp_err_t ideas_scan(ideas_context_t *ctx, bool audit_boot);
+esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development);
 esp_err_t ideas_fetch_preview(ideas_context_t *ctx, const job_t *job, pending_t *pending);
 esp_err_t ideas_fetch_file(const ideas_file_t *file, const char *path, void *argument);
 bool ideas_ascii_text(const char *text);
