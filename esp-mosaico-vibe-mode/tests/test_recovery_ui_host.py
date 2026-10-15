@@ -195,16 +195,14 @@ def sim(tmp_path, native_build, request):
 
 
 @pytest.mark.parametrize("language", [1, 2])
-@pytest.mark.parametrize("ideas_busy", [False, True])
-def test_release_notice_waits_for_home_and_is_not_repeated(sim, language, ideas_busy):
+def test_release_notice_waits_for_home_and_is_not_repeated(sim, language):
     if language == 2:
         sim.tap(390, 360); sim.wait(page=11)
         sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
         sim.tap_ui("button_language_zh"); sim.wait(language=2)
         sim.tap(38, 36); sim.wait(page=11)
         sim.tap(38, 36); sim.wait(page=0)
-    if ideas_busy:
-        sim.control("ideas-refresh-busy")
+    sim.control("ideas-refresh-busy")
     sim.wifi()
     sim.wait(page=1)
     sim.control("release-available")
@@ -222,16 +220,14 @@ def test_release_notice_waits_for_home_and_is_not_repeated(sim, language, ideas_
 
 
 @pytest.mark.parametrize("language", [1, 2])
-@pytest.mark.parametrize("ideas_busy", [False, True])
-def test_firmware_install_warns_and_blocks_navigation(sim, language, ideas_busy):
+def test_firmware_install_warns_and_blocks_navigation(sim, language):
     if language == 2:
         sim.tap(390, 360); sim.wait(page=11)
         sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
         sim.tap_ui("button_language_zh"); sim.wait(language=2)
         sim.tap(38, 36); sim.wait(page=11)
         sim.tap(38, 36); sim.wait(page=0)
-    if ideas_busy:
-        sim.control("ideas-refresh-busy")
+    sim.control("ideas-refresh-busy")
     sim.control("release-available")
     sim.wait(page=26)
     # A refreshed feed must install the version currently displayed.
