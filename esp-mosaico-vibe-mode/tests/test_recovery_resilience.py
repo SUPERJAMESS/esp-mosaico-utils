@@ -23,7 +23,7 @@ def test_recovery_resilience(tmp_path, kind, source):
     component = COMPONENTS / {"ui": "app_ui", "network": "app_network", "ota": "app_iris"}[kind]
     implementation = component / "src" / source
     headers = re.findall(r'#include "([^"]+)"', implementation.read_text())
-    headers += ["esp_err.h", "esp_gsp.h", "esp_iris_system_inventory.h", "esp_iris_system_update.h", "cJSON.h"]
+    headers += ["esp_err.h", "esp_iris_system_inventory.h", "esp_iris_system_update.h", "cJSON.h"]
     actual_headers = {"esp_iris_system_update.h", "esp_iris_system_inventory.h"} | {path.name for path in COMPONENTS.glob("*/include/*.h")} | {
         path.name for path in (component / "private").glob("*.h")}
     for name in headers:

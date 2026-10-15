@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "gsp_sim_bridge.h"
+#include "vui.h"
+#include "vui_ids.h"
 #include "vibe_ui.h"
 #include "ideas_presentation.h"
 #include <stdio.h>
@@ -17,6 +18,7 @@ static unsigned bridge_prefetch_calls;
 static unsigned prepare_calls, cancel_calls, preview_ticks;
 static unsigned download_calls, install_calls, check_calls, restart_calls;
 static unsigned save_calls, delete_calls, reset_calls, next_key;
+static unsigned scan_ticks;
 static vibe_command_t current_job;
 static char last_code[7];
 static bool bridge_active;
@@ -28,9 +30,8 @@ static bool scenario(const char *name)
     const char *selected = getenv("VIBE_SIM_SCENARIO");
     return selected && !strcmp(selected, name);
 }
-static void trace_state(esp_gsp_handle_t ui, void *ctx)
+static void trace_state(vui_handle_t ui, void *ctx)
 {
-    (void)ui;
     (void)ctx;
     const char *control = getenv("VIBE_SIM_CONTROL_FILE");
     FILE *request = control ? fopen(control, "r") : NULL;
@@ -116,14 +117,17 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
             install_calls, check_calls, restart_calls, prepare_calls, cancel_calls,
             model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
             model.bundles[0].boot ? "true" : "false");
+    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,",
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT));
     fprintf(file, "\"grid_page\":%u,\"language\":%u,\"asleep\":%s,\"pending_delete\":%s,"
             "\"bundle_count\":%u,\"shared_count\":%u,\"save_calls\":%u,\"delete_calls\":%u,\"reset_calls\":%u,"
-            "\"development_saved\":%s,\"brightness\":%u,\"screen_off_seconds\":%u,\"rotate\":%s,\"haptics\":%s,\"batch\":%s}\n",
+            "\"development_saved\":%s,\"brightness\":%u,\"screen_off_seconds\":%u,\"rotate\":%s,\"haptics\":%s,\"batch\":%s,\"nand_scanning\":%s}\n",
             status.grid_page, status.language, status.asleep ? "true" : "false", status.pending_delete ? "true" : "false",
             (unsigned)model.bundle_count, (unsigned)model.settings.shared_count, save_calls, delete_calls, reset_calls,
             model.development_saved ? "true" : "false", model.settings.brightness, model.settings.screen_off_seconds,
             model.settings.auto_rotate ? "true" : "false", model.settings.haptics ? "true" : "false",
-            model.batch ? "true" : "false");
+            model.batch ? "true" : "false", model.nand_scanning ? "true" : "false");
     fclose(file);
 #ifdef _WIN32
     /* The Windows C runtime's rename cannot replace an existing snapshot. */
@@ -135,6 +139,13 @@ static void trace_state(esp_gsp_handle_t ui, void *ctx)
 static void snapshot(void *ctx, vibe_snapshot_t *out)
 {
     (void)ctx;
+    if (model.nand_scanning && ++scan_ticks >= (scenario("scan-open") ? 80U : 30U)) {
+        model.nand_scanning = model.idea_busy = false;
+        if (scenario("scan-open")) {
+            model.development_available = true;
+            model.development_saved = false;
+        }
+    }
     if (connecting && ++connect_ticks >= 5) {
         connecting = false;
         model.network = VIBE_NET_CONNECTED;
@@ -255,6 +266,10 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b)
         }
         break;
     case VIBE_SCAN_NAND:
+        if (scenario("scan-busy") || scenario("scan-open")) {
+            model.nand_scanning = model.idea_busy = true;
+            scan_ticks = 0;
+        }
         ++model.nand_generation;
         break;
     case VIBE_RUN_DEVELOPMENT:
@@ -407,7 +422,7 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
     return 0;
 }
 static unsigned key(void *ctx) { (void)ctx; unsigned k = next_key; next_key = 0; return k; }
-esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
+vui_err_t vibe_pc_init(vui_handle_t ui)
 {
     model.settings = (vibe_settings_snapshot_t){.language = scenario("first-run") ? 0 : 1,
         .brightness = 80, .screen_off_seconds = 180, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
@@ -466,15 +481,15 @@ esp_gsp_err_t gsp_bridge_app_init(esp_gsp_handle_t ui)
         model.bundles[i].components = 2;
     }
     const vibe_services_t services = {.snapshot = snapshot, .command = command, .preview = preview, .setting = setting, .key = key};
-    esp_gsp_err_t err = vibe_ui_create(ui, &services, &state);
-    if (err == ESP_GSP_OK && getenv("VIBE_SIM_STATE_FILE"))
-        trace_timer = esp_gsp_timer_create(ui, 50, trace_state, NULL);
+    vui_err_t err = vibe_ui_create(ui, &services, &state);
+    if (err == VUI_OK && getenv("VIBE_SIM_STATE_FILE"))
+        trace_timer = vui_timer_create(ui, 50, trace_state, NULL);
     return err;
 }
-void gsp_bridge_app_deinit(esp_gsp_handle_t ui)
+void vibe_pc_deinit(vui_handle_t ui)
 {
     (void)ui;
     if (trace_timer)
-        (void)esp_gsp_timer_delete(ui, trace_timer);
+        (void)vui_timer_delete(ui, trace_timer);
     vibe_ui_deinit(state);
 }

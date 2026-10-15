@@ -61,7 +61,7 @@ def generate():
         if obj.get("parent") == 59 and obj.get("text") == "My Ideas": obj["text"] = "Manage Ideas"
     button(59, "manage_add", "+", 186, 79, 56, 44, action="download")
     # Live rows use a visibility gate to invalidate the retained viewport after
-    # rebinding; GSP 1.4 does not repaint changed row text on refresh alone.
+    # rebinding; each retained row has independent text and image state.
     named["bundles"].update(h=252, scroll_snapshot=False, bind="bundles_visible", bind_target="visible")
     named["nand_scan"].update(w=154)
     label(59, "undo_message", "", 24, 408, 300, 52, 16)
@@ -160,9 +160,7 @@ def generate():
     from vibe_design import apply
     apply(scene)
 
-    # A text/resource bind does not allocate a visibility slot in GSPC 0.5.
-    # Give conditional controls a separate parent gate; use the explicit bind
-    # on both the device and the native simulator.
+    # Conditional controls share visibility gates between device and simulator.
     gates = ["button_toggle_open_confirm", "button_cancel_download", "button_result_open",
              "button_undo_delete", "button_start_idea", "button_check_idea", "button_update_idea", "button_accept_idea", "button_shared_reveal", "button_shared_delete"]
     gates += ["cell_icon_" + str(i) for i in range(6)]
@@ -224,7 +222,7 @@ def generate():
              "static const struct { const char *en, *zh; } vibe_translations[] = {"]
     lines += [f"    {{{c(en)}, {c(zh)}}}," for en, zh in translations.items()]
     lines += ["};", "static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {"]
-    lines += [f"    {{GSP_VIBE_BIND_{name.upper()}, {c(value)}}}," for name, value in static_labels]
+    lines += [f"    {{VUI_VIBE_BIND_{name.upper()}, {c(value)}}}," for name, value in static_labels]
     lines += ["};\n"]
     (ROOT / "components/app_ui/private/vibe_locale.inc").write_text("\n".join(lines))
 

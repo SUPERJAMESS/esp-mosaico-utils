@@ -1,31 +1,35 @@
 cmake_minimum_required(VERSION 3.20)
-project(vibe_backend LANGUAGES C)
-
-if(NOT ESP_GSP_COMPONENT_DIR AND DEFINED ENV{ESP_GSP_COMPONENT_DIR})
-    set(ESP_GSP_COMPONENT_DIR "$ENV{ESP_GSP_COMPONENT_DIR}")
+project(vibe_simulator LANGUAGES C)
+find_package(ZLIB REQUIRED)
+set(ui "${CMAKE_CURRENT_LIST_DIR}/../components/app_ui")
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/../tools/check_vui_assets.py"
+    COMMAND_ERROR_IS_FATAL ANY)
+set(asset_c "${CMAKE_CURRENT_BINARY_DIR}/assets.c")
+add_custom_command(OUTPUT "${asset_c}"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/embed_assets.py" "${ui}/light/vui_assets.bin" "${asset_c}"
+    DEPENDS "${ui}/light/vui_assets.bin" "${CMAKE_CURRENT_LIST_DIR}/embed_assets.py"
+    VERBATIM)
+add_library(vibe_ui SHARED platform_pc.c ${ui}/src/vibe_ui.c ${ui}/src/vibe_product.c
+    ${ui}/src/vibe_transfer.c ${ui}/light/vui.c ${ui}/light/vui_decode.c
+    "${asset_c}")
+target_include_directories(vibe_ui PRIVATE ${ui}/include ${ui}/private ${ui}/light
+    ../components/app_ideas/include ../components/app_settings/include ../components/app_device/include)
+target_link_libraries(vibe_ui PRIVATE ZLIB::ZLIB)
+if(MSVC)
+    target_compile_options(vibe_ui PRIVATE /W4)
+else()
+    target_compile_options(vibe_ui PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
-if(NOT ESP_GSP_COMPONENT_DIR)
-    foreach(candidate IN ITEMS
-            "${CMAKE_CURRENT_LIST_DIR}/../managed_components/espressif__esp-gsp")
-        get_filename_component(candidate "${candidate}" ABSOLUTE)
-        if(EXISTS "${candidate}/tools/sim_bridge/CMakeLists.txt")
-            set(ESP_GSP_COMPONENT_DIR "${candidate}")
-            break()
-        endif()
-    endforeach()
-endif()
-if(NOT EXISTS "${ESP_GSP_COMPONENT_DIR}/tools/sim_bridge/CMakeLists.txt")
-    message(FATAL_ERROR
-        "Install espressif/esp-gsp first, or set ESP_GSP_COMPONENT_DIR")
+set_target_properties(vibe_ui PROPERTIES C_STANDARD 11 WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
+if(VUI_TEST_MAIN)
+    add_executable(vui_runtime_test "${VUI_TEST_MAIN}")
+    target_include_directories(vui_runtime_test PRIVATE ${ui}/include ${ui}/private)
+    target_link_libraries(vui_runtime_test PRIVATE vibe_ui)
 endif()
 
-add_subdirectory("${ESP_GSP_COMPONENT_DIR}/tools/sim_bridge" sim_bridge)
-gsp_add_backend(vibe_backend
-    PROFILE "${CMAKE_CURRENT_LIST_DIR}/../ui/profile.yaml"
-    SOURCES ../components/app_ui/src/vibe_ui.c ../components/app_ui/src/vibe_product.c ../components/app_ui/src/vibe_transfer.c platform_pc.c
-    INCLUDE_DIRECTORIES ../components/app_ui/include ../components/app_ideas/include ../components/app_settings/include ../components/app_device/include
-    SCENES ../ui/main.json)
-
-target_compile_definitions(vibe_backend PRIVATE VIBE_UI_TRACE=1)
-
-target_include_directories(vibe_backend PRIVATE ../components/app_ui/private)
+add_custom_target(vui_assets_check
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/../tools/check_vui_assets.py"
+    VERBATIM)
+add_dependencies(vibe_ui vui_assets_check)

@@ -107,7 +107,7 @@ def apply(scene):
     text(0,'home_brand','Vibe Mode',44,20,180,24,16,color=MUTED)
     text(0,'home_page','Home',216,20,90,26,18,'medium',MUTED, 'center')
     text(0,'home_status','',324,20,112,24,16,color=MUTED,align='right')
-    add('image',0,180,60,120,120,name='home_hero',image='assets/anim/home.gif')
+    add('image',0,180,60,120,120,name='home_hero',image='assets/anim/home.dots.json')
     en=add('layer',0,0,0,480,480,name='home_heading_en',bind='home_heading_en_visible',bind_target='visible')
     text(en,'home_headline','Make Ideas',108,182,199,37,28,'title')
     text(en,'home_run','Run',307,182,85,37,28,'title',ORANGE)
@@ -135,7 +135,6 @@ def apply(scene):
     # VIBE_BUNDLE_MAX=16: one Home page plus up to three six-cell Idea pages.
     # The Add Idea tile counts as a cell, including in the empty library.
     for pages in range(2,5):pager(0,'home_pager_'+str(pages),pages,0)
-    icon(0,'back-32-white',436,204)
 
     # Live status icons retain the reference's compact status bar.
     hide('home_status')
@@ -188,21 +187,19 @@ def apply(scene):
     # Tap the install row to run a valid development build.
     click(p,'button_run_development',16,192,448,112,'run_development')
 
-    # Settings keeps the original scrolling rows. Two viewport states avoid
-    # moving hit areas (set_position in the simulator only moves visuals).
+    # One clipped viewport: drawing and hit testing share the scroll offset.
     p=index['settings']
     for o in objects:
         if o.get('parent')==p and o.get('name','').startswith('button_nav_'): o['hidden']=True
-    for group,start in (('settings_top',0),('settings_bottom',3)):
-        gate=add('layer',p,0,0,480,480,name=group,bind=group+'_visible',bind_target='visible',hidden=start!=0)
-        rows=[('wifi','Wi-Fi','','wifi'),('display','Display & haptics','Screen off after 3 min','display'),
-              ('language','Language','English','globe'),('shared','Shared info','','key'),
-              ('help','Help','Get started with Vibe Mode','help'),('about','About','Version · device · storage','chip'),
-              ('reset','Factory reset','Clear preferences · keep NAND','replay')]
-        for offset,(name,title,sub,glyph) in enumerate(rows[start:start+4]):
-            row(gate,group+'_'+name,title,sub,glyph+'-32-cream',96+88*offset,'nav_'+name,
-                group+'_'+name+'_sub',danger=name=='reset')
-        rect(gate,468,100,4,344,TILE,2);rect(gate,468,100 if start==0 else 248,4,196,MUTED,2)
+    viewport=add('container',p,0,96,480,352,name='settings_viewport',scroll=True,content_height=616)
+    rows=[('wifi','Wi-Fi','','wifi'),('display','Display & haptics','Screen off after 3 min','display'),
+          ('language','Language','English','globe'),('shared','Shared info','','key'),
+          ('help','Help','Get started with Vibe Mode','help'),('about','About','Version · device · storage','chip'),
+          ('reset','Factory reset','Clear preferences · keep NAND','replay')]
+    for i,(name,title,sub,glyph) in enumerate(rows):
+        group='settings_top' if i<4 else 'settings_bottom'
+        row(viewport,group+'_'+name,title,sub,glyph+'-32-cream',88*i,'nav_'+name,
+            group+'_'+name+'_sub',danger=name=='reset')
 
     # Manage: icon actions, capacity, 80px cards with 8px gaps.
     text(59,'nand_scan','',24,94,432,26,18,color=TEXT)
@@ -319,27 +316,23 @@ def apply(scene):
     for o in objects:
         if o.get('parent')==p and o.get('name') not in ('heading_'+str(p),'button_back_display') and o.get('name'):
             o['hidden']=True
-    for page in range(2):
-        gate=add('layer',p,0,0,480,480,name='display_part_'+str(page),bind='display_part_'+str(page)+'_visible',bind_target='visible',hidden=page!=0)
-        if page==0:
-            text(gate,'brightness_title','BRIGHTNESS',32,92,424,28,18,'medium',color=MUTED)
-            text(gate,'timeout_title','SCREEN OFF AFTER',32,208,424,28,18,'medium',color=MUTED)
-            for i in range(5):
-                move('button_brightness_'+str(i),24+i*88,124,80,72,parent=gate,font_size=18,font=FONT['medium'],bg_color=RAISED,radius=24)
-                move('button_timeout_'+str(i),24+i*88,240,80,72,parent=gate,font_size=18,font=FONT['medium'],bg_color=RAISED,radius=24)
-                for kind,y in (('brightness',124),('timeout',240)):
-                    selected=add('layer',gate,0,0,480,480,name=f'{kind}_selected_{i}',bind=f'{kind}_selected_{i}_visible',bind_target='visible',hidden=True)
-                    rect(selected,24+i*88,y,80,72,TEXT,24)
-                    text(selected,f'{kind}_selected_{i}_label',named[f'button_{kind}_{i}']['text'],24+i*88,y+23,80,26,18,'medium',BG,'center')
-        for j,(name,title,sub,glyph) in enumerate((('rotate','Auto rotate','Follows how you hold it','rotate'),('haptics','Haptics','Ticks when you press keys','haptic'))):
-            y=328+j*88 if page==0 else 96+j*88
-            row(gate,'display_'+str(page)+'_'+name,title,sub,glyph+'-32-cream',y,'toggle_'+name)
-            # On/off tracks are separate gates, filled from the persisted value.
-            for on in (0,1):
-                track=add('layer',gate,0,0,480,480,name=f'{name}_{page}_{on}',bind=f'{name}_{page}_{on}_visible',bind_target='visible',hidden=not on)
-                rect(track,396,y+24,52,32,ORANGE if on else TILE,16)
-                rect(track,419 if on else 399,y+27,26,26,TEXT,13)
-        rect(gate,468,100,4,344,TILE,2);rect(gate,468,100 if page==0 else 167,4,277,MUTED,2)
+    gate=add('container',p,0,92,480,356,name='display_viewport',scroll=True,content_height=412)
+    text(gate,'brightness_title','BRIGHTNESS',32,0,424,28,18,'medium',color=MUTED)
+    text(gate,'timeout_title','SCREEN OFF AFTER',32,116,424,28,18,'medium',color=MUTED)
+    for i in range(5):
+        move('button_brightness_'+str(i),24+i*88,32,80,72,parent=gate,font_size=18,font=FONT['medium'],bg_color=RAISED,radius=24)
+        move('button_timeout_'+str(i),24+i*88,148,80,72,parent=gate,font_size=18,font=FONT['medium'],bg_color=RAISED,radius=24)
+        for kind,y in (('brightness',32),('timeout',148)):
+            selected=add('layer',gate,0,0,480,412,name=f'{kind}_selected_{i}',bind=f'{kind}_selected_{i}_visible',bind_target='visible',hidden=True)
+            rect(selected,24+i*88,y,80,72,TEXT,24)
+            text(selected,f'{kind}_selected_{i}_label',named[f'button_{kind}_{i}']['text'],24+i*88,y+23,80,26,18,'medium',BG,'center')
+    for j,(name,title,sub,glyph) in enumerate((('rotate','Auto rotate','Follows how you hold it','rotate'),('haptics','Haptics','Ticks when you press keys','haptic'))):
+        y=236+j*88
+        row(gate,'display_0_'+name,title,sub,glyph+'-32-cream',y,'toggle_'+name)
+        for on in (0,1):
+            track=add('layer',gate,0,0,480,412,name=f'{name}_0_{on}',bind=f'{name}_0_{on}_visible',bind_target='visible',hidden=not on)
+            rect(track,396,y+24,52,32,ORANGE if on else TILE,16)
+            rect(track,419 if on else 399,y+27,26,26,TEXT,13)
 
     # Shared information keeps neutral list rows and a prominent add action.
     p=index['shared']

@@ -1,7 +1,7 @@
 CONFIG_IDF_TARGET="esp32s31"
 CONFIG_IDF_EXPERIMENTAL_FEATURES=y
 
-# GSP 1.4 creates and validates the UI on app_main before its render task starts.
+# Vibe initializes the UI before handing it to the render task.
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=20480
 
 # Recovery retains every transport and update backend; optimize the same code
@@ -33,7 +33,7 @@ CONFIG_TINYUSB_CDC_RX_BUFSIZE=8192
 CONFIG_TINYUSB_CDC_TX_BUFSIZE=8192
 CONFIG_TINYUSB_CDC_EP_BUFSIZE=8192
 
-# GSP owns the raw CO5300 panel, touch and PSRAM frame buffers.
+# Vibe owns the raw CO5300 panel, touch and PSRAM frame buffer.
 CONFIG_BSP_DISPLAY_ENABLE=y
 # CONFIG_BSP_DISPLAY_LVGL_ENABLE is not set
 CONFIG_BSP_CO5300_ENABLE_TE=y
@@ -49,8 +49,6 @@ CONFIG_SPIRAM_MEMTEST=n
 # CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT is not set
 CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
 
-# Fixed GSPC assets need no runtime JPEG decoder. Use the GSP 1.4 link option.
-# CONFIG_ESP_GSP_ENABLE_JPEG is not set
 
 CONFIG_TINYUSB_CDC_COUNT=2
 

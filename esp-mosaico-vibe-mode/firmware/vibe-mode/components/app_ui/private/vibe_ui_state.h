@@ -3,13 +3,13 @@
 
 /* Render-task-owned controller state. Never exposed to device/PC callers. */
 struct vibe_ui {
-    esp_gsp_handle_t ui;
+    vui_handle_t ui;
     vibe_services_t services;
     vibe_snapshot_t snapshot;
     vibe_page_t page;
-    esp_gsp_list_t networks, bundles;
+    vui_list_t networks, bundles;
     void *timer;
-    bool download_pending, password_visible, preview_active;
+    bool download_pending, password_visible, preview_active, batch_cancel_pending;
     vibe_page_t preview_return;
     bool prefetch_attempted;
     char selected_ssid[33], password_projection[65], password[65];
@@ -18,11 +18,10 @@ struct vibe_ui {
     uint32_t acknowledged_update, rendered_preview;
     vibe_rate_t rate;
     unsigned tick, page_enter_tick;
-    uint16_t consumed_action;
-    unsigned settings_scroll, display_scroll;
+    bool open_waiting, open_unsaved;
     unsigned grid_page, pager_state, shared_page, activity_tick, hold_tick, suppress_until, undo_until;
     unsigned haptic_revision, last_language, grid_generation, settings_revision, motion_revision;
-    bool gesture_consumed, pointer_dispatch, pointer_page_ready;
+    bool gesture_consumed, pointer_page_ready;
     vibe_page_t pointer_page;
     bool pointer_down, first_run, shared_edit_value, shared_reveal, undo_shared, shared_wait;
     int32_t pointer_x, pointer_y;
@@ -34,7 +33,7 @@ const char *vibe_translate(vibe_ui_t *s, const char *text);
 void vibe_show(vibe_ui_t *s, vibe_page_t page);
 int vibe_command(vibe_ui_t *s, vibe_command_t cmd, const char *a, const char *b);
 void vibe_error(vibe_ui_t *s, const char *title, int error);
-bool vibe_product_event(vibe_ui_t *s, const esp_gsp_event_t *event);
+bool vibe_product_event(vibe_ui_t *s, const vui_event_t *event);
 void vibe_product_poll(vibe_ui_t *s);
 void vibe_product_tick(vibe_ui_t *s);
 bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next);

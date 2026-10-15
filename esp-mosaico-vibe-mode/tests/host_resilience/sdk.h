@@ -51,11 +51,8 @@ int xSemaphoreTake(SemaphoreHandle_t semaphore, TickType_t wait);
 int xSemaphoreGive(SemaphoreHandle_t semaphore);
 void vSemaphoreDelete(SemaphoreHandle_t semaphore);
 
-typedef void *esp_gsp_handle_t;
-typedef int esp_gsp_err_t;
-typedef unsigned esp_gsp_list_t;
-typedef void (*mock_gsp_callback_t)(esp_gsp_handle_t, void *);
-void *esp_gsp_timer_create(esp_gsp_handle_t, unsigned, mock_gsp_callback_t, void *);
+#include "vui.h"
+
 
 #define CONFIG_IRIS_FACTORY_MDNS_PREFIX "mosaico"
 #define CONFIG_ESP_IRIS_TCP_PORT 7777

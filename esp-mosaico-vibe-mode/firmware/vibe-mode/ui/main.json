@@ -918,7 +918,7 @@
     },
     {
       "type": "button",
-      "parent": 752,
+      "parent": 708,
       "x": 252,
       "y": 278,
       "w": 204,
@@ -1957,7 +1957,7 @@
       "w": 120,
       "h": 120,
       "name": "home_hero",
-      "image": "assets/anim/home.gif"
+      "image": "assets/anim/home.dots.json"
     },
     {
       "type": "layer",
@@ -2438,15 +2438,6 @@
       "radius": 4
     },
     {
-      "type": "image",
-      "parent": 0,
-      "x": 436,
-      "y": 204,
-      "w": 32,
-      "h": 32,
-      "image": "assets/icons/back-32-white.png"
-    },
-    {
       "type": "layer",
       "parent": 0,
       "x": 0,
@@ -2459,7 +2450,7 @@
     },
     {
       "type": "image",
-      "parent": 156,
+      "parent": 155,
       "x": 348,
       "y": 22,
       "w": 20,
@@ -2479,7 +2470,7 @@
     },
     {
       "type": "image",
-      "parent": 158,
+      "parent": 157,
       "x": 380,
       "y": 22,
       "w": 20,
@@ -2499,7 +2490,7 @@
     },
     {
       "type": "image",
-      "parent": 160,
+      "parent": 159,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -2519,7 +2510,7 @@
     },
     {
       "type": "image",
-      "parent": 162,
+      "parent": 161,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -2539,7 +2530,7 @@
     },
     {
       "type": "image",
-      "parent": 164,
+      "parent": 163,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -2559,7 +2550,7 @@
     },
     {
       "type": "image",
-      "parent": 166,
+      "parent": 165,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -2608,7 +2599,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_170"
+      "bind": "static_169"
     },
     {
       "type": "label",
@@ -2668,7 +2659,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_174"
+      "bind": "static_173"
     },
     {
       "type": "label",
@@ -2729,7 +2720,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_178"
+      "bind": "static_177"
     },
     {
       "type": "label",
@@ -2790,7 +2781,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_182"
+      "bind": "static_181"
     },
     {
       "type": "label",
@@ -2850,7 +2841,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_186"
+      "bind": "static_185"
     },
     {
       "type": "label",
@@ -2911,7 +2902,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_190"
+      "bind": "static_189"
     },
     {
       "type": "label",
@@ -2972,7 +2963,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_194"
+      "bind": "static_193"
     },
     {
       "type": "label",
@@ -3032,7 +3023,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_198"
+      "bind": "static_197"
     },
     {
       "type": "label",
@@ -3092,7 +3083,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_202"
+      "bind": "static_201"
     },
     {
       "type": "label",
@@ -3152,7 +3143,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_206"
+      "bind": "static_205"
     },
     {
       "type": "label",
@@ -3212,7 +3203,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_210"
+      "bind": "static_209"
     },
     {
       "type": "label",
@@ -3272,7 +3263,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_214"
+      "bind": "static_213"
     },
     {
       "type": "label",
@@ -3333,7 +3324,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_218"
+      "bind": "static_217"
     },
     {
       "type": "label",
@@ -3393,7 +3384,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_222"
+      "bind": "static_221"
     },
     {
       "type": "label",
@@ -3453,7 +3444,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_226"
+      "bind": "static_225"
     },
     {
       "type": "label",
@@ -3513,7 +3504,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_230"
+      "bind": "static_229"
     },
     {
       "type": "label",
@@ -3545,7 +3536,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 20,
       "w": 56,
@@ -3555,7 +3546,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 28,
       "y": 32,
       "w": 32,
@@ -3564,7 +3555,7 @@
     },
     {
       "type": "button",
-      "parent": 232,
+      "parent": 231,
       "x": 2,
       "y": 6,
       "w": 84,
@@ -3581,13 +3572,13 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 88,
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_375",
-      "bind": "heading_375",
+      "name": "heading_374",
+      "bind": "heading_374",
       "text": "Help",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3597,7 +3588,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 96,
       "w": 448,
@@ -3607,7 +3598,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 28,
       "y": 108,
       "w": 56,
@@ -3617,7 +3608,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 40,
       "y": 120,
       "w": 32,
@@ -3626,7 +3617,7 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 100,
       "y": 108,
       "w": 312,
@@ -3642,7 +3633,7 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 100,
       "y": 140,
       "w": 312,
@@ -3658,7 +3649,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 424,
       "y": 126,
       "w": 20,
@@ -3667,7 +3658,7 @@
     },
     {
       "type": "button",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 96,
       "w": 448,
@@ -3684,7 +3675,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 184,
       "w": 448,
@@ -3694,7 +3685,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 28,
       "y": 196,
       "w": 56,
@@ -3704,7 +3695,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 40,
       "y": 208,
       "w": 32,
@@ -3713,7 +3704,7 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 100,
       "y": 196,
       "w": 312,
@@ -3729,7 +3720,7 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 100,
       "y": 228,
       "w": 312,
@@ -3745,7 +3736,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 424,
       "y": 214,
       "w": 20,
@@ -3754,7 +3745,7 @@
     },
     {
       "type": "button",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 184,
       "w": 448,
@@ -3771,7 +3762,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 272,
       "w": 448,
@@ -3781,7 +3772,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 28,
       "y": 284,
       "w": 56,
@@ -3791,7 +3782,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 40,
       "y": 296,
       "w": 32,
@@ -3800,7 +3791,7 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 100,
       "y": 284,
       "w": 312,
@@ -3816,7 +3807,7 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 100,
       "y": 316,
       "w": 312,
@@ -3832,7 +3823,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 424,
       "y": 302,
       "w": 20,
@@ -3841,7 +3832,7 @@
     },
     {
       "type": "button",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 272,
       "w": 448,
@@ -3858,7 +3849,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 360,
       "w": 448,
@@ -3868,7 +3859,7 @@
     },
     {
       "type": "container",
-      "parent": 232,
+      "parent": 231,
       "x": 28,
       "y": 372,
       "w": 56,
@@ -3878,7 +3869,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 40,
       "y": 384,
       "w": 32,
@@ -3887,7 +3878,7 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 100,
       "y": 372,
       "w": 312,
@@ -3903,7 +3894,7 @@
     },
     {
       "type": "label",
-      "parent": 232,
+      "parent": 231,
       "x": 100,
       "y": 404,
       "w": 312,
@@ -3919,7 +3910,7 @@
     },
     {
       "type": "image",
-      "parent": 232,
+      "parent": 231,
       "x": 424,
       "y": 390,
       "w": 20,
@@ -3928,7 +3919,7 @@
     },
     {
       "type": "button",
-      "parent": 232,
+      "parent": 231,
       "x": 16,
       "y": 360,
       "w": 448,
@@ -3957,7 +3948,7 @@
     },
     {
       "type": "container",
-      "parent": 265,
+      "parent": 264,
       "x": 16,
       "y": 20,
       "w": 56,
@@ -3967,7 +3958,7 @@
     },
     {
       "type": "image",
-      "parent": 265,
+      "parent": 264,
       "x": 28,
       "y": 32,
       "w": 32,
@@ -3976,7 +3967,7 @@
     },
     {
       "type": "button",
-      "parent": 265,
+      "parent": 264,
       "x": 2,
       "y": 6,
       "w": 84,
@@ -3993,13 +3984,13 @@
     },
     {
       "type": "label",
-      "parent": 265,
+      "parent": 264,
       "x": 88,
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_408",
-      "bind": "heading_408",
+      "name": "heading_407",
+      "bind": "heading_407",
       "text": "View on your phone",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -4009,7 +4000,7 @@
     },
     {
       "type": "container",
-      "parent": 265,
+      "parent": 264,
       "x": 24,
       "y": 112,
       "w": 216,
@@ -4019,7 +4010,7 @@
     },
     {
       "type": "image",
-      "parent": 265,
+      "parent": 264,
       "x": 33,
       "y": 121,
       "w": 198,
@@ -4028,7 +4019,7 @@
     },
     {
       "type": "label",
-      "parent": 265,
+      "parent": 264,
       "x": 260,
       "y": 142,
       "w": 204,
@@ -4044,7 +4035,7 @@
     },
     {
       "type": "label",
-      "parent": 265,
+      "parent": 264,
       "x": 260,
       "y": 182,
       "w": 204,
@@ -4060,7 +4051,7 @@
     },
     {
       "type": "label",
-      "parent": 265,
+      "parent": 264,
       "x": 260,
       "y": 208,
       "w": 204,
@@ -4076,7 +4067,7 @@
     },
     {
       "type": "container",
-      "parent": 265,
+      "parent": 264,
       "x": 24,
       "y": 352,
       "w": 432,
@@ -4086,7 +4077,7 @@
     },
     {
       "type": "label",
-      "parent": 265,
+      "parent": 264,
       "x": 36,
       "y": 368,
       "w": 408,
@@ -4360,7 +4351,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_296"
+      "bind": "static_295"
     },
     {
       "type": "label",
@@ -4418,25 +4409,24 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_299"
-    },
-    {
-      "type": "layer",
-      "parent": 69,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "settings_top",
-      "bind": "settings_top_visible",
-      "bind_target": "visible",
-      "hidden": false
+      "bind": "static_298"
     },
     {
       "type": "container",
-      "parent": 300,
-      "x": 16,
+      "parent": 69,
+      "x": 0,
       "y": 96,
+      "w": 480,
+      "h": 352,
+      "name": "settings_viewport",
+      "scroll": true,
+      "content_height": 616
+    },
+    {
+      "type": "container",
+      "parent": 299,
+      "x": 16,
+      "y": 0,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -4444,9 +4434,9 @@
     },
     {
       "type": "container",
-      "parent": 300,
+      "parent": 299,
       "x": 28,
-      "y": 108,
+      "y": 12,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -4454,18 +4444,18 @@
     },
     {
       "type": "image",
-      "parent": 300,
+      "parent": 299,
       "x": 40,
-      "y": 120,
+      "y": 24,
       "w": 32,
       "h": 32,
       "image": "assets/icons/wifi-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 300,
+      "parent": 299,
       "x": 100,
-      "y": 108,
+      "y": 12,
       "w": 312,
       "h": 30,
       "name": "row_title_settings_top_wifi",
@@ -4479,9 +4469,9 @@
     },
     {
       "type": "label",
-      "parent": 300,
+      "parent": 299,
       "x": 100,
-      "y": 140,
+      "y": 44,
       "w": 312,
       "h": 24,
       "name": "settings_top_wifi_sub",
@@ -4495,18 +4485,18 @@
     },
     {
       "type": "image",
-      "parent": 300,
+      "parent": 299,
       "x": 424,
-      "y": 126,
+      "y": 30,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 300,
+      "parent": 299,
       "x": 16,
-      "y": 96,
+      "y": 0,
       "w": 448,
       "h": 80,
       "name": "button_settings_top_wifi",
@@ -4521,9 +4511,9 @@
     },
     {
       "type": "container",
-      "parent": 300,
+      "parent": 299,
       "x": 16,
-      "y": 184,
+      "y": 88,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -4531,9 +4521,9 @@
     },
     {
       "type": "container",
-      "parent": 300,
+      "parent": 299,
       "x": 28,
-      "y": 196,
+      "y": 100,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -4541,18 +4531,18 @@
     },
     {
       "type": "image",
-      "parent": 300,
+      "parent": 299,
       "x": 40,
-      "y": 208,
+      "y": 112,
       "w": 32,
       "h": 32,
       "image": "assets/icons/display-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 300,
+      "parent": 299,
       "x": 100,
-      "y": 196,
+      "y": 100,
       "w": 312,
       "h": 30,
       "name": "row_title_settings_top_display",
@@ -4566,9 +4556,9 @@
     },
     {
       "type": "label",
-      "parent": 300,
+      "parent": 299,
       "x": 100,
-      "y": 228,
+      "y": 132,
       "w": 312,
       "h": 24,
       "name": "settings_top_display_sub",
@@ -4582,18 +4572,18 @@
     },
     {
       "type": "image",
-      "parent": 300,
+      "parent": 299,
       "x": 424,
-      "y": 214,
+      "y": 118,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 300,
+      "parent": 299,
       "x": 16,
-      "y": 184,
+      "y": 88,
       "w": 448,
       "h": 80,
       "name": "button_settings_top_display",
@@ -4608,9 +4598,9 @@
     },
     {
       "type": "container",
-      "parent": 300,
+      "parent": 299,
       "x": 16,
-      "y": 272,
+      "y": 176,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -4618,9 +4608,9 @@
     },
     {
       "type": "container",
-      "parent": 300,
+      "parent": 299,
       "x": 28,
-      "y": 284,
+      "y": 188,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -4628,18 +4618,18 @@
     },
     {
       "type": "image",
-      "parent": 300,
+      "parent": 299,
       "x": 40,
-      "y": 296,
+      "y": 200,
       "w": 32,
       "h": 32,
       "image": "assets/icons/globe-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 300,
+      "parent": 299,
       "x": 100,
-      "y": 284,
+      "y": 188,
       "w": 312,
       "h": 30,
       "name": "row_title_settings_top_language",
@@ -4653,9 +4643,9 @@
     },
     {
       "type": "label",
-      "parent": 300,
+      "parent": 299,
       "x": 100,
-      "y": 316,
+      "y": 220,
       "w": 312,
       "h": 24,
       "name": "settings_top_language_sub",
@@ -4669,18 +4659,18 @@
     },
     {
       "type": "image",
-      "parent": 300,
+      "parent": 299,
       "x": 424,
-      "y": 302,
+      "y": 206,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 300,
+      "parent": 299,
       "x": 16,
-      "y": 272,
+      "y": 176,
       "w": 448,
       "h": 80,
       "name": "button_settings_top_language",
@@ -4695,9 +4685,9 @@
     },
     {
       "type": "container",
-      "parent": 300,
+      "parent": 299,
       "x": 16,
-      "y": 360,
+      "y": 264,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -4705,9 +4695,9 @@
     },
     {
       "type": "container",
-      "parent": 300,
+      "parent": 299,
       "x": 28,
-      "y": 372,
+      "y": 276,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -4715,18 +4705,18 @@
     },
     {
       "type": "image",
-      "parent": 300,
+      "parent": 299,
       "x": 40,
-      "y": 384,
+      "y": 288,
       "w": 32,
       "h": 32,
       "image": "assets/icons/key-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 300,
+      "parent": 299,
       "x": 100,
-      "y": 372,
+      "y": 276,
       "w": 312,
       "h": 30,
       "name": "row_title_settings_top_shared",
@@ -4740,9 +4730,9 @@
     },
     {
       "type": "label",
-      "parent": 300,
+      "parent": 299,
       "x": 100,
-      "y": 404,
+      "y": 308,
       "w": 312,
       "h": 24,
       "name": "settings_top_shared_sub",
@@ -4756,18 +4746,18 @@
     },
     {
       "type": "image",
-      "parent": 300,
+      "parent": 299,
       "x": 424,
-      "y": 390,
+      "y": 294,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 300,
+      "parent": 299,
       "x": 16,
-      "y": 360,
+      "y": 264,
       "w": 448,
       "h": 80,
       "name": "button_settings_top_shared",
@@ -4782,41 +4772,9 @@
     },
     {
       "type": "container",
-      "parent": 300,
-      "x": 468,
-      "y": 100,
-      "w": 4,
-      "h": 344,
-      "bg_color": "#292829",
-      "radius": 2
-    },
-    {
-      "type": "container",
-      "parent": 300,
-      "x": 468,
-      "y": 100,
-      "w": 4,
-      "h": 196,
-      "bg_color": "#9A9A9A",
-      "radius": 2
-    },
-    {
-      "type": "layer",
-      "parent": 69,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "settings_bottom",
-      "bind": "settings_bottom_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
-      "type": "container",
-      "parent": 331,
+      "parent": 299,
       "x": 16,
-      "y": 96,
+      "y": 352,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -4824,9 +4782,9 @@
     },
     {
       "type": "container",
-      "parent": 331,
+      "parent": 299,
       "x": 28,
-      "y": 108,
+      "y": 364,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -4834,105 +4792,18 @@
     },
     {
       "type": "image",
-      "parent": 331,
+      "parent": 299,
       "x": 40,
-      "y": 120,
-      "w": 32,
-      "h": 32,
-      "image": "assets/icons/key-32-cream.png"
-    },
-    {
-      "type": "label",
-      "parent": 331,
-      "x": 100,
-      "y": 108,
-      "w": 312,
-      "h": 30,
-      "name": "row_title_settings_bottom_shared",
-      "bind": "row_title_settings_bottom_shared",
-      "text": "Shared info",
-      "font_size": 22,
-      "font": "fonts/VibeMedium.otf",
-      "fg_color": "#F2F2F2",
-      "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Shared info共享信息"
-    },
-    {
-      "type": "label",
-      "parent": 331,
-      "x": 100,
-      "y": 140,
-      "w": 312,
-      "h": 24,
-      "name": "settings_bottom_shared_sub",
-      "bind": "settings_bottom_shared_sub",
-      "text": "",
-      "font_size": 16,
-      "font": "fonts/VibeInter.otf",
-      "fg_color": "#9A9A9A",
-      "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文  %%eeinrstuu个条目"
-    },
-    {
-      "type": "image",
-      "parent": 331,
-      "x": 424,
-      "y": 126,
-      "w": 20,
-      "h": 20,
-      "image": "assets/icons/chevron-20-dim.png"
-    },
-    {
-      "type": "button",
-      "parent": 331,
-      "x": 16,
-      "y": 96,
-      "w": 448,
-      "h": 80,
-      "name": "button_settings_bottom_shared",
-      "bg_color": "#00000001",
-      "events": [
-        {
-          "event": "click",
-          "action": "call",
-          "target_name": "nav_shared"
-        }
-      ]
-    },
-    {
-      "type": "container",
-      "parent": 331,
-      "x": 16,
-      "y": 184,
-      "w": 448,
-      "h": 80,
-      "bg_color": "#101010",
-      "radius": 20
-    },
-    {
-      "type": "container",
-      "parent": 331,
-      "x": 28,
-      "y": 196,
-      "w": 56,
-      "h": 56,
-      "bg_color": "#212021",
-      "radius": 16
-    },
-    {
-      "type": "image",
-      "parent": 331,
-      "x": 40,
-      "y": 208,
+      "y": 376,
       "w": 32,
       "h": 32,
       "image": "assets/icons/help-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 331,
+      "parent": 299,
       "x": 100,
-      "y": 196,
+      "y": 364,
       "w": 312,
       "h": 30,
       "name": "row_title_settings_bottom_help",
@@ -4946,9 +4817,9 @@
     },
     {
       "type": "label",
-      "parent": 331,
+      "parent": 299,
       "x": 100,
-      "y": 228,
+      "y": 396,
       "w": 312,
       "h": 24,
       "name": "settings_bottom_help_sub",
@@ -4962,18 +4833,18 @@
     },
     {
       "type": "image",
-      "parent": 331,
+      "parent": 299,
       "x": 424,
-      "y": 214,
+      "y": 382,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 331,
+      "parent": 299,
       "x": 16,
-      "y": 184,
+      "y": 352,
       "w": 448,
       "h": 80,
       "name": "button_settings_bottom_help",
@@ -4988,9 +4859,9 @@
     },
     {
       "type": "container",
-      "parent": 331,
+      "parent": 299,
       "x": 16,
-      "y": 272,
+      "y": 440,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -4998,9 +4869,9 @@
     },
     {
       "type": "container",
-      "parent": 331,
+      "parent": 299,
       "x": 28,
-      "y": 284,
+      "y": 452,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -5008,18 +4879,18 @@
     },
     {
       "type": "image",
-      "parent": 331,
+      "parent": 299,
       "x": 40,
-      "y": 296,
+      "y": 464,
       "w": 32,
       "h": 32,
       "image": "assets/icons/chip-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 331,
+      "parent": 299,
       "x": 100,
-      "y": 284,
+      "y": 452,
       "w": 312,
       "h": 30,
       "name": "row_title_settings_bottom_about",
@@ -5033,9 +4904,9 @@
     },
     {
       "type": "label",
-      "parent": 331,
+      "parent": 299,
       "x": 100,
-      "y": 316,
+      "y": 484,
       "w": 312,
       "h": 24,
       "name": "settings_bottom_about_sub",
@@ -5049,18 +4920,18 @@
     },
     {
       "type": "image",
-      "parent": 331,
+      "parent": 299,
       "x": 424,
-      "y": 302,
+      "y": 470,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 331,
+      "parent": 299,
       "x": 16,
-      "y": 272,
+      "y": 440,
       "w": 448,
       "h": 80,
       "name": "button_settings_bottom_about",
@@ -5075,9 +4946,9 @@
     },
     {
       "type": "container",
-      "parent": 331,
+      "parent": 299,
       "x": 16,
-      "y": 360,
+      "y": 528,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -5085,9 +4956,9 @@
     },
     {
       "type": "container",
-      "parent": 331,
+      "parent": 299,
       "x": 28,
-      "y": 372,
+      "y": 540,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -5095,18 +4966,18 @@
     },
     {
       "type": "image",
-      "parent": 331,
+      "parent": 299,
       "x": 40,
-      "y": 384,
+      "y": 552,
       "w": 32,
       "h": 32,
       "image": "assets/icons/replay-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 331,
+      "parent": 299,
       "x": 100,
-      "y": 372,
+      "y": 540,
       "w": 312,
       "h": 30,
       "name": "row_title_settings_bottom_reset",
@@ -5120,9 +4991,9 @@
     },
     {
       "type": "label",
-      "parent": 331,
+      "parent": 299,
       "x": 100,
-      "y": 404,
+      "y": 572,
       "w": 312,
       "h": 24,
       "name": "settings_bottom_reset_sub",
@@ -5136,18 +5007,18 @@
     },
     {
       "type": "image",
-      "parent": 331,
+      "parent": 299,
       "x": 424,
-      "y": 390,
+      "y": 558,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 331,
+      "parent": 299,
       "x": 16,
-      "y": 360,
+      "y": 528,
       "w": 448,
       "h": 80,
       "name": "button_settings_bottom_reset",
@@ -5159,26 +5030,6 @@
           "target_name": "nav_reset"
         }
       ]
-    },
-    {
-      "type": "container",
-      "parent": 331,
-      "x": 468,
-      "y": 100,
-      "w": 4,
-      "h": 344,
-      "bg_color": "#292829",
-      "radius": 2
-    },
-    {
-      "type": "container",
-      "parent": 331,
-      "x": 468,
-      "y": 248,
-      "w": 4,
-      "h": 196,
-      "bg_color": "#9A9A9A",
-      "radius": 2
     },
     {
       "type": "label",
@@ -5193,7 +5044,7 @@
       "text_align": "left",
       "bind": "nand_scan",
       "name": "nand_scan",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文                            %%%%%%%%%%%%%%%%.....//0000:AAAABBDDDDIIIIMMNNNNNNNNSSaaaaaaaaabccdddddeeeeeeefgiillllllllllnnnnnoorrrsssuuuuuuuuuuuuuuvxxxxxxxx··…不个个可在失已扫扫描描正用用败：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文                       %%%%%%%%%%%%...../0000:AAAABBDDDDIIMMNNNNNNNNSSaaaaaaabccdddeeeeefgiillllllllllnnnnnoorrrssuuuuuuuuuuvxxxxxxxx··…不个可在失已扫扫描描正用用败：",
       "font": "fonts/VibeInter.otf",
       "hidden": false
     },
@@ -5283,7 +5134,7 @@
     },
     {
       "type": "container",
-      "parent": 369,
+      "parent": 356,
       "x": 360,
       "y": 16,
       "w": 24,
@@ -5293,7 +5144,7 @@
     },
     {
       "type": "label",
-      "parent": 369,
+      "parent": 356,
       "x": 360,
       "y": 17,
       "w": 24,
@@ -5428,7 +5279,7 @@
     },
     {
       "type": "image",
-      "parent": 379,
+      "parent": 366,
       "x": 200,
       "y": 190,
       "w": 80,
@@ -5437,7 +5288,7 @@
     },
     {
       "type": "label",
-      "parent": 379,
+      "parent": 366,
       "x": 24,
       "y": 290,
       "w": 432,
@@ -5453,7 +5304,7 @@
     },
     {
       "type": "label",
-      "parent": 379,
+      "parent": 366,
       "x": 24,
       "y": 334,
       "w": 432,
@@ -5486,7 +5337,7 @@
     },
     {
       "type": "button",
-      "parent": 749,
+      "parent": 705,
       "x": 332,
       "y": 405,
       "w": 108,
@@ -5705,7 +5556,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文1",
-      "bind": "static_398"
+      "bind": "static_385"
     },
     {
       "type": "button",
@@ -5730,7 +5581,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文2",
-      "bind": "static_399"
+      "bind": "static_386"
     },
     {
       "type": "button",
@@ -5755,7 +5606,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文3",
-      "bind": "static_400"
+      "bind": "static_387"
     },
     {
       "type": "button",
@@ -5780,7 +5631,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文4",
-      "bind": "static_401"
+      "bind": "static_388"
     },
     {
       "type": "button",
@@ -5805,7 +5656,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文5",
-      "bind": "static_402"
+      "bind": "static_389"
     },
     {
       "type": "button",
@@ -5830,7 +5681,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文6",
-      "bind": "static_403"
+      "bind": "static_390"
     },
     {
       "type": "button",
@@ -5855,7 +5706,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文7",
-      "bind": "static_404"
+      "bind": "static_391"
     },
     {
       "type": "button",
@@ -5880,7 +5731,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文8",
-      "bind": "static_405"
+      "bind": "static_392"
     },
     {
       "type": "button",
@@ -5905,7 +5756,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文9",
-      "bind": "static_406"
+      "bind": "static_393"
     },
     {
       "type": "button",
@@ -5930,7 +5781,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文0",
-      "bind": "static_407"
+      "bind": "static_394"
     },
     {
       "type": "button",
@@ -5955,7 +5806,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_408"
+      "bind": "static_395"
     },
     {
       "type": "image",
@@ -5989,7 +5840,7 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Go前往",
-      "bind": "static_410"
+      "bind": "static_397"
     },
     {
       "type": "label",
@@ -6048,7 +5899,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Forget忘记",
-      "bind": "static_413"
+      "bind": "static_400"
     },
     {
       "type": "label",
@@ -6090,7 +5941,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Rescan重新扫描",
-      "bind": "static_415"
+      "bind": "static_402"
     },
     {
       "type": "list",
@@ -6235,11 +6086,11 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_424"
+      "bind": "static_411"
     },
     {
       "type": "label",
-      "parent": 424,
+      "parent": 411,
       "x": 0,
       "y": 18,
       "w": 72,
@@ -6382,7 +6233,7 @@
     },
     {
       "type": "button",
-      "parent": 751,
+      "parent": 707,
       "x": 24,
       "y": 280,
       "w": 208,
@@ -6403,7 +6254,7 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Check updates检查更新",
-      "bind": "static_433"
+      "bind": "static_420"
     },
     {
       "type": "button",
@@ -6428,11 +6279,11 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文View info查看介绍",
-      "bind": "static_434"
+      "bind": "static_421"
     },
     {
       "type": "button",
-      "parent": 750,
+      "parent": 706,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -6453,7 +6304,7 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Delete删除",
-      "bind": "static_435"
+      "bind": "static_422"
     },
     {
       "type": "button",
@@ -6478,7 +6329,7 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Open打开",
-      "bind": "static_436"
+      "bind": "static_423"
     },
     {
       "type": "container",
@@ -6534,7 +6385,7 @@
       "hidden": false,
       "text": "",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_440"
+      "bind": "static_427"
     },
     {
       "type": "image",
@@ -6650,11 +6501,11 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Cancel取消",
-      "bind": "static_447"
+      "bind": "static_434"
     },
     {
       "type": "button",
-      "parent": 753,
+      "parent": 709,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -6743,7 +6594,7 @@
     },
     {
       "type": "container",
-      "parent": 451,
+      "parent": 438,
       "x": 24,
       "y": 104,
       "w": 208,
@@ -6753,7 +6604,7 @@
     },
     {
       "type": "label",
-      "parent": 451,
+      "parent": 438,
       "x": 24,
       "y": 131,
       "w": 208,
@@ -6781,7 +6632,7 @@
     },
     {
       "type": "container",
-      "parent": 454,
+      "parent": 441,
       "x": 248,
       "y": 104,
       "w": 208,
@@ -6791,7 +6642,7 @@
     },
     {
       "type": "label",
-      "parent": 454,
+      "parent": 441,
       "x": 248,
       "y": 131,
       "w": 208,
@@ -6871,7 +6722,7 @@
     },
     {
       "type": "container",
-      "parent": 459,
+      "parent": 446,
       "x": 24,
       "y": 240,
       "w": 208,
@@ -6881,7 +6732,7 @@
     },
     {
       "type": "label",
-      "parent": 459,
+      "parent": 446,
       "x": 24,
       "y": 267,
       "w": 208,
@@ -6909,7 +6760,7 @@
     },
     {
       "type": "container",
-      "parent": 462,
+      "parent": 449,
       "x": 248,
       "y": 240,
       "w": 208,
@@ -6919,7 +6770,7 @@
     },
     {
       "type": "label",
-      "parent": 462,
+      "parent": 449,
       "x": 248,
       "y": 267,
       "w": 208,
@@ -6975,22 +6826,21 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文选择语言"
     },
     {
-      "type": "layer",
+      "type": "container",
       "parent": 77,
       "x": 0,
-      "y": 0,
+      "y": 92,
       "w": 480,
-      "h": 480,
-      "name": "display_part_0",
-      "bind": "display_part_0_visible",
-      "bind_target": "visible",
-      "hidden": false
+      "h": 356,
+      "name": "display_viewport",
+      "scroll": true,
+      "content_height": 412
     },
     {
       "type": "label",
-      "parent": 468,
+      "parent": 455,
       "x": 32,
-      "y": 92,
+      "y": 0,
       "w": 424,
       "h": 28,
       "name": "brightness_title",
@@ -7005,9 +6855,9 @@
     },
     {
       "type": "label",
-      "parent": 468,
+      "parent": 455,
       "x": 32,
-      "y": 208,
+      "y": 116,
       "w": 424,
       "h": 28,
       "name": "timeout_title",
@@ -7022,9 +6872,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 24,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "name": "button_brightness_0",
@@ -7048,9 +6898,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 24,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "name": "button_timeout_0",
@@ -7074,11 +6924,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "brightness_selected_0",
       "bind": "brightness_selected_0_visible",
       "bind_target": "visible",
@@ -7086,9 +6936,9 @@
     },
     {
       "type": "container",
-      "parent": 473,
+      "parent": 460,
       "x": 24,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7096,9 +6946,9 @@
     },
     {
       "type": "label",
-      "parent": 473,
+      "parent": 460,
       "x": 24,
-      "y": 147,
+      "y": 55,
       "w": 80,
       "h": 26,
       "name": "brightness_selected_0_label",
@@ -7112,11 +6962,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "timeout_selected_0",
       "bind": "timeout_selected_0_visible",
       "bind_target": "visible",
@@ -7124,9 +6974,9 @@
     },
     {
       "type": "container",
-      "parent": 476,
+      "parent": 463,
       "x": 24,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7134,9 +6984,9 @@
     },
     {
       "type": "label",
-      "parent": 476,
+      "parent": 463,
       "x": 24,
-      "y": 263,
+      "y": 171,
       "w": 80,
       "h": 26,
       "name": "timeout_selected_0_label",
@@ -7150,9 +7000,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 112,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "name": "button_brightness_1",
@@ -7176,9 +7026,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 112,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "name": "button_timeout_1",
@@ -7202,11 +7052,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "brightness_selected_1",
       "bind": "brightness_selected_1_visible",
       "bind_target": "visible",
@@ -7214,9 +7064,9 @@
     },
     {
       "type": "container",
-      "parent": 481,
+      "parent": 468,
       "x": 112,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7224,9 +7074,9 @@
     },
     {
       "type": "label",
-      "parent": 481,
+      "parent": 468,
       "x": 112,
-      "y": 147,
+      "y": 55,
       "w": 80,
       "h": 26,
       "name": "brightness_selected_1_label",
@@ -7240,11 +7090,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "timeout_selected_1",
       "bind": "timeout_selected_1_visible",
       "bind_target": "visible",
@@ -7252,9 +7102,9 @@
     },
     {
       "type": "container",
-      "parent": 484,
+      "parent": 471,
       "x": 112,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7262,9 +7112,9 @@
     },
     {
       "type": "label",
-      "parent": 484,
+      "parent": 471,
       "x": 112,
-      "y": 263,
+      "y": 171,
       "w": 80,
       "h": 26,
       "name": "timeout_selected_1_label",
@@ -7278,9 +7128,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 200,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "name": "button_brightness_2",
@@ -7304,9 +7154,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 200,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "name": "button_timeout_2",
@@ -7330,11 +7180,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "brightness_selected_2",
       "bind": "brightness_selected_2_visible",
       "bind_target": "visible",
@@ -7342,9 +7192,9 @@
     },
     {
       "type": "container",
-      "parent": 489,
+      "parent": 476,
       "x": 200,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7352,9 +7202,9 @@
     },
     {
       "type": "label",
-      "parent": 489,
+      "parent": 476,
       "x": 200,
-      "y": 147,
+      "y": 55,
       "w": 80,
       "h": 26,
       "name": "brightness_selected_2_label",
@@ -7368,11 +7218,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "timeout_selected_2",
       "bind": "timeout_selected_2_visible",
       "bind_target": "visible",
@@ -7380,9 +7230,9 @@
     },
     {
       "type": "container",
-      "parent": 492,
+      "parent": 479,
       "x": 200,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7390,9 +7240,9 @@
     },
     {
       "type": "label",
-      "parent": 492,
+      "parent": 479,
       "x": 200,
-      "y": 263,
+      "y": 171,
       "w": 80,
       "h": 26,
       "name": "timeout_selected_2_label",
@@ -7406,9 +7256,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 288,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "name": "button_brightness_3",
@@ -7432,9 +7282,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 288,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "name": "button_timeout_3",
@@ -7458,11 +7308,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "brightness_selected_3",
       "bind": "brightness_selected_3_visible",
       "bind_target": "visible",
@@ -7470,9 +7320,9 @@
     },
     {
       "type": "container",
-      "parent": 497,
+      "parent": 484,
       "x": 288,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7480,9 +7330,9 @@
     },
     {
       "type": "label",
-      "parent": 497,
+      "parent": 484,
       "x": 288,
-      "y": 147,
+      "y": 55,
       "w": 80,
       "h": 26,
       "name": "brightness_selected_3_label",
@@ -7496,11 +7346,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "timeout_selected_3",
       "bind": "timeout_selected_3_visible",
       "bind_target": "visible",
@@ -7508,9 +7358,9 @@
     },
     {
       "type": "container",
-      "parent": 500,
+      "parent": 487,
       "x": 288,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7518,9 +7368,9 @@
     },
     {
       "type": "label",
-      "parent": 500,
+      "parent": 487,
       "x": 288,
-      "y": 263,
+      "y": 171,
       "w": 80,
       "h": 26,
       "name": "timeout_selected_3_label",
@@ -7534,9 +7384,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 376,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "name": "button_brightness_4",
@@ -7560,9 +7410,9 @@
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 376,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "name": "button_timeout_4",
@@ -7586,11 +7436,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "brightness_selected_4",
       "bind": "brightness_selected_4_visible",
       "bind_target": "visible",
@@ -7598,9 +7448,9 @@
     },
     {
       "type": "container",
-      "parent": 505,
+      "parent": 492,
       "x": 376,
-      "y": 124,
+      "y": 32,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7608,9 +7458,9 @@
     },
     {
       "type": "label",
-      "parent": 505,
+      "parent": 492,
       "x": 376,
-      "y": 147,
+      "y": 55,
       "w": 80,
       "h": 26,
       "name": "brightness_selected_4_label",
@@ -7624,11 +7474,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "timeout_selected_4",
       "bind": "timeout_selected_4_visible",
       "bind_target": "visible",
@@ -7636,9 +7486,9 @@
     },
     {
       "type": "container",
-      "parent": 508,
+      "parent": 495,
       "x": 376,
-      "y": 240,
+      "y": 148,
       "w": 80,
       "h": 72,
       "bg_color": "#F2F2F2",
@@ -7646,9 +7496,9 @@
     },
     {
       "type": "label",
-      "parent": 508,
+      "parent": 495,
       "x": 376,
-      "y": 263,
+      "y": 171,
       "w": 80,
       "h": 26,
       "name": "timeout_selected_4_label",
@@ -7662,9 +7512,9 @@
     },
     {
       "type": "container",
-      "parent": 468,
+      "parent": 455,
       "x": 16,
-      "y": 328,
+      "y": 236,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -7672,9 +7522,9 @@
     },
     {
       "type": "container",
-      "parent": 468,
+      "parent": 455,
       "x": 28,
-      "y": 340,
+      "y": 248,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -7682,18 +7532,18 @@
     },
     {
       "type": "image",
-      "parent": 468,
+      "parent": 455,
       "x": 40,
-      "y": 352,
+      "y": 260,
       "w": 32,
       "h": 32,
       "image": "assets/icons/rotate-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 468,
+      "parent": 455,
       "x": 100,
-      "y": 340,
+      "y": 248,
       "w": 312,
       "h": 30,
       "name": "row_title_display_0_rotate",
@@ -7707,9 +7557,9 @@
     },
     {
       "type": "label",
-      "parent": 468,
+      "parent": 455,
       "x": 100,
-      "y": 372,
+      "y": 280,
       "w": 312,
       "h": 24,
       "name": "row_sub_display_0_rotate",
@@ -7723,18 +7573,18 @@
     },
     {
       "type": "image",
-      "parent": 468,
+      "parent": 455,
       "x": 424,
-      "y": 358,
+      "y": 266,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 16,
-      "y": 328,
+      "y": 236,
       "w": 448,
       "h": 80,
       "name": "button_display_0_rotate",
@@ -7749,11 +7599,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "rotate_0_0",
       "bind": "rotate_0_0_visible",
       "bind_target": "visible",
@@ -7761,9 +7611,9 @@
     },
     {
       "type": "container",
-      "parent": 518,
+      "parent": 505,
       "x": 396,
-      "y": 352,
+      "y": 260,
       "w": 52,
       "h": 32,
       "bg_color": "#292829",
@@ -7771,9 +7621,9 @@
     },
     {
       "type": "container",
-      "parent": 518,
+      "parent": 505,
       "x": 399,
-      "y": 355,
+      "y": 263,
       "w": 26,
       "h": 26,
       "bg_color": "#F2F2F2",
@@ -7781,11 +7631,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "rotate_0_1",
       "bind": "rotate_0_1_visible",
       "bind_target": "visible",
@@ -7793,9 +7643,9 @@
     },
     {
       "type": "container",
-      "parent": 521,
+      "parent": 508,
       "x": 396,
-      "y": 352,
+      "y": 260,
       "w": 52,
       "h": 32,
       "bg_color": "#FF4C01",
@@ -7803,9 +7653,9 @@
     },
     {
       "type": "container",
-      "parent": 521,
+      "parent": 508,
       "x": 419,
-      "y": 355,
+      "y": 263,
       "w": 26,
       "h": 26,
       "bg_color": "#F2F2F2",
@@ -7813,9 +7663,9 @@
     },
     {
       "type": "container",
-      "parent": 468,
+      "parent": 455,
       "x": 16,
-      "y": 416,
+      "y": 324,
       "w": 448,
       "h": 80,
       "bg_color": "#101010",
@@ -7823,9 +7673,9 @@
     },
     {
       "type": "container",
-      "parent": 468,
+      "parent": 455,
       "x": 28,
-      "y": 428,
+      "y": 336,
       "w": 56,
       "h": 56,
       "bg_color": "#212021",
@@ -7833,18 +7683,18 @@
     },
     {
       "type": "image",
-      "parent": 468,
+      "parent": 455,
       "x": 40,
-      "y": 440,
+      "y": 348,
       "w": 32,
       "h": 32,
       "image": "assets/icons/haptic-32-cream.png"
     },
     {
       "type": "label",
-      "parent": 468,
+      "parent": 455,
       "x": 100,
-      "y": 428,
+      "y": 336,
       "w": 312,
       "h": 30,
       "name": "row_title_display_0_haptics",
@@ -7858,9 +7708,9 @@
     },
     {
       "type": "label",
-      "parent": 468,
+      "parent": 455,
       "x": 100,
-      "y": 460,
+      "y": 368,
       "w": 312,
       "h": 24,
       "name": "row_sub_display_0_haptics",
@@ -7874,18 +7724,18 @@
     },
     {
       "type": "image",
-      "parent": 468,
+      "parent": 455,
       "x": 424,
-      "y": 446,
+      "y": 354,
       "w": 20,
       "h": 20,
       "image": "assets/icons/chevron-20-dim.png"
     },
     {
       "type": "button",
-      "parent": 468,
+      "parent": 455,
       "x": 16,
-      "y": 416,
+      "y": 324,
       "w": 448,
       "h": 80,
       "name": "button_display_0_haptics",
@@ -7900,11 +7750,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "haptics_0_0",
       "bind": "haptics_0_0_visible",
       "bind_target": "visible",
@@ -7912,9 +7762,9 @@
     },
     {
       "type": "container",
-      "parent": 531,
+      "parent": 518,
       "x": 396,
-      "y": 440,
+      "y": 348,
       "w": 52,
       "h": 32,
       "bg_color": "#292829",
@@ -7922,9 +7772,9 @@
     },
     {
       "type": "container",
-      "parent": 531,
+      "parent": 518,
       "x": 399,
-      "y": 443,
+      "y": 351,
       "w": 26,
       "h": 26,
       "bg_color": "#F2F2F2",
@@ -7932,11 +7782,11 @@
     },
     {
       "type": "layer",
-      "parent": 468,
+      "parent": 455,
       "x": 0,
       "y": 0,
       "w": 480,
-      "h": 480,
+      "h": 412,
       "name": "haptics_0_1",
       "bind": "haptics_0_1_visible",
       "bind_target": "visible",
@@ -7944,9 +7794,9 @@
     },
     {
       "type": "container",
-      "parent": 534,
+      "parent": 521,
       "x": 396,
-      "y": 440,
+      "y": 348,
       "w": 52,
       "h": 32,
       "bg_color": "#FF4C01",
@@ -7954,367 +7804,13 @@
     },
     {
       "type": "container",
-      "parent": 534,
+      "parent": 521,
       "x": 419,
-      "y": 443,
+      "y": 351,
       "w": 26,
       "h": 26,
       "bg_color": "#F2F2F2",
       "radius": 13
-    },
-    {
-      "type": "container",
-      "parent": 468,
-      "x": 468,
-      "y": 100,
-      "w": 4,
-      "h": 344,
-      "bg_color": "#292829",
-      "radius": 2
-    },
-    {
-      "type": "container",
-      "parent": 468,
-      "x": 468,
-      "y": 100,
-      "w": 4,
-      "h": 277,
-      "bg_color": "#9A9A9A",
-      "radius": 2
-    },
-    {
-      "type": "layer",
-      "parent": 77,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "display_part_1",
-      "bind": "display_part_1_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
-      "type": "container",
-      "parent": 539,
-      "x": 16,
-      "y": 96,
-      "w": 448,
-      "h": 80,
-      "bg_color": "#101010",
-      "radius": 20
-    },
-    {
-      "type": "container",
-      "parent": 539,
-      "x": 28,
-      "y": 108,
-      "w": 56,
-      "h": 56,
-      "bg_color": "#212021",
-      "radius": 16
-    },
-    {
-      "type": "image",
-      "parent": 539,
-      "x": 40,
-      "y": 120,
-      "w": 32,
-      "h": 32,
-      "image": "assets/icons/rotate-32-cream.png"
-    },
-    {
-      "type": "label",
-      "parent": 539,
-      "x": 100,
-      "y": 108,
-      "w": 312,
-      "h": 30,
-      "name": "row_title_display_1_rotate",
-      "bind": "row_title_display_1_rotate",
-      "text": "Auto rotate",
-      "font_size": 22,
-      "font": "fonts/VibeMedium.otf",
-      "fg_color": "#F2F2F2",
-      "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Auto rotate自动旋转"
-    },
-    {
-      "type": "label",
-      "parent": 539,
-      "x": 100,
-      "y": 140,
-      "w": 312,
-      "h": 24,
-      "name": "row_sub_display_1_rotate",
-      "bind": "row_sub_display_1_rotate",
-      "text": "Follows how you hold it",
-      "font_size": 16,
-      "font": "fonts/VibeInter.otf",
-      "fg_color": "#9A9A9A",
-      "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Follows how you hold it随设备方向旋转"
-    },
-    {
-      "type": "image",
-      "parent": 539,
-      "x": 424,
-      "y": 126,
-      "w": 20,
-      "h": 20,
-      "image": "assets/icons/chevron-20-dim.png"
-    },
-    {
-      "type": "button",
-      "parent": 539,
-      "x": 16,
-      "y": 96,
-      "w": 448,
-      "h": 80,
-      "name": "button_display_1_rotate",
-      "bg_color": "#00000001",
-      "events": [
-        {
-          "event": "click",
-          "action": "call",
-          "target_name": "toggle_rotate"
-        }
-      ]
-    },
-    {
-      "type": "layer",
-      "parent": 539,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "rotate_1_0",
-      "bind": "rotate_1_0_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
-      "type": "container",
-      "parent": 547,
-      "x": 396,
-      "y": 120,
-      "w": 52,
-      "h": 32,
-      "bg_color": "#292829",
-      "radius": 16
-    },
-    {
-      "type": "container",
-      "parent": 547,
-      "x": 399,
-      "y": 123,
-      "w": 26,
-      "h": 26,
-      "bg_color": "#F2F2F2",
-      "radius": 13
-    },
-    {
-      "type": "layer",
-      "parent": 539,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "rotate_1_1",
-      "bind": "rotate_1_1_visible",
-      "bind_target": "visible",
-      "hidden": false
-    },
-    {
-      "type": "container",
-      "parent": 550,
-      "x": 396,
-      "y": 120,
-      "w": 52,
-      "h": 32,
-      "bg_color": "#FF4C01",
-      "radius": 16
-    },
-    {
-      "type": "container",
-      "parent": 550,
-      "x": 419,
-      "y": 123,
-      "w": 26,
-      "h": 26,
-      "bg_color": "#F2F2F2",
-      "radius": 13
-    },
-    {
-      "type": "container",
-      "parent": 539,
-      "x": 16,
-      "y": 184,
-      "w": 448,
-      "h": 80,
-      "bg_color": "#101010",
-      "radius": 20
-    },
-    {
-      "type": "container",
-      "parent": 539,
-      "x": 28,
-      "y": 196,
-      "w": 56,
-      "h": 56,
-      "bg_color": "#212021",
-      "radius": 16
-    },
-    {
-      "type": "image",
-      "parent": 539,
-      "x": 40,
-      "y": 208,
-      "w": 32,
-      "h": 32,
-      "image": "assets/icons/haptic-32-cream.png"
-    },
-    {
-      "type": "label",
-      "parent": 539,
-      "x": 100,
-      "y": 196,
-      "w": 312,
-      "h": 30,
-      "name": "row_title_display_1_haptics",
-      "bind": "row_title_display_1_haptics",
-      "text": "Haptics",
-      "font_size": 22,
-      "font": "fonts/VibeMedium.otf",
-      "fg_color": "#F2F2F2",
-      "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Haptics触感"
-    },
-    {
-      "type": "label",
-      "parent": 539,
-      "x": 100,
-      "y": 228,
-      "w": 312,
-      "h": 24,
-      "name": "row_sub_display_1_haptics",
-      "bind": "row_sub_display_1_haptics",
-      "text": "Ticks when you press keys",
-      "font_size": 16,
-      "font": "fonts/VibeInter.otf",
-      "fg_color": "#9A9A9A",
-      "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Ticks when you press keys按键时提供触感反馈"
-    },
-    {
-      "type": "image",
-      "parent": 539,
-      "x": 424,
-      "y": 214,
-      "w": 20,
-      "h": 20,
-      "image": "assets/icons/chevron-20-dim.png"
-    },
-    {
-      "type": "button",
-      "parent": 539,
-      "x": 16,
-      "y": 184,
-      "w": 448,
-      "h": 80,
-      "name": "button_display_1_haptics",
-      "bg_color": "#00000001",
-      "events": [
-        {
-          "event": "click",
-          "action": "call",
-          "target_name": "toggle_haptics"
-        }
-      ]
-    },
-    {
-      "type": "layer",
-      "parent": 539,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "haptics_1_0",
-      "bind": "haptics_1_0_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
-      "type": "container",
-      "parent": 560,
-      "x": 396,
-      "y": 208,
-      "w": 52,
-      "h": 32,
-      "bg_color": "#292829",
-      "radius": 16
-    },
-    {
-      "type": "container",
-      "parent": 560,
-      "x": 399,
-      "y": 211,
-      "w": 26,
-      "h": 26,
-      "bg_color": "#F2F2F2",
-      "radius": 13
-    },
-    {
-      "type": "layer",
-      "parent": 539,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "haptics_1_1",
-      "bind": "haptics_1_1_visible",
-      "bind_target": "visible",
-      "hidden": false
-    },
-    {
-      "type": "container",
-      "parent": 563,
-      "x": 396,
-      "y": 208,
-      "w": 52,
-      "h": 32,
-      "bg_color": "#FF4C01",
-      "radius": 16
-    },
-    {
-      "type": "container",
-      "parent": 563,
-      "x": 419,
-      "y": 211,
-      "w": 26,
-      "h": 26,
-      "bg_color": "#F2F2F2",
-      "radius": 13
-    },
-    {
-      "type": "container",
-      "parent": 539,
-      "x": 468,
-      "y": 100,
-      "w": 4,
-      "h": 344,
-      "bg_color": "#292829",
-      "radius": 2
-    },
-    {
-      "type": "container",
-      "parent": 539,
-      "x": 468,
-      "y": 167,
-      "w": 4,
-      "h": 277,
-      "bg_color": "#9A9A9A",
-      "radius": 2
     },
     {
       "type": "button",
@@ -8549,7 +8045,7 @@
     },
     {
       "type": "container",
-      "parent": 578,
+      "parent": 534,
       "x": 0,
       "y": 88,
       "w": 480,
@@ -8559,7 +8055,7 @@
     },
     {
       "type": "button",
-      "parent": 578,
+      "parent": 534,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -8579,11 +8075,11 @@
         }
       ],
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Add entry添加条目",
-      "bind": "static_580"
+      "bind": "static_536"
     },
     {
       "type": "image",
-      "parent": 578,
+      "parent": 534,
       "x": 200,
       "y": 128,
       "w": 80,
@@ -8592,7 +8088,7 @@
     },
     {
       "type": "label",
-      "parent": 578,
+      "parent": 534,
       "x": 24,
       "y": 226,
       "w": 432,
@@ -8608,7 +8104,7 @@
     },
     {
       "type": "label",
-      "parent": 578,
+      "parent": 534,
       "x": 40,
       "y": 264,
       "w": 400,
@@ -8624,7 +8120,7 @@
     },
     {
       "type": "label",
-      "parent": 578,
+      "parent": 534,
       "x": 40,
       "y": 286,
       "w": 400,
@@ -8700,7 +8196,7 @@
     },
     {
       "type": "button",
-      "parent": 754,
+      "parent": 710,
       "x": 388,
       "y": 108,
       "w": 64,
@@ -8725,7 +8221,7 @@
     },
     {
       "type": "button",
-      "parent": 755,
+      "parent": 711,
       "x": 352,
       "y": 28,
       "w": 104,
@@ -9070,7 +8566,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_611"
+      "bind": "static_567"
     },
     {
       "type": "container",
@@ -9165,7 +8661,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_618"
+      "bind": "static_574"
     },
     {
       "type": "container",
@@ -9192,7 +8688,7 @@
       "text_align": "left",
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文 %Iades"
     },
     {
       "type": "container",
@@ -9236,11 +8732,11 @@
       "text_align": "left",
       "font": "fonts/VibeInter.otf",
       "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文                %%...0022BBCISSTUUUaaaaaabbccccdddddeeeeeeeeeeeeeeeghhiiillllllmnnnnoooopprrrrrssttttvvvvww。。。上个以保充发启备存将将开或接未本版电的盖至行被覆设请运这连重"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文                    %%.........0022AABBCDDFINNNNSSSTUUUaaaaaaabbcccccdddddeeeeeeeeeeeeeeeeeeggghhhiiiiiiiillllllmnnnnnnnnnooooopppqrrrrrrrssssstttttuuvvvvvww……。。。一上上个以作保充发启在在备存完将将开成或扫接描操未本次正正版电的盖至行被覆设请运这连重"
     },
     {
       "type": "button",
-      "parent": 746,
+      "parent": 702,
       "x": 56,
       "y": 280,
       "w": 368,
@@ -9312,7 +8808,7 @@
       ],
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Open打开  DOaacddeeinnnopprs并开开弃打打放"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Open打开   DOPaaaacddeeeeiilnnnopprsstw候并开开弃打打放稍请"
     },
     {
       "type": "label",
@@ -9364,7 +8860,7 @@
     },
     {
       "type": "button",
-      "parent": 762,
+      "parent": 718,
       "x": 26,
       "y": 64,
       "w": 124,
@@ -9403,7 +8899,7 @@
     },
     {
       "type": "image",
-      "parent": 756,
+      "parent": 712,
       "x": 34,
       "y": 72,
       "w": 108,
@@ -9446,7 +8942,7 @@
     },
     {
       "type": "container",
-      "parent": 634,
+      "parent": 590,
       "x": 34,
       "y": 72,
       "w": 108,
@@ -9456,7 +8952,7 @@
     },
     {
       "type": "container",
-      "parent": 634,
+      "parent": 590,
       "x": 68,
       "y": 123,
       "w": 40,
@@ -9466,7 +8962,7 @@
     },
     {
       "type": "container",
-      "parent": 634,
+      "parent": 590,
       "x": 85,
       "y": 106,
       "w": 6,
@@ -9492,7 +8988,7 @@
     },
     {
       "type": "button",
-      "parent": 763,
+      "parent": 719,
       "x": 178,
       "y": 64,
       "w": 124,
@@ -9531,7 +9027,7 @@
     },
     {
       "type": "image",
-      "parent": 757,
+      "parent": 713,
       "x": 186,
       "y": 72,
       "w": 108,
@@ -9574,7 +9070,7 @@
     },
     {
       "type": "container",
-      "parent": 643,
+      "parent": 599,
       "x": 186,
       "y": 72,
       "w": 108,
@@ -9584,7 +9080,7 @@
     },
     {
       "type": "container",
-      "parent": 643,
+      "parent": 599,
       "x": 220,
       "y": 123,
       "w": 40,
@@ -9594,7 +9090,7 @@
     },
     {
       "type": "container",
-      "parent": 643,
+      "parent": 599,
       "x": 237,
       "y": 106,
       "w": 6,
@@ -9620,7 +9116,7 @@
     },
     {
       "type": "button",
-      "parent": 764,
+      "parent": 720,
       "x": 330,
       "y": 64,
       "w": 124,
@@ -9659,7 +9155,7 @@
     },
     {
       "type": "image",
-      "parent": 758,
+      "parent": 714,
       "x": 338,
       "y": 72,
       "w": 108,
@@ -9702,7 +9198,7 @@
     },
     {
       "type": "container",
-      "parent": 652,
+      "parent": 608,
       "x": 338,
       "y": 72,
       "w": 108,
@@ -9712,7 +9208,7 @@
     },
     {
       "type": "container",
-      "parent": 652,
+      "parent": 608,
       "x": 372,
       "y": 123,
       "w": 40,
@@ -9722,7 +9218,7 @@
     },
     {
       "type": "container",
-      "parent": 652,
+      "parent": 608,
       "x": 389,
       "y": 106,
       "w": 6,
@@ -9748,7 +9244,7 @@
     },
     {
       "type": "button",
-      "parent": 765,
+      "parent": 721,
       "x": 26,
       "y": 248,
       "w": 124,
@@ -9787,7 +9283,7 @@
     },
     {
       "type": "image",
-      "parent": 759,
+      "parent": 715,
       "x": 34,
       "y": 256,
       "w": 108,
@@ -9830,7 +9326,7 @@
     },
     {
       "type": "container",
-      "parent": 661,
+      "parent": 617,
       "x": 34,
       "y": 256,
       "w": 108,
@@ -9840,7 +9336,7 @@
     },
     {
       "type": "container",
-      "parent": 661,
+      "parent": 617,
       "x": 68,
       "y": 307,
       "w": 40,
@@ -9850,7 +9346,7 @@
     },
     {
       "type": "container",
-      "parent": 661,
+      "parent": 617,
       "x": 85,
       "y": 290,
       "w": 6,
@@ -9876,7 +9372,7 @@
     },
     {
       "type": "button",
-      "parent": 766,
+      "parent": 722,
       "x": 178,
       "y": 248,
       "w": 124,
@@ -9915,7 +9411,7 @@
     },
     {
       "type": "image",
-      "parent": 760,
+      "parent": 716,
       "x": 186,
       "y": 256,
       "w": 108,
@@ -9958,7 +9454,7 @@
     },
     {
       "type": "container",
-      "parent": 670,
+      "parent": 626,
       "x": 186,
       "y": 256,
       "w": 108,
@@ -9968,7 +9464,7 @@
     },
     {
       "type": "container",
-      "parent": 670,
+      "parent": 626,
       "x": 220,
       "y": 307,
       "w": 40,
@@ -9978,7 +9474,7 @@
     },
     {
       "type": "container",
-      "parent": 670,
+      "parent": 626,
       "x": 237,
       "y": 290,
       "w": 6,
@@ -10004,7 +9500,7 @@
     },
     {
       "type": "button",
-      "parent": 767,
+      "parent": 723,
       "x": 330,
       "y": 248,
       "w": 124,
@@ -10043,7 +9539,7 @@
     },
     {
       "type": "image",
-      "parent": 761,
+      "parent": 717,
       "x": 338,
       "y": 256,
       "w": 108,
@@ -10086,7 +9582,7 @@
     },
     {
       "type": "container",
-      "parent": 679,
+      "parent": 635,
       "x": 338,
       "y": 256,
       "w": 108,
@@ -10096,7 +9592,7 @@
     },
     {
       "type": "container",
-      "parent": 679,
+      "parent": 635,
       "x": 372,
       "y": 307,
       "w": 40,
@@ -10106,7 +9602,7 @@
     },
     {
       "type": "container",
-      "parent": 679,
+      "parent": 635,
       "x": 389,
       "y": 290,
       "w": 6,
@@ -10128,7 +9624,7 @@
     },
     {
       "type": "container",
-      "parent": 683,
+      "parent": 639,
       "x": 186,
       "y": 92,
       "w": 108,
@@ -10138,7 +9634,7 @@
     },
     {
       "type": "container",
-      "parent": 683,
+      "parent": 639,
       "x": 220,
       "y": 143,
       "w": 40,
@@ -10148,7 +9644,7 @@
     },
     {
       "type": "container",
-      "parent": 683,
+      "parent": 639,
       "x": 237,
       "y": 126,
       "w": 6,
@@ -10158,7 +9654,7 @@
     },
     {
       "type": "label",
-      "parent": 683,
+      "parent": 639,
       "x": 152,
       "y": 207,
       "w": 176,
@@ -10174,7 +9670,7 @@
     },
     {
       "type": "label",
-      "parent": 683,
+      "parent": 639,
       "x": 24,
       "y": 262,
       "w": 432,
@@ -10190,7 +9686,7 @@
     },
     {
       "type": "label",
-      "parent": 683,
+      "parent": 639,
       "x": 24,
       "y": 310,
       "w": 432,
@@ -10206,7 +9702,7 @@
     },
     {
       "type": "label",
-      "parent": 683,
+      "parent": 639,
       "x": 24,
       "y": 332,
       "w": 432,
@@ -10234,7 +9730,7 @@
     },
     {
       "type": "container",
-      "parent": 691,
+      "parent": 647,
       "x": 222,
       "y": 440,
       "w": 8,
@@ -10244,7 +9740,7 @@
     },
     {
       "type": "container",
-      "parent": 691,
+      "parent": 647,
       "x": 238,
       "y": 440,
       "w": 20,
@@ -10266,7 +9762,7 @@
     },
     {
       "type": "container",
-      "parent": 694,
+      "parent": 650,
       "x": 214,
       "y": 440,
       "w": 8,
@@ -10276,7 +9772,7 @@
     },
     {
       "type": "container",
-      "parent": 694,
+      "parent": 650,
       "x": 230,
       "y": 440,
       "w": 20,
@@ -10286,7 +9782,7 @@
     },
     {
       "type": "container",
-      "parent": 694,
+      "parent": 650,
       "x": 258,
       "y": 440,
       "w": 8,
@@ -10308,7 +9804,7 @@
     },
     {
       "type": "container",
-      "parent": 698,
+      "parent": 654,
       "x": 214,
       "y": 440,
       "w": 8,
@@ -10318,7 +9814,7 @@
     },
     {
       "type": "container",
-      "parent": 698,
+      "parent": 654,
       "x": 230,
       "y": 440,
       "w": 8,
@@ -10328,7 +9824,7 @@
     },
     {
       "type": "container",
-      "parent": 698,
+      "parent": 654,
       "x": 246,
       "y": 440,
       "w": 20,
@@ -10350,7 +9846,7 @@
     },
     {
       "type": "container",
-      "parent": 702,
+      "parent": 658,
       "x": 206,
       "y": 440,
       "w": 8,
@@ -10360,7 +9856,7 @@
     },
     {
       "type": "container",
-      "parent": 702,
+      "parent": 658,
       "x": 222,
       "y": 440,
       "w": 20,
@@ -10370,7 +9866,7 @@
     },
     {
       "type": "container",
-      "parent": 702,
+      "parent": 658,
       "x": 250,
       "y": 440,
       "w": 8,
@@ -10380,7 +9876,7 @@
     },
     {
       "type": "container",
-      "parent": 702,
+      "parent": 658,
       "x": 266,
       "y": 440,
       "w": 8,
@@ -10402,7 +9898,7 @@
     },
     {
       "type": "container",
-      "parent": 707,
+      "parent": 663,
       "x": 206,
       "y": 440,
       "w": 8,
@@ -10412,7 +9908,7 @@
     },
     {
       "type": "container",
-      "parent": 707,
+      "parent": 663,
       "x": 222,
       "y": 440,
       "w": 8,
@@ -10422,7 +9918,7 @@
     },
     {
       "type": "container",
-      "parent": 707,
+      "parent": 663,
       "x": 238,
       "y": 440,
       "w": 20,
@@ -10432,7 +9928,7 @@
     },
     {
       "type": "container",
-      "parent": 707,
+      "parent": 663,
       "x": 266,
       "y": 440,
       "w": 8,
@@ -10454,7 +9950,7 @@
     },
     {
       "type": "container",
-      "parent": 712,
+      "parent": 668,
       "x": 206,
       "y": 440,
       "w": 8,
@@ -10464,7 +9960,7 @@
     },
     {
       "type": "container",
-      "parent": 712,
+      "parent": 668,
       "x": 222,
       "y": 440,
       "w": 8,
@@ -10474,7 +9970,7 @@
     },
     {
       "type": "container",
-      "parent": 712,
+      "parent": 668,
       "x": 238,
       "y": 440,
       "w": 8,
@@ -10484,7 +9980,7 @@
     },
     {
       "type": "container",
-      "parent": 712,
+      "parent": 668,
       "x": 254,
       "y": 440,
       "w": 20,
@@ -10505,7 +10001,7 @@
     },
     {
       "type": "image",
-      "parent": 717,
+      "parent": 673,
       "x": 348,
       "y": 22,
       "w": 20,
@@ -10525,7 +10021,7 @@
     },
     {
       "type": "image",
-      "parent": 719,
+      "parent": 675,
       "x": 380,
       "y": 22,
       "w": 20,
@@ -10545,7 +10041,7 @@
     },
     {
       "type": "image",
-      "parent": 721,
+      "parent": 677,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -10565,7 +10061,7 @@
     },
     {
       "type": "image",
-      "parent": 723,
+      "parent": 679,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -10585,7 +10081,7 @@
     },
     {
       "type": "image",
-      "parent": 725,
+      "parent": 681,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -10605,7 +10101,7 @@
     },
     {
       "type": "image",
-      "parent": 727,
+      "parent": 683,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -10731,7 +10227,7 @@
     },
     {
       "type": "button",
-      "parent": 747,
+      "parent": 703,
       "x": 24,
       "y": 408,
       "w": 432,
@@ -10825,7 +10321,7 @@
     },
     {
       "type": "button",
-      "parent": 748,
+      "parent": 704,
       "x": 248,
       "y": 380,
       "w": 208,

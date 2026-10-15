@@ -22,11 +22,6 @@ if(NOT SDKCONFIG_DEFAULTS)
         "sdkconfig.defaults;sdkconfig.recovery.defaults")
 endif()
 
-# Use the same standalone compiler bootstrap as generated applications. Without
-# this, ESP-GSP falls back to importing an unprovisioned Python gsp module.
-# Recovery retains GSP 1.4.0 independently of the application template pins.
-set(MOSAICO_GSPC_VERSION "0.5.0")
-include("${CMAKE_CURRENT_LIST_DIR}/../../../mosaico-tools/cmake/gsp_compiler.cmake")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(vibe-mode)
 

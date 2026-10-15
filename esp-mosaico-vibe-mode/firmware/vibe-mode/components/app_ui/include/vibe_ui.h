@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "esp_gsp.h"
+#include "vui.h"
 #include "vibe_transfer.h"
 #include "vibe_settings_types.h"
 #include "vibe_device_types.h"
@@ -127,7 +127,7 @@ typedef struct {
  * services->ctx and ui must outlive the controller. out is component-owned,
  * stable storage (PSRAM on device), including on partial initialization error;
  * never free it. A live controller cannot be initialized twice. */
-esp_gsp_err_t vibe_ui_create(esp_gsp_handle_t ui, const vibe_services_t *services, vibe_ui_t **out);
+vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *services, vibe_ui_t **out);
 /* Copy observable UI state without exposing secrets. Render task only. */
 void vibe_ui_get_status(const vibe_ui_t *state, vibe_ui_status_t *out);
 /* Detach callbacks and clear secrets on the render task before UI destruction. */

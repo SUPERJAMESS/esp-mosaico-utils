@@ -1,4 +1,4 @@
-"""Exercise the production GSP scenes and C controller through native input."""
+"""Exercise the production lightweight UI and C controller through native input."""
 import json
 import os
 from pathlib import Path
@@ -21,9 +21,9 @@ class Simulator:
         self.log = (directory / "sim.log").open("w")
         ready = directory / "ready.json"
         self.sim = subprocess.Popen([
-            str(host), "--bundle", str(bundle), "--headless", "--backend-enable",
-            "--backend-required", "--api-listen", "tcp://127.0.0.1:0",
-            "--ready-file", str(ready)], stdout=self.log, stderr=self.log)
+            sys.executable, str(host), "--library", str(executable),
+            "--directory", str(directory), "--scenario", scenario],
+            stdout=self.log, stderr=self.log)
         self.backend = None
         self.connection = None
         self.stream = None
@@ -35,10 +35,7 @@ class Simulator:
                 assert time.monotonic() < deadline, "simulator startup timed out"
                 time.sleep(.05)
             info = json.loads(ready.read_text())
-            self.backend = subprocess.Popen([str(executable), "--endpoint", info["backend"]],
-                env=dict(os.environ, VIBE_SIM_STATE_FILE=str(self.state_file),
-                    VIBE_SIM_CONTROL_FILE=str(directory / "control"), VIBE_SIM_SCENARIO=scenario),
-                stdout=self.log, stderr=self.log)
+            self.backend = self.sim
             address, port = info["api"].replace("tcp://", "").split(":")
             self.connection = socket.create_connection((address, int(port)), timeout=15)
             self.stream = self.connection.makefile("rb")
@@ -104,6 +101,9 @@ class Simulator:
         while parent >= 0:
             x += objects[parent]["x"]
             y += objects[parent]["y"]
+            if objects[parent].get("scroll"):
+                offsets = json.loads(self.state_file.read_text())
+                y -= offsets[objects[parent]["name"].replace("_viewport", "_offset")]
             parent = objects[parent].get("parent", -1)
         self.tap(x, y)
 
@@ -171,19 +171,17 @@ class Simulator:
 
 @pytest.fixture(scope="module")
 def native_build(tmp_path_factory):
-    component = Path(os.environ.get("ESP_GSP_COMPONENT_DIR", RECOVERY / "managed_components/espressif__esp-gsp"))
-    assert (component / "tools/sim_bridge/build.py").is_file(), "Build Recovery first or set ESP_GSP_COMPONENT_DIR"
     build = tmp_path_factory.mktemp("vibe-native-build")
-    gspc = os.environ.get("GSPC_EXECUTABLE")
-    host = os.environ.get("GSP_SIM_EXECUTABLE")
-    assert gspc and host, "Set GSPC_EXECUTABLE and GSP_SIM_EXECUTABLE to the pinned GSP tools"
-    build_python = os.environ.get("GSP_BUILD_PYTHON", sys.executable)
-    result = subprocess.run([build_python, str(component / "tools/sim_bridge/build.py"),
-        "--project", str(RECOVERY / "pc"), "--build-dir", str(build),
-        "--component-dir", str(component), "--gspc", gspc], capture_output=True, text=True, timeout=180)
-    assert result.returncode == 0, result.stdout + result.stderr
-    manifest = json.loads((build / "vibe_backend-Release.json").read_text())
-    return Path(manifest["executable"]), Path(manifest["bundle"]), Path(host)
+    generator = ["-G", "MinGW Makefiles"] if os.name == "nt" else []
+    for command in (["cmake", "-S", str(RECOVERY / "pc"), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release"] + generator,
+                    ["cmake", "--build", str(build), "--config", "Release", "-j4"]):
+        result = subprocess.run(command, capture_output=True, text=True, timeout=180)
+        assert result.returncode == 0, result.stdout + result.stderr
+    library = next((p for name in ("libvibe_ui.so", "libvibe_ui.dylib", "libvibe_ui.dll", "vibe_ui.dll", "Release/vibe_ui.dll")
+                    if (p := build / name).is_file()), None)
+    assert library is not None, "Native UI library was not produced"
+    return library, None, RECOVERY / "pc/simulator.py"
+
 
 
 @pytest.fixture
@@ -568,6 +566,8 @@ def test_batch_update_survives_navigation_and_can_cancel(sim):
     sim.wait(page=5, batch=True)
     sim.tap_ui("manage_update_all")
     sim.wait(page=5, batch=False, cancel_calls=1, install_calls=0, restart_calls=0)
+    sim.rpc("wait", frames=60)  # Stay in the library after the next status poll.
+    sim.wait(page=5, batch=False)
 
 
 @pytest.mark.parametrize("sim", ["low-battery"], indirect=True)
@@ -625,7 +625,8 @@ def test_language_display_and_wake_controls(sim):
     sim.tap(420, 275); sim.wait(screen_off_seconds=0)
     sim.tap(125, 360); sim.wait(rotate=False)
     sim.swipe(240, 410, 240, 180)
-    sim.tap_ui("button_display_1_haptics"); sim.wait(haptics=False)
+    sim.wait(display_offset=56)
+    sim.tap_ui("button_display_0_haptics"); sim.wait(haptics=False)
     sim.tap(38, 36); sim.wait(page=11)
     sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
     sim.tap_ui("button_language_zh"); sim.wait(language=2)
@@ -648,6 +649,7 @@ def test_first_run_language_then_wifi_can_skip(sim):
 def test_factory_reset_requires_hold_and_preserves_nand(sim):
     sim.tap(390, 360); sim.wait(page=11)
     sim.swipe(240, 410, 240, 180)
+    sim.wait(settings_offset=264)
     sim.tap_ui("button_settings_bottom_reset"); sim.wait(page=17)
     sim.capture("factory-reset")
     sim.tap(240, 396); sim.wait(page=17, reset_calls=0)
@@ -741,6 +743,19 @@ def test_manage_reference_status_colors_badge_and_storage_bar(sim):
     sim.wait(page=5, batch=True, check_calls=1)
     sim.tap_ui('manage_update_all')
     sim.wait(page=5, batch=False, cancel_calls=1)
+    sim.rpc("wait", frames=60)
+    sim.wait(page=5, batch=False)
+
+
+@pytest.mark.parametrize('sim', ['scan-busy'], indirect=True)
+def test_update_tap_during_scan_keeps_library_visible(sim):
+    sim.manage()
+    sim.wait(nand_scanning=True)
+    sim.tap_ui('manage_update_all')
+    sim.wait(page=5, check_calls=0)
+    sim.wait(nand_scanning=False)
+    sim.tap_ui('manage_update_all')
+    sim.wait(check_calls=1)
 
 
 @pytest.mark.parametrize('sim', ['pager-six'], indirect=True)
@@ -756,3 +771,61 @@ def test_pager_shrinks_after_a_real_idea_is_deleted(sim):
     sim.swipe(420, 250, 60, 250); sim.wait(page=19, grid_page=0)
     assert_pager(sim, 'last-page-after-delete', 2, 1)
     sim.tap_ui('button_cell_5'); sim.wait(page=4, install_calls=0)
+
+
+def test_settings_scroll_follows_finger_and_hit_regions(sim):
+    sim.tap(390, 360); sim.wait(page=11)
+    sim.capture('settings-scroll-top')
+    sim.rpc('feed_pointer', x=240, y=410, pressed=True)
+    sim.rpc('feed_pointer', x=240, y=360, pressed=True)
+    sim.wait(page=11, settings_offset=50)
+    sim.capture('settings-scroll-mid')
+    sim.rpc('feed_pointer', x=240, y=310, pressed=True)
+    sim.wait(page=11, settings_offset=100)
+    sim.capture('settings-scroll-held')
+    with Image.open(sim.directory / 'settings-scroll-top.png') as top, \
+         Image.open(sim.directory / 'settings-scroll-mid.png') as mid, \
+         Image.open(sim.directory / 'settings-scroll-held.png') as held:
+        assert top.crop((0, 0, 480, 92)).tobytes() == mid.crop((0, 0, 480, 92)).tobytes() == held.crop((0, 0, 480, 92)).tobytes()
+        assert top.crop((16, 96, 464, 448)).tobytes() != mid.crop((16, 96, 464, 448)).tobytes()
+        assert mid.crop((16, 96, 464, 448)).tobytes() != held.crop((16, 96, 464, 448)).tobytes()
+    sim.rpc('feed_pointer', x=240, y=310, pressed=False)
+    sim.wait(page=11, settings_offset=100)
+    sim.tap(240, 208)  # Language moved here; this used to activate Display.
+    sim.wait(page=13)
+
+
+def test_settings_scroll_coasts_and_keeps_header_fixed(sim):
+    sim.tap(390, 360); sim.wait(page=11)
+    sim.rpc('feed_pointer', x=240, y=410, pressed=True)
+    sim.rpc('wait', frames=2)
+    sim.rpc('feed_pointer', x=240, y=370, pressed=True)
+    sim.rpc('feed_pointer', x=240, y=370, pressed=False)
+    sim.rpc('wait', frames=20)
+    offset = json.loads(sim.state_file.read_text())['settings_offset']
+    assert 40 < offset <= 264
+    sim.tap(44, 48)  # Back must act even while the content is still coasting.
+    sim.wait(page=0)
+    sim.capture('home-no-arrow')
+    with Image.open(sim.directory / 'home-no-arrow.png') as frame:
+        assert all(max(rgb[:3]) == 0 for rgb in frame.crop((436, 204, 468, 222)).getdata())
+
+
+@pytest.mark.parametrize('sim', ['scan-open'], indirect=True)
+def test_app_confirmation_is_immediate_during_scan_and_preserves_unsaved_warning(sim):
+    sim.manage(); sim.wait(nand_scanning=True)
+    sim.tap(44, 48); sim.wait(page=0)
+    sim.swipe(420, 250, 60, 250); sim.wait(page=19)
+    sim.tap(92, 150)
+    sim.wait(timeout=1.5, page=20, nand_scanning=True, install_calls=0)
+    sim.capture('open-while-scanning')
+    sim.tap_ui('button_open_accept')
+    sim.wait(page=20, nand_scanning=True, install_calls=0)
+    sim.tap_ui('button_open_cancel'); sim.wait(page=19, install_calls=0)
+    sim.tap(92, 150); sim.wait(page=20, nand_scanning=True)
+    sim.wait(timeout=30, page=20, nand_scanning=False, install_calls=0)
+    sim.capture('open-after-scan-unsaved')
+    with Image.open(sim.directory / 'open-after-scan-unsaved.png') as frame:
+        assert all(max(rgb[:3]) < 100 for rgb in frame.crop((56, 289, 424, 312)).getdata())
+    sim.tap_ui('button_open_accept')
+    sim.wait(timeout=45, page=8, install_calls=1, restart_calls=1)
