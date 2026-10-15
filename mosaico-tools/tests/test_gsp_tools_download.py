@@ -1,6 +1,5 @@
-"""Release archives must resolve to executable filenames on each host."""
+"""Application GSP version policy delegates to shared acquisition."""
 import importlib.util
-import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -8,21 +7,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("gsp_tools_download", ROOT / "tools/gsp-sim/fetch_gspc.py")
 fetch = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(fetch)
-
-
-def test_windows_release_extracts_and_reuses_exe(tmp_path):
-    archive = tmp_path / "gspc-0.3.0-windows-x86_64.zip"
-    with zipfile.ZipFile(archive, "w") as bundle:
-        bundle.writestr("release/gspc.exe", b"windows executable")
-    with patch.object(fetch, "host_os_arch", return_value=("windows", "x86_64")), \
-            patch.object(fetch, "download") as download, \
-            patch.dict(fetch.os.environ, {"GSPC_EXECUTABLE": ""}):
-        executable = fetch.resolve_release(product="gspc", version="0.3.0", env_var="GSPC_EXECUTABLE", cache_dir=tmp_path)
-        assert executable == tmp_path / "gspc.exe"
-        assert executable.read_bytes() == b"windows executable"
-        download.reset_mock()
-        assert fetch.resolve_release(product="gspc", version="0.3.0", env_var="GSPC_EXECUTABLE", cache_dir=tmp_path) == executable
-        download.assert_not_called()
 
 
 def test_upgrade_bootstrap_ignores_old_managed_component():
@@ -39,7 +23,7 @@ def test_upgrade_bootstrap_ignores_old_managed_component():
         assert release.call_args.kwargs['product'] == ('sim' if simulator else 'gspc')
 
 
-def test_recovery_tool_pin_is_independent_of_application_and_managed_component():
+def test_explicit_tool_pin_overrides_application_and_managed_component():
     for simulator, version in ((False, '0.5.0'), (True, '1.4.0')):
         argv = ['fetch_gspc.py', '--tool-version', version] + (['--sim'] if simulator else [])
         with patch.object(fetch.sys, 'argv', argv), \

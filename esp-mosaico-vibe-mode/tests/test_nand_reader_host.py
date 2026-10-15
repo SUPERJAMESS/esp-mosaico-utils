@@ -1,4 +1,5 @@
 """Internal allocation must precede NOR erase; exercise real chunk/tail/failure paths."""
+import os
 from pathlib import Path
 import re
 import shutil
@@ -10,7 +11,8 @@ def test_internal_nand_reader(tmp_path):
     components = root / "firmware/vibe-mode/components"
     source = components / "app_nand_update/src/factory_nand_update.c"
     fixture = root / "tests/host_bridge"
-    cjson = next((root / "firmware/vibe-mode/managed_components/espressif__cjson").rglob("cJSON.h"))
+    dependency = Path(os.environ.get("CJSON_COMPONENT_DIR", str(root / "firmware/vibe-mode/managed_components/espressif__cjson")))
+    cjson = next(dependency.rglob("cJSON.h"))
     actual = {p.name for p in components.glob("*/include/*.h")} | {"cJSON.h", "esp_iris_system_update.h"}
     for name in re.findall(r'#include "([^"]+)"', source.read_text()) + ["esp_err.h", "esp_partition.h"]:
         if name not in actual:

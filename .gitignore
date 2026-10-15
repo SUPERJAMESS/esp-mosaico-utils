@@ -15,6 +15,7 @@
 **/.ninja_log
 
 # Python environments and caches
+shared/gsp/.cache/
 **/__pycache__/
 *.py[cod]
 .venv*/

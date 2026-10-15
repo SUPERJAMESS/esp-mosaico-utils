@@ -1,12 +1,9 @@
 """Author input and deterministic, offline creation of a single Ideas ZIP."""
 from __future__ import annotations
 
-import importlib.util
 import io
 from pathlib import Path
-import sys
 import tempfile
-from types import SimpleNamespace
 import zipfile
 
 from .ideas_content import (ARCHIVE_BYTES, descriptor, encoded, image_check,
@@ -36,23 +33,15 @@ def generated_resources(config, locale, root):
     require(set(config) <= {"mode", "name", "description", "font", "icon"}
             and {"name", "description", "font"} <= set(config),
             "Generated display requires explicit text/font; do not mix input modes")
-    tools = Path(__file__).resolve().parents[3] / "esp-mosaico-vibe-mode/firmware/vibe-mode/tools"
-    # Product-owned shaping stays in its module; generated files carry no identity.
-    sys.path.insert(0, str(tools))
-    try:
-        spec = importlib.util.spec_from_file_location("mosaico_presentation_generator", tools / "prepare_idea_presentation.py")
-        module = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(module)
-        except ImportError as error:
-            from .errors import SelectionError
-            raise SelectionError("Display generation requires requirements-ideas.txt and the FreeType/libraqm runtime; run mosaico.py with that Python environment.") from error
-    finally:
-        sys.path.remove(str(tools))
+    from shared.ideas import generate_resources
     icon = source_path(root, config["icon"]) if config.get("icon") else None
     if icon: image_check(read_source(icon, 10*1024*1024), config["icon"])
-    return module.resources(SimpleNamespace(name=config["name"], description=config["description"],
-                            locale=locale, font=source_path(root, config["font"]), icon=icon))
+    try:
+        return generate_resources(name=config["name"], description=config["description"],
+                                  locale=locale, font=source_path(root, config["font"]), icon=icon)
+    except ImportError as error:
+        from .errors import SelectionError
+        raise SelectionError("Display generation requires requirements-ideas.txt and the FreeType/libraqm runtime; run mosaico.py with that Python environment.") from error
 
 
 def package_project(project, output, bundle=None):

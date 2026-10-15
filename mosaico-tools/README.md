@@ -11,6 +11,8 @@ Workspace-consumed command-line tools for ESP-Mosaico development and device
 operations. A firmware workspace pins the containing `esp-mosaico-utils`
 repository; the CLI package does not need to be installed into the user's
 Python environment.
+Shared GSP acquisition and Ideas resource generation live in
+[shared/](../shared/README.md); application version pins remain owned by tools.
 
 The user-facing retained firmware is **Vibe Mode** (`firmware_mode=recovery`).
 **ROM Download Mode** runs the chip download program without ESP-Iris.

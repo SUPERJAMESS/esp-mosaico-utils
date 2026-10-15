@@ -2,6 +2,7 @@
 import ctypes as C
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -51,7 +52,8 @@ def core(tmp_path_factory):
 #define ESP_ERR_NO_MEM 0x101
 #define ESP_ERR_INVALID_CRC 0x109
 """)
-    cjson = next((RECOVERY / "managed_components/espressif__cjson").rglob("cJSON.c"))
+    dependency = Path(os.environ.get("CJSON_COMPONENT_DIR", str(RECOVERY / "managed_components/espressif__cjson")))
+    cjson = next(dependency.rglob("cJSON.c"))
     result = subprocess.run([shutil.which("cc"), "-shared", "-fPIC", "-std=gnu11",
         "-Wall", "-Wextra", "-Werror", "-Wno-sign-compare", "-I" + str(build),
         "-I" + str(cjson.parent), "-I" + str(RECOVERY / "components/app_system/include"), "-I" + str(RECOVERY / "components/app_ideas/include"), "-I" + str(RECOVERY / "components/app_ideas/private"), str(RECOVERY / "components/app_ideas/src/ideas_package.c"),

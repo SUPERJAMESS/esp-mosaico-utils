@@ -68,7 +68,7 @@ def write_release(directory, release, version="1.0"):
         if release == "bad-descriptor":
             wire = wire.replace(encoded(document), b"!" + encoded(document)[1:], 1)
         if release.startswith("bad-multipart-"):
-            kind = release.removeprefix("bad-multipart-")
+            kind = release[len("bad-multipart-"):]
             marker = b"--" + media.split('boundary="')[1][:-1].encode()
             pieces = wire.split(marker)
             if kind == "missing": wire = marker.join(pieces[:-2] + pieces[-1:])

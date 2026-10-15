@@ -78,10 +78,13 @@ Use `cmake/gsp_compiler.cmake` before IDF to resolve the pinned GSPC. Include
 `mosaico_gsp_add_ui_bundle(${COMPONENT_LIB} "ui/main.json")`. Keep authored scenes
 and fonts under the owning component's `ui/` directory; generated bindings and
 bundles remain build outputs.
-Applications use GSPC 0.6.1 with ESP-GSP 1.5.1. Vibe Mode independently retains
-GSPC 0.5.0 with ESP-GSP 1.4.0, selecting `MOSAICO_GSPC_VERSION` before including
-the shared compiler bootstrap. Explicit `GSPC_EXECUTABLE` overrides must match
-the project's component version.
+Applications use GSPC 0.6.1 with ESP-GSP 1.5.1. Vibe Mode uses its own
+lightweight UI and does not require GSP/GSPC. Explicit `GSPC_EXECUTABLE`
+overrides must match the application's component version.
+Acquisition lives in `shared/gsp`; tools select application versions through
+`gsp-toolchain.json` and delegate to `shared/gsp/compiler.cmake`.
+Raylib integration defaults live in `cmake/defaults/raylib_lite_iris.defaults`;
+that profile is not a separate project template.
 Include `cmake/system_update.cmake` after project() to declare System Update
 artifacts and verify the native `flash`/`app-flash` layout. Other resources
 use MOSAICO_SYSTEM_UPDATE_DATA_LABELS and per-label IMAGE/TARGET global properties.
@@ -116,9 +119,8 @@ The C ABI remains in `esp-mosaico-vibe-mode/include/mosaico_recovery_contract.h`
 contract tests compare the product manifest, configuration and partition tables.
 
 Host validation: run `pytest mosaico-tools/tests` and
-`pytest esp-mosaico-vibe-mode/tests/test_*.py` separately. Recovery UI tests also
-require its pinned GSPC 0.5.0 and simulator 1.4.0. Hardware acceptance remains
-separate from these host checks.
+`pytest esp-mosaico-vibe-mode/tests/test_*.py` separately. Vibe Mode UI tests use the native lightweight backend without GSP.
+Hardware acceptance remains separate from these host checks.
 No consumer workspace source is needed. Old workspace paths have no forwarding
 layer; consumers migrate to these public entry points and rebuild.
 

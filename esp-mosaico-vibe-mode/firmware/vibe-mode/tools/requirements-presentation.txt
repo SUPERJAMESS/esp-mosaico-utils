@@ -1,3 +1,2 @@
-Pillow>=10,<12
-freetype-py>=2.4,<3
-# The publication host also needs libraqm >= 0.9 (for example, Debian libraqm0).
+# Ideas display publication dependencies shared with the host CLI.
+-r ../../../../shared/ideas/requirements.txt

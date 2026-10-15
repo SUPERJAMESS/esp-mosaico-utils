@@ -104,6 +104,7 @@ recovery_version、当前系统 locale，以及 `Accept: multipart/related`。�
 云端 Idea 的列表和详情标题复用已下载的字形像素，中文名称无需将整套字体编入固件。
 本地开发副本使用内置字体；完整云端名称和描述可在信息页查看。
 
+展示资源生成实现位于仓库的 `shared/ideas/`，本目录的脚本只处理参数和输出文件。
 发布端安装 `tools/requirements-presentation.txt` 及系统 libraqm >= 0.9，运行：
 
 ```sh
