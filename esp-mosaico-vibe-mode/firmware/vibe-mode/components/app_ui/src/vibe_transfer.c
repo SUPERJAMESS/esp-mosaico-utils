@@ -16,12 +16,13 @@ void vibe_rate_sample(vibe_rate_t *r, const vibe_transfer_t *t)
         return;
     }
     if (!r->started || r->source != t->source || memcmp(r->job, t->job, sizeof(r->job)) ||
-        r->component_id != t->component_id || t->now_ms < r->last_ms ||
+        r->component_id != t->component_id || r->phase != t->phase || t->now_ms < r->last_ms ||
         t->received < r->last_bytes) {
         memset(r, 0, sizeof(*r));
         memcpy(r->job, t->job, sizeof(r->job));
         r->source = t->source;
         r->component_id = t->component_id;
+        r->phase = t->phase;
         r->started = true;
         r->baseline_ms = r->last_ms = r->changed_ms = t->now_ms;
         r->baseline_bytes = r->last_bytes = t->received;

@@ -234,7 +234,7 @@ void ideas_development_status(ideas_context_t *ctx)
     if (err == ESP_OK && !saved && boot_code[0]) {
         ideas_package_t *package = malloc(sizeof(*package));
         saved = package && ideas_store_read(ROOT, boot_code, package) == ESP_OK &&
-                ideas_verify_installed(package) == ESP_OK;
+                ideas_verify_installed(package, NULL) == ESP_OK;
         free(package);
     }
     factory_system_update_read_release();

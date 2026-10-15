@@ -52,6 +52,14 @@ int main(void)
     vibe_rate_sample(&r, &t); assert(r.valid);
     t.receiving = false;
     vibe_rate_sample(&r, &t); assert(!r.valid && !r.started);
+    t.receiving = true; t.phase = VIBE_TRANSFER_READ_FILES;
+    vibe_rate_sample(&r, &t); assert(!r.valid);
+    t.now_ms += 1000; t.received += 4096;
+    vibe_rate_sample(&r, &t); assert(r.valid && r.bytes_per_second == 4096);
+    t.phase = VIBE_TRANSFER_BYTES; /* NAND verification to application writing. */
+    vibe_rate_sample(&r, &t); assert(!r.valid);
+    t.now_ms += 1000; t.received += 8192;
+    vibe_rate_sample(&r, &t); assert(r.valid && r.bytes_per_second == 8192);
     assert(vibe_transfer_permille(400, 0) == 0);
     assert(vibe_transfer_permille(0, 4096) == 0);
     assert(vibe_transfer_permille(1024, 4096) == 250);

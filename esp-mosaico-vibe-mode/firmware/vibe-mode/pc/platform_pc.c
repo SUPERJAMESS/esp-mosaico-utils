@@ -18,7 +18,7 @@ static unsigned connect_attempts, bridge_open_calls;
 static unsigned bridge_prefetch_calls;
 static unsigned prepare_calls, cancel_calls, preview_ticks;
 static unsigned download_calls, install_calls, check_calls, restart_calls;
-static unsigned save_calls, delete_calls, reset_calls, next_key;
+static unsigned save_calls, delete_calls, reset_calls, next_key, scan_calls, cancel_ticks;
 static unsigned scan_ticks;
 static vibe_command_t current_job;
 static char last_code[7];
@@ -54,6 +54,26 @@ static void trace_state(vui_handle_t ui, void *ctx)
             renewed_code = true;
         unsigned phase, verified, files;
         unsigned long long checked, expected, clock;
+        if (sscanf(command, "open-read %llu %llu %u %u %llu", &checked, &expected,
+                   &verified, &files, &clock) == 5) {
+            installing = false;
+            model.transfer = (vibe_transfer_t){.source = 3, .phase = VIBE_TRANSFER_READ_FILES,
+                .receiving = true, .received = checked, .total = expected,
+                .completed_components = verified, .component_count = files, .now_ms = clock};
+            model.transfer.job[0] = 43;
+            model.progress = vibe_transfer_permille(checked, expected);
+            model.updating = model.cancellable = true;
+            model.update_terminal = model.update_failed = model.update_cancelled = false;
+            snprintf(model.update_title, sizeof(model.update_title), "Setting boot application");
+            snprintf(model.update_detail, sizeof(model.update_detail), "Reading and verifying files");
+            snprintf(model.update_owner, sizeof(model.update_owner), "NAND");
+            vibe_ui_poll(state);
+        }
+        if (!strcmp(command, "library-refreshed")) {
+            ++model.nand_generation;
+            model.update_terminal = model.update_cancelled = false;
+            vibe_ui_poll(state);
+        }
         if (sscanf(command, "ideas-phase %u %llu %llu %u %u %llu", &phase, &checked,
                    &expected, &verified, &files, &clock) == 6) {
             installing = false;
@@ -81,6 +101,17 @@ static void trace_state(vui_handle_t ui, void *ctx)
         if (!strcmp(command, "motion")) ++model.device.motion_revision;
         unsigned battery;
         if (sscanf(command, "battery %u", &battery) == 1) model.device.battery_percent = battery;
+        char firmware[sizeof(model.firmware_version)];
+        if (sscanf(command, "firmware %32s", firmware) == 1) {
+            snprintf(model.firmware_version, sizeof(model.firmware_version), "%s", firmware);
+            vibe_ui_poll(state);
+        }
+        unsigned usb_connected, usb_owner;
+        if (sscanf(command, "usb %u %u", &usb_connected, &usb_owner) == 2) {
+            model.device.usb_connected = usb_connected != 0;
+            model.usb_owner = usb_owner != 0;
+            vibe_ui_poll(state);
+        }
         unsigned long long ms, received, total;
         unsigned component, count, completed, receiving, job, component_received, component_size,
             terminal;
@@ -152,6 +183,8 @@ static void trace_state(vui_handle_t ui, void *ctx)
     fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,",
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT));
+    fprintf(file, "\"scan_calls\":%u,\"cancellable\":%s,\"cancelled\":%s,",
+            scan_calls, model.cancellable ? "true" : "false", model.update_cancelled ? "true" : "false");
     fprintf(file, "\"grid_page\":%u,\"language\":%u,\"asleep\":%s,\"pending_delete\":%s,"
             "\"bundle_count\":%u,\"shared_count\":%u,\"save_calls\":%u,\"delete_calls\":%u,\"reset_calls\":%u,"
             "\"development_saved\":%s,\"brightness\":%u,\"screen_off_seconds\":%u,\"rotate\":%s,\"haptics\":%s,\"batch\":%s,\"nand_scanning\":%s}\n",
@@ -170,6 +203,13 @@ static void trace_state(vui_handle_t ui, void *ctx)
 }
 static void snapshot(void *ctx, vibe_snapshot_t *out) {
     (void)ctx;
+    if (cancel_ticks && !--cancel_ticks) {
+        model.updating = model.idea_busy = false;
+        model.update_terminal = model.update_cancelled = true;
+        ++model.update_revision;
+        snprintf(model.update_title, sizeof(model.update_title), "Cancelled");
+        snprintf(model.update_detail, sizeof(model.update_detail), "Previously saved Ideas are unchanged");
+    }
     if (model.nand_scanning && ++scan_ticks >= (scenario("scan-open") ? 80U : 30U)) {
         model.nand_scanning = model.idea_busy = false;
         if (scenario("scan-open")) {
@@ -300,6 +340,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         }
         break;
     case VIBE_SCAN_NAND:
+        ++scan_calls;
         if (scenario("scan-busy") || scenario("scan-open")) {
             model.nand_scanning = model.idea_busy = true;
             scan_ticks = 0;
@@ -313,8 +354,15 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
     case VIBE_CANCEL_IDEA:
         ++cancel_calls;
         if (model.cancellable) {
+            if (scenario("open-check") && current_job == VIBE_OPEN_IDEA) {
+                installing = model.cancellable = model.transfer.receiving = false;
+                cancel_ticks = 8;
+                snprintf(model.update_title, sizeof(model.update_title), "Cancelling...");
+                snprintf(model.update_detail, sizeof(model.update_detail), "Please wait");
+                break;
+            }
             installing = model.updating = model.cancellable = model.batch = false;
-            model.update_terminal = true;
+            model.update_terminal = model.update_cancelled = true;
             ++model.update_revision;
             snprintf(model.update_title, sizeof(model.update_title), "Cancelled");
         }
@@ -377,6 +425,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         model.update_terminal = false;
         model.progress = 0;
         model.update_failed = false;
+        model.update_cancelled = false;
         ++model.update_revision;
         model.transfer = (vibe_transfer_t){.source = 3,
                                            .total = 1024 * 1024,
@@ -390,6 +439,13 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
                  "Reading simulated NAND component");
         snprintf(model.update_owner, sizeof(model.update_owner), "NAND");
         snprintf(model.update_verified, sizeof(model.update_verified), "Unsigned");
+        if (cmd == VIBE_OPEN_IDEA && scenario("open-check")) {
+            installing = false;
+            model.cancellable = model.idea_busy = true;
+            model.transfer.phase = VIBE_TRANSFER_READ_FILES;
+            snprintf(model.update_title, sizeof(model.update_title), "Setting boot application");
+            snprintf(model.update_detail, sizeof(model.update_detail), "Reading and verifying files");
+        }
         break;
     }
     vibe_ui_status_t status = {0};
@@ -489,6 +545,7 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
     model.token[64] = 0;
     model.bundle_count = 2;
     model.nand_generation = 1;
+    model.nand_scanning = model.idea_busy = scenario("scan-busy") || scenario("scan-open");
     if (scenario("empty"))
         model.bundle_count = 0;
     if (scenario("pager-five")) model.bundle_count = 5;

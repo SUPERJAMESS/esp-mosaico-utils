@@ -94,7 +94,7 @@ void ideas_message(ideas_context_t *ctx, const char *title, const char *detail);
 void ideas_hex(const uint8_t digest[32], char out[65]);
 esp_err_t ideas_verify_file(const ideas_file_t *file, const char *path, void *ctx);
 esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected);
-esp_err_t ideas_verify_installed(const ideas_package_t *package);
+esp_err_t ideas_verify_installed(const ideas_package_t *package, ideas_context_t *ctx);
 bool ideas_boot_record(boot_record_t *record, bool verify);
 esp_err_t ideas_save_boot(void *ctx);
 esp_err_t ideas_scan(ideas_context_t *ctx, bool audit_boot);

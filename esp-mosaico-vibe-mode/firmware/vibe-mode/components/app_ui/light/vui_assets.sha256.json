@@ -1,6 +1,6 @@
 {
-  "components/app_ui/light/vui_assets.bin": "76250ff2c0b02569f41044dabfc0a225d391be99c14636ec2e234bba401585a5",
-  "components/app_ui/private/vui_ids.h": "5fe7042b93fb07f9dd89e18fab62d0a57eac20f10d3dcbef66ccd1c493563c95",
+  "components/app_ui/light/vui_assets.bin": "8513e77fe068ce24fb9cad48c5e4745fe30bd436bdc0f345c7829fea5fad795b",
+  "components/app_ui/private/vui_ids.h": "648f961d980f08806ec9cddf1512bffed25e9b4df579124d2e304de4f8b02621",
   "tools/compile_vui.py": "d8bc3ebdb09ee17e2eccd85a34ee72b372088455467d2c125fe4a5eac67ddce9",
   "ui/assets/anim/home.dots.json": "91dafaa774fb7e528a652ae04102965d4d87b87cb11d11d737100985b456d5f1",
   "ui/assets/icons/back-32-white.png": "319ef3fac418b5408d4bfb2d908211259334a4293faa98439f8f2c1d740897b0",
@@ -24,7 +24,6 @@
   "ui/assets/icons/replay-32-cream.png": "a0bfce2c3f435155da4b7d8c5dc8696bdbc19dc0f3693cfd2769ebfddd826c32",
   "ui/assets/icons/rotate-32-cream.png": "016d0d78419124fe620a973f733cb0eb1c5f9f2e3a754e3e1c03f15d0151cf37",
   "ui/assets/icons/settings-32-white.png": "a3811c76cf2f79c42669104e8c53c9fc44db38cc437646069e3b65d8493946c9",
-  "ui/assets/icons/storage-32-cream.png": "c037a9fe2b985c7cfbeaa2c3bdd06b3df7f794e840ac193835efbdd37dae6019",
   "ui/assets/icons/upgrade-32-orange.png": "1418bd120ffbf06bd32144b7e23b4914bd69e2999bab57cea0eaef3da91eebc4",
   "ui/assets/icons/upgrade-32-white.png": "dfdf9c1638c46e7fb5456276aaf1a32b7bec10139000c7f49ef0fad00301ad15",
   "ui/assets/icons/usb-20-white.png": "e3b541a56a341cd3c40eae4b1665cac2a26933734e7a67e727e17c7588b6e7f3",
@@ -40,7 +39,7 @@
   "ui/fonts/VibeDisplay.otf": "31bbfafcf1af2e6a2c8ffa2c6cb433a7e324e6a271494214bb9aeab74669aff0",
   "ui/fonts/VibeInter.otf": "c37b5ec6e2649f77d721f2d78ba6712b0239bbd3f4425e45ab40b76dead59114",
   "ui/fonts/VibeMedium.otf": "21fd2cf4bd1bdf55a672098d6778d03533ee7994daee9b58461f46f583dbe1bc",
-  "ui/main.json": "b85f15d81c060df515f6930af82973b0a99148a290c27cf8b435fd26d911394a",
+  "ui/main.json": "5a1374950dabbddfc3542e04f27a99d6163a71c694cec770f1cf5e319873fd48",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3"
 }

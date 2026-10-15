@@ -918,7 +918,7 @@
     },
     {
       "type": "button",
-      "parent": 710,
+      "parent": 698,
       "x": 252,
       "y": 278,
       "w": 204,
@@ -1600,22 +1600,6 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文"
     },
     {
-      "type": "label",
-      "parent": 96,
-      "x": 24,
-      "y": 274,
-      "w": 432,
-      "h": 40,
-      "name": "reset_progress",
-      "bind": "reset_progress",
-      "text": "Hold for 3 seconds to reset",
-      "font_size": 18,
-      "fg_color": "#F2F2F2",
-      "text_align": "center",
-      "font": "fonts/VibeInter.otf",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Hold for 3 seconds to reset长按 3 秒恢复出厂设置      %%Hdlosuu··住按秒继续"
-    },
-    {
       "type": "layer",
       "parent": -1,
       "x": 0,
@@ -1629,7 +1613,7 @@
     },
     {
       "type": "button",
-      "parent": 99,
+      "parent": 98,
       "x": 16,
       "y": 16,
       "w": 56,
@@ -1654,7 +1638,7 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -1671,7 +1655,7 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 24,
       "y": 432,
       "w": 432,
@@ -1700,7 +1684,7 @@
     },
     {
       "type": "button",
-      "parent": 103,
+      "parent": 102,
       "x": 16,
       "y": 16,
       "w": 56,
@@ -1725,7 +1709,7 @@
     },
     {
       "type": "label",
-      "parent": 103,
+      "parent": 102,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -1754,7 +1738,7 @@
     },
     {
       "type": "label",
-      "parent": 106,
+      "parent": 105,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -1771,7 +1755,7 @@
     },
     {
       "type": "label",
-      "parent": 106,
+      "parent": 105,
       "x": 24,
       "y": 276,
       "w": 432,
@@ -1799,7 +1783,7 @@
     },
     {
       "type": "button",
-      "parent": 109,
+      "parent": 108,
       "x": 16,
       "y": 16,
       "w": 56,
@@ -1824,7 +1808,7 @@
     },
     {
       "type": "label",
-      "parent": 109,
+      "parent": 108,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -1840,7 +1824,7 @@
     },
     {
       "type": "label",
-      "parent": 109,
+      "parent": 108,
       "x": 24,
       "y": 200,
       "w": 432,
@@ -1868,7 +1852,7 @@
     },
     {
       "type": "label",
-      "parent": 113,
+      "parent": 112,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -1885,7 +1869,7 @@
     },
     {
       "type": "label",
-      "parent": 113,
+      "parent": 112,
       "x": 24,
       "y": 120,
       "w": 432,
@@ -1904,7 +1888,7 @@
       "parent": 0,
       "x": 44,
       "y": 20,
-      "w": 180,
+      "w": 84,
       "h": 24,
       "name": "home_brand",
       "bind": "home_brand",
@@ -1919,10 +1903,27 @@
     {
       "type": "label",
       "parent": 0,
-      "x": 216,
+      "x": 132,
       "y": 20,
-      "w": 90,
-      "h": 26,
+      "w": 60,
+      "h": 24,
+      "name": "home_version",
+      "bind": "home_version",
+      "text": "",
+      "font_size": 16,
+      "font": "fonts/VibeInter.otf",
+      "fg_color": "#9A9A9A",
+      "text_align": "left",
+      "overflow": "ellipsis",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文%s"
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 192,
+      "y": 20,
+      "w": 96,
+      "h": 24,
       "name": "home_page",
       "bind": "home_page",
       "text": "Home",
@@ -3032,8 +3033,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_152",
-      "bind": "heading_152",
+      "name": "heading_147",
+      "bind": "heading_147",
       "text": "Settings",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3092,8 +3093,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_161",
-      "bind": "heading_161",
+      "name": "heading_156",
+      "bind": "heading_156",
       "text": "Display & haptics",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3152,8 +3153,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_179",
-      "bind": "heading_179",
+      "name": "heading_174",
+      "bind": "heading_174",
       "text": "Language",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3212,8 +3213,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_191",
-      "bind": "heading_191",
+      "name": "heading_186",
+      "bind": "heading_186",
       "text": "Shared info",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3272,8 +3273,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_201",
-      "bind": "heading_201",
+      "name": "heading_196",
+      "bind": "heading_196",
       "text": "Shared info",
       "font_size": 16,
       "font": "fonts/VibeInter.otf",
@@ -3333,8 +3334,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_210",
-      "bind": "heading_210",
+      "name": "heading_205",
+      "bind": "heading_205",
       "text": "About",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3393,8 +3394,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_219",
-      "bind": "heading_219",
+      "name": "heading_214",
+      "bind": "heading_214",
       "text": "Factory reset",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3404,7 +3405,7 @@
     },
     {
       "type": "container",
-      "parent": 106,
+      "parent": 105,
       "x": 16,
       "y": 20,
       "w": 56,
@@ -3414,7 +3415,7 @@
     },
     {
       "type": "image",
-      "parent": 106,
+      "parent": 105,
       "x": 28,
       "y": 32,
       "w": 32,
@@ -3423,7 +3424,7 @@
     },
     {
       "type": "button",
-      "parent": 106,
+      "parent": 105,
       "x": 2,
       "y": 6,
       "w": 84,
@@ -3448,13 +3449,13 @@
     },
     {
       "type": "label",
-      "parent": 106,
+      "parent": 105,
       "x": 88,
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_268",
-      "bind": "heading_268",
+      "name": "heading_262",
+      "bind": "heading_262",
       "text": "Delete Idea",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3464,7 +3465,7 @@
     },
     {
       "type": "container",
-      "parent": 113,
+      "parent": 112,
       "x": 16,
       "y": 20,
       "w": 56,
@@ -3474,7 +3475,7 @@
     },
     {
       "type": "image",
-      "parent": 113,
+      "parent": 112,
       "x": 28,
       "y": 32,
       "w": 32,
@@ -3483,7 +3484,7 @@
     },
     {
       "type": "button",
-      "parent": 113,
+      "parent": 112,
       "x": 2,
       "y": 6,
       "w": 84,
@@ -3508,13 +3509,13 @@
     },
     {
       "type": "label",
-      "parent": 113,
+      "parent": 112,
       "x": 88,
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_278",
-      "bind": "heading_278",
+      "name": "heading_272",
+      "bind": "heading_272",
       "text": "Update Vibe Mode",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3577,8 +3578,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_374",
-      "bind": "heading_374",
+      "name": "heading_369",
+      "bind": "heading_369",
       "text": "Help",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -3989,8 +3990,8 @@
       "y": 30,
       "w": 368,
       "h": 37,
-      "name": "heading_407",
-      "bind": "heading_407",
+      "name": "heading_402",
+      "bind": "heading_402",
       "text": "View on your phone",
       "font_size": 28,
       "font": "fonts/VibeDisplay.otf",
@@ -4094,322 +4095,121 @@
     {
       "type": "container",
       "parent": 67,
-      "x": 16,
-      "y": 96,
-      "w": 448,
-      "h": 80,
-      "bg_color": "#101010",
-      "radius": 20
-    },
-    {
-      "type": "container",
-      "parent": 67,
-      "x": 28,
-      "y": 108,
-      "w": 56,
-      "h": 56,
-      "bg_color": "#212021",
+      "x": 24,
+      "y": 112,
+      "w": 216,
+      "h": 216,
+      "bg_color": "#F2F2F2",
       "radius": 16
     },
     {
       "type": "image",
       "parent": 67,
-      "x": 40,
-      "y": 120,
-      "w": 32,
-      "h": 32,
-      "image": "assets/icons/code-32-cream.png"
+      "x": 33,
+      "y": 121,
+      "w": 198,
+      "h": 198,
+      "image": "assets/qr/develop@198.png"
     },
     {
       "type": "label",
       "parent": 67,
-      "x": 100,
-      "y": 108,
-      "w": 312,
+      "x": 260,
+      "y": 142,
+      "w": 204,
       "h": 30,
-      "name": "row_title_develop_guide",
-      "bind": "row_title_develop_guide",
-      "text": "Vibe-code an Idea",
-      "font_size": 22,
+      "name": "develop_one",
+      "bind": "develop_one",
+      "text": "Step-by-step guide",
+      "font_size": 18,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#F2F2F2",
       "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Vibe-code an IdeaVibe 编程一个 Idea"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Step-by-step guide分步操作指南"
     },
     {
       "type": "label",
       "parent": 67,
-      "x": 100,
-      "y": 140,
-      "w": 312,
-      "h": 24,
-      "name": "row_sub_develop_guide",
-      "bind": "row_sub_develop_guide",
-      "text": "Scan for the step-by-step guide",
+      "x": 260,
+      "y": 182,
+      "w": 204,
+      "h": 26,
+      "name": "develop_two",
+      "bind": "develop_two",
+      "text": "Build your own Idea",
       "font_size": 16,
       "font": "fonts/VibeInter.otf",
       "fg_color": "#9A9A9A",
       "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Scan for the step-by-step guide扫码查看分步指南"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Build your own Idea开发自己的 Idea"
     },
     {
-      "type": "image",
+      "type": "label",
       "parent": 67,
-      "x": 424,
-      "y": 126,
-      "w": 20,
-      "h": 20,
-      "image": "assets/icons/chevron-20-dim.png"
-    },
-    {
-      "type": "button",
-      "parent": 67,
-      "x": 16,
-      "y": 96,
-      "w": 448,
-      "h": 80,
-      "name": "button_develop_guide",
-      "bg_color": "#00000001",
-      "events": [
-        {
-          "event": "click",
-          "action": "call",
-          "target_name": "show_guide"
-        }
-      ]
+      "x": 260,
+      "y": 208,
+      "w": 204,
+      "h": 26,
+      "name": "develop_three",
+      "bind": "develop_three",
+      "text": "with your Agent.",
+      "font_size": 16,
+      "font": "fonts/VibeInter.otf",
+      "fg_color": "#9A9A9A",
+      "text_align": "left",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文with your Agent.与你的 Agent 一起。"
     },
     {
       "type": "container",
       "parent": 67,
-      "x": 16,
-      "y": 192,
-      "w": 448,
-      "h": 112,
-      "bg_color": "#101010",
-      "radius": 20
-    },
-    {
-      "type": "container",
-      "parent": 67,
-      "x": 28,
-      "y": 204,
-      "w": 56,
+      "x": 24,
+      "y": 352,
+      "w": 432,
       "h": 56,
-      "bg_color": "#212021",
+      "bg_color": "#101010",
       "radius": 16
     },
     {
+      "type": "label",
+      "parent": 67,
+      "x": 36,
+      "y": 368,
+      "w": 408,
+      "h": 24,
+      "name": "develop_url",
+      "bind": "develop_url",
+      "text": "mosaico.espressif.com/guide/vibe-coding",
+      "font_size": 16,
+      "font": "fonts/VibeInter.otf",
+      "fg_color": "#9A9A9A",
+      "text_align": "left",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文mosaico.espressif.com/guide/vibe-coding"
+    },
+    {
       "type": "image",
       "parent": 67,
-      "x": 40,
-      "y": 216,
-      "w": 32,
-      "h": 32,
-      "image": "assets/icons/usb-32-cream.png"
+      "x": 32,
+      "y": 434,
+      "w": 20,
+      "h": 20,
+      "image": "assets/icons/usb-20-white.png"
     },
     {
       "type": "label",
       "parent": 67,
-      "x": 100,
-      "y": 204,
-      "w": 344,
-      "h": 30,
-      "name": "develop_install",
-      "bind": "develop_install",
-      "text": "Install over USB",
-      "font_size": 22,
-      "font": "fonts/VibeMedium.otf",
-      "fg_color": "#F2F2F2",
-      "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Install over USB通过 USB 安装"
-    },
-    {
-      "type": "label",
-      "parent": 67,
-      "x": 100,
-      "y": 238,
-      "w": 344,
-      "h": 24,
+      "x": 64,
+      "y": 430,
+      "w": 392,
+      "h": 28,
       "name": "develop_usb",
       "bind": "develop_usb",
       "text": "",
       "font_size": 16,
-      "fg_color": "#F2F2F2",
-      "text_align": "left",
-      "font": "fonts/VibeInter.otf",
-      "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文                  AAAABBBBBBCSSSSSSUUUUUUaaccccccdddeeeeeeeeeeefgggggiimnnnnnnnnnnnoooooooprrrrttttttttttuuwyy··就已已已待接接接电等绪脑请连连连，，"
-    },
-    {
-      "type": "label",
-      "parent": 67,
-      "x": 100,
-      "y": 268,
-      "w": 344,
-      "h": 24,
-      "name": "develop_agent",
-      "bind": "develop_agent",
-      "text": "Ask your agent to install it here.",
-      "font_size": 16,
       "fg_color": "#9A9A9A",
       "text_align": "left",
       "font": "fonts/VibeInter.otf",
       "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Ask your agent to install it here.让你的 Agent 把它装到这里。        .AAaaeeeegghiikllnnnoorrsstttttuy。你到它把的装让这里"
-    },
-    {
-      "type": "container",
-      "parent": 67,
-      "x": 16,
-      "y": 320,
-      "w": 448,
-      "h": 80,
-      "bg_color": "#101010",
-      "radius": 20
-    },
-    {
-      "type": "container",
-      "parent": 67,
-      "x": 28,
-      "y": 332,
-      "w": 56,
-      "h": 56,
-      "bg_color": "#212021",
-      "radius": 16
-    },
-    {
-      "type": "image",
-      "parent": 67,
-      "x": 40,
-      "y": 344,
-      "w": 32,
-      "h": 32,
-      "image": "assets/icons/storage-32-cream.png"
-    },
-    {
-      "type": "label",
-      "parent": 67,
-      "x": 100,
-      "y": 332,
-      "w": 312,
-      "h": 30,
-      "name": "row_title_save_development",
-      "bind": "row_title_save_development",
-      "text": "Save to NAND flash",
-      "font_size": 22,
-      "font": "fonts/VibeMedium.otf",
-      "fg_color": "#F2F2F2",
-      "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Save to NAND flash存入 NAND 闪存"
-    },
-    {
-      "type": "label",
-      "parent": 67,
-      "x": 100,
-      "y": 364,
-      "w": 312,
-      "h": 24,
-      "name": "develop_app",
-      "bind": "develop_app",
-      "text": "",
-      "font_size": 16,
-      "fg_color": "#9A9A9A",
-      "text_align": "left",
-      "font": "fonts/VibeInter.otf",
-      "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文        %%IIIMNSaaaadddddeeeeeeeilmnnoopssstvvy·保发在存已开我有本没版的"
-    },
-    {
-      "type": "image",
-      "parent": 67,
-      "x": 424,
-      "y": 350,
-      "w": 20,
-      "h": 20,
-      "image": "assets/icons/chevron-20-dim.png"
-    },
-    {
-      "type": "button",
-      "parent": 67,
-      "x": 16,
-      "y": 320,
-      "w": 448,
-      "h": 80,
-      "name": "button_save_development",
-      "text": "",
-      "font_size": 18,
-      "fg_color": "#F2F2F2",
-      "bg_color": "#00000001",
-      "radius": 18,
-      "events": [
-        {
-          "event": "click",
-          "action": "call",
-          "target_name": "save_development"
-        }
-      ],
-      "font": "fonts/VibeInter.otf",
-      "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_295"
-    },
-    {
-      "type": "label",
-      "parent": 67,
-      "x": 40,
-      "y": 410,
-      "w": 400,
-      "h": 26,
-      "name": "develop_note",
-      "bind": "develop_note",
-      "text": "Back to Vibe Mode: hold AI and",
-      "font_size": 18,
-      "fg_color": "#9A9A9A",
-      "text_align": "center",
-      "font": "fonts/VibeInter.otf",
-      "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Back to Vibe Mode: hold AI and回到 Vibe Mode：按住 AI 键，"
-    },
-    {
-      "type": "label",
-      "parent": 67,
-      "x": 40,
-      "y": 432,
-      "w": 400,
-      "h": 26,
-      "name": "develop_note_second",
-      "bind": "develop_note_second",
-      "text": "double-press power to restart.",
-      "font_size": 18,
-      "font": "fonts/VibeInter.otf",
-      "fg_color": "#9A9A9A",
-      "text_align": "center",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文double-press power to restart.双击开关机键重启。"
-    },
-    {
-      "type": "button",
-      "parent": 67,
-      "x": 16,
-      "y": 192,
-      "w": 448,
-      "h": 112,
-      "name": "button_run_development",
-      "text": "",
-      "font_size": 18,
-      "fg_color": "#F2F2F2",
-      "bg_color": "#00000001",
-      "radius": 18,
-      "events": [
-        {
-          "event": "click",
-          "action": "call",
-          "target_name": "run_development"
-        }
-      ],
-      "font": "fonts/VibeInter.otf",
-      "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_298"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文                AAAABBBBBBSSSSSSUUUUUUaaccccccddddeeeeeeeeeeefgggggiinnnnnnnnnnnnooooorrtttttttttwy··就已已已待接接接未等绪连连连，，"
     },
     {
       "type": "container",
@@ -4424,7 +4224,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 0,
       "w": 448,
@@ -4434,7 +4234,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 28,
       "y": 12,
       "w": 56,
@@ -4444,7 +4244,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 40,
       "y": 24,
       "w": 32,
@@ -4453,7 +4253,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 12,
       "w": 312,
@@ -4469,7 +4269,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 44,
       "w": 312,
@@ -4485,7 +4285,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 424,
       "y": 30,
       "w": 20,
@@ -4494,7 +4294,7 @@
     },
     {
       "type": "button",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 0,
       "w": 448,
@@ -4511,7 +4311,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 88,
       "w": 448,
@@ -4521,7 +4321,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 28,
       "y": 100,
       "w": 56,
@@ -4531,7 +4331,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 40,
       "y": 112,
       "w": 32,
@@ -4540,7 +4340,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 100,
       "w": 312,
@@ -4556,7 +4356,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 132,
       "w": 312,
@@ -4572,7 +4372,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 424,
       "y": 118,
       "w": 20,
@@ -4581,7 +4381,7 @@
     },
     {
       "type": "button",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 88,
       "w": 448,
@@ -4598,7 +4398,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 176,
       "w": 448,
@@ -4608,7 +4408,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 28,
       "y": 188,
       "w": 56,
@@ -4618,7 +4418,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 40,
       "y": 200,
       "w": 32,
@@ -4627,7 +4427,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 188,
       "w": 312,
@@ -4643,7 +4443,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 220,
       "w": 312,
@@ -4659,7 +4459,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 424,
       "y": 206,
       "w": 20,
@@ -4668,7 +4468,7 @@
     },
     {
       "type": "button",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 176,
       "w": 448,
@@ -4685,7 +4485,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 264,
       "w": 448,
@@ -4695,7 +4495,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 28,
       "y": 276,
       "w": 56,
@@ -4705,7 +4505,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 40,
       "y": 288,
       "w": 32,
@@ -4714,7 +4514,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 276,
       "w": 312,
@@ -4730,7 +4530,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 308,
       "w": 312,
@@ -4746,7 +4546,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 424,
       "y": 294,
       "w": 20,
@@ -4755,7 +4555,7 @@
     },
     {
       "type": "button",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 264,
       "w": 448,
@@ -4772,7 +4572,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 352,
       "w": 448,
@@ -4782,7 +4582,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 28,
       "y": 364,
       "w": 56,
@@ -4792,7 +4592,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 40,
       "y": 376,
       "w": 32,
@@ -4801,7 +4601,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 364,
       "w": 312,
@@ -4817,7 +4617,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 396,
       "w": 312,
@@ -4833,7 +4633,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 424,
       "y": 382,
       "w": 20,
@@ -4842,7 +4642,7 @@
     },
     {
       "type": "button",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 352,
       "w": 448,
@@ -4859,7 +4659,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 440,
       "w": 448,
@@ -4869,7 +4669,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 28,
       "y": 452,
       "w": 56,
@@ -4879,7 +4679,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 40,
       "y": 464,
       "w": 32,
@@ -4888,7 +4688,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 452,
       "w": 312,
@@ -4904,7 +4704,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 484,
       "w": 312,
@@ -4920,7 +4720,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 424,
       "y": 470,
       "w": 20,
@@ -4929,7 +4729,7 @@
     },
     {
       "type": "button",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 440,
       "w": 448,
@@ -4946,7 +4746,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 528,
       "w": 448,
@@ -4956,7 +4756,7 @@
     },
     {
       "type": "container",
-      "parent": 299,
+      "parent": 285,
       "x": 28,
       "y": 540,
       "w": 56,
@@ -4966,7 +4766,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 40,
       "y": 552,
       "w": 32,
@@ -4975,7 +4775,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 540,
       "w": 312,
@@ -4991,7 +4791,7 @@
     },
     {
       "type": "label",
-      "parent": 299,
+      "parent": 285,
       "x": 100,
       "y": 572,
       "w": 312,
@@ -5007,7 +4807,7 @@
     },
     {
       "type": "image",
-      "parent": 299,
+      "parent": 285,
       "x": 424,
       "y": 558,
       "w": 20,
@@ -5016,7 +4816,7 @@
     },
     {
       "type": "button",
-      "parent": 299,
+      "parent": 285,
       "x": 16,
       "y": 528,
       "w": 448,
@@ -5134,7 +4934,7 @@
     },
     {
       "type": "container",
-      "parent": 356,
+      "parent": 342,
       "x": 360,
       "y": 16,
       "w": 24,
@@ -5144,7 +4944,7 @@
     },
     {
       "type": "label",
-      "parent": 356,
+      "parent": 342,
       "x": 360,
       "y": 17,
       "w": 24,
@@ -5291,7 +5091,7 @@
     },
     {
       "type": "image",
-      "parent": 367,
+      "parent": 353,
       "x": 200,
       "y": 190,
       "w": 80,
@@ -5300,7 +5100,7 @@
     },
     {
       "type": "label",
-      "parent": 367,
+      "parent": 353,
       "x": 24,
       "y": 290,
       "w": 432,
@@ -5316,7 +5116,7 @@
     },
     {
       "type": "label",
-      "parent": 367,
+      "parent": 353,
       "x": 24,
       "y": 334,
       "w": 432,
@@ -5349,7 +5149,7 @@
     },
     {
       "type": "button",
-      "parent": 707,
+      "parent": 695,
       "x": 332,
       "y": 405,
       "w": 108,
@@ -5568,7 +5368,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文1",
-      "bind": "static_386"
+      "bind": "static_372"
     },
     {
       "type": "button",
@@ -5593,7 +5393,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文2",
-      "bind": "static_387"
+      "bind": "static_373"
     },
     {
       "type": "button",
@@ -5618,7 +5418,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文3",
-      "bind": "static_388"
+      "bind": "static_374"
     },
     {
       "type": "button",
@@ -5643,7 +5443,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文4",
-      "bind": "static_389"
+      "bind": "static_375"
     },
     {
       "type": "button",
@@ -5668,7 +5468,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文5",
-      "bind": "static_390"
+      "bind": "static_376"
     },
     {
       "type": "button",
@@ -5693,7 +5493,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文6",
-      "bind": "static_391"
+      "bind": "static_377"
     },
     {
       "type": "button",
@@ -5718,7 +5518,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文7",
-      "bind": "static_392"
+      "bind": "static_378"
     },
     {
       "type": "button",
@@ -5743,7 +5543,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文8",
-      "bind": "static_393"
+      "bind": "static_379"
     },
     {
       "type": "button",
@@ -5768,7 +5568,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文9",
-      "bind": "static_394"
+      "bind": "static_380"
     },
     {
       "type": "button",
@@ -5793,7 +5593,7 @@
       "font": "fonts/VibeDisplay.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文0",
-      "bind": "static_395"
+      "bind": "static_381"
     },
     {
       "type": "button",
@@ -5818,7 +5618,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_396"
+      "bind": "static_382"
     },
     {
       "type": "image",
@@ -5852,7 +5652,7 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Go前往",
-      "bind": "static_398"
+      "bind": "static_384"
     },
     {
       "type": "label",
@@ -5911,7 +5711,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Forget忘记",
-      "bind": "static_401"
+      "bind": "static_387"
     },
     {
       "type": "label",
@@ -5953,7 +5753,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Rescan重新扫描",
-      "bind": "static_403"
+      "bind": "static_389"
     },
     {
       "type": "list",
@@ -6098,11 +5898,11 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_412"
+      "bind": "static_398"
     },
     {
       "type": "label",
-      "parent": 412,
+      "parent": 398,
       "x": 0,
       "y": 18,
       "w": 72,
@@ -6258,7 +6058,7 @@
     },
     {
       "type": "button",
-      "parent": 709,
+      "parent": 697,
       "x": 24,
       "y": 280,
       "w": 208,
@@ -6279,7 +6079,7 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Check updates检查更新",
-      "bind": "static_422"
+      "bind": "static_408"
     },
     {
       "type": "button",
@@ -6304,11 +6104,11 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文View info查看介绍",
-      "bind": "static_423"
+      "bind": "static_409"
     },
     {
       "type": "button",
-      "parent": 708,
+      "parent": 696,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -6329,7 +6129,7 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Delete删除",
-      "bind": "static_424"
+      "bind": "static_410"
     },
     {
       "type": "button",
@@ -6354,7 +6154,7 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Open打开",
-      "bind": "static_425"
+      "bind": "static_411"
     },
     {
       "type": "container",
@@ -6410,7 +6210,7 @@
       "hidden": false,
       "text": "",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_429"
+      "bind": "static_415"
     },
     {
       "type": "image",
@@ -6526,11 +6326,11 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Cancel取消",
-      "bind": "static_436"
+      "bind": "static_422"
     },
     {
       "type": "button",
-      "parent": 711,
+      "parent": 699,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -6619,7 +6419,7 @@
     },
     {
       "type": "container",
-      "parent": 440,
+      "parent": 426,
       "x": 24,
       "y": 104,
       "w": 208,
@@ -6629,7 +6429,7 @@
     },
     {
       "type": "label",
-      "parent": 440,
+      "parent": 426,
       "x": 24,
       "y": 131,
       "w": 208,
@@ -6657,7 +6457,7 @@
     },
     {
       "type": "container",
-      "parent": 443,
+      "parent": 429,
       "x": 248,
       "y": 104,
       "w": 208,
@@ -6667,7 +6467,7 @@
     },
     {
       "type": "label",
-      "parent": 443,
+      "parent": 429,
       "x": 248,
       "y": 131,
       "w": 208,
@@ -6747,7 +6547,7 @@
     },
     {
       "type": "container",
-      "parent": 448,
+      "parent": 434,
       "x": 24,
       "y": 240,
       "w": 208,
@@ -6757,7 +6557,7 @@
     },
     {
       "type": "label",
-      "parent": 448,
+      "parent": 434,
       "x": 24,
       "y": 267,
       "w": 208,
@@ -6785,7 +6585,7 @@
     },
     {
       "type": "container",
-      "parent": 451,
+      "parent": 437,
       "x": 248,
       "y": 240,
       "w": 208,
@@ -6795,7 +6595,7 @@
     },
     {
       "type": "label",
-      "parent": 451,
+      "parent": 437,
       "x": 248,
       "y": 267,
       "w": 208,
@@ -6863,7 +6663,7 @@
     },
     {
       "type": "label",
-      "parent": 457,
+      "parent": 443,
       "x": 32,
       "y": 0,
       "w": 424,
@@ -6880,7 +6680,7 @@
     },
     {
       "type": "label",
-      "parent": 457,
+      "parent": 443,
       "x": 32,
       "y": 116,
       "w": 424,
@@ -6897,7 +6697,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 24,
       "y": 32,
       "w": 80,
@@ -6923,7 +6723,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 24,
       "y": 148,
       "w": 80,
@@ -6949,7 +6749,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -6961,7 +6761,7 @@
     },
     {
       "type": "container",
-      "parent": 462,
+      "parent": 448,
       "x": 24,
       "y": 32,
       "w": 80,
@@ -6971,7 +6771,7 @@
     },
     {
       "type": "label",
-      "parent": 462,
+      "parent": 448,
       "x": 24,
       "y": 55,
       "w": 80,
@@ -6987,7 +6787,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -6999,7 +6799,7 @@
     },
     {
       "type": "container",
-      "parent": 465,
+      "parent": 451,
       "x": 24,
       "y": 148,
       "w": 80,
@@ -7009,7 +6809,7 @@
     },
     {
       "type": "label",
-      "parent": 465,
+      "parent": 451,
       "x": 24,
       "y": 171,
       "w": 80,
@@ -7025,7 +6825,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 112,
       "y": 32,
       "w": 80,
@@ -7051,7 +6851,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 112,
       "y": 148,
       "w": 80,
@@ -7077,7 +6877,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7089,7 +6889,7 @@
     },
     {
       "type": "container",
-      "parent": 470,
+      "parent": 456,
       "x": 112,
       "y": 32,
       "w": 80,
@@ -7099,7 +6899,7 @@
     },
     {
       "type": "label",
-      "parent": 470,
+      "parent": 456,
       "x": 112,
       "y": 55,
       "w": 80,
@@ -7115,7 +6915,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7127,7 +6927,7 @@
     },
     {
       "type": "container",
-      "parent": 473,
+      "parent": 459,
       "x": 112,
       "y": 148,
       "w": 80,
@@ -7137,7 +6937,7 @@
     },
     {
       "type": "label",
-      "parent": 473,
+      "parent": 459,
       "x": 112,
       "y": 171,
       "w": 80,
@@ -7153,7 +6953,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 200,
       "y": 32,
       "w": 80,
@@ -7179,7 +6979,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 200,
       "y": 148,
       "w": 80,
@@ -7205,7 +7005,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7217,7 +7017,7 @@
     },
     {
       "type": "container",
-      "parent": 478,
+      "parent": 464,
       "x": 200,
       "y": 32,
       "w": 80,
@@ -7227,7 +7027,7 @@
     },
     {
       "type": "label",
-      "parent": 478,
+      "parent": 464,
       "x": 200,
       "y": 55,
       "w": 80,
@@ -7243,7 +7043,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7255,7 +7055,7 @@
     },
     {
       "type": "container",
-      "parent": 481,
+      "parent": 467,
       "x": 200,
       "y": 148,
       "w": 80,
@@ -7265,7 +7065,7 @@
     },
     {
       "type": "label",
-      "parent": 481,
+      "parent": 467,
       "x": 200,
       "y": 171,
       "w": 80,
@@ -7281,7 +7081,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 288,
       "y": 32,
       "w": 80,
@@ -7307,7 +7107,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 288,
       "y": 148,
       "w": 80,
@@ -7333,7 +7133,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7345,7 +7145,7 @@
     },
     {
       "type": "container",
-      "parent": 486,
+      "parent": 472,
       "x": 288,
       "y": 32,
       "w": 80,
@@ -7355,7 +7155,7 @@
     },
     {
       "type": "label",
-      "parent": 486,
+      "parent": 472,
       "x": 288,
       "y": 55,
       "w": 80,
@@ -7371,7 +7171,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7383,7 +7183,7 @@
     },
     {
       "type": "container",
-      "parent": 489,
+      "parent": 475,
       "x": 288,
       "y": 148,
       "w": 80,
@@ -7393,7 +7193,7 @@
     },
     {
       "type": "label",
-      "parent": 489,
+      "parent": 475,
       "x": 288,
       "y": 171,
       "w": 80,
@@ -7409,7 +7209,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 376,
       "y": 32,
       "w": 80,
@@ -7435,7 +7235,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 376,
       "y": 148,
       "w": 80,
@@ -7461,7 +7261,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7473,7 +7273,7 @@
     },
     {
       "type": "container",
-      "parent": 494,
+      "parent": 480,
       "x": 376,
       "y": 32,
       "w": 80,
@@ -7483,7 +7283,7 @@
     },
     {
       "type": "label",
-      "parent": 494,
+      "parent": 480,
       "x": 376,
       "y": 55,
       "w": 80,
@@ -7499,7 +7299,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7511,7 +7311,7 @@
     },
     {
       "type": "container",
-      "parent": 497,
+      "parent": 483,
       "x": 376,
       "y": 148,
       "w": 80,
@@ -7521,7 +7321,7 @@
     },
     {
       "type": "label",
-      "parent": 497,
+      "parent": 483,
       "x": 376,
       "y": 171,
       "w": 80,
@@ -7537,7 +7337,7 @@
     },
     {
       "type": "container",
-      "parent": 457,
+      "parent": 443,
       "x": 16,
       "y": 236,
       "w": 448,
@@ -7547,7 +7347,7 @@
     },
     {
       "type": "container",
-      "parent": 457,
+      "parent": 443,
       "x": 28,
       "y": 248,
       "w": 56,
@@ -7557,7 +7357,7 @@
     },
     {
       "type": "image",
-      "parent": 457,
+      "parent": 443,
       "x": 40,
       "y": 260,
       "w": 32,
@@ -7566,7 +7366,7 @@
     },
     {
       "type": "label",
-      "parent": 457,
+      "parent": 443,
       "x": 100,
       "y": 248,
       "w": 312,
@@ -7582,7 +7382,7 @@
     },
     {
       "type": "label",
-      "parent": 457,
+      "parent": 443,
       "x": 100,
       "y": 280,
       "w": 312,
@@ -7598,7 +7398,7 @@
     },
     {
       "type": "image",
-      "parent": 457,
+      "parent": 443,
       "x": 424,
       "y": 266,
       "w": 20,
@@ -7607,7 +7407,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 16,
       "y": 236,
       "w": 448,
@@ -7624,7 +7424,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7636,7 +7436,7 @@
     },
     {
       "type": "container",
-      "parent": 507,
+      "parent": 493,
       "x": 396,
       "y": 260,
       "w": 52,
@@ -7646,7 +7446,7 @@
     },
     {
       "type": "container",
-      "parent": 507,
+      "parent": 493,
       "x": 399,
       "y": 263,
       "w": 26,
@@ -7656,7 +7456,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7668,7 +7468,7 @@
     },
     {
       "type": "container",
-      "parent": 510,
+      "parent": 496,
       "x": 396,
       "y": 260,
       "w": 52,
@@ -7678,7 +7478,7 @@
     },
     {
       "type": "container",
-      "parent": 510,
+      "parent": 496,
       "x": 419,
       "y": 263,
       "w": 26,
@@ -7688,7 +7488,7 @@
     },
     {
       "type": "container",
-      "parent": 457,
+      "parent": 443,
       "x": 16,
       "y": 324,
       "w": 448,
@@ -7698,7 +7498,7 @@
     },
     {
       "type": "container",
-      "parent": 457,
+      "parent": 443,
       "x": 28,
       "y": 336,
       "w": 56,
@@ -7708,7 +7508,7 @@
     },
     {
       "type": "image",
-      "parent": 457,
+      "parent": 443,
       "x": 40,
       "y": 348,
       "w": 32,
@@ -7717,7 +7517,7 @@
     },
     {
       "type": "label",
-      "parent": 457,
+      "parent": 443,
       "x": 100,
       "y": 336,
       "w": 312,
@@ -7733,7 +7533,7 @@
     },
     {
       "type": "label",
-      "parent": 457,
+      "parent": 443,
       "x": 100,
       "y": 368,
       "w": 312,
@@ -7749,7 +7549,7 @@
     },
     {
       "type": "image",
-      "parent": 457,
+      "parent": 443,
       "x": 424,
       "y": 354,
       "w": 20,
@@ -7758,7 +7558,7 @@
     },
     {
       "type": "button",
-      "parent": 457,
+      "parent": 443,
       "x": 16,
       "y": 324,
       "w": 448,
@@ -7775,7 +7575,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7787,7 +7587,7 @@
     },
     {
       "type": "container",
-      "parent": 520,
+      "parent": 506,
       "x": 396,
       "y": 348,
       "w": 52,
@@ -7797,7 +7597,7 @@
     },
     {
       "type": "container",
-      "parent": 520,
+      "parent": 506,
       "x": 399,
       "y": 351,
       "w": 26,
@@ -7807,7 +7607,7 @@
     },
     {
       "type": "layer",
-      "parent": 457,
+      "parent": 443,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -7819,7 +7619,7 @@
     },
     {
       "type": "container",
-      "parent": 523,
+      "parent": 509,
       "x": 396,
       "y": 348,
       "w": 52,
@@ -7829,7 +7629,7 @@
     },
     {
       "type": "container",
-      "parent": 523,
+      "parent": 509,
       "x": 419,
       "y": 351,
       "w": 26,
@@ -8070,7 +7870,7 @@
     },
     {
       "type": "container",
-      "parent": 536,
+      "parent": 522,
       "x": 0,
       "y": 88,
       "w": 480,
@@ -8080,7 +7880,7 @@
     },
     {
       "type": "button",
-      "parent": 536,
+      "parent": 522,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -8100,11 +7900,11 @@
         }
       ],
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Add entry添加条目",
-      "bind": "static_538"
+      "bind": "static_524"
     },
     {
       "type": "image",
-      "parent": 536,
+      "parent": 522,
       "x": 200,
       "y": 128,
       "w": 80,
@@ -8113,7 +7913,7 @@
     },
     {
       "type": "label",
-      "parent": 536,
+      "parent": 522,
       "x": 24,
       "y": 226,
       "w": 432,
@@ -8129,7 +7929,7 @@
     },
     {
       "type": "label",
-      "parent": 536,
+      "parent": 522,
       "x": 40,
       "y": 264,
       "w": 400,
@@ -8145,7 +7945,7 @@
     },
     {
       "type": "label",
-      "parent": 536,
+      "parent": 522,
       "x": 40,
       "y": 286,
       "w": 400,
@@ -8221,7 +8021,7 @@
     },
     {
       "type": "button",
-      "parent": 712,
+      "parent": 700,
       "x": 388,
       "y": 108,
       "w": 64,
@@ -8246,7 +8046,7 @@
     },
     {
       "type": "button",
-      "parent": 713,
+      "parent": 701,
       "x": 352,
       "y": 28,
       "w": 104,
@@ -8591,7 +8391,7 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_569"
+      "bind": "static_555"
     },
     {
       "type": "container",
@@ -8686,11 +8486,11 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
-      "bind": "static_576"
+      "bind": "static_562"
     },
     {
       "type": "container",
-      "parent": 103,
+      "parent": 102,
       "x": 32,
       "y": 56,
       "w": 416,
@@ -8700,7 +8500,7 @@
     },
     {
       "type": "label",
-      "parent": 103,
+      "parent": 102,
       "x": 56,
       "y": 80,
       "w": 368,
@@ -8717,7 +8517,7 @@
     },
     {
       "type": "container",
-      "parent": 103,
+      "parent": 102,
       "x": 56,
       "y": 150,
       "w": 368,
@@ -8727,7 +8527,7 @@
     },
     {
       "type": "label",
-      "parent": 103,
+      "parent": 102,
       "x": 56,
       "y": 170,
       "w": 368,
@@ -8744,7 +8544,7 @@
     },
     {
       "type": "label",
-      "parent": 103,
+      "parent": 102,
       "x": 56,
       "y": 234,
       "w": 368,
@@ -8761,7 +8561,7 @@
     },
     {
       "type": "button",
-      "parent": 704,
+      "parent": 692,
       "x": 56,
       "y": 280,
       "w": 368,
@@ -8787,7 +8587,7 @@
     },
     {
       "type": "button",
-      "parent": 103,
+      "parent": 102,
       "x": 48,
       "y": 336,
       "w": 184,
@@ -8812,7 +8612,7 @@
     },
     {
       "type": "button",
-      "parent": 103,
+      "parent": 102,
       "x": 248,
       "y": 336,
       "w": 184,
@@ -8837,10 +8637,10 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 44,
       "y": 20,
-      "w": 180,
+      "w": 84,
       "h": 24,
       "name": "grid_brand",
       "bind": "grid_brand",
@@ -8853,11 +8653,28 @@
     },
     {
       "type": "label",
-      "parent": 99,
-      "x": 204,
+      "parent": 98,
+      "x": 132,
       "y": 20,
-      "w": 120,
-      "h": 26,
+      "w": 60,
+      "h": 24,
+      "name": "grid_version",
+      "bind": "grid_version",
+      "text": "",
+      "font_size": 16,
+      "font": "fonts/VibeInter.otf",
+      "fg_color": "#9A9A9A",
+      "text_align": "left",
+      "overflow": "ellipsis",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文%s"
+    },
+    {
+      "type": "label",
+      "parent": 98,
+      "x": 192,
+      "y": 20,
+      "w": 96,
+      "h": 24,
       "name": "grid_title_top",
       "bind": "grid_title_top",
       "text": "",
@@ -8869,7 +8686,7 @@
     },
     {
       "type": "container",
-      "parent": 99,
+      "parent": 98,
       "x": 30,
       "y": 68,
       "w": 116,
@@ -8885,7 +8702,7 @@
     },
     {
       "type": "button",
-      "parent": 720,
+      "parent": 708,
       "x": 26,
       "y": 64,
       "w": 124,
@@ -8911,7 +8728,7 @@
     },
     {
       "type": "image",
-      "parent": 99,
+      "parent": 98,
       "x": 34,
       "y": 72,
       "w": 108,
@@ -8924,7 +8741,7 @@
     },
     {
       "type": "image",
-      "parent": 714,
+      "parent": 702,
       "x": 34,
       "y": 72,
       "w": 108,
@@ -8938,7 +8755,7 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 16,
       "y": 186,
       "w": 144,
@@ -8955,7 +8772,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -8967,7 +8784,7 @@
     },
     {
       "type": "container",
-      "parent": 592,
+      "parent": 579,
       "x": 34,
       "y": 72,
       "w": 108,
@@ -8977,7 +8794,7 @@
     },
     {
       "type": "container",
-      "parent": 592,
+      "parent": 579,
       "x": 68,
       "y": 123,
       "w": 40,
@@ -8987,7 +8804,7 @@
     },
     {
       "type": "container",
-      "parent": 592,
+      "parent": 579,
       "x": 85,
       "y": 106,
       "w": 6,
@@ -8997,7 +8814,7 @@
     },
     {
       "type": "container",
-      "parent": 99,
+      "parent": 98,
       "x": 182,
       "y": 68,
       "w": 116,
@@ -9013,7 +8830,7 @@
     },
     {
       "type": "button",
-      "parent": 721,
+      "parent": 709,
       "x": 178,
       "y": 64,
       "w": 124,
@@ -9039,7 +8856,7 @@
     },
     {
       "type": "image",
-      "parent": 99,
+      "parent": 98,
       "x": 186,
       "y": 72,
       "w": 108,
@@ -9052,7 +8869,7 @@
     },
     {
       "type": "image",
-      "parent": 715,
+      "parent": 703,
       "x": 186,
       "y": 72,
       "w": 108,
@@ -9066,7 +8883,7 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 168,
       "y": 186,
       "w": 144,
@@ -9083,7 +8900,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9095,7 +8912,7 @@
     },
     {
       "type": "container",
-      "parent": 601,
+      "parent": 588,
       "x": 186,
       "y": 72,
       "w": 108,
@@ -9105,7 +8922,7 @@
     },
     {
       "type": "container",
-      "parent": 601,
+      "parent": 588,
       "x": 220,
       "y": 123,
       "w": 40,
@@ -9115,7 +8932,7 @@
     },
     {
       "type": "container",
-      "parent": 601,
+      "parent": 588,
       "x": 237,
       "y": 106,
       "w": 6,
@@ -9125,7 +8942,7 @@
     },
     {
       "type": "container",
-      "parent": 99,
+      "parent": 98,
       "x": 334,
       "y": 68,
       "w": 116,
@@ -9141,7 +8958,7 @@
     },
     {
       "type": "button",
-      "parent": 722,
+      "parent": 710,
       "x": 330,
       "y": 64,
       "w": 124,
@@ -9167,7 +8984,7 @@
     },
     {
       "type": "image",
-      "parent": 99,
+      "parent": 98,
       "x": 338,
       "y": 72,
       "w": 108,
@@ -9180,7 +8997,7 @@
     },
     {
       "type": "image",
-      "parent": 716,
+      "parent": 704,
       "x": 338,
       "y": 72,
       "w": 108,
@@ -9194,7 +9011,7 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 320,
       "y": 186,
       "w": 144,
@@ -9211,7 +9028,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9223,7 +9040,7 @@
     },
     {
       "type": "container",
-      "parent": 610,
+      "parent": 597,
       "x": 338,
       "y": 72,
       "w": 108,
@@ -9233,7 +9050,7 @@
     },
     {
       "type": "container",
-      "parent": 610,
+      "parent": 597,
       "x": 372,
       "y": 123,
       "w": 40,
@@ -9243,7 +9060,7 @@
     },
     {
       "type": "container",
-      "parent": 610,
+      "parent": 597,
       "x": 389,
       "y": 106,
       "w": 6,
@@ -9253,7 +9070,7 @@
     },
     {
       "type": "container",
-      "parent": 99,
+      "parent": 98,
       "x": 30,
       "y": 252,
       "w": 116,
@@ -9269,7 +9086,7 @@
     },
     {
       "type": "button",
-      "parent": 723,
+      "parent": 711,
       "x": 26,
       "y": 248,
       "w": 124,
@@ -9295,7 +9112,7 @@
     },
     {
       "type": "image",
-      "parent": 99,
+      "parent": 98,
       "x": 34,
       "y": 256,
       "w": 108,
@@ -9308,7 +9125,7 @@
     },
     {
       "type": "image",
-      "parent": 717,
+      "parent": 705,
       "x": 34,
       "y": 256,
       "w": 108,
@@ -9322,7 +9139,7 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 16,
       "y": 370,
       "w": 144,
@@ -9339,7 +9156,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9351,7 +9168,7 @@
     },
     {
       "type": "container",
-      "parent": 619,
+      "parent": 606,
       "x": 34,
       "y": 256,
       "w": 108,
@@ -9361,7 +9178,7 @@
     },
     {
       "type": "container",
-      "parent": 619,
+      "parent": 606,
       "x": 68,
       "y": 307,
       "w": 40,
@@ -9371,7 +9188,7 @@
     },
     {
       "type": "container",
-      "parent": 619,
+      "parent": 606,
       "x": 85,
       "y": 290,
       "w": 6,
@@ -9381,7 +9198,7 @@
     },
     {
       "type": "container",
-      "parent": 99,
+      "parent": 98,
       "x": 182,
       "y": 252,
       "w": 116,
@@ -9397,7 +9214,7 @@
     },
     {
       "type": "button",
-      "parent": 724,
+      "parent": 712,
       "x": 178,
       "y": 248,
       "w": 124,
@@ -9423,7 +9240,7 @@
     },
     {
       "type": "image",
-      "parent": 99,
+      "parent": 98,
       "x": 186,
       "y": 256,
       "w": 108,
@@ -9436,7 +9253,7 @@
     },
     {
       "type": "image",
-      "parent": 718,
+      "parent": 706,
       "x": 186,
       "y": 256,
       "w": 108,
@@ -9450,7 +9267,7 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 168,
       "y": 370,
       "w": 144,
@@ -9467,7 +9284,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9479,7 +9296,7 @@
     },
     {
       "type": "container",
-      "parent": 628,
+      "parent": 615,
       "x": 186,
       "y": 256,
       "w": 108,
@@ -9489,7 +9306,7 @@
     },
     {
       "type": "container",
-      "parent": 628,
+      "parent": 615,
       "x": 220,
       "y": 307,
       "w": 40,
@@ -9499,7 +9316,7 @@
     },
     {
       "type": "container",
-      "parent": 628,
+      "parent": 615,
       "x": 237,
       "y": 290,
       "w": 6,
@@ -9509,7 +9326,7 @@
     },
     {
       "type": "container",
-      "parent": 99,
+      "parent": 98,
       "x": 334,
       "y": 252,
       "w": 116,
@@ -9525,7 +9342,7 @@
     },
     {
       "type": "button",
-      "parent": 725,
+      "parent": 713,
       "x": 330,
       "y": 248,
       "w": 124,
@@ -9551,7 +9368,7 @@
     },
     {
       "type": "image",
-      "parent": 99,
+      "parent": 98,
       "x": 338,
       "y": 256,
       "w": 108,
@@ -9564,7 +9381,7 @@
     },
     {
       "type": "image",
-      "parent": 719,
+      "parent": 707,
       "x": 338,
       "y": 256,
       "w": 108,
@@ -9578,7 +9395,7 @@
     },
     {
       "type": "label",
-      "parent": 99,
+      "parent": 98,
       "x": 320,
       "y": 370,
       "w": 144,
@@ -9595,7 +9412,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9607,7 +9424,7 @@
     },
     {
       "type": "container",
-      "parent": 637,
+      "parent": 624,
       "x": 338,
       "y": 256,
       "w": 108,
@@ -9617,7 +9434,7 @@
     },
     {
       "type": "container",
-      "parent": 637,
+      "parent": 624,
       "x": 372,
       "y": 307,
       "w": 40,
@@ -9627,7 +9444,7 @@
     },
     {
       "type": "container",
-      "parent": 637,
+      "parent": 624,
       "x": 389,
       "y": 290,
       "w": 6,
@@ -9637,7 +9454,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9649,7 +9466,7 @@
     },
     {
       "type": "container",
-      "parent": 641,
+      "parent": 628,
       "x": 186,
       "y": 92,
       "w": 108,
@@ -9659,7 +9476,7 @@
     },
     {
       "type": "container",
-      "parent": 641,
+      "parent": 628,
       "x": 220,
       "y": 143,
       "w": 40,
@@ -9669,7 +9486,7 @@
     },
     {
       "type": "container",
-      "parent": 641,
+      "parent": 628,
       "x": 237,
       "y": 126,
       "w": 6,
@@ -9679,7 +9496,7 @@
     },
     {
       "type": "label",
-      "parent": 641,
+      "parent": 628,
       "x": 152,
       "y": 207,
       "w": 176,
@@ -9695,7 +9512,7 @@
     },
     {
       "type": "label",
-      "parent": 641,
+      "parent": 628,
       "x": 24,
       "y": 262,
       "w": 432,
@@ -9711,7 +9528,7 @@
     },
     {
       "type": "label",
-      "parent": 641,
+      "parent": 628,
       "x": 24,
       "y": 310,
       "w": 432,
@@ -9727,7 +9544,7 @@
     },
     {
       "type": "label",
-      "parent": 641,
+      "parent": 628,
       "x": 24,
       "y": 332,
       "w": 432,
@@ -9743,7 +9560,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9755,7 +9572,7 @@
     },
     {
       "type": "container",
-      "parent": 649,
+      "parent": 636,
       "x": 222,
       "y": 440,
       "w": 8,
@@ -9765,7 +9582,7 @@
     },
     {
       "type": "container",
-      "parent": 649,
+      "parent": 636,
       "x": 238,
       "y": 440,
       "w": 20,
@@ -9775,7 +9592,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9787,7 +9604,7 @@
     },
     {
       "type": "container",
-      "parent": 652,
+      "parent": 639,
       "x": 214,
       "y": 440,
       "w": 8,
@@ -9797,7 +9614,7 @@
     },
     {
       "type": "container",
-      "parent": 652,
+      "parent": 639,
       "x": 230,
       "y": 440,
       "w": 20,
@@ -9807,7 +9624,7 @@
     },
     {
       "type": "container",
-      "parent": 652,
+      "parent": 639,
       "x": 258,
       "y": 440,
       "w": 8,
@@ -9817,7 +9634,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9829,7 +9646,7 @@
     },
     {
       "type": "container",
-      "parent": 656,
+      "parent": 643,
       "x": 214,
       "y": 440,
       "w": 8,
@@ -9839,7 +9656,7 @@
     },
     {
       "type": "container",
-      "parent": 656,
+      "parent": 643,
       "x": 230,
       "y": 440,
       "w": 8,
@@ -9849,7 +9666,7 @@
     },
     {
       "type": "container",
-      "parent": 656,
+      "parent": 643,
       "x": 246,
       "y": 440,
       "w": 20,
@@ -9859,7 +9676,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9871,7 +9688,7 @@
     },
     {
       "type": "container",
-      "parent": 660,
+      "parent": 647,
       "x": 206,
       "y": 440,
       "w": 8,
@@ -9881,7 +9698,7 @@
     },
     {
       "type": "container",
-      "parent": 660,
+      "parent": 647,
       "x": 222,
       "y": 440,
       "w": 20,
@@ -9891,7 +9708,7 @@
     },
     {
       "type": "container",
-      "parent": 660,
+      "parent": 647,
       "x": 250,
       "y": 440,
       "w": 8,
@@ -9901,7 +9718,7 @@
     },
     {
       "type": "container",
-      "parent": 660,
+      "parent": 647,
       "x": 266,
       "y": 440,
       "w": 8,
@@ -9911,7 +9728,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9923,7 +9740,7 @@
     },
     {
       "type": "container",
-      "parent": 665,
+      "parent": 652,
       "x": 206,
       "y": 440,
       "w": 8,
@@ -9933,7 +9750,7 @@
     },
     {
       "type": "container",
-      "parent": 665,
+      "parent": 652,
       "x": 222,
       "y": 440,
       "w": 8,
@@ -9943,7 +9760,7 @@
     },
     {
       "type": "container",
-      "parent": 665,
+      "parent": 652,
       "x": 238,
       "y": 440,
       "w": 20,
@@ -9953,7 +9770,7 @@
     },
     {
       "type": "container",
-      "parent": 665,
+      "parent": 652,
       "x": 266,
       "y": 440,
       "w": 8,
@@ -9963,7 +9780,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -9975,7 +9792,7 @@
     },
     {
       "type": "container",
-      "parent": 670,
+      "parent": 657,
       "x": 206,
       "y": 440,
       "w": 8,
@@ -9985,7 +9802,7 @@
     },
     {
       "type": "container",
-      "parent": 670,
+      "parent": 657,
       "x": 222,
       "y": 440,
       "w": 8,
@@ -9995,7 +9812,7 @@
     },
     {
       "type": "container",
-      "parent": 670,
+      "parent": 657,
       "x": 238,
       "y": 440,
       "w": 8,
@@ -10005,7 +9822,7 @@
     },
     {
       "type": "container",
-      "parent": 670,
+      "parent": 657,
       "x": 254,
       "y": 440,
       "w": 20,
@@ -10015,7 +9832,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10026,7 +9843,7 @@
     },
     {
       "type": "image",
-      "parent": 675,
+      "parent": 662,
       "x": 348,
       "y": 22,
       "w": 20,
@@ -10035,7 +9852,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10046,7 +9863,7 @@
     },
     {
       "type": "image",
-      "parent": 677,
+      "parent": 664,
       "x": 380,
       "y": 22,
       "w": 20,
@@ -10055,7 +9872,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10066,7 +9883,7 @@
     },
     {
       "type": "image",
-      "parent": 679,
+      "parent": 666,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -10075,7 +9892,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10086,7 +9903,7 @@
     },
     {
       "type": "image",
-      "parent": 681,
+      "parent": 668,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -10095,7 +9912,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10106,7 +9923,7 @@
     },
     {
       "type": "image",
-      "parent": 683,
+      "parent": 670,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -10115,7 +9932,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10126,7 +9943,7 @@
     },
     {
       "type": "image",
-      "parent": 685,
+      "parent": 672,
       "x": 412,
       "y": 22,
       "w": 20,
@@ -10146,7 +9963,7 @@
       "text_align": "center",
       "bind": "update_title",
       "name": "update_title",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n                                                                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%//////:::AAAABCCCCDDDDDFFFIIIIIIIIIIIILLNNNNORSSSSUUUUUVaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbccccccccddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffggggggggggghiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiillllllllllllllllllllllllmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooppppppppppppppppppppppqrrrrrrrrrrrrrrrrrrrssssssssssssssstttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvwwwwwwyyyyyy||··下下个交件件件件件件件低作保保保信像像准准切删发发取取固固固在在在在在在备备失失失失失失失失失失存存存安完完就已已已已已已已已已已已已已已并开开开息成成打换接提操文新新新新新新新新新是是更更更更更更更最最本本本校校校校校校校校正正正正正正求消版版版电系系系组组组经统统统绪装言语请读败败败败败败败败败败载载连量镜镜除验验验验验验验验：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n                                                                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%...//////:::AAAABCCCCCDDDDDFFFIIIIIIIIIIIILLNNNNORSSSSUUUUUVaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbcccccccccddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffgggggggggggghiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiillllllllllllllllllllllllllmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooppppppppppppppppppppppqrrrrrrrrrrrrrrrrrrrssssssssssssssstttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvwwwwwwyyyyyy||··…下下个交件件件件件件件低作保保保信像像准准切删发发取取取固固固在在在在在在在备备失失失失失失失失失失存存存安完完就已已已已已已已已已已已已已已并开开开息成成打换接提操文新新新新新新新新新是是更更更更更更更最最本本本校校校校校校校校正正正正正正正求消消版版版电系系系组组组经统统统绪装言语请读败败败败败败败败败败载载连量镜镜除验验验验验验验验：：：",
       "font": "fonts/VibeDisplay.otf",
       "hidden": false
     },
@@ -10163,7 +9980,7 @@
       "text_align": "center",
       "bind": "update_detail",
       "name": "update_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%,---------..................//////0000002288::::AAAAAAAAAAAABBBBBBBBBBCCCCCCCCCCCCCDDDDEFFFFFFFFIIIIIIIIIIIIIIIIIKKKMMMMNNNNNNNNNOPRRRRSSSSSSSSSSSSSSSSSSSSSSSTTTUUUUUUUUUUVVVVWWWWWWaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbccccccccccccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffggggggggggggggggggggggggggggggghhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiillllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooopppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrsssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwxxxxxyyyyyyyyyyyyyyyy||··……。。。。。。。。。。。上下下个个中交交从从以以以件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保像像像像充先入入入具内写写击击击创删到前动动即即即原发发取可可可可可后后后启启启启启和固在在在在在在在在在在在在在在在在在地备失存存存存存存存存存完完容将就工已已已已已已已已已已已已已已已已已已已已已已并并应应应开开开开开开开待待待意成我我我我或打打打打打持持持接接接接接接接接接接接接接接接提提整文文文文文文新新是最有期未未本本本本本本本机机校校校校校校校校校校校校校校正正正正正正正正正正正正正源点点点版版版版用用用电电电电电留留的的的的的的的直等等等系系系组组组组经统统统绪置置脑自至行行行行设设设试误请请请请请请请请读败资载载输输运运运运这进连连连连连连连连连连连连连连连重重重重重重错镜镜镜镜间除验验验验验验验验验验验验验验，，，，：：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%,---------..................//////0000002288::::AAAAAAAAAAAABBBBBBBBBBBBCCCCCCCCCCCCCCDDDDEFFFFFFFFIIIIIIIIIIIIIIIIIKKKMMMMNNNNNNNNNOPPPRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSTTTUUUUUUUUUUUUVVVVWWWWWWWaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbccccccccccccccccccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggghhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiklllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwxxxxxyyyyyyyyyyyyyyyyy||··……。。。。。。。。。。。上下下个个中交交从从以以以件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保候像像像像充先入入入入具内写写写准击击击创删到前动动即即即原发发取取可可可可可后后后启启启启启和固在在在在在在在在在在在在在在在在在在在在在地备备失存存存存存存存存存安完完容将就工已已已已已已已已已已已已已已已已已已已已已已已并并并应应应应应应开开开开开开开待待待意成我我我我或打打打打打持持持接接接接接接接接接接接接接接接接提提整文文文文文文文新新是最有期未未未本本本本本本本机机查校校校校校校校校校校校校校校校检正正正正正正正正正正正正正正正正正源点点点版版版版用用用用用用电电电电电留留的的的的的的的直稍等等等系系系组组组组经统统统绪置置脑自至行行行行装设设设试误请请请请请请请请请读读败资载载输输运运运运这进连连连连连连连连连连连连连连连连重重重重重重错镜镜镜镜间除验验验验验验验验验验验验验验验，，，，：：：：",
       "font": "fonts/VibeInter.otf",
       "hidden": false
     },
@@ -10252,7 +10069,7 @@
     },
     {
       "type": "button",
-      "parent": 705,
+      "parent": 693,
       "x": 24,
       "y": 408,
       "w": 432,
@@ -10314,7 +10131,7 @@
       "text_align": "center",
       "bind": "result_detail",
       "name": "result_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                              %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%,---------..................//////0000000000228888::::AAAAAAAAAAAABBBBBBBBBBCCCCCCCCCCCCCDDDDEEFFFFFFFFIIIIIIIIIIIIIIIIIKKKMMMMNNNNNNNNNOPRRRRRSSSSSSSSSSSSSSSSSSSSSSSTTTUUUUUUUUUUVVVVWWWWWWaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffggggggggggggggggggggggggggggggghhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiillllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooopppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrsssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwxxxxxxxxxyyyyyyyyyyyyyyyyy||··……。。。。。。。。。。。上下下个个中交交从从以以以件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保像像像像充先入入入具内写写击击击创删到前动动即即即原发发取可可可可可后后后后启启启启启和回固在在在在在在在在在在在在在在在在在地备失存存存存存存存存存完完容将就工已已已已已已已已已已已已已已已已已已已已已已并并应应应开开开开开开开待待待意成我我我我或打打打打打持持持接接接接接接接接接接接接接接接提提整文文文文文文新新是最有期未未本本本本本本本机机校校校校校校校校校校校校校校正正正正正正正正正正正正正源点点点版版版版用用用电电电电电留留的的的的的的的直等等等系系系组组组组经统统统绪置置脑自至行行行行设设设试试误误请请请请请请请请请读败资载载输输运运运运返这进连连连连连连连连连连连连连连连重重重重重重重错错镜镜镜镜间除页首验验验验验验验验验验验验验验，，，，：：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%,---------..................//////0000000000228888::::AAAAAAAAAAAABBBBBBBBBBBBCCCCCCCCCCCCCCDDDDEEFFFFFFFFIIIIIIIIIIIIIIIIIKKKMMMMNNNNNNNNNOPPRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSTTTUUUUUUUUUUUUVVVVWWWWWWWaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggghhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssssssssssssssssssssssssssssssssssssttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwxxxxxxxxxyyyyyyyyyyyyyyyyyy||··……。。。。。。。。。。。上下下个个中交交从从以以以件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保像像像像充先入入入入具内写写写准击击击创删到前动动即即即原发发取取可可可可可后后后后启启启启启和回固在在在在在在在在在在在在在在在在在在在在在地备备失存存存存存存存存存安完完容将就工已已已已已已已已已已已已已已已已已已已已已已已并并并应应应应应应开开开开开开开待待待意成我我我我或打打打打打持持持接接接接接接接接接接接接接接接接提提整文文文文文文文新新是最有期未未未本本本本本本本机机查校校校校校校校校校校校校校校校检正正正正正正正正正正正正正正正正正源点点点版版版版用用用用用用电电电电电留留的的的的的的的直等等等系系系组组组组经统统统绪置置脑自至行行行行装设设设试试误误请请请请请请请请请读读败资载载输输运运运运返这进连连连连连连连连连连连连连连连连重重重重重重重错错镜镜镜镜间除页首验验验验验验验验验验验验验验验，，，，：：：：",
       "overflow": "clip",
       "font": "fonts/VibeInter.otf",
       "hidden": false
@@ -10337,7 +10154,7 @@
         {
           "event": "click",
           "action": "call",
-          "target_name": "nand"
+          "target_name": "result_done"
         }
       ],
       "font": "fonts/VibeMedium.otf",
@@ -10346,7 +10163,7 @@
     },
     {
       "type": "button",
-      "parent": 706,
+      "parent": 694,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -10387,6 +10204,20 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Clear Wi-Fi, shared information\nand system preferences.\nNAND and all saved Ideas are kept.清除 Wi-Fi、共享信息和系统偏好。\n保留 NAND 和所有已保存的 Idea。"
     },
     {
+      "type": "progress",
+      "parent": 96,
+      "x": 24,
+      "y": 348,
+      "w": 432,
+      "h": 96,
+      "name": "reset_hold_progress",
+      "bind": "reset_hold_progress",
+      "bind_target": "value",
+      "bg_color": "#212021",
+      "fg_color": "#612629",
+      "radius": 20
+    },
+    {
       "type": "button",
       "parent": 96,
       "x": 24,
@@ -10398,7 +10229,7 @@
       "text": "Hold to reset",
       "font_size": 22,
       "fg_color": "#FF5A5F",
-      "bg_color": "#212021",
+      "bg_color": "#00000001",
       "radius": 20,
       "events": [
         {
@@ -10413,7 +10244,7 @@
     },
     {
       "type": "label",
-      "parent": 106,
+      "parent": 105,
       "x": 24,
       "y": 112,
       "w": 432,
@@ -10430,7 +10261,7 @@
     },
     {
       "type": "button",
-      "parent": 106,
+      "parent": 105,
       "x": 24,
       "y": 348,
       "w": 432,
@@ -10455,7 +10286,7 @@
     },
     {
       "type": "layer",
-      "parent": 103,
+      "parent": 102,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10565,7 +10396,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10576,7 +10407,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10587,7 +10418,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10598,7 +10429,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10609,7 +10440,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10620,7 +10451,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10631,7 +10462,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10642,7 +10473,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10653,7 +10484,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10664,7 +10495,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10675,7 +10506,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -10686,7 +10517,7 @@
     },
     {
       "type": "layer",
-      "parent": 99,
+      "parent": 98,
       "x": 0,
       "y": 0,
       "w": 480,

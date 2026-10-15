@@ -26,6 +26,7 @@ esp_err_t factory_ideas_confirm(uint32_t request_id, bool download) {
     ctx->state->preview_ready = false;
     ctx->state->command = job->command;
     ctx->state->terminal = ctx->state->failed = false;
+    ctx->state->cancelled = false;
     ctx->state->return_library = download && ctx->pending->already_downloaded;
     /* The root is already in memory from preview, not part of this transfer. */
     ctx->state->total = ctx->pending->package.total_size - ctx->pending->package.root_size;
@@ -57,8 +58,15 @@ esp_err_t factory_ideas_cancel(void) {
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     uint32_t ready = ctx->state->preview_ready ? ctx->state->preview_id : 0;
-    if (ctx->state->busy && ctx->state->cancellable)
+    if (ctx->state->busy && ctx->state->cancellable) {
         ctx->cancel_requested = true;
+        ctx->state->cancellable = false;
+        snprintf(ctx->state->title, sizeof(ctx->state->title), "Cancelling...");
+        snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Please wait");
+    } else if (ctx->state->busy && !ctx->state->resolving && !ctx->cancel_requested) {
+        xSemaphoreGive(ctx->lock);
+        return ESP_ERR_INVALID_STATE;
+    }
     if (!ready && ctx->state->resolving) {
         ctx->state->preview_id = 0;
         ctx->state->resolving = false;
@@ -119,11 +127,12 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     }
     if (command != IDEAS_SCAN && command != IDEAS_RELOCALIZE) {
         ctx->state->terminal = ctx->state->failed = false;
+        ctx->state->cancelled = false;
         ctx->state->total = ctx->state->received = 0;
         ctx->state->phase = IDEAS_PHASE_NONE;
         ctx->state->files_verified = ctx->state->file_count = 0;
         snprintf(ctx->state->title, sizeof(ctx->state->title), "%s",
-                 command == IDEAS_INSTALL ? "Setting boot application" : "Loading app information");
+                 command == IDEAS_INSTALL || command == IDEAS_OPEN ? "Setting boot application" : "Loading app information");
         snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Please wait");
         ++ctx->state->revision;
     }

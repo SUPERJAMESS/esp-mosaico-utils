@@ -79,6 +79,26 @@ static void observe_progress(void) {
         assert(s.received == s.total);
     }
 }
+static bool cancelled, cancel_in_flash, cancel_at_commit;
+static uint64_t flash_before, flash_at_cancel;
+static void cancel_open(void) {
+    factory_ideas_snapshot_t s = snapshot();
+    if (cancelled || !s.busy) return;
+    mock_environment_t *env = mock_environment();
+    bool ready = cancel_at_commit ? s.phase == IDEAS_PHASE_SAVE :
+        cancel_in_flash ? s.phase == IDEAS_PHASE_CHECK_IMAGE && env->flash_read_bytes > flash_before + 8192 :
+        s.phase == IDEAS_PHASE_VERIFY_FILES && s.received >= 16384;
+    if (!ready) return;
+    cancelled = true;
+    flash_at_cancel = env->flash_read_bytes;
+    assert(factory_ideas_cancel() == (cancel_at_commit ? ESP_ERR_INVALID_STATE : ESP_OK));
+    s = snapshot();
+    assert(!s.cancellable);
+    if (!cancel_at_commit) {
+        assert(!strcmp(s.title, "Cancelling..."));
+        assert(factory_ideas_cancel() == ESP_OK); /* Repeated taps are harmless. */
+    }
+}
 static void download(void) {
     confirm(preview());
     factory_ideas_snapshot_t s = snapshot();
@@ -172,6 +192,50 @@ int main(int argc, char **argv) {
         assert(!snapshot().failed && !strcmp(snapshot().title, "Cancelled"));
         assert(!env->installs && !env->commits && !env->restarts);
         library("1.0");
+    } else if (!strcmp(scenario, "open-progress")) {
+        download();
+        env->observe = observe_progress;
+        run(IDEAS_OPEN);
+        env->observe = NULL;
+        factory_ideas_snapshot_t s = snapshot();
+        assert(!s.failed && !s.cancelled && env->installs == 1 && env->restarts == 1);
+        assert(verify_bytes == s.total && verify_samples > s.file_count);
+    } else if (!strcmp(scenario, "open-cancel-block") ||
+               !strcmp(scenario, "open-cancel-current") ||
+               !strcmp(scenario, "open-cancel-queued") ||
+               !strcmp(scenario, "open-cancel-gate")) {
+        download();
+        cancel_in_flash = !strcmp(scenario, "open-cancel-current");
+        cancel_at_commit = !strcmp(scenario, "open-cancel-gate");
+        if (cancel_in_flash) run(IDEAS_OPEN);
+        uint32_t generation = snapshot().generation;
+        unsigned writes = env->writes, reads = env->firmware_reads;
+        unsigned installs = env->installs, commits = env->commits, restarts = env->restarts;
+        flash_before = env->flash_read_bytes;
+        assert(factory_ideas_request(IDEAS_OPEN, code) == ESP_OK);
+        bool queued = !strcmp(scenario, "open-cancel-queued");
+        if (queued) {
+            assert(factory_ideas_cancel() == ESP_OK);
+            cancelled = true;
+        } else env->observe = cancel_open;
+        mock_run_worker();
+        env->observe = NULL;
+        factory_ideas_snapshot_t s = snapshot();
+        assert(cancelled && !s.failed && s.terminal && !s.busy && !s.cancellable);
+        if (cancel_at_commit) {
+            assert(!s.cancelled && env->installs == installs + 1 && env->restarts == restarts + 1);
+        } else {
+            assert(s.cancelled && !strcmp(s.title, "Cancelled"));
+            assert(s.generation == generation); /* Cancellation must not trigger a scan. */
+            assert(env->installs == installs && env->commits == commits && env->restarts == restarts);
+            if (cancel_in_flash) assert(env->flash_read_bytes - flash_at_cancel <= 4096);
+            else {
+                assert(s.received < s.total || queued);
+                assert(env->writes == writes && env->flash_read_bytes == flash_before);
+                if (queued) assert(env->firmware_reads == reads);
+            }
+        }
+        library("1.0");
     } else if (!strcmp(scenario, "no-space")) {
         uint32_t id = preview(); env->no_space = true;
         confirm(id);
@@ -183,6 +247,9 @@ int main(int argc, char **argv) {
         assert(!snapshot().failed && env->installs == 1 && env->restarts == 1);
         run(IDEAS_OPEN);
         assert(!snapshot().failed && env->installs == 1 && env->restarts == 2);
+        mock_corrupt_flash(); /* Cached library identity cannot skip NOR validation. */
+        run(IDEAS_OPEN);
+        assert(!snapshot().failed && env->installs == 2 && env->restarts == 3);
     } else if (!strcmp(scenario, "delete") || !strcmp(scenario, "delete-current")) {
         download();
         bool current = !strcmp(scenario, "delete-current");

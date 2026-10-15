@@ -104,8 +104,9 @@ def apply(scene):
     # Root/home. Old diagnostic widgets remain hidden for controller compatibility.
     for o in objects:
         if o.get('parent')==0: o['hidden']=True
-    text(0,'home_brand','Vibe Mode',44,20,180,24,16,color=MUTED)
-    text(0,'home_page','Home',216,20,90,26,18,'medium',MUTED, 'center')
+    text(0,'home_brand','Vibe Mode',44,20,84,24,16,color=MUTED)
+    text(0,'home_version','',132,20,60,24,16,color=MUTED,overflow='ellipsis')
+    text(0,'home_page','Home',192,20,96,24,18,'medium',MUTED, 'center')
     text(0,'home_status','',324,20,112,24,16,color=MUTED,align='right')
     add('image',0,180,60,120,120,name='home_hero',image='assets/anim/home.dots.json')
     en=add('layer',0,0,0,480,480,name='home_heading_en',bind='home_heading_en_visible',bind_target='visible')
@@ -164,28 +165,19 @@ def apply(scene):
         row(help_page,'help_'+str(i),title,sub,glyph+'-32-cream' if glyph!='upgrade' else 'upgrade-32-orange',96+88*i,action)
     guide=add('layer',-1,0,0,480,480,name='guide',bind='guide_visible',bind_target='visible',hidden=True)
     header(guide,'View on your phone','button_back_guide')
-    rect(guide,24,112,216,216,TEXT,16)
-    add('image',guide,33,121,198,198,image='assets/qr/develop@198.png')
-    text(guide,'guide_one','Step-by-step guide',260,142,204,30,18,'medium')
-    text(guide,'guide_two','Build your own Idea',260,182,204,26,16,color=MUTED)
-    text(guide,'guide_three','with your Agent.',260,208,204,26,16,color=MUTED)
-    rect(guide,24,352,432,56,CARD,16)
-    text(guide,'guide_url','mosaico.espressif.com/guide/vibe-coding',36,368,408,24,16,color=MUTED)
 
-    # Develop: three original full-width rows.
+    # Develop opens the same guide directly, with live USB status at the bottom.
+    for p, prefix in ((guide, 'guide'), (index['develop'], 'develop')):
+        rect(p,24,112,216,216,TEXT,16)
+        add('image',p,33,121,198,198,image='assets/qr/develop@198.png')
+        text(p,prefix+'_one','Step-by-step guide',260,142,204,30,18,'medium')
+        text(p,prefix+'_two','Build your own Idea',260,182,204,26,16,color=MUTED)
+        text(p,prefix+'_three','with your Agent.',260,208,204,26,16,color=MUTED)
+        rect(p,24,352,432,56,CARD,16)
+        text(p,prefix+'_url','mosaico.espressif.com/guide/vibe-coding',36,368,408,24,16,color=MUTED)
     p=index['develop']
-    for name in ('develop_usb','develop_agent','develop_app','button_save_development','button_run_development','develop_note'): hide(name)
-    row(p,'develop_guide','Vibe-code an Idea','Scan for the step-by-step guide','code-32-cream',96,'show_guide')
-    rect(p,16,192,448,112)
-    rect(p,28,204,56,56,RAISED,16);icon(p,'usb-32-cream',40,216)
-    text(p,'develop_install','Install over USB',100,204,344,30,22,'medium')
-    text(p,'develop_usb','',100,238,344,24,16)
-    text(p,'develop_agent','Ask your agent to install it here.',100,268,344,24,16,color=MUTED)
-    row(p,'save_development','Save to NAND flash','','storage-32-cream',320,'save_development','develop_app')
-    text(p,'develop_note','Back to Vibe Mode: hold AI and',40,410,400,26,18,color=MUTED,align='center')
-    text(p,'develop_note_second','double-press power to restart.',40,432,400,26,18,color=MUTED,align='center')
-    # Tap the install row to run a valid development build.
-    click(p,'button_run_development',16,192,448,112,'run_development')
+    icon(p,'usb-20-white',32,434,20)
+    text(p,'develop_usb','',64,430,392,28,16,color=MUTED)
 
     # One clipped viewport: drawing and hit testing share the scroll offset.
     p=index['settings']
@@ -396,8 +388,9 @@ def apply(scene):
 
     # Grid uses the reference circular icons; only runtime Ideas populate it.
     p=index['grid'];hide('button_back_grid');hide('grid_title')
-    text(p,'grid_brand','Vibe Mode',44,20,180,24,16,color=MUTED)
-    text(p,'grid_title_top','',204,20,120,26,18,'sans',MUTED,'center')
+    text(p,'grid_brand','Vibe Mode',44,20,84,24,16,color=MUTED)
+    text(p,'grid_version','',132,20,60,24,16,color=MUTED,overflow='ellipsis')
+    text(p,'grid_title_top','',192,20,96,24,18,'sans',MUTED,'center')
     for i in range(6):
         x,y=34+152*(i%3),72+184*(i//3)
         move('cell_current_'+str(i),x-4,y-4,116,116,bg_color='#00000001',radius=58,border_color=ORANGE,border_width=3)
@@ -447,7 +440,12 @@ def apply(scene):
         p=index[name]
         note='reset_note' if name=='reset' else 'delete_note'
         move(note,24,112,432,132,font_size=18,font=FONT['sans'],fg_color=MUTED)
+        if name=='reset':
+            add('progress',p,24,348,432,96,name='reset_hold_progress',bind='reset_hold_progress',
+                bind_target='value',bg_color=RAISED,fg_color='#612629',radius=20)
         button(p,'button_reset_hold' if name=='reset' else 'button_delete_hold','Hold to reset' if name=='reset' else 'Hold to delete',24,348,432,96,danger=True)
+        if name=='reset':
+            named['button_reset_hold']['bg_color']='#00000001'
 
     # Unify legacy detail labels with the reviewed title/body styles.
     for o in objects:
@@ -493,6 +491,8 @@ def runtime_charsets(root, translations):
         if any(word in key.lower() for word in ('verif','connect','transferred','saving','restarting','committing','installing','unchanged','retained','saved in','selecting','charge above')):
             details.add(key)
     for name in ('update_title','result_title'): values.setdefault(name,set()).update(titles)
+    details.update(('Reading and verifying files', 'Checking installed application',
+                    'Preparing application', 'Writing application'))
     for name in ('update_detail','result_detail'): values.setdefault(name,set()).update(details)
     for i in range(6):values.setdefault('cell_name_'+str(i),set()).add('Add Idea')
     values.setdefault('bundles_detail',set()).update(('Current','Update available','Updating · %u%%','Waiting'))

@@ -256,7 +256,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
         (ctx->ideas.command == IDEAS_OPEN || ctx->ideas.command == IDEAS_INSTALL)))
         ctx->update_source = UPDATE_SYSTEM;
     if (ctx->update_source != UPDATE_IDEAS) out->batch = out->cancellable = false;
-    out->updating = out->update_terminal = out->update_failed = false;
+    out->updating = out->update_terminal = out->update_failed = out->update_cancelled = false;
     out->progress = 0;
     memset(&out->transfer, 0, sizeof(out->transfer));
     out->transfer.now_ms = (uint64_t)esp_timer_get_time() / 1000;
@@ -271,6 +271,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
         out->update_terminal = ctx->ideas.terminal;
         if ((ctx->ideas.command == IDEAS_DELETE || ctx->ideas.command == IDEAS_REFRESH_UPDATES) && !ctx->ideas.failed) out->update_terminal = false;
         out->update_failed = ctx->ideas.failed;
+        out->update_cancelled = ctx->ideas.cancelled;
         COPY(update_title, ctx->ideas.title);
         COPY(update_detail, ctx->ideas.detail);
         COPY(update_owner, ctx->ideas.command == IDEAS_INSTALL || ctx->ideas.command == IDEAS_OPEN
@@ -279,7 +280,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
         out->transfer.total = ctx->ideas.total;
         out->transfer.received = ctx->ideas.received;
         memcpy(out->transfer.job, &ctx->ideas.revision, sizeof(ctx->ideas.revision));
-    out->progress = vibe_transfer_permille(ctx->ideas.received, ctx->ideas.total);
+        out->progress = vibe_transfer_permille(ctx->ideas.received, ctx->ideas.total);
         out->transfer.receiving = out->updating && ctx->ideas.command == IDEAS_DOWNLOAD &&
                                   ctx->ideas.phase == IDEAS_PHASE_DOWNLOAD;
         if (ctx->ideas.command == IDEAS_DOWNLOAD) {
@@ -292,7 +293,20 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
             out->transfer.completed_components = ctx->ideas.files_verified;
             out->transfer.component_count = ctx->ideas.file_count;
         }
+        if (ctx->ideas.command == IDEAS_INSTALL || ctx->ideas.command == IDEAS_OPEN) {
+            if (ctx->ideas.phase == IDEAS_PHASE_VERIFY_FILES) {
+                out->transfer.phase = VIBE_TRANSFER_READ_FILES;
+                out->transfer.receiving = out->updating && ctx->ideas.cancellable;
+                out->transfer.completed_components = ctx->ideas.files_verified;
+                out->transfer.component_count = ctx->ideas.file_count;
+            } else if (ctx->ideas.phase == IDEAS_PHASE_CHECK_IMAGE)
+                out->transfer.phase = VIBE_TRANSFER_CHECK_IMAGE;
+            else if (ctx->ideas.phase == IDEAS_PHASE_SAVE)
+                out->transfer.phase = VIBE_TRANSFER_SAVE;
+        }
         if ((ctx->ideas.command == IDEAS_INSTALL || ctx->ideas.command == IDEAS_OPEN) && system_active) {
+            out->transfer.phase = system.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTING
+                                      ? VIBE_TRANSFER_SAVE : VIBE_TRANSFER_BYTES;
             out->transfer.total = system.total_size;
             out->transfer.received = system.received_size;
             out->transfer.component_id = system.update.active_component_id;
@@ -303,7 +317,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
             out->transfer.receiving = system.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_RECEIVING;
             COPY(update_detail, system.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTING
                                     ? "Selecting boot application"
-                                    : "Installing downloaded files");
+                                    : "Writing application");
         }
         return;
     }

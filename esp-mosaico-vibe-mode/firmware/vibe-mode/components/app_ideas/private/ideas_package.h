@@ -54,8 +54,10 @@ esp_err_t ideas_package_display(ideas_package_t *out, unsigned language, const c
                                 size_t size);
 bool ideas_hash_data(const void *data, size_t size, char out[65]);
 bool ideas_hash_file(const char *path, uint32_t size, const char *expected);
-typedef void (*ideas_hash_progress_fn)(uint32_t checked, void *ctx);
-bool ideas_hash_file_progress(const char *path, uint32_t size, const char *expected,
+/* Return an error to stop before the next read. Cancellation is propagated
+ * separately from integrity failure so recovery never replaces a cancelled generation. */
+typedef esp_err_t (*ideas_hash_progress_fn)(uint32_t checked, void *ctx);
+esp_err_t ideas_hash_file_progress(const char *path, uint32_t size, const char *expected,
                               ideas_hash_progress_fn progress, void *ctx);
 bool ideas_png_valid(const void *data, size_t size);
 void *ideas_title_qoi(const uint16_t *pixels, size_t *size);
@@ -70,6 +72,11 @@ typedef void (*ideas_store_stage_fn)(ideas_store_stage_t stage, void *ctx);
  * finish may only consume the package just verified by download/prepare while
  * holding the storage lease, without yielding ownership to another writer. */
 esp_err_t ideas_store_prepare(const char *root, const char *code, ideas_package_t *out);
+/* Return ESP_ERR_INVALID_STATE to cancel without attempting .previous recovery. */
+typedef esp_err_t (*ideas_store_progress_fn)(uint64_t checked, uint64_t total,
+                                            unsigned verified, unsigned count, void *ctx);
+esp_err_t ideas_store_prepare_progress(const char *root, const char *code, ideas_package_t *out,
+                                       ideas_store_progress_fn progress, void *ctx);
 esp_err_t ideas_store_refresh(const char *root, const char *code, ideas_package_t *out);
 esp_err_t ideas_store_finish(const char *root, const ideas_package_t *verified);
 esp_err_t ideas_store_recover(const char *root, const char *code);

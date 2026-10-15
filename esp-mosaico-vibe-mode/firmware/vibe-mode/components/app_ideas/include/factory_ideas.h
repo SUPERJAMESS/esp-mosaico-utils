@@ -44,7 +44,7 @@ typedef struct {
 } factory_idea_t;
 typedef struct {
     uint32_t generation, revision;
-    bool busy, terminal, failed, scanning;
+    bool busy, terminal, failed, scanning, cancelled;
     factory_ideas_command_t command;
     esp_err_t error, scan_error;
     char title[48], detail[160];
@@ -76,7 +76,7 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
  * download=true saves to NAND; false dismisses. Stale/duplicate IDs are
  * rejected. */
 esp_err_t factory_ideas_confirm(uint32_t request_id, bool download);
-/* Cancel preview or a cancellable download. NOR writes are never cancelled.
+/* Cancel preview, download or opening while still checking files. NOR writes are never cancelled.
  * Admission and cancellation state are serialized with the worker. */
 esp_err_t factory_ideas_cancel(void);
 /* Copy current library/preview status into required out without waiting.

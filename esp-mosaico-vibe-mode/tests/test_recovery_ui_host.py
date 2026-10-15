@@ -8,7 +8,8 @@ import sys
 import time
 
 import pytest
-from PIL import Image
+import zxingcpp
+from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
 RECOVERY = ROOT / "firmware/vibe-mode"
@@ -563,6 +564,48 @@ def test_ideas_verification_failure_has_no_download_rate(sim):
     sim.control("ideas-fail")
     sim.wait(page=8, rate_valid=False)
     sim.capture("ideas-verification-failed")
+def test_manage_reuses_library_when_reentered(sim):
+    for _ in range(3):
+        sim.manage()
+        sim.wait(page=5, bundle_count=2, nand_scanning=False, scan_calls=0)
+        sim.tap(38, 36)
+        sim.wait(page=0)
+
+
+@pytest.mark.parametrize("sim", ["open-check"], indirect=True)
+@pytest.mark.parametrize("language", [1, 2])
+def test_open_read_rate_and_cancel_returns_home(sim, language):
+    if language == 2:
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
+    sim.swipe(420, 250, 60, 250)
+    sim.wait(page=19)
+    sim.tap(92, 150)
+    sim.wait(page=20)
+    sim.tap_ui("button_open_accept")
+    sim.wait(page=7, cancellable=True)
+    sim.control("open-read 0 1000000 0 12 0")
+    sim.wait(rate_valid=False)
+    sim.control("open-read 500000 1000000 4 12 1000")
+    sim.wait(page=7, progress=500, rate_valid=True, rate_bps=500000)
+    sim.capture("open-read-rate")
+    sim.tap_ui("button_cancel_download")
+    sim.wait(page=7, cancellable=False, cancel_calls=1)
+    sim.capture("open-cancelling")
+    sim.wait(page=8, cancelled=True, restart_calls=0)
+    sim.capture("open-cancelled")
+    sim.tap_ui("button_result_open")  # Hidden Open must not start the application.
+    sim.wait(page=8, restart_calls=0)
+    sim.control("library-refreshed")  # Background work may replace service flags.
+    sim.tap_ui("button_result_library")
+    sim.wait(page=0, restart_calls=0, scan_calls=0)
+    sim.manage()
+    sim.wait(page=5, bundle_count=2, scan_calls=0)
+
+
 def test_home_grid_swipe_and_current_idea(sim):
     sim.swipe(420, 250, 60, 250)
     sim.wait(page=19, grid_page=0)
@@ -630,16 +673,36 @@ def test_low_battery_blocks_install_then_allows_after_charging(sim):
 
 
 @pytest.mark.parametrize("sim", ["development"], indirect=True)
-def test_manual_development_save_does_not_restart(sim):
+@pytest.mark.parametrize("language", [1, 2])
+def test_develop_opens_qr_with_live_usb_status(sim, language):
+    if language == 2:
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
     sim.tap(85, 360); sim.wait(page=10)
-    sim.capture("develop")
-    sim.tap_ui("button_save_development")
-    sim.wait(timeout=45, page=8, save_calls=1, development_saved=True, restart_calls=0)
-    sim.tap_ui("button_result_library"); sim.wait(page=5)
+    frames = []
+    for name, connected, owner in (("disconnected", 0, 0), ("waiting", 1, 0),
+                                    ("ready", 1, 1), ("unplugged", 0, 0)):
+        sim.control("usb %d %d" % (connected, owner))
+        sim.wait(page=10, save_calls=0, restart_calls=0)
+        sim.capture("develop-" + name)
+        with Image.open(sim.directory / ("develop-" + name + ".png")) as image:
+            frame = image.convert("RGB")
+        codes = zxingcpp.read_barcodes(frame)
+        assert [code.text for code in codes] == ["https://mosaico.espressif.com/guide/vibe-coding/"]
+        frames.append(frame)
+    # Only the bottom status changes as USB and the Agent connect/disconnect.
+    assert len({frame.crop((0, 96, 480, 408)).tobytes() for frame in frames}) == 1
+    assert len({frame.crop((0, 424, 480, 480)).tobytes() for frame in frames[:3]}) == 3
+    assert frames[0].tobytes() == frames[-1].tobytes()
+    # Old guide/install/save hit areas no longer navigate, write NAND or reboot,
+    # even when a development build is available.
+    for x, y in ((240, 136), (240, 248), (240, 360)):
+        sim.tap(x, y)
+        sim.wait(page=10, save_calls=0, restart_calls=0, development_saved=False)
     sim.tap(38, 36); sim.wait(page=0)
-    sim.tap(85, 360); sim.wait(page=10)
-    sim.tap_ui("button_save_development"); sim.wait(page=10, save_calls=1)
-    sim.tap_ui("button_run_development"); sim.wait(restart_calls=1, save_calls=1)
 
 
 def hold(sim, x=240, y=396, **expected):
@@ -693,14 +756,106 @@ def test_first_run_language_then_wifi_can_skip(sim):
     sim.tap(38, 36); sim.wait(page=0)
 
 
-def test_factory_reset_requires_hold_and_preserves_nand(sim):
+@pytest.mark.parametrize("language", [1, 2])
+def test_factory_reset_requires_hold_and_preserves_nand(sim, language):
+    if language == 2:
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
     sim.tap(390, 360); sim.wait(page=11)
     sim.swipe(240, 410, 240, 180)
     sim.wait(settings_offset=264)
     sim.tap_ui("button_settings_bottom_reset"); sim.wait(page=17)
     sim.capture("factory-reset")
+    with Image.open(sim.directory / "factory-reset.png") as frame:
+        idle = frame.copy()
+        assert not idle.crop((24, 260, 456, 340)).getbbox()  # No separate hold/countdown label.
     sim.tap(240, 396); sim.wait(page=17, reset_calls=0)
+    sim.rpc("feed_pointer", x=240, y=396, pressed=True)
+    time.sleep(1)
+    sim.capture("factory-reset-holding")
+    with Image.open(sim.directory / "factory-reset-holding.png") as frame:
+        assert frame.getpixel((80, 370)) != idle.getpixel((80, 370))
+        assert frame.getpixel((430, 370)) == idle.getpixel((430, 370))
+        assert not ImageChops.difference(frame, idle).crop((0, 0, 480, 348)).getbbox()
+    sim.rpc("feed_pointer", x=240, y=396, pressed=False)
+    sim.wait(page=17, reset_calls=0)
+    sim.capture("factory-reset-released")
+    with Image.open(sim.directory / "factory-reset-released.png") as frame:
+        assert not ImageChops.difference(frame, idle).getbbox()
+    # Leaving the hit area cancels this hold without releasing the pointer.
+    sim.rpc("feed_pointer", x=240, y=396, pressed=True)
+    time.sleep(.8)
+    sim.rpc("feed_pointer", x=240, y=300, pressed=True)
+    sim.capture("factory-reset-outside")
+    with Image.open(sim.directory / "factory-reset-outside.png") as frame:
+        assert not ImageChops.difference(frame, idle).getbbox()
+    sim.rpc("feed_pointer", x=240, y=300, pressed=False)
     hold(sim, reset_calls=1, restart_calls=1, bundle_count=2, shared_count=0, language=0)
+
+
+@pytest.mark.parametrize("language", [1, 2])
+def test_status_bar_title_centered_and_version_updates(sim, language):
+    if language == 2:
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
+    sim.control("firmware 0.2.7")
+    sim.capture("home-version")
+    with Image.open(sim.directory / "home-version.png") as frame:
+        header = frame.crop((0, 0, 480, 56))
+        bounds = frame.crop((192, 20, 288, 44)).getbbox()
+        assert bounds and abs(192 + (bounds[0] + bounds[2]) / 2 - 240) <= 2
+        assert frame.crop((128, 20, 192, 44)).getbbox()  # Version follows the brand.
+    sim.swipe(420, 250, 60, 250)
+    sim.wait(page=19)
+    sim.capture("grid-version")
+    with Image.open(sim.directory / "grid-version.png") as frame:
+        assert not ImageChops.difference(header, frame.crop((0, 0, 480, 56))).crop((44, 20, 192, 44)).getbbox()
+        grid_header = frame.crop((0, 0, 480, 56))
+    sim.control("firmware 0.2.7-12345678901234567890-dirty")
+    sim.capture("grid-version-long")
+    with Image.open(sim.directory / "grid-version-long.png") as frame:
+        changed = ImageChops.difference(grid_header, frame.crop((0, 0, 480, 56)))
+        assert changed.crop((44, 20, 192, 44)).getbbox()
+        assert not changed.crop((44, 20, 156, 44)).getbbox()  # Brand and version prefix stay readable.
+        assert not changed.crop((192, 0, 480, 56)).getbbox()  # No overlap with title/status icons.
+
+
+def test_reset_hold_cancels_on_navigation_and_runs_once(sim):
+    def enter_reset():
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.swipe(240, 410, 240, 180); sim.wait(settings_offset=264)
+        sim.tap_ui("button_settings_bottom_reset"); sim.wait(page=17)
+
+    enter_reset()
+    sim.rpc("feed_pointer", x=240, y=396, pressed=True)
+    time.sleep(.8)
+    sim.control("ai")
+    sim.wait(page=0, reset_calls=0)
+    sim.rpc("feed_pointer", x=240, y=396, pressed=False)
+    enter_reset()
+    sim.capture("reset-reentered")
+    with Image.open(sim.directory / "reset-reentered.png") as frame:
+        assert frame.getpixel((80, 370)) == frame.getpixel((430, 370))
+    # A gesture that begins outside the reset button must never arm it.
+    sim.rpc("feed_pointer", x=240, y=300, pressed=True)
+    sim.rpc("feed_pointer", x=240, y=396, pressed=True)
+    time.sleep(3.2)
+    sim.wait(page=17, reset_calls=0)
+    sim.rpc("feed_pointer", x=240, y=396, pressed=False)
+    sim.rpc("feed_pointer", x=240, y=396, pressed=True)
+    try:
+        sim.wait(reset_calls=1)
+        sim.rpc("feed_pointer", x=241, y=396, pressed=True)
+        time.sleep(3.2)
+        sim.wait(reset_calls=1, restart_calls=1)
+    finally:
+        sim.rpc("feed_pointer", x=241, y=396, pressed=False)
 
 
 def test_shared_values_save_and_delete_undo(sim):

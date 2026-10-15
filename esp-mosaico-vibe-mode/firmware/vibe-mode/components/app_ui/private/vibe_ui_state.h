@@ -9,7 +9,7 @@ struct vibe_ui {
     vibe_page_t page;
     vui_list_t networks, bundles;
     void *timer;
-    bool download_pending, password_visible, preview_active, batch_cancel_pending;
+    bool download_pending, password_visible, preview_active, batch_cancel_pending, result_cancelled;
     vibe_page_t preview_return;
     bool prefetch_attempted;
     bool rendered_release;
@@ -22,7 +22,7 @@ struct vibe_ui {
     bool open_waiting, open_unsaved;
     unsigned grid_page, pager_state, shared_page, activity_tick, hold_tick, suppress_until, undo_until;
     unsigned haptic_revision, last_language, grid_generation, settings_revision, motion_revision;
-    bool gesture_consumed, pointer_page_ready;
+    bool gesture_consumed, pointer_page_ready, hold_consumed;
     vibe_page_t pointer_page;
     bool pointer_down, first_run, shared_edit_value, shared_reveal, undo_shared, shared_wait;
     int32_t pointer_x, pointer_y;

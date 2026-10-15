@@ -215,8 +215,19 @@ static esp_err_t display_valid(const char *base, ideas_package_t *p, unsigned la
     free(json);
     return err;
 }
+typedef struct {
+    ideas_store_progress_fn progress;
+    void *ctx;
+    uint64_t base, total;
+    unsigned verified, count;
+} prepare_progress_t;
+static esp_err_t prepare_checked(uint32_t checked, void *arg) {
+    prepare_progress_t *p = arg;
+    return p->progress ? p->progress(p->base + checked, p->total, p->verified, p->count, p->ctx) : ESP_OK;
+}
 static esp_err_t load_generation(const char *base, const char *code, const journal_t *journal,
-                                 ideas_package_t *p, bool complete, bool hash_files) {
+                                 ideas_package_t *p, bool complete, bool hash_files,
+                                 ideas_store_progress_fn progress, void *ctx) {
     char path[IDEAS_PATH_BYTES];
     if (!directory(base) || join(base, "manifest.json", path) != ESP_OK)
         return ESP_ERR_NOT_FOUND;
@@ -241,21 +252,32 @@ static esp_err_t load_generation(const char *base, const char *code, const journ
     err = ideas_package_firmware(p, json, size);
     free(json);
     if (!complete) return err;
+    prepare_progress_t tracking = {.progress = progress, .ctx = ctx,
+        .total = p->total_size - p->root_size, .count = p->file_count};
+    if (err == ESP_OK) err = prepare_checked(0, &tracking);
     unsigned entries = 0;
     if (err == ESP_OK)
         err = walk(base, "", 0, p, &entries, false);
     for (unsigned i = 0; hash_files && err == ESP_OK && i < p->file_count; ++i) {
         err = join(base, p->files[i].name, path);
-        if (err == ESP_OK && !ideas_hash_file(path, p->files[i].size, p->files[i].sha256))
-            err = ESP_ERR_INVALID_CRC;
+        if (err == ESP_OK)
+            err = ideas_hash_file_progress(path, p->files[i].size, p->files[i].sha256,
+                                           prepare_checked, &tracking);
+        if (err == ESP_OK) {
+            tracking.base += p->files[i].size;
+            ++tracking.verified;
+            err = prepare_checked(0, &tracking);
+        }
     }
     if (!ideas_code_valid(code)) return err;
     /* Validate both locales; return metadata for the package's default locale. */
     unsigned active = !strcmp(p->default_locale, "en");
     if (err == ESP_OK)
         err = display_valid(base, p, 1 - active);
+    if (err == ESP_OK) err = prepare_checked(0, &tracking);
     if (err == ESP_OK)
         err = display_valid(base, p, active);
+    if (err == ESP_OK) err = prepare_checked(0, &tracking);
     return err;
 }
 static bool read_journal(const char *base, journal_t *out) {
@@ -299,7 +321,7 @@ esp_err_t ideas_store_read(const char *root, const char *code, ideas_package_t *
         return err;
     if (!read_journal(base, &journal))
         return ESP_ERR_NOT_FOUND;
-    return load_generation(current, code, &journal, p, true, true);
+    return load_generation(current, code, &journal, p, true, true, NULL, NULL);
 }
 /* Display-only access authenticates root/inner manifests; selected assets are
  * still checked by the presentation loader. Never use this for commit/install. */
@@ -315,7 +337,7 @@ esp_err_t ideas_store_metadata(const char *root, const char *code, ideas_package
         return err;
     if (!read_journal(base, &journal))
         return ESP_ERR_NOT_FOUND;
-    return load_generation(current, code, &journal, p, false, false);
+    return load_generation(current, code, &journal, p, false, false, NULL, NULL);
 }
 esp_err_t ideas_store_select(const char *root, ideas_package_t *p, unsigned language) {
     if (!p || language > 1)
@@ -354,8 +376,14 @@ esp_err_t ideas_store_finish(const char *root, const ideas_package_t *p) {
 
 static esp_err_t finish_delete(const char *base);
 esp_err_t ideas_store_prepare(const char *root, const char *code, ideas_package_t *p) {
+    return ideas_store_prepare_progress(root, code, p, NULL, NULL);
+}
+esp_err_t ideas_store_prepare_progress(const char *root, const char *code, ideas_package_t *p,
+                                       ideas_store_progress_fn progress, void *ctx) {
     if (!p)
         return ESP_ERR_INVALID_ARG;
+    esp_err_t err = progress ? progress(0, 0, 0, 0, ctx) : ESP_OK;
+    if (err != ESP_OK) return err;
     factory_io_metrics_t metrics = {.started = factory_io_now()};
     char base[IDEAS_PATH_BYTES], current[IDEAS_PATH_BYTES], previous[IDEAS_PATH_BYTES],
         incoming[IDEAS_PATH_BYTES];
@@ -371,9 +399,9 @@ esp_err_t ideas_store_prepare(const char *root, const char *code, ideas_package_
     journal_t journal;
     if (!read_journal(base, &journal))
         return ESP_ERR_INVALID_CRC;
-    esp_err_t err = load_generation(current, code, &journal, p, true, true);
-    if (err != ESP_OK) {
-        err = load_generation(previous, code, &journal, p, true, true);
+    err = load_generation(current, code, &journal, p, true, true, progress, ctx);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        err = load_generation(previous, code, &journal, p, true, true, progress, ctx);
         if (err == ESP_OK)
             err = remove_generation(current);
         if (err == ESP_OK && rename(previous, current))
@@ -507,7 +535,7 @@ esp_err_t ideas_store_download_gated(const char *root, const char *json, size_t 
     if (err == ESP_OK && !check)
         err = ESP_ERR_NO_MEM;
     if (err == ESP_OK)
-        err = load_generation(incoming, p->code, &journal, check, true, false);
+        err = load_generation(incoming, p->code, &journal, check, true, false, NULL, NULL);
 #ifdef ESP_PLATFORM
     if (err == ESP_OK)
         err = join(incoming, "firmware", path);

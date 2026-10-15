@@ -67,16 +67,11 @@ def generate():
     label(59, "undo_message", "", 24, 408, 300, 52, 16)
     button(59, "undo_delete", "Undo", 344, 408, 112, 52)
     button(80, "cancel_download", "Cancel", 152, 408, 176, 52)
-    button(91, "result_library", "My Ideas", 24, 310, 204, 56, action="nand")
+    button(91, "result_library", "My Ideas", 24, 310, 204, 56, action="result_done")
     button(91, "result_open", "Open", 252, 310, 204, 56)
 
     develop = page("develop", "Develop")
     label(develop, "develop_usb", "USB connection", y=96)
-    label(develop, "develop_agent", "Waiting for your Agent", y=140, color=COLORS["muted"])
-    label(develop, "develop_app", "No development Idea", y=208, h=64, size=24)
-    button(develop, "save_development", "Save to NAND", 24, 288, 212, 72, primary=True)
-    button(develop, "run_development", "Run", 244, 288, 212, 72)
-    label(develop, "develop_note", "Hold AI and double-press Power\nto return to Vibe Mode", y=376, h=64, size=16, color=COLORS["muted"])
 
     settings = page("settings", "Settings")
     for i, (name, title) in enumerate((("wifi", "Wi-Fi"), ("display", "Display & haptics"), ("language", "Language"),
@@ -125,7 +120,6 @@ def generate():
 
     reset = page("reset", "Reset settings")
     label(reset, "reset_note", "Clear Wi-Fi, shared information\nand system preferences.\nNAND and all saved Ideas are kept.", y=112, h=132)
-    label(reset, "reset_progress", "Hold for 3 seconds to reset", y=274, align="center")
     button(reset, "reset_hold", "Reset settings", 24, 348, 432, 96, danger=True, action="none")
 
     grid = page("grid", "My Ideas")

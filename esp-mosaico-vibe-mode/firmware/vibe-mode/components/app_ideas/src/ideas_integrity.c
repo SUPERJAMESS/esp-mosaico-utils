@@ -64,9 +64,9 @@ bool ideas_hash_data(const void *data, size_t size, char out[65]) {
     return ok;
 }
 bool ideas_hash_file(const char *path, uint32_t size, const char *expected) {
-    return ideas_hash_file_progress(path, size, expected, NULL, NULL);
+    return ideas_hash_file_progress(path, size, expected, NULL, NULL) == ESP_OK;
 }
-bool ideas_hash_file_progress(const char *path, uint32_t size, const char *expected,
+esp_err_t ideas_hash_file_progress(const char *path, uint32_t size, const char *expected,
                               ideas_hash_progress_fn progress, void *ctx) {
     factory_io_metrics_t metrics = {.started = factory_io_now()};
     FILE *file = fopen(path, "rb");
@@ -74,7 +74,8 @@ bool ideas_hash_file_progress(const char *path, uint32_t size, const char *expec
     hash_state_t state = {0};
     bool ok = file && buffer && begin(&state);
     uint64_t total = 0;
-    while (ok) {
+    esp_err_t err = progress ? progress(0, ctx) : ESP_OK;
+    while (ok && err == ESP_OK) {
         int64_t started = factory_io_now();
         size_t n = fread(buffer, 1, 4096, file);
         metrics.read += factory_io_now() - started;
@@ -85,12 +86,12 @@ bool ideas_hash_file_progress(const char *path, uint32_t size, const char *expec
         ok = total <= size && update(&state, buffer, n);
         metrics.hash += factory_io_now() - started;
         if (ok && progress)
-            progress((uint32_t)total, ctx);
+            err = progress((uint32_t)total, ctx);
 #ifdef ESP_PLATFORM
         vTaskDelay(1);
 #endif
     }
-    ok = ok && total == size && !ferror(file) && finish(&state, digest);
+    ok = ok && err == ESP_OK && total == size && !ferror(file) && finish(&state, digest);
     abort_hash(&state);
     if (file)
         fclose(file);
@@ -101,5 +102,5 @@ bool ideas_hash_file_progress(const char *path, uint32_t size, const char *expec
     metrics.bytes = total;
     factory_io_report("nand_hash", path, &metrics, buffer, 4096, ok ? 0 : -1);
     free(buffer);
-    return ok;
+    return err != ESP_OK ? err : ok ? ESP_OK : ESP_ERR_INVALID_CRC;
 }

@@ -20,11 +20,13 @@ esp_err_t ideas_verify_file(const ideas_file_t *file, const char *path, void *ct
 }
 
 typedef struct { ideas_context_t *ctx; uint64_t base; } verify_progress_t;
-static void checked_bytes(uint32_t checked, void *arg) {
+static esp_err_t checked_bytes(uint32_t checked, void *arg) {
     verify_progress_t *p = arg;
     xSemaphoreTake(p->ctx->lock, portMAX_DELAY);
-    p->ctx->state->received = p->base + checked;
+    esp_err_t err = p->ctx->cancel_requested ? ESP_ERR_INVALID_STATE : ESP_OK;
+    if (err == ESP_OK) p->ctx->state->received = p->base + checked;
     xSemaphoreGive(p->ctx->lock);
+    return err;
 }
 static esp_err_t verify_download_file(const ideas_file_t *file, const char *path, void *arg) {
     ideas_context_t *ctx = ((pending_t *)arg)->owner;
@@ -35,12 +37,12 @@ static esp_err_t verify_download_file(const ideas_file_t *file, const char *path
     verify_progress_t p = {.ctx = ctx, .base = ctx->state->received};
     xSemaphoreGive(ctx->lock);
     if (ideas_job_cancelled(ctx)) return ESP_ERR_INVALID_STATE;
-    bool ok = ideas_hash_file_progress(path, file->size, file->sha256, checked_bytes, &p);
+    esp_err_t err = ideas_hash_file_progress(path, file->size, file->sha256, checked_bytes, &p);
     if (ideas_job_cancelled(ctx)) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
-    if (ok) ++ctx->state->files_verified;
+    if (err == ESP_OK) ++ctx->state->files_verified;
     xSemaphoreGive(ctx->lock);
-    return ok ? ESP_OK : ESP_ERR_INVALID_CRC;
+    return err;
 }
 static void download_stage(ideas_store_stage_t stage, void *arg) {
     ideas_context_t *ctx = ((pending_t *)arg)->owner;
@@ -65,7 +67,7 @@ static void download_stage(ideas_store_stage_t stage, void *arg) {
 #endif
 }
 
-esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected) {
+static esp_err_t flash_hash(uint32_t offset, uint32_t size, const char *expected, ideas_context_t *ctx) {
     factory_io_metrics_t metrics = {.started = factory_io_now()};
     uint8_t *buffer = malloc(IO_BYTES);
     if (!buffer)
@@ -76,6 +78,7 @@ esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected)
             ? ESP_OK
             : ESP_FAIL;
     for (uint32_t done = 0; err == ESP_OK && done < size;) {
+        if (ctx && ideas_job_cancelled(ctx)) { err = ESP_ERR_INVALID_STATE; break; }
         size_t n = size - done < IO_BYTES ? size - done : IO_BYTES;
         int64_t started = factory_io_now();
         err = esp_flash_read(esp_flash_default_chip, buffer, offset + done, n);
@@ -103,10 +106,13 @@ esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected)
     free(buffer);
     return err;
 }
+esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected) {
+    return flash_hash(offset, size, expected, NULL);
+}
 
 /* Caller holds the NOR read lease. The parsed descriptor is already bounded
  * and validated; include resources when deciding whether a write can be skipped. */
-esp_err_t ideas_verify_installed(const ideas_package_t *package)
+esp_err_t ideas_verify_installed(const ideas_package_t *package, ideas_context_t *ctx)
 {
     cJSON *manifest = cJSON_Parse(package->manifest);
     if (!manifest) return ESP_ERR_NO_MEM;
@@ -121,7 +127,7 @@ esp_err_t ideas_verify_installed(const ideas_package_t *package)
             offset->valuedouble + size->valuedouble > package->flash_size) {
             err = ESP_ERR_INVALID_ARG; break;
         }
-        err = ideas_flash_hash((uint32_t)offset->valuedouble, (uint32_t)size->valuedouble, hash);
+        err = flash_hash((uint32_t)offset->valuedouble, (uint32_t)size->valuedouble, hash, ctx);
         if (err != ESP_OK) break;
     }
     cJSON_Delete(manifest);
@@ -309,6 +315,23 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool audit_boot) {
     return ESP_OK;
 }
 
+static esp_err_t open_progress(uint64_t checked, uint64_t total, unsigned verified,
+                               unsigned count, void *arg) {
+    ideas_context_t *ctx = arg;
+    xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    esp_err_t err = ctx->cancel_requested ? ESP_ERR_INVALID_STATE : ESP_OK;
+    if (err == ESP_OK) {
+        ctx->state->phase = IDEAS_PHASE_VERIFY_FILES;
+        ctx->state->received = checked;
+        ctx->state->total = total;
+        ctx->state->files_verified = verified;
+        ctx->state->file_count = count;
+        snprintf(ctx->state->title, sizeof(ctx->state->title), "Setting boot application");
+        snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Reading and verifying files");
+    }
+    xSemaphoreGive(ctx->lock);
+    return err;
+}
 esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
     if (job->command == IDEAS_ROW)
         return ideas_prepare_row(ctx, job);
@@ -344,7 +367,7 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
     if (installing)
         ideas_message(ctx, "Setting boot application", "Verifying downloaded files");
     esp_err_t err = installing
-                        ? ideas_store_prepare(ROOT, job->code, local)
+                        ? ideas_store_prepare_progress(ROOT, job->code, local, open_progress, ctx)
                         : ideas_store_refresh(ROOT, job->code, local);
     if (job->command == IDEAS_PREVIEW) {
         job->pending = calloc(1, sizeof(*job->pending));
@@ -356,22 +379,46 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
             err = ideas_prepare_assets(ctx, job, job->pending, true);
         }
     } else if (job->command == IDEAS_INSTALL || job->command == IDEAS_OPEN) {
-        xSemaphoreTake(ctx->lock, portMAX_DELAY);
-        if (ctx->cancel_requested) err = ESP_ERR_INVALID_STATE;
-        ctx->state->cancellable = false;
-        xSemaphoreGive(ctx->lock);
         char path[IDEAS_PATH_BYTES];
         if (err == ESP_OK)
             err = ideas_store_path(ROOT, job->code, "firmware/manifest.json", path);
         bool current = false;
         if (err == ESP_OK && job->command == IDEAS_OPEN) {
+            xSemaphoreTake(ctx->lock, portMAX_DELAY);
+            if (ctx->cancel_requested) err = ESP_ERR_INVALID_STATE;
+            else {
+                ctx->state->phase = IDEAS_PHASE_CHECK_IMAGE;
+                snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Checking installed application");
+            }
+            xSemaphoreGive(ctx->lock);
+        }
+        if (err == ESP_OK && job->command == IDEAS_OPEN) {
             err = factory_system_update_read_acquire();
             if (err == ESP_OK) {
                 boot_record_t boot;
-                current = ideas_boot_record(&boot, true) && !strcmp(boot.code, local->code) &&
-                          !strcmp(boot.release_id, local->release_id) && ideas_verify_installed(local) == ESP_OK;
+                /* The local manifest covers the layout, application and resources.
+                 * Verify it once, with cancellation between NOR read blocks. */
+                current = ideas_boot_record(&boot, false) && !strcmp(boot.code, local->code) &&
+                          !strcmp(boot.release_id, local->release_id);
+                if (current) {
+                    esp_err_t verified = ideas_verify_installed(local, ctx);
+                    current = verified == ESP_OK;
+                    if (verified == ESP_ERR_INVALID_STATE) err = verified;
+                }
                 factory_system_update_read_release();
             }
+        }
+        /* Serialize the final cancellation check with disabling cancellation.
+         * After this boundary the installer may erase/write NOR or select boot. */
+        if (err == ESP_OK) {
+            xSemaphoreTake(ctx->lock, portMAX_DELAY);
+            if (ctx->cancel_requested) err = ESP_ERR_INVALID_STATE;
+            else {
+                ctx->state->cancellable = false;
+                ctx->state->phase = IDEAS_PHASE_SAVE;
+                snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Preparing application");
+            }
+            xSemaphoreGive(ctx->lock);
         }
         if (err == ESP_OK && !current) {
             ctx->boot_verified = false;
@@ -389,7 +436,7 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
         if (err == ESP_OK)
             ideas_message(ctx, "Boot application ready",
                           "Starts on next power-on.\nRestart to run it now.");
-        (void)ideas_scan(ctx, false);
+        if (err == ESP_OK) (void)ideas_scan(ctx, false);
         if (err == ESP_OK && job->command == IDEAS_OPEN) esp_restart();
     }
     free(local);

@@ -5,7 +5,8 @@
 
 /* Local UI telemetry, not part of the ESP-Iris wire protocol. */
 typedef enum {
-    VIBE_TRANSFER_BYTES, VIBE_TRANSFER_VERIFY_FILES, VIBE_TRANSFER_CHECK_IMAGE, VIBE_TRANSFER_SAVE
+    VIBE_TRANSFER_BYTES, VIBE_TRANSFER_VERIFY_FILES, VIBE_TRANSFER_CHECK_IMAGE, VIBE_TRANSFER_SAVE,
+    VIBE_TRANSFER_READ_FILES
 } vibe_transfer_phase_t;
 typedef struct {
     uint8_t job[16], source;
@@ -19,6 +20,7 @@ typedef struct {
 typedef struct {
     uint8_t job[16], source;
     unsigned component_id;
+    vibe_transfer_phase_t phase;
     bool started, valid;
     uint64_t baseline_ms, baseline_bytes, last_ms, last_bytes, changed_ms;
     uint64_t bytes_per_second;

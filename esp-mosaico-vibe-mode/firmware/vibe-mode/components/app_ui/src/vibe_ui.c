@@ -67,7 +67,7 @@ static void transfer_text(vibe_ui_t *s)
         FORMAT(s, UPDATE_RATE, "%s: %u.%u %s/s", verb, tenths / 10, tenths % 10,
                rate_unit == 1024 ? "KiB" : "MiB");
     }
-    if (t->phase == VIBE_TRANSFER_VERIFY_FILES)
+    if (t->phase == VIBE_TRANSFER_VERIFY_FILES || t->phase == VIBE_TRANSFER_READ_FILES)
         FORMAT(s, UPDATE_COMPONENT, T(s, "Files verified: %u/%u"),
                t->completed_components, t->component_count);
     else if (!strcmp(v->update_owner, "Cloud"))
@@ -185,6 +185,7 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         (void)vui_list_refresh(s->ui, s->bundles);
 }
 static void error_result(vibe_ui_t *s, const char *title, int error) {
+    s->result_cancelled = false;
     TEXT(s, RESULT_TITLE, title);
     FORMAT(s, RESULT_DETAIL, T(s, "Error 0x%08x\nReturn home and retry"), (unsigned)error);
     show(s, VIBE_RESULT);
@@ -365,7 +366,10 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         break;
     case VUI_VIBE_ACT_ID_NAND:
         show(s, VIBE_NAND);
-        err = command(s, VIBE_SCAN_NAND, NULL, NULL);
+        /* Startup and mutations refresh the library; navigation reuses it.
+         * A failed scan can still be retried by entering Manage again. */
+        if (s->snapshot.nand_error && !s->snapshot.idea_busy)
+            err = command(s, VIBE_SCAN_NAND, NULL, NULL);
         if (err)
             FORMAT(s, NAND_SCAN, T(s, "Scan error 0x%x"), (unsigned)err);
         break;
@@ -580,9 +584,11 @@ void vibe_ui_poll(vibe_ui_t *s) {
         transfer_text(s);
     } else if (!v->updating && v->update_terminal && v->update_revision != s->acknowledged_update) {
         s->acknowledged_update = v->update_revision;
+        s->result_cancelled = v->update_cancelled;
         TEXT(s, RESULT_TITLE, T(s, v->update_title));
         if (v->update_failed && v->transfer.total)
-            FORMAT(s, RESULT_DETAIL, T(s, v->transfer.phase == VIBE_TRANSFER_VERIFY_FILES
+            FORMAT(s, RESULT_DETAIL, T(s, (v->transfer.phase == VIBE_TRANSFER_VERIFY_FILES ||
+                                          v->transfer.phase == VIBE_TRANSFER_READ_FILES)
                                                ? "%s\nVerified: %u%%"
                                                : "%s\nTransferred: %u%%"), v->update_detail,
                    vibe_transfer_permille(v->transfer.received, v->transfer.total) / 10);

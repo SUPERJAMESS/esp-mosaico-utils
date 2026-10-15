@@ -29,7 +29,8 @@ SCENARIOS = [
     "reject-bad-descriptor", "reject-bad-flash", "rollback-hash", "rollback-truncated",
     "offline", "install-corrupt", "install-commit-failure", "boot-identity",
     "interrupted-generation", "admission", "repair-current", "io-budget",
-    "open", "delete", "delete-current", "download-cancel", "batch", "development", "development-ota-busy", "refresh-updates", "open-cancel", "no-space",
+    "open", "open-progress", "open-cancel-block", "open-cancel-current", "open-cancel-queued", "open-cancel-gate",
+    "delete", "delete-current", "download-cancel", "batch", "development", "development-ota-busy", "refresh-updates", "open-cancel", "no-space",
 ] + ["reject-bad-multipart-" + kind for kind in BAD_MULTIPART]
 
 
@@ -40,7 +41,7 @@ from ideas_release import descriptor, encoded, ref, png
 
 
 def write_release(directory, release, version="1.0"):
-    document, payloads = descriptor(version)
+    document, payloads = descriptor(version, application_bytes=65536)
     display_path = "device/en/display.json"
     display = json.loads(payloads[display_path])
     if release == "bad-font": payloads["device/en/font.miff"] = b"bad-font"

@@ -31,18 +31,18 @@ def font():
             struct.pack("<IIHHhhi", 1, 44, 1, 1, 0, 1, 64) + b"\xff")
 
 
-def image(version):
-    data = bytearray(304)
+def image(version, segment_size=256):
+    data = bytearray((32 + segment_size + 16) // 16 * 16)
     data[0] = 0xe9; data[1] = 1; data[23] = 1
     struct.pack_into("<H", data, 12, 32)
-    struct.pack_into("<II", data, 24, 0x3f400020, 256)
+    struct.pack_into("<II", data, 24, 0x3f400020, segment_size)
     struct.pack_into("<I", data, 32, 0xabcd5432)
     data[48:48 + len(version)] = version.encode()
     data[80:87] = b"fixture"
     data[176:208] = b"\xab" * 32
     checksum = 0xef
-    for value in data[32:288]: checksum ^= value
-    data[303] = checksum
+    for value in data[32:32 + segment_size]: checksum ^= value
+    data[-1] = checksum
     return bytes(data) + hashlib.sha256(data).digest()
 
 
@@ -63,8 +63,8 @@ def archive(files):
     return out.getvalue()
 
 
-def descriptor(version="1.0.0", code="042731"):
-    fw = {"partition-table.bin": table(), "app.bin": image(version)}
+def descriptor(version="1.0.0", code="042731", application_bytes=256):
+    fw = {"partition-table.bin": table(), "app.bin": image(version, application_bytes)}
     components = []
     for i, (path, kind, offset) in enumerate((("partition-table.bin", "partition_table", 0x8000), ("app.bin", "application", 0x210000))):
         f = ref(path, fw[path]); components.append(dict(id=i + 1, kind=kind, target_offset=offset, file=path, size=f["size"], sha256=f["sha256"]))

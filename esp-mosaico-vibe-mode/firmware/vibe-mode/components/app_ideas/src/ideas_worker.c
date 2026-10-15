@@ -92,6 +92,7 @@ static void run_job(job_t *job) {
         }
         if (ctx->cancel_requested) {
             ctx->state->failed = false;
+            ctx->state->cancelled = true;
             snprintf(ctx->state->title, sizeof(ctx->state->title), "Cancelled");
             snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Previously saved Ideas are unchanged");
         }

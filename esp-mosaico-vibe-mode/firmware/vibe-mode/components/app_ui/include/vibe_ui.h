@@ -95,7 +95,7 @@ typedef struct {
     uint32_t idea_request;
     vibe_bundle_t idea;
     uint32_t update_revision;
-    bool updating, update_terminal, update_failed;
+    bool updating, update_terminal, update_failed, update_cancelled;
     unsigned progress; /* permille */
     vibe_transfer_t transfer;
     char update_title[48], update_detail[160], update_owner[16], update_verified[24];

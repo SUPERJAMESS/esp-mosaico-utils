@@ -38,6 +38,7 @@ class Package(C.Structure):
 
 
 CALLBACK = C.CFUNCTYPE(C.c_int, C.POINTER(File), C.c_char_p, C.c_void_p)
+PROGRESS = C.CFUNCTYPE(C.c_int, C.c_uint64, C.c_uint64, C.c_uint, C.c_uint, C.c_void_p)
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +48,7 @@ def core(tmp_path_factory):
 #define ESP_OK 0
 #define ESP_FAIL -1
 #define ESP_ERR_INVALID_ARG 0x102
+#define ESP_ERR_INVALID_STATE 0x103
 #define ESP_ERR_INVALID_SIZE 0x104
 #define ESP_ERR_NOT_FOUND 0x105
 #define ESP_ERR_NO_MEM 0x101
@@ -70,6 +72,7 @@ def core(tmp_path_factory):
     lib.ideas_store_verify.argtypes = [C.c_char_p, C.POINTER(Package), CALLBACK, C.c_void_p]
     lib.ideas_store_refresh.argtypes = [C.c_char_p, C.c_char_p, C.POINTER(Package)]
     lib.ideas_store_prepare.argtypes = [C.c_char_p, C.c_char_p, C.POINTER(Package)]
+    lib.ideas_store_prepare_progress.argtypes = [C.c_char_p, C.c_char_p, C.POINTER(Package), PROGRESS, C.c_void_p]
     lib.ideas_store_finish.argtypes = [C.c_char_p, C.POINTER(Package)]
     lib.ideas_store_recover.argtypes = [C.c_char_p, C.c_char_p]
     return lib
@@ -99,8 +102,8 @@ def callbacks(payloads, fail=None, corrupt=False):
     return fetch, verify
 
 
-def save(core, root, version="1.0.0", code="042731", fail=None, corrupt=False, change=None, stages=None):
-    doc, payloads = descriptor(version, code)
+def save(core, root, version="1.0.0", code="042731", fail=None, corrupt=False, change=None, stages=None, application_bytes=256):
+    doc, payloads = descriptor(version, code, application_bytes)
     if change: change(doc, payloads)
     result, package, raw = parse(core, doc, code.encode(), payloads)
     assert result == 0
@@ -145,6 +148,48 @@ def test_power_loss_between_generation_renames(core, tmp_path):
     assert core.ideas_store_recover(str(tmp_path).encode(), b"042731") == 0
     assert (base / "current/firmware/app.bin").read_bytes() == payloads["firmware/app.bin"]
     assert not (base / ".incoming").exists()
+
+
+def test_prepare_reports_all_verified_bytes(core, tmp_path):
+    result, package, _ = save(core, tmp_path, application_bytes=65536)
+    assert result == 0
+    samples = []
+
+    @PROGRESS
+    def progress(checked, total, verified, count, _):
+        samples.append((checked, total, verified, count))
+        return 0
+
+    assert core.ideas_store_prepare_progress(
+        str(tmp_path).encode(), b"042731", C.byref(package), progress, None) == 0
+    total = package.total_size - package.root_size
+    assert samples[-1] == (total, total, package.file_count, package.file_count)
+    assert all(a[0] <= b[0] <= b[1] for a, b in zip(samples, samples[1:]))
+    assert sum(a[0] < b[0] for a, b in zip(samples, samples[1:])) > package.file_count
+
+
+def test_cancel_prepare_preserves_generations_without_fallback(core, tmp_path):
+    assert save(core, tmp_path)[0] == 0
+    _, package, _ = save(core, tmp_path, "2.0.0", application_bytes=65536)
+    assert (tmp_path / "042731/.previous").is_dir()
+    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    samples = []
+    cancelled = False
+
+    @PROGRESS
+    def progress(checked, total, verified, count, _):
+        nonlocal cancelled
+        samples.append((checked, total))
+        if checked >= 16384 and not cancelled:
+            cancelled = True
+            return 0x103
+        return 0  # An erroneous retry of .previous would succeed.
+
+    assert core.ideas_store_prepare_progress(
+        str(tmp_path).encode(), b"042731", C.byref(package), progress, None) == 0x103
+    assert cancelled and 16384 <= samples[-1][0] < samples[-1][1]
+    assert all(checked < 16384 for checked, _ in samples[:-1])
+    assert before == {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
 
 
 def test_corrupt_new_generation_falls_back_to_verified_previous(core, tmp_path):
