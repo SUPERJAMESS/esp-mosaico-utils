@@ -105,9 +105,11 @@ class Font:
                 if self.shape(current + cluster, direction)[2] > (width - 4) * 64:
                     split = current.rfind(" ")
                     if split > 0:
-                        lines.append(current[:split]); current = current[split + 1:] + cluster
+                        lines.append(current[:split])
+                        current = current[split + 1:] + cluster
                     elif current:
-                        lines.append(current); current = cluster
+                        lines.append(current)
+                        current = cluster
                     else:
                         raise ValueError("A text cluster exceeds the available width")
                     if self.shape(current, direction)[2] > (width - 4) * 64:
@@ -152,7 +154,8 @@ class Font:
             if not gid or w > 192 or h > 192 or abs(left) > 192 or abs(top) > 192 or abs(advance) > 192 * 64:
                 raise ValueError("Font metrics exceed the device limits")
             table += struct.pack("<IIHHhhi", gid, offset, w, h, left, top, advance)
-            data += alpha; offset += len(alpha)
+            data += alpha
+            offset += len(alpha)
         if offset > 1024 * 1024 or not 0 < self.line_height <= 192:
             raise ValueError("Font subset exceeds the device limits")
         return struct.pack("<4sHHIHHHHI", b"MIFF", 1, 24, offset, count,

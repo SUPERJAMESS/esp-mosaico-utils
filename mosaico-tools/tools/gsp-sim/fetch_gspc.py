@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
-"""Cache standalone GSPC / GSP simulator releases for pinned espressif/esp-gsp."""
-
+"""Select application GSP versions and delegate acquisition to shared.gsp."""
 from __future__ import annotations
 
 import argparse
 import os
-import platform
-import shutil
 import sys
-import tarfile
-import tempfile
-import urllib.request
-import zipfile
 from pathlib import Path
 
-TOOLS_DIR = Path(__file__).resolve().parent
+# Source-tree entry point; no installation is required by consuming workspaces.
+UTILS_ROOT = Path(__file__).resolve().parents[3]
+if str(UTILS_ROOT) not in sys.path:
+    sys.path.insert(0, str(UTILS_ROOT))
+from shared.gsp.fetch import resolve_release, toolchain_version  # noqa: E402
+
+TOOLCHAIN = UTILS_ROOT / "mosaico-tools/gsp-toolchain.json"
 MANAGED_GSP = "espressif__esp-gsp"
-PINNED_GSP_VERSION = "1.5.1"
-PINNED_GSPC_VERSION = "0.6.1"
-LICENSE_NAME = "THIRD_PARTY_LICENSES.txt"
+PINNED_GSP_VERSION = toolchain_version(TOOLCHAIN, "sim")
+PINNED_GSPC_VERSION = toolchain_version(TOOLCHAIN, "gspc")
 
 
 def _managed_gsp_dir(project_dir: Path) -> Path:
@@ -71,129 +69,6 @@ def gsp_component_version(gsp_root: Path | None = None) -> str:
                 if line.startswith("version:"):
                     return line.split(":", 1)[1].strip().strip("'\"")
     return PINNED_GSP_VERSION
-
-
-def host_os_arch() -> tuple[str, str]:
-    system = platform.system()
-    machine = platform.machine().lower()
-    if machine in {"amd64", "x86_64"}:
-        arch = "x86_64"
-    elif machine in {"aarch64", "arm64"}:
-        arch = "aarch64"
-    else:
-        raise RuntimeError(f"unsupported host architecture: {machine}")
-    if system == "Linux":
-        return "linux", arch
-    if system == "Darwin":
-        return "macos", "universal2"
-    if system == "Windows":
-        return "windows", arch
-    raise RuntimeError(f"unsupported GSP host: {system}/{machine}")
-
-
-def archive_name(product: str, version: str) -> str:
-    os_name, arch = host_os_arch()
-    suffix = "zip" if os_name == "windows" else "tar.gz"
-    return f"{product}-{version}-{os_name}-{arch}.{suffix}"
-
-
-def default_cache_dir(kind: str, version: str) -> Path:
-    configured = os.environ.get("GSPC_CACHE_DIR" if kind == "gspc" else "GSP_SIM_CACHE_DIR")
-    if configured:
-        path = Path(configured).expanduser()
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-    xdg = os.environ.get("XDG_CACHE_HOME")
-    candidates = []
-    if xdg:
-        candidates.append(Path(xdg) / "esp-mosaico" / kind / version)
-    candidates.append(Path.home() / ".cache" / "esp-mosaico" / kind / version)
-    candidates.append(TOOLS_DIR / ".cache" / kind / version)
-    for path in candidates:
-        try:
-            path.mkdir(parents=True, exist_ok=True)
-            return path
-        except OSError:
-            continue
-    raise RuntimeError(f"cannot create a {kind} cache directory")
-
-
-def download(url: str, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.is_file():
-        return
-    fd, temporary_name = tempfile.mkstemp(
-        prefix=f".{destination.name}.",
-        suffix=".download",
-        dir=destination.parent,
-    )
-    temporary = Path(temporary_name)
-    try:
-        request = urllib.request.Request(
-            url, headers={"User-Agent": "esp-mosaico-vibe-gsp/1"}
-        )
-        with os.fdopen(fd, "wb") as output:
-            with urllib.request.urlopen(request, timeout=120) as response:
-                while True:
-                    chunk = response.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    output.write(chunk)
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, destination)
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        raise
-
-
-def extract_binary(archive: Path, binary: str, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=f"{binary}-extract-") as directory:
-        staging = Path(directory)
-        if archive.suffix == ".zip":
-            with zipfile.ZipFile(archive) as bundle:
-                bundle.extractall(staging)
-        else:
-            with tarfile.open(archive, "r:gz") as bundle:
-                bundle.extractall(staging)
-        matches = [path for path in staging.rglob(binary) if path.is_file()]
-        if not matches:
-            raise RuntimeError(f"{binary} missing from {archive.name}")
-        shutil.copy2(matches[0], destination)
-    if os.name != "nt":
-        destination.chmod(0o755)
-
-
-def resolve_release(
-    *,
-    product: str,
-    version: str,
-    env_var: str,
-    cache_dir: Path | None = None,
-) -> Path:
-    configured = os.environ.get(env_var)
-    if configured:
-        executable = Path(configured).expanduser()
-        if not executable.is_absolute():
-            raise RuntimeError(f"{env_var} must be an absolute path")
-        if not executable.is_file():
-            raise RuntimeError(f"{env_var} is not a file: {executable}")
-        return executable
-
-    cache = cache_dir or default_cache_dir(product, version)
-    os_name, _ = host_os_arch()
-    binary_name = product + (".exe" if os_name == "windows" else "")
-    binary = cache / binary_name
-    if binary.is_file():
-        return binary
-    name = archive_name(product, version)
-    base = f"https://dl.espressif.com/AE/gsp/{product}/v{version}/"
-    archive = cache / name
-    download(base + name, archive)
-    download(base + LICENSE_NAME, cache / LICENSE_NAME)
-    extract_binary(archive, binary_name, binary)
-    return binary
 
 
 def resolve_gspc(

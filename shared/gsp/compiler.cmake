@@ -1,0 +1,22 @@
+# Resolve the caller's compiler pin before ESP-IDF discovers ESP-GSP.
+# Set MOSAICO_GSPC_VERSION or MOSAICO_GSP_TOOLCHAIN; executable overrides win.
+if(NOT GSPC_EXECUTABLE AND DEFINED ENV{GSPC_EXECUTABLE} AND NOT "$ENV{GSPC_EXECUTABLE}" STREQUAL "")
+    set(GSPC_EXECUTABLE "$ENV{GSPC_EXECUTABLE}")
+endif()
+if(NOT GSPC_EXECUTABLE)
+    if(MOSAICO_GSPC_VERSION)
+        set(_mosaico_gspc_args --tool-version "${MOSAICO_GSPC_VERSION}")
+    elseif(MOSAICO_GSP_TOOLCHAIN)
+        set(_mosaico_gspc_args --toolchain "${MOSAICO_GSP_TOOLCHAIN}")
+    else()
+        message(FATAL_ERROR "Set MOSAICO_GSPC_VERSION or MOSAICO_GSP_TOOLCHAIN before resolving GSPC")
+    endif()
+    find_program(MOSAICO_GSPC_PYTHON NAMES python3 python REQUIRED)
+    execute_process(COMMAND "${MOSAICO_GSPC_PYTHON}" "${CMAKE_CURRENT_LIST_DIR}/fetch.py" ${_mosaico_gspc_args}
+        OUTPUT_VARIABLE GSPC_EXECUTABLE OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE _mosaico_gspc_result)
+    if(NOT _mosaico_gspc_result EQUAL 0 OR GSPC_EXECUTABLE STREQUAL "")
+        message(FATAL_ERROR "Could not resolve the selected GSP compiler; set GSPC_EXECUTABLE")
+    endif()
+endif()
+set(GSPC_EXECUTABLE "${GSPC_EXECUTABLE}" CACHE FILEPATH "Selected ESP-GSP compiler")
+set(ENV{GSPC_EXECUTABLE} "${GSPC_EXECUTABLE}")

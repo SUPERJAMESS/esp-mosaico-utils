@@ -15,7 +15,6 @@ include_guard(GLOBAL)
 
 get_filename_component(_raylib_iris_tools "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 get_filename_component(_raylib_iris_utils "${_raylib_iris_tools}/.." ABSOLUTE)
-set(_raylib_iris_template "${_raylib_iris_tools}/templates/raylib_lite_iris")
 set(_raylib_iris_product "${_raylib_iris_tools}/templates/blank_game")
 
 if(NOT RAYLIB_LITE_ENGINE_ROOT AND DEFINED ENV{RAYLIB_LITE_ENGINE_ROOT})
@@ -57,7 +56,7 @@ if(EXISTS "${_raylib_iris_game}/sdkconfig.application.defaults")
 endif()
 list(APPEND SDKCONFIG_DEFAULTS
     "${_raylib_iris_product}/sdkconfig.application.defaults"
-    "${_raylib_iris_template}/sdkconfig.application.defaults")
+    "${_raylib_iris_tools}/cmake/defaults/raylib_lite_iris.defaults")
 # Keep Recovery and Iris on the consuming workspace's revision.
 set(ESP_IRIS_BUILD_PROFILE "usb" CACHE STRING "Iris game USB profile" FORCE)
 set(RAYLIB_LITE_NATIVE_SERVICE_COMPONENT esp_mosaico_raylib_iris)

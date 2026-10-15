@@ -15,6 +15,8 @@ import pytest
     "../../product_contract.json",
     "../../cmake/mosaico_idf_project.cmake",
     "../../../ESP-Iris/components/esp_iris/src/esp_iris.c",
+    "../../../shared/ideas/presentation.py",
+    "../../../shared/ideas/font.py",
 ])
 def test_candidate_source_state_includes_shared_components(tmp_path, monkeypatch, changed):
     tool = Path(__file__).resolve().parents[1] / "firmware/vibe-mode/tools/prepare_recovery.py"

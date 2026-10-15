@@ -3,11 +3,11 @@ import ctypes as C
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import struct
 import subprocess
-import sys
 from types import SimpleNamespace
 
 import pytest
@@ -45,7 +45,8 @@ class Display(C.Structure):
 @pytest.fixture(scope="module")
 def core(tmp_path_factory):
     directory = tmp_path_factory.mktemp("display-reader")
-    cjson = next((RECOVERY / "managed_components/espressif__cjson").rglob("cJSON.c"))
+    dependency = Path(os.environ.get("CJSON_COMPONENT_DIR", str(RECOVERY / "managed_components/espressif__cjson")))
+    cjson = next(dependency.rglob("cJSON.c"))
     output = directory / "reader.so"
     subprocess.run([shutil.which("cc"), "-std=c11", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
         "-I" + str(cjson.parent), "-I" + str(RECOVERY / "components/app_ideas/include"), "-I" + str(RECOVERY / "components/app_ideas/private"), str(RECOVERY / "components/app_ideas/src/ideas_font.c"),
@@ -139,13 +140,10 @@ def test_duplicate_keys_nul_depth_and_trailing_data(core):
 
 @pytest.fixture(scope="module")
 def publisher():
-    sys.path.insert(0, str(RECOVERY / "tools"))
-    try:
-        spec = importlib.util.spec_from_file_location("prepare_idea_presentation", RECOVERY / "tools/prepare_idea_presentation.py")
-        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
-        yield module
-    finally:
-        sys.path.remove(str(RECOVERY / "tools"))
+    spec = importlib.util.spec_from_file_location("prepare_idea_presentation", RECOVERY / "tools/prepare_idea_presentation.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.mark.parametrize("locale,name,description,font_path", [
@@ -181,7 +179,8 @@ def test_publisher_roundtrip_without_ui_framework(core, publisher, tmp_path, loc
 
 
 def test_missing_glyphs_and_overflow_fail_publication(publisher):
-    font = publisher.Font(RECOVERY / "ui/fonts/DejaVuSans.ttf", 28, "en")
+    from shared.ideas.font import Font as PublicationFont
+    font = PublicationFont(RECOVERY / "ui/fonts/DejaVuSans.ttf", 28, "en")
     with pytest.raises(ValueError, match="cover"):
         font.layout("中文", 328, 84)
     with pytest.raises(ValueError, match="fit"):
@@ -189,7 +188,8 @@ def test_missing_glyphs_and_overflow_fail_publication(publisher):
 
 
 def test_empty_description_and_newline_only_text(publisher, core):
-    font = publisher.Font(RECOVERY / "ui/fonts/DejaVuSans.ttf", 20, "en")
+    from shared.ideas.font import Font as PublicationFont
+    font = PublicationFont(RECOVERY / "ui/fonts/DejaVuSans.ttf", 20, "en")
     assert font.layout("", 416, 176)["glyphs"] == []
     assert core.ideas_font_open(font.encode(), len(font.encode()), C.byref(Font()))
     with pytest.raises(ValueError, match="Nonempty"):

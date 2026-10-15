@@ -97,7 +97,7 @@ advance 和行高保留排版度量，当前固定文案的实际位置以 JSON 
 
 ## 发布与渲染边界
 
-`tools/ideas_font.py` 使用 FreeType 和
+`shared/ideas/font.py` 使用 FreeType 和
 [libraqm](https://host-oman.github.io/libraqm/raqm-Raqm.html) 在发布主机完成字形选择和
 双向排版；按 shaping cluster 换行，保存结果后设备不需要这些库。
 

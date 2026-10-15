@@ -12,6 +12,9 @@ Keep Recovery commands, protocol identifiers and ABI names stable. See the
   Gateway, Workbench, examples, and component-level tests.
 - `mosaico-tools/` owns the ESP-Mosaico host CLI and build runner. It consumes
   the public Iris host API and product Recovery contracts.
+- `shared/` owns GSP tool acquisition and Ideas display-resource generation.
+  Consumers supply versions and paths; shared modules must not import consumer
+  implementations or locate their internal files. Run `shared` tests for changes.
 - `esp-mosaico-vibe-mode/` owns retained Vibe Mode firmware, its public product
   ABI header, reviewed bundle, and integration tests. Legacy tool paths are removed.
 - Do not recreate a nested ESP-Iris submodule. Both products resolve from the

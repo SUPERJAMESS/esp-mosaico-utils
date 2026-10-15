@@ -299,3 +299,30 @@ def test_account_identity_survives_token_rotation_and_restart(server, tmp_path):
         application_id=result["application_id"], expected_project_version=1)
     assert update["code"] == result["code"] and update["project_version"] == 2
     assert Store(store.root).account_id("a-new-token-hash") == owner
+
+
+def test_generated_packaging_uses_shared_resources_and_is_repeatable(tmp_path):
+    from ctypes.util import find_library
+    if not find_library('raqm'):
+        pytest.skip('Native text shaping requires libraqm')
+    from mosaico_cli.ideas_archive import package_project
+    from shared.ideas import generate_resources
+    root, files, _ = upload()
+    for name in (root['firmware']['path'], 'website/readme.md'):
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(files[name])
+    font = tmp_path / 'font.ttf'
+    font.write_bytes((ROOT / 'esp-mosaico-vibe-mode/firmware/vibe-mode/ui/fonts/DejaVuSans.ttf').read_bytes())
+    text = dict(name='Weather', description='Clear skies.')
+    config = dict(schema='mosaico-ideas/project-release/1', project=root['project'],
+                  firmware=root['firmware']['path'], website=dict(readme='website/readme.md'),
+                  device=dict(default_locale='zh-CN', presentations={
+                      locale: dict(mode='generate', font='font.ttf', **text) for locale in ('zh-CN', 'en')}))
+    (tmp_path / 'mosaico-ideas.json').write_bytes(encoded(config))
+    one, two = tmp_path / 'one.zip', tmp_path / 'two.zip'
+    assert package_project(tmp_path, one)['sha256'] == package_project(tmp_path, two)['sha256']
+    result = validate_release(one)
+    for locale in ('zh-CN', 'en'):
+        for name, data in generate_resources(locale=locale, font=font, **text).items():
+            assert result.files['device/' + locale + '/' + name] == data

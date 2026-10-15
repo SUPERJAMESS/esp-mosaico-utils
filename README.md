@@ -16,6 +16,7 @@ Recovery commands, protocol identifiers and ABI names remain stable.
 | `ESP-Iris/` | ESP-Iris component, Developer Gateway, and Web Workbench | `0.1.x` |
 | `mosaico-tools/` | ESP-Mosaico host CLI and build runner | `0.1.x` |
 | `esp-mosaico-vibe-mode/` | Vibe Mode firmware and Recovery ABI | `0.1` |
+| [`shared/`](shared/README.md) | GSP host-tool acquisition and Ideas display-resource generation | Follows this checkout |
 
 The release version of `mosaico-tools` describes the host toolchain.
 The embedded Vibe Mode firmware keeps its independent version. New source
@@ -37,6 +38,7 @@ from that checkout. For ESP-Mosaico-Vibe the intended layout is:
 submodule/esp-mosaico-utils/
 ├── ESP-Iris/
 ├── mosaico-tools/
+├── shared/
 └── esp-mosaico-vibe-mode/
 ```
 
@@ -55,7 +57,8 @@ Create a Python environment and install the ESP-Iris host test dependencies,
 then run:
 
 ```sh
-python -m pytest -q esp-mosaico-vibe-mode/tests
+python -m pip install -r mosaico-tools/requirements-ideas.txt -r esp-mosaico-vibe-mode/tests/requirements-ui.txt
+python -m pytest -q shared mosaico-tools/tests esp-mosaico-vibe-mode/tests
 cd ESP-Iris/components/esp_iris/tools
 python -m pytest -q --ignore=tests/e2e
 ```

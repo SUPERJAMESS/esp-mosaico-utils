@@ -47,7 +47,7 @@ ZIP 原始大小及外层解压总量各 100 MiB、外层清单 64 KiB、设备 
 | 上传编排 | [platform_upload.py](../../tools/mosaico_cli/platform_upload.py) | 从逐文件任务改成校验/复用既有 ZIP、一次上传、查询完成回执；不提前创建空应用 |
 | HTTP 客户端 | [platform_client.py](../../tools/mosaico_cli/platform_client.py) | 新增从磁盘流式传输 request/package 两部分；现有 multipart 以 bytes 拼接整个请求，不适合 100 MiB 包 |
 | CLI 入口 | [cli.py](../../tools/mosaico_cli/cli.py) | 实现 `project package`、`project validate <zip>` 和 `project upload <zip>`，保留明确 create/update 选择 |
-| 展示生成 | [prepare_idea_presentation.py](../../../esp-mosaico-vibe-mode/firmware/vibe-mode/tools/prepare_idea_presentation.py)、[ideas_font.py](../../../esp-mosaico-vibe-mode/firmware/vibe-mode/tools/ideas_font.py) | 去掉生成资源对 code 的依赖，生成并校验两个独立语言目录 |
+| 展示生成 | [prepare_idea_presentation.py](../../../esp-mosaico-vibe-mode/firmware/vibe-mode/tools/prepare_idea_presentation.py)、[共享资源生成模块](../../../shared/ideas/README.md) | 去掉生成资源对 code 的依赖，生成并校验两个独立语言目录 |
 | 设备内容模型 | [ideas_package.c](../../../esp-mosaico-vibe-mode/firmware/vibe-mode/components/app_ideas/src/ideas_package.c)、[ideas_package.h](../../../esp-mosaico-vibe-mode/firmware/vibe-mode/components/app_ideas/private/ideas_package.h) | 从单一平铺 download/1 模型改成根清单、内层固件、双语资源的分阶段解析和统一内部索引 |
 | NAND 存储 | [ideas_store.c](../../../esp-mosaico-vibe-mode/firmware/vibe-mode/components/app_ideas/src/ideas_store.c) | 当前清理明确拒绝子目录；增加受限目录创建、遍历、验证、删除和事务恢复 |
 | 下载和安装编排 | [factory_ideas.c](../../../esp-mosaico-vibe-mode/firmware/vibe-mode/components/app_ideas/src/factory_ideas.c) | 替换 POST resolve；固定根摘要，按引用获取文件，保留预览确认与安装分离 |

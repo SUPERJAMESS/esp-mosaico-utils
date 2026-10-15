@@ -42,6 +42,7 @@ RECOVERY_SOURCE_PATHS = (
     "../../include",
     "../../product_contract.json",
     "../../../ESP-Iris/components/esp_iris",
+    "../../../shared/ideas",
 )
 
 

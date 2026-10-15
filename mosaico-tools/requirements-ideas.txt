@@ -1,8 +1,7 @@
 # Host-only package validation, display generation and local integration server.
-Pillow>=10.4,<13
+-r ../shared/ideas/requirements.txt
 jsonschema>=4.23,<5
 markdown-it-py>=3,<5
-freetype-py>=2.4,<3
 # Iris host dependencies are bootstrapped by mosaico.py; text shaping also needs libraqm.
 # Only needed when regenerating the embedded system font/catalog.
 fonttools>=4.50,<5
