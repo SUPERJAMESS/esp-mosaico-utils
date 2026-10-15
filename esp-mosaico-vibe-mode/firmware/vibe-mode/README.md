@@ -23,16 +23,20 @@ ROM 身份不符、端口不唯一或重枚举超时会停止，不尝试其它�
 当前源码使用 ESP-Iris 0.2、Recovery ABI 2 和 `mosaico-retained-test-2m-v2`
 布局。`vibe_mode` 为 `app/test`，`main_app` 为 `app/ota_0`。固件工程名为
 `vibe-mode`，新构建产物为 `vibe-mode.bin`、`vibe-mode.elf`，候选包的
-manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 保留原始 `factory`
-工程身份、`factory.bin` 和哈希，仍是经过实机验证的 0.2.0
-基础包，S31 产品统一使用 QIO。具体覆盖范围与未验证项目见
+manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 已于 2026-10-15 更新为
+源码提交 `31b1957` 的 `vibe-mode.bin`，版本保持 0.2.0，替换原 `factory.bin`。
+基础安装、启动往返和用户手动验证已通过，S31 产品统一使用 QIO。具体覆盖范围与未验证项目见
 [0.2 验证记录](../../docs/validation-0.2.md)，不以基础包更新代表全部平台验收。
 
 目录改名后须使用新的构建目录重新配置，避免复用包含旧绝对路径的 CMake 缓存。
 `recover` launcher 已使用新的 `build-mosaico-vibe-mode` 构建目录。
 `recover` 命令、Recovery 构建目标、协议字段、ABI 和分区布局保持兼容。
 `recovery-current-bundle` 使用新产物名称；`recovery-image` 按评审包 manifest
-读取原始产物名称。改名不会自动重建或发布评审包。
+读取清单中的产物名称。改名不会自动重建或发布评审包。
+
+POSIX 平台的 `mosaico.py recover` 通过同一原生扩展执行 ROM 身份校验，
+Gateway 交出该设备的控制和数据接口；IDF 子进程校验并复用 host worker
+继承的设备锁。Windows 保留原有恢复目标，本轮未验证 Windows 烧录。
 
 - [启动契约与迁移](../../docs/migration-0.2.md)：NVS 一次性维护意图、基础安装
   otadata 标记、保护范围与从第三方固件恢复。
@@ -599,4 +603,5 @@ IRIS_HOST_SANITIZERS=1 python -m pytest esp-mosaico-vibe-mode/tests/test_vui_mem
 二维码仍是提交的静态图片，按原资源更新工具生成后重新编译轻量资源包。
 模拟器检查页面和交互，不能替代面板 TE/DMA、实体触摸、自动旋转及实际更新的设备验收。
 固定槽保持 `0x20000` / `0x1c0000`，构建执行镜像大小及 USB/Iris 内部 BSS 检查。
-本轮不更新已评审的 `prebuilt/recovery`；新镜像完成设备验证后再发布。
+当前评审包已更新；构建哈希、设备结果及验证限制见
+[2026-10-15 预编译包更新记录](../../docs/validation-0.2.md#预编译包更新2026-10-15)。
