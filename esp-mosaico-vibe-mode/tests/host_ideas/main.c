@@ -90,7 +90,7 @@ static void cancel_open(void) {
     mock_environment_t *env = mock_environment();
     bool ready = cancel_at_commit ? s.phase == IDEAS_PHASE_SAVE :
         cancel_in_flash ? s.phase == IDEAS_PHASE_CHECK_IMAGE && env->flash_read_bytes > flash_before + 8192 :
-        s.phase == IDEAS_PHASE_VERIFY_FILES && s.received >= 16384;
+        s.phase == IDEAS_PHASE_CHECK_IMAGE;
     if (!ready) return;
     cancelled = true;
     flash_at_cancel = env->flash_read_bytes;
@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
         env->observe = NULL;
         factory_ideas_snapshot_t s = snapshot();
         assert(!s.failed && !s.cancelled && env->installs == 1 && env->restarts == (current ? 2U : 1U));
-        assert(verify_bytes == verify_total && verify_samples > 1);
+        assert(!verify_samples && !(phases & (1U << IDEAS_PHASE_VERIFY_FILES)));
         if (current) assert(image_samples > 1 && image_bytes == s.total);
     } else if (!strcmp(scenario, "open-cancel-block") ||
                !strcmp(scenario, "open-cancel-current") ||
@@ -236,7 +236,6 @@ int main(int argc, char **argv) {
             assert(env->installs == installs && env->commits == commits && env->restarts == restarts);
             if (cancel_in_flash) assert(env->flash_read_bytes - flash_at_cancel <= 4096);
             else {
-                assert(s.received < s.total || queued);
                 assert(env->writes == writes && env->flash_read_bytes == flash_before);
                 if (queued) assert(env->firmware_reads == reads);
             }
@@ -470,7 +469,7 @@ int main(int argc, char **argv) {
         assert(icon && size);
         free(icon);
         if (!strcmp(scenario, "install-corrupt")) {
-            FILE *f = fopen("/nand/ideas/042731/current/device/en/font.miff", "r+b");
+            FILE *f = fopen("/nand/ideas/042731/current/firmware/app.bin", "r+b");
             assert(f && fputc('X', f) != EOF && fclose(f) == 0);
         }
         if (!strcmp(scenario, "install-commit-failure"))
@@ -484,7 +483,7 @@ int main(int argc, char **argv) {
             assert(factory_ideas_request(IDEAS_START, code) == ESP_OK && env->restarts == 1);
         } else {
             assert(s.failed && !s.items[0].boot && !env->commits);
-            assert(env->installs == (!strcmp(scenario, "install-corrupt") ? 0 : 1));
+            assert(env->installs == 1); /* Corruption is caught in NOR, before boot commit. */
             assert(factory_ideas_request(IDEAS_START, code) == ESP_ERR_INVALID_STATE);
         }
         assert(requests == env->resolves + env->assets + env->firmware);
@@ -497,9 +496,9 @@ int main(int argc, char **argv) {
         uint64_t flash_reads = env->flash_read_bytes;
         run(IDEAS_INSTALL);
         assert(!snapshot().failed && snapshot().items[0].boot);
-        /* One preflight NAND pass, one installer pass. The fake installer
-         * owns NOR verification; the service must not hash it again. */
-        assert(env->firmware_reads - reads == 2);
+        /* Only the installer reads NAND firmware. Its NOR verification is
+         * authoritative; the service must not hash either source again. */
+        assert(env->firmware_reads - reads == 1);
         assert(env->flash_read_bytes == flash_reads);
         reads = env->firmware_reads;
         run(IDEAS_CHECK);

@@ -235,6 +235,8 @@ FILE *__wrap_fopen(const char *path, const char *mode) {
         env.writes++;
     if (!strncmp(path, "/nand/", 6) && strstr(path, "/firmware/app.bin") && !strcmp(mode, "rb")) {
         env.firmware_reads++;
+    }
+    if (!strncmp(path, "/nand/", 6) && strstr(path, "/current/manifest.json") && !strcmp(mode, "rb")) {
         if (env.cancel_on_delay) {
             env.cancel_on_delay = false;
             assert(factory_ideas_cancel() == ESP_OK);
@@ -530,7 +532,7 @@ esp_err_t nvs_commit(nvs_handle_t handle) {
 }
 void nvs_close(nvs_handle_t handle) { (void)handle; }
 
-/* The NAND installer boundary copies verified fixture payloads into fake NOR.
+/* The NAND installer boundary copies fixture payloads and checks fake NOR.
  * Flash policy/commit gates are exercised by the separate backend fixture. */
 esp_err_t factory_nand_install_idea(const char *manifest_path, const char *manifest,
                                     esp_err_t (*before_commit)(void *), void *ctx) {
@@ -550,6 +552,14 @@ esp_err_t factory_nand_install_idea(const char *manifest_path, const char *manif
         FILE *f = fopen(path, "rb");
         assert(f && fread(flash + offset, 1, size, f) == size && fgetc(f) == EOF);
         fclose(f);
+        uint8_t digest[32];
+        char actual[65];
+        SHA256(flash + offset, size, digest);
+        for (unsigned i = 0; i < sizeof(digest); ++i) snprintf(actual + 2 * i, 3, "%02x", digest[i]);
+        if (strcmp(actual, cJSON_GetStringValue(cJSON_GetObjectItem(component, "sha256")))) {
+            cJSON_Delete(json);
+            return ESP_ERR_INVALID_CRC;
+        }
     }
     cJSON_Delete(json);
     esp_err_t err = before_commit(ctx);

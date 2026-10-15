@@ -28,6 +28,7 @@
 #include "esp_log.h"
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "psa/crypto.h"
@@ -366,8 +367,91 @@ static void catalog_scan_task(void *argument)
     vTaskDelete(NULL);
 }
 
+typedef struct {
+    uint8_t *data;
+    size_t size;
+    bool last;
+    esp_err_t result;
+    int64_t read_us;
+} nand_read_chunk_t;
+
+typedef struct {
+    FILE *file;
+    QueueHandle_t requests, results;
+    TaskHandle_t task;
+    uint8_t *extra;
+    bool pending;
+} nand_prefetch_t;
+
+static void nand_prefetch_task(void *argument)
+{
+    nand_prefetch_t *reader = argument;
+    for (;;) {
+        nand_read_chunk_t chunk;
+        xQueueReceive(reader->requests, &chunk, portMAX_DELAY);
+        if (!chunk.data) {
+            xQueueSend(reader->results, &chunk, portMAX_DELAY);
+            /* The owner joins this task before closing FILE or freeing queues.
+             * No filesystem lock or shared object is touched after this ack. */
+            for (;;) vTaskSuspend(NULL);
+        }
+        int64_t started = factory_io_now();
+        size_t size = fread(chunk.data, 1, chunk.size, reader->file);
+        chunk.result = size == chunk.size && !ferror(reader->file) ? ESP_OK : ESP_ERR_INVALID_SIZE;
+        if (chunk.result == ESP_OK && chunk.last &&
+            (fgetc(reader->file) != EOF || ferror(reader->file)))
+            chunk.result = ESP_ERR_INVALID_SIZE;
+        chunk.size = size;
+        chunk.read_us = factory_io_now() - started;
+        xQueueSend(reader->results, &chunk, portMAX_DELAY);
+    }
+}
+
+static void nand_prefetch_stop(nand_prefetch_t *reader)
+{
+    if (reader->task) {
+        nand_read_chunk_t chunk;
+        if (reader->pending)
+            xQueueReceive(reader->results, &chunk, portMAX_DELAY);
+        chunk = (nand_read_chunk_t){0};
+        xQueueSend(reader->requests, &chunk, portMAX_DELAY);
+        xQueueReceive(reader->results, &chunk, portMAX_DELAY);
+        vTaskDeleteWithCaps(reader->task);
+    }
+    if (reader->requests) vQueueDelete(reader->requests);
+    if (reader->results) vQueueDelete(reader->results);
+    free(reader->extra);
+    *reader = (nand_prefetch_t){0};
+}
+
+static void nand_prefetch_start(nand_prefetch_t *reader, FILE *file)
+{
+    reader->file = file;
+    reader->extra = heap_caps_malloc(NAND_UPDATE_READ_BYTES,
+                                      MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
+    reader->requests = xQueueCreate(1, sizeof(nand_read_chunk_t));
+    reader->results = xQueueCreate(1, sizeof(nand_read_chunk_t));
+    if (!reader->extra || !reader->requests || !reader->results ||
+        xTaskCreatePinnedToCoreWithCaps(nand_prefetch_task, "nand_prefetch", 4096, reader, 3,
+                                       &reader->task, tskNO_AFFINITY,
+                                       MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT | MALLOC_CAP_DMA) != pdPASS) {
+        /* Prefetch is optional: a low-memory board still installs serially. */
+        nand_prefetch_stop(reader);
+    }
+}
+
+static void nand_prefetch_request(nand_prefetch_t *reader, uint8_t *data, uint32_t remaining)
+{
+    nand_read_chunk_t chunk = {.data = data,
+        .size = remaining < NAND_UPDATE_READ_BYTES ? remaining : NAND_UPDATE_READ_BYTES,
+        .last = remaining <= NAND_UPDATE_READ_BYTES};
+    xQueueSend(reader->requests, &chunk, portMAX_DELAY);
+    reader->pending = true;
+}
+
 static esp_err_t read_component(const char *path,
-                                const esp_iris_system_update_component_t *component)
+                                const esp_iris_system_update_component_t *component,
+                                bool idea)
 {
     struct stat info;
     ESP_RETURN_ON_FALSE(stat(path, &info) == 0 && S_ISREG(info.st_mode), ESP_ERR_NOT_FOUND, TAG,
@@ -381,11 +465,17 @@ static esp_err_t read_component(const char *path,
     /* SPI1 NOR writes from PSRAM otherwise bounce through IDF's tiny temporary
      * buffer. Reserve the internal chunk before any destructive erase. */
     uint8_t *buffer = heap_caps_malloc(NAND_UPDATE_READ_BYTES,
-                                       MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+                                       MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
     esp_err_t err = buffer ? ESP_OK : ESP_ERR_NO_MEM;
+    nand_prefetch_t reader = {0};
+    if (err == ESP_OK && idea && component->size > NAND_UPDATE_READ_BYTES) {
+        nand_prefetch_start(&reader, file);
+        if (reader.task) nand_prefetch_request(&reader, buffer, component->size);
+        ESP_LOGI(TAG, "NAND install reader: %s", reader.task ? "double buffered" : "serial");
+    }
     psa_hash_operation_t hash = PSA_HASH_OPERATION_INIT;
     bool hash_active = false;
-    if (err == ESP_OK) {
+    if (err == ESP_OK && !idea) {
         err = psa_crypto_init() == PSA_SUCCESS &&
                       psa_hash_setup(&hash, PSA_ALG_SHA_256) == PSA_SUCCESS
                   ? ESP_OK : ESP_FAIL;
@@ -402,24 +492,39 @@ static esp_err_t read_component(const char *path,
         if (request > NAND_UPDATE_READ_BYTES) {
             request = NAND_UPDATE_READ_BYTES;
         }
-        started = factory_io_now();
-        const size_t read_size = fread(buffer, 1, request, file);
-        metrics.read += factory_io_now() - started;
-        metrics.bytes += read_size;
-        if (read_size == 0) {
-            err = ESP_ERR_INVALID_SIZE;
-            break;
+        uint8_t *data = buffer;
+        size_t read_size;
+        if (reader.task) {
+            nand_read_chunk_t chunk;
+            xQueueReceive(reader.results, &chunk, portMAX_DELAY);
+            reader.pending = false;
+            data = chunk.data;
+            read_size = chunk.size;
+            metrics.read += chunk.read_us;
+            err = chunk.result;
+            if (err == ESP_OK && received + read_size < component->size)
+                nand_prefetch_request(&reader, data == buffer ? reader.extra : buffer,
+                                      component->size - received - read_size);
+        } else {
+            started = factory_io_now();
+            read_size = fread(data, 1, request, file);
+            metrics.read += factory_io_now() - started;
+            if (read_size != request || ferror(file)) err = ESP_ERR_INVALID_SIZE;
         }
-        started = factory_io_now();
-        psa_status_t status = psa_hash_update(&hash, buffer, read_size);
-        metrics.hash += factory_io_now() - started;
-        if (status != PSA_SUCCESS) {
-            err = ESP_FAIL;
-            break;
+        metrics.bytes += read_size;
+        if (err != ESP_OK) break;
+        if (!idea) {
+            started = factory_io_now();
+            psa_status_t status = psa_hash_update(&hash, data, read_size);
+            metrics.hash += factory_io_now() - started;
+            if (status != PSA_SUCCESS) {
+                err = ESP_FAIL;
+                break;
+            }
         }
         started = factory_io_now();
         err = factory_system_update_source_write_component(FACTORY_SYSTEM_UPDATE_OWNER_NAND,
-                                                           component, received, buffer, read_size);
+                                                           component, received, data, read_size);
         metrics.write += factory_io_now() - started;
         if (err == ESP_OK) {
             received += (uint32_t)read_size;
@@ -437,10 +542,13 @@ static esp_err_t read_component(const char *path,
 
     uint8_t digest[ESP_IRIS_SYSTEM_SHA256_BYTES] = {0};
     size_t digest_size = 0;
-    if (err == ESP_OK && (received != component->size || fgetc(file) != EOF || ferror(file))) {
+    bool pipelined = reader.task != NULL;
+    nand_prefetch_stop(&reader);
+    if (err == ESP_OK && (received != component->size ||
+                         (!pipelined && (fgetc(file) != EOF || ferror(file))))) {
         err = ESP_ERR_INVALID_SIZE;
     }
-    if (err == ESP_OK) {
+    if (err == ESP_OK && !idea) {
         const psa_status_t status = psa_hash_finish(&hash, digest, sizeof(digest), &digest_size);
         if (status == PSA_SUCCESS) {
             hash_active = false;
@@ -452,8 +560,9 @@ static esp_err_t read_component(const char *path,
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "finalizing NAND component %u", component->id);
         started = factory_io_now();
-        err = factory_system_update_source_end_component(FACTORY_SYSTEM_UPDATE_OWNER_NAND,
-                                                         component, digest);
+        err = idea ? factory_system_update_source_end_idea_component(component)
+                   : factory_system_update_source_end_component(FACTORY_SYSTEM_UPDATE_OWNER_NAND,
+                                                                 component, digest);
         metrics.end = factory_io_now() - started;
         if (err == ESP_OK) {
             ESP_LOGI(TAG, "NAND component %u verified", component->id);
@@ -504,7 +613,7 @@ esp_err_t factory_nand_install_idea(const char *manifest_path, const char *manif
         if (err == ESP_OK)
             err = component_path(manifest_path, filename, path);
         if (err == ESP_OK)
-            err = read_component(path, &component);
+            err = read_component(path, &component, true);
     }
     if (err == ESP_OK && before_commit)
         err = before_commit(ctx);
@@ -555,7 +664,7 @@ static void nand_update_task(void *argument)
         if (err == ESP_OK) {
             ESP_LOGI(TAG, "reading NAND component %u (%lu bytes)", component.id,
                      (unsigned long)component.size);
-            err = read_component(path, &component);
+            err = read_component(path, &component, false);
         }
     }
     if (err == ESP_OK) {

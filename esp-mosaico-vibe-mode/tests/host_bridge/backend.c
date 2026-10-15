@@ -670,7 +670,7 @@ int main(void)
         assert(update_begin_component(&c, &s_backend) == ESP_OK);
         const uint8_t *bytes = i ? (const uint8_t *)"data" : new_table;
         assert(update_write_component(&c, 0, bytes, c.size, &s_backend) == ESP_OK);
-        assert(update_end_component(&c, c.sha256, &s_backend) == ESP_OK);
+        assert(factory_system_update_source_end_idea_component(&c) == ESP_OK);
     }
     assert(image_checks == 1 && !boot_checks && !boot_selections);
     s_backend.transaction.plan[1].image_verified = false;
@@ -696,13 +696,13 @@ int main(void)
         assert(update_begin_component(&c, &s_backend) == ESP_OK);
         const uint8_t *bytes = i ? (const uint8_t *)"data" : new_table;
         assert(update_write_component(&c, 0, bytes, c.size, &s_backend) == ESP_OK);
-        assert(update_end_component(&c, c.sha256, &s_backend) == ESP_OK);
+        assert(factory_system_update_source_end_idea_component(&c) == ESP_OK);
     }
     assert(factory_system_update_source_commit_deferred(op) == ESP_OK);
     assert(boot->address == 0x210000 && !memcmp(flash + 0x210000, "data", 4));
     mock_create_fail = 0;
     assert(image_checks == 2 && !boot_checks && boot_selections == 2);
-    for (int fault = 0; fault < 2; ++fault) {
+    for (int fault = 0; fault < 3; ++fault) {
         setup();
         assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND, layout_manifest_without_data()) == ESP_OK);
         assert(!s_backend.transaction.plan[1].image_verified);
@@ -710,15 +710,48 @@ int main(void)
         for (size_t i = 0; i < 2; ++i) {
             c = s_backend.transaction.plan[i].descriptor;
             assert(update_begin_component(&c, &s_backend) == ESP_OK);
-            assert(update_write_component(&c, 0, i ? (const uint8_t *)"data" : new_table,
+            assert(update_write_component(&c, 0, i ? (const uint8_t *)(fault == 2 ? "bad!" : "data") : new_table,
                                           c.size, &s_backend) == ESP_OK);
             fail_image = i && fault == 0;
             corrupt_readback = i && fault == 1;
-            assert((update_end_component(&c, c.sha256, &s_backend) == ESP_OK) == (i == 0));
+            assert((factory_system_update_source_end_idea_component(&c) == ESP_OK) == (i == 0));
         }
         assert(!s_backend.transaction.plan[1].image_verified);
         assert(factory_system_update_source_commit_deferred(op) != ESP_OK);
         assert(!boot_checks && !boot_selections && boot == &mock_factory);
+    }
+    /* A changed staged table must fail before it can authorize an erase using
+     * its layout, even if its bytes still describe a structurally valid table. */
+    setup();
+    assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND, layout_manifest_without_data()) == ESP_OK);
+    c = s_backend.transaction.plan[0].descriptor;
+    assert(update_begin_component(&c, &s_backend) == ESP_OK);
+    assert(factory_system_update_source_end_idea_component(&c) == ESP_ERR_INVALID_STATE);
+    assert(update_write_component(&c, 0, new_table, c.size, &s_backend) == ESP_OK);
+    s_backend.transaction.partition_table_image[c.size - 1] ^= 1;
+    assert(factory_system_update_source_end_idea_component(&c) == ESP_ERR_INVALID_CRC);
+    assert(!s_backend.transaction.target_layout_valid && !erased && !mock_writes);
+    assert(factory_system_update_source_commit_deferred(op) != ESP_OK);
+    assert(!boot_selections);
+    setup();
+    assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, layout_manifest_without_data()) == ESP_OK);
+    c = s_backend.transaction.plan[0].descriptor;
+    assert(factory_system_update_source_end_idea_component(&c) == ESP_ERR_INVALID_STATE);
+    /* Resource partitions use the same final NOR check as applications. */
+    for (unsigned fault = 0; fault < 2; ++fault) {
+        setup();
+        assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_NAND, layout_manifest(true)) == ESP_OK);
+        c = s_backend.transaction.plan[0].descriptor;
+        assert(update_begin_component(&c, &s_backend) == ESP_OK);
+        assert(update_write_component(&c, 0, new_table, c.size, &s_backend) == ESP_OK);
+        assert(factory_system_update_source_end_idea_component(&c) == ESP_OK);
+        c = s_backend.transaction.plan[1].descriptor;
+        assert(update_begin_component(&c, &s_backend) == ESP_OK);
+        assert(update_write_component(&c, 0, (const uint8_t *)"data", 4, &s_backend) == ESP_OK);
+        corrupt_readback = fault;
+        assert(factory_system_update_source_end_idea_component(&c) ==
+               (fault ? ESP_ERR_INVALID_CRC : ESP_OK));
+        assert(s_backend.transaction.plan[1].completed == !fault);
     }
     puts("Recovery backend ownership, layout, readback and factory gates passed");
 }

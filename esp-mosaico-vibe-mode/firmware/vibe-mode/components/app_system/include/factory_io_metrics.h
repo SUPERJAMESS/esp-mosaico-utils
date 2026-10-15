@@ -11,7 +11,8 @@
 #endif
 
 /* Task-local counters: no allocation, per-chunk logging or shared state.
- * Stage times exclude one another within a record; nested records overlap. */
+ * Nested records overlap. Pipelined NAND read time also overlaps NOR writes;
+ * total elapsed time, not the sum of stage times, measures install latency. */
 typedef struct {
     int64_t started, read, write, hash, begin, end, sync;
     uint64_t bytes;

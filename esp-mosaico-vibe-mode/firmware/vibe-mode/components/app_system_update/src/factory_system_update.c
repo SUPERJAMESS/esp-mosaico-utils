@@ -219,6 +219,36 @@ esp_err_t factory_system_update_source_end_component(
     return update_end_component(component, actual_sha256, ctx);
 }
 
+esp_err_t factory_system_update_source_end_idea_component(
+    const esp_iris_system_update_component_t *component)
+{
+    update_context_t *ctx = &s_backend;
+    ESP_RETURN_ON_FALSE(update_owner_is(ctx, FACTORY_SYSTEM_UPDATE_OWNER_NAND) &&
+                            ctx->transaction.prepared && !ctx->transaction.remote_bridge &&
+                            !ctx->transaction.recovery_update && component != NULL &&
+                            update_plan_for_kind(ctx, ESP_IRIS_SYSTEM_UPDATE_COMPONENT_BOOTLOADER) == NULL &&
+                            ctx->transaction.active_index >= 0 &&
+                            ctx->transaction.received == component->size,
+                        ESP_ERR_INVALID_STATE, TAG, "Idea component end state");
+    int index = update_find_plan_component(ctx, component);
+    ESP_RETURN_ON_FALSE(index == ctx->transaction.active_index, ESP_ERR_INVALID_ARG, TAG,
+                        "Idea descriptor does not match plan");
+    ESP_RETURN_ON_FALSE(component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_APPLICATION ||
+                            component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_DATA ||
+                            component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_PARTITION_TABLE,
+                        ESP_ERR_NOT_SUPPORTED, TAG, "not an ordinary Idea component");
+    if (component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_PARTITION_TABLE) {
+        uint8_t digest[32];
+        ESP_RETURN_ON_ERROR(update_hash_memory(ctx->transaction.partition_table_image,
+                                               component->size, digest), TAG, "hash staged layout");
+        ESP_RETURN_ON_FALSE(update_bytes_equal(digest, component->sha256, sizeof(digest)),
+                            ESP_ERR_INVALID_CRC, TAG, "staged layout digest mismatch");
+    }
+    /* The normal backend compares actual NOR readback against this expected
+     * digest and validates the application image before marking it complete. */
+    return update_end_component(component, component->sha256, ctx);
+}
+
 bool factory_system_update_source_needs_restart(factory_system_update_owner_t owner)
 {
     update_context_t *ctx = &s_backend;
@@ -386,6 +416,13 @@ esp_err_t factory_system_update_source_end_component(
     (void)owner;
     (void)component;
     (void)actual_sha256;
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
+esp_err_t factory_system_update_source_end_idea_component(
+    const esp_iris_system_update_component_t *component)
+{
+    (void)component;
     return ESP_ERR_NOT_SUPPORTED;
 }
 

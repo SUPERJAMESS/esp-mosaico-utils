@@ -27,7 +27,9 @@ def test_internal_nand_reader(tmp_path):
                f'-DNAND_SOURCE="{source}"', "-I" + str(tmp_path), "-I" + str(fixture),
                "-I" + str(cjson.parent), *["-I" + str(p) for p in components.glob("*/include")],
                "-I" + str(root.parent / "ESP-Iris/components/esp_iris/include"),
-               str(fixture / "nand.c"), "-Wl,--gc-sections", "-lcrypto", "-o", str(exe)]
+               str(fixture / "nand.c"), "-Wl,--gc-sections", "-lcrypto", "-pthread", "-o", str(exe)]
+    if os.environ.get("IRIS_HOST_SANITIZERS") == "1":
+        command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-no-pie"]
     result = subprocess.run(command, text=True, capture_output=True)
     assert result.returncode == 0, result.stdout + result.stderr
     result = subprocess.run([str(exe)], text=True, capture_output=True, timeout=10)

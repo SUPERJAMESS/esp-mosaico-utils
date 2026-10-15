@@ -68,7 +68,8 @@ typedef enum { IDEAS_STORE_VERIFY, IDEAS_STORE_IMAGE, IDEAS_STORE_SAVE } ideas_s
 typedef void (*ideas_store_stage_fn)(ideas_store_stage_t stage, void *ctx);
 /* All functions are called by one serialized library worker. root is the
  * dedicated Ideas directory, never the complete NAND volume. */
-/* prepare returns a fully checked generation; refresh is for display only.
+/* prepare returns a fully checked generation; refresh authenticates metadata
+ * and recovers interrupted transactions. Installers must verify NOR contents.
  * finish may only consume the package just verified by download/prepare while
  * holding the storage lease, without yielding ownership to another writer. */
 esp_err_t ideas_store_prepare(const char *root, const char *code, ideas_package_t *out);

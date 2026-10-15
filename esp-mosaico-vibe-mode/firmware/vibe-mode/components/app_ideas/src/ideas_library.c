@@ -342,23 +342,6 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool audit_boot) {
     return ESP_OK;
 }
 
-static esp_err_t open_progress(uint64_t checked, uint64_t total, unsigned verified,
-                               unsigned count, void *arg) {
-    ideas_context_t *ctx = arg;
-    xSemaphoreTake(ctx->lock, portMAX_DELAY);
-    esp_err_t err = ctx->cancel_requested ? ESP_ERR_INVALID_STATE : ESP_OK;
-    if (err == ESP_OK) {
-        ctx->state->phase = IDEAS_PHASE_VERIFY_FILES;
-        ctx->state->received = checked;
-        ctx->state->total = total;
-        ctx->state->files_verified = verified;
-        ctx->state->file_count = count;
-        snprintf(ctx->state->title, sizeof(ctx->state->title), "Setting boot application");
-        snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Reading and verifying files");
-    }
-    xSemaphoreGive(ctx->lock);
-    return err;
-}
 esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
     if (job->command == IDEAS_ROW)
         return ideas_prepare_row(ctx, job);
@@ -392,10 +375,11 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
         return ESP_ERR_NO_MEM;
     bool installing = job->command == IDEAS_INSTALL || job->command == IDEAS_OPEN;
     if (installing)
-        ideas_message(ctx, "Setting boot application", "Verifying downloaded files");
-    esp_err_t err = installing
-                        ? ideas_store_prepare_progress(ROOT, job->code, local, open_progress, ctx)
-                        : ideas_store_refresh(ROOT, job->code, local);
+        ideas_message(ctx, "Setting boot application", "Checking application manifest");
+    /* Authenticate the manifests, without another full NAND payload pass.
+     * Interrupted downloads still recover their journal before installation;
+     * firmware integrity is checked against the actual NOR contents. */
+    esp_err_t err = ideas_store_refresh(ROOT, job->code, local);
     if (job->command == IDEAS_PREVIEW) {
         job->pending = calloc(1, sizeof(*job->pending));
         if (!job->pending)

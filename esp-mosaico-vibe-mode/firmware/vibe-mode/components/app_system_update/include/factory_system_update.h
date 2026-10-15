@@ -106,6 +106,12 @@ factory_system_update_source_write_component(factory_system_update_owner_t owner
 esp_err_t factory_system_update_source_end_component(
     factory_system_update_owner_t owner, const esp_iris_system_update_component_t *component,
     const uint8_t actual_sha256[ESP_IRIS_SYSTEM_SHA256_BYTES]);
+/* Finish an ordinary NAND Idea without a redundant source-stream hash.
+ * Application/data are hashed from NOR against the prepared manifest. The
+ * staged partition table is hashed and validated before any layout is used,
+ * and its actual NOR contents are checked at commit. No protected firmware. */
+esp_err_t factory_system_update_source_end_idea_component(
+    const esp_iris_system_update_component_t *component);
 /* Return whether owner entered a critical Bridge commit requiring reboot.
  * A failed critical commit still requires reloading partition descriptors. */
 bool factory_system_update_source_needs_restart(factory_system_update_owner_t owner);

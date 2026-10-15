@@ -193,6 +193,8 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"Checking installed application", "正在检查已安装应用"},
     {"Preparing application", "正在准备应用"},
     {"Writing application", "正在写入应用"},
+    {"Write", "写入"},
+    {"Checking application manifest", "正在检查应用清单"},
     {"Connect USB to your computer", "请连接电脑 USB"},
     {"Saved", "已保存"},
     {"Ready to save", "可保存到本机"},

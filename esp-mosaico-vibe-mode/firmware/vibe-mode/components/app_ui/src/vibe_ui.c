@@ -58,7 +58,7 @@ static void transfer_text(vibe_ui_t *s)
                             vibe_transfer_permille(t->received, t->total) / 10);
     const char *verb = (!strcmp(v->update_owner, "Bridge") || !strcmp(v->update_owner, "Cloud"))
                            ? T(s, "Download")
-                       : !strcmp(v->update_owner, "NAND") ? T(s, "Read")
+                       : !strcmp(v->update_owner, "NAND") ? T(s, "Write")
                                                           : T(s, "Receive");
     if (t->phase == VIBE_TRANSFER_VERIFY_FILES || t->phase == VIBE_TRANSFER_CHECK_IMAGE)
         TEXT(s, UPDATE_RATE, "");

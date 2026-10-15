@@ -323,8 +323,8 @@ esp_err_t ideas_store_read(const char *root, const char *code, ideas_package_t *
         return ESP_ERR_NOT_FOUND;
     return load_generation(current, code, &journal, p, true, true, NULL, NULL);
 }
-/* Display-only access authenticates root/inner manifests; selected assets are
- * still checked by the presentation loader. Never use this for commit/install. */
+/* Authenticate root/inner manifests without reading payloads. Presentation
+ * loaders check selected assets; the installer checks the actual NOR contents. */
 esp_err_t ideas_store_metadata(const char *root, const char *code, ideas_package_t *p) {
     if (!p)
         return ESP_ERR_INVALID_ARG;
@@ -356,8 +356,8 @@ esp_err_t ideas_store_select(const char *root, ideas_package_t *p, unsigned lang
     free(json);
     return err;
 }
-/* Finish only the generation verified by this operation. This is not a
- * persistent validation cache: future installs still verify every source byte. */
+/* Finish only the generation verified by this download/recovery operation.
+ * Installation verifies the destination independently of this journal. */
 esp_err_t ideas_store_finish(const char *root, const ideas_package_t *p) {
     char base[IDEAS_PATH_BYTES], previous[IDEAS_PATH_BYTES], incoming[IDEAS_PATH_BYTES];
     if (!p || base_path(root, p->code, base) != ESP_OK ||
