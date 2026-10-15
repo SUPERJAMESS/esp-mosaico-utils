@@ -1,7 +1,7 @@
 {
-  "components/app_ui/light/vui_assets.bin": "8513e77fe068ce24fb9cad48c5e4745fe30bd436bdc0f345c7829fea5fad795b",
+  "components/app_ui/light/vui_assets.bin": "b0ae876354e2e766a8c9c84e574ab1000c4b939059d2eb1074556ebe6b45bc4e",
   "components/app_ui/private/vui_ids.h": "648f961d980f08806ec9cddf1512bffed25e9b4df579124d2e304de4f8b02621",
-  "tools/compile_vui.py": "d8bc3ebdb09ee17e2eccd85a34ee72b372088455467d2c125fe4a5eac67ddce9",
+  "tools/compile_vui.py": "4e2c3180b58920c787fcca630d0f25b11cfa29d7bab4fa838e91959b30c79a77",
   "ui/assets/anim/home.dots.json": "91dafaa774fb7e528a652ae04102965d4d87b87cb11d11d737100985b456d5f1",
   "ui/assets/icons/back-32-white.png": "319ef3fac418b5408d4bfb2d908211259334a4293faa98439f8f2c1d740897b0",
   "ui/assets/icons/backspace-32-white.png": "3c275c7ab5c06b64769e356670d50b5be39c8b2bf197ee42da8299fc533e1730",
@@ -36,10 +36,10 @@
   "ui/assets/mosaic/hero_empty-80.png": "3da2a5899a707efa6e6ddf5dbad348d1fd58dc42d6b6d6ffb5e88ae6879a6cf8",
   "ui/assets/qr/develop@198.png": "2f3ac9f017fafb72e4d8e1dfdf61a32181ac242919613d3e557e91cc07e78b34",
   "ui/fonts/NotoSansSC-Bold.otf": "7b261fdfd2c11e864afb59d6370ca716d847d3ec894da05a8981dec472e4d3fd",
-  "ui/fonts/VibeDisplay.otf": "31bbfafcf1af2e6a2c8ffa2c6cb433a7e324e6a271494214bb9aeab74669aff0",
-  "ui/fonts/VibeInter.otf": "c37b5ec6e2649f77d721f2d78ba6712b0239bbd3f4425e45ab40b76dead59114",
-  "ui/fonts/VibeMedium.otf": "21fd2cf4bd1bdf55a672098d6778d03533ee7994daee9b58461f46f583dbe1bc",
-  "ui/main.json": "5a1374950dabbddfc3542e04f27a99d6163a71c694cec770f1cf5e319873fd48",
+  "ui/fonts/VibeDisplay.otf": "b5555a94c73709aaafb0f40a2b7a2f20115fcd1b72289ea9588c0e584310f71d",
+  "ui/fonts/VibeInter.otf": "1ad011abc250bb283a5ee853d233c929fd14795080f30e306b529aa509b75ccb",
+  "ui/fonts/VibeMedium.otf": "38342dba9ffec2b5a275cb9fa4d56f0eba26817c6e470bd74fd3c0d4b931a621",
+  "ui/main.json": "fa37c93ed65dfb64cc52aaec44ae6139e406f15edfc02d61200424e134879cdc",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3"
 }

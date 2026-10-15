@@ -18,6 +18,7 @@
 
 static EXT_RAM_BSS_ATTR vibe_settings_snapshot_t s_settings;
 static SemaphoreHandle_t s_lock;
+static unsigned s_wifi_revision;
 typedef struct {
     vibe_settings_command_t command;
     char key[VIBE_SHARED_KEY_BYTES], value[VIBE_SHARED_VALUE_BYTES];
@@ -132,6 +133,7 @@ static void load(vibe_settings_snapshot_t *out)
             out->language = language ? 1 : 2;
         nvs_close(h);
     }
+    if (!out->language) out->language = 1;
     nvs_iterator_t it = NULL;
     esp_err_t err = nvs_entry_find(FACTORY_SYSTEM_METADATA_PARTITION, "shared", NVS_TYPE_STR, &it);
     while (err == ESP_OK && out->shared_count < VIBE_SHARED_MAX) {
@@ -191,14 +193,15 @@ static esp_err_t apply(const request_t *request)
 static void worker(void *arg)
 {
     request_t *request = arg;
-    esp_err_t err = apply(request);
-    memset(request, 0, sizeof(*request));
+    esp_err_t err = request ? apply(request) : ESP_OK;
+    if (request) memset(request, 0, sizeof(*request));
     free(request);
+    unsigned wifi_revision = factory_network_credentials_revision();
     vibe_settings_snapshot_t *next = calloc(1, sizeof(*next));
     if (next) load(next);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     uint32_t revision = s_settings.revision + 1;
-    if (next) s_settings = *next;
+    if (next) { s_settings = *next; s_wifi_revision = wifi_revision; }
     s_settings.busy = false;
     s_settings.error = err != ESP_OK ? err : next ? ESP_OK : ESP_ERR_NO_MEM;
     s_settings.revision = revision;
@@ -229,7 +232,12 @@ esp_err_t vibe_settings_request(vibe_settings_command_t command, const char *key
     if (key) snprintf(request->key, sizeof(request->key), "%s", key);
     if (value) snprintf(request->value, sizeof(request->value), "%s", value);
     if (xSemaphoreTake(s_lock, 0) != pdTRUE) { free(request); return ESP_ERR_TIMEOUT; }
-    bool full = command == VIBE_SETTINGS_SHARED_SET && s_settings.shared_count >= VIBE_SHARED_MAX;
+    unsigned user_entries = 0;
+    for (size_t i = 0; i < s_settings.shared_count; ++i)
+        if (strcmp(s_settings.shared[i].key, "wifi_ssid") &&
+            strcmp(s_settings.shared[i].key, "wifi_password")) ++user_entries;
+    bool full = command == VIBE_SETTINGS_SHARED_SET && user_entries >= VIBE_SHARED_USER_MAX &&
+                strcmp(key, "wifi_ssid") && strcmp(key, "wifi_password");
     for (size_t i = 0; full && i < s_settings.shared_count; ++i)
         if (!strcmp(key, s_settings.shared[i].key)) full = false;
     if (s_settings.busy || full) {
@@ -247,6 +255,13 @@ esp_err_t vibe_settings_snapshot(vibe_settings_snapshot_t *out)
 {
     if (!out || !s_lock) return ESP_ERR_INVALID_ARG;
     if (xSemaphoreTake(s_lock, 0) != pdTRUE) return ESP_ERR_TIMEOUT;
+    if (!s_settings.busy && s_wifi_revision != factory_network_credentials_revision()) {
+        /* NVS enumeration stays off the render task. Wi-Fi saves must become
+         * visible in Shared information without requiring a reboot. */
+        s_settings.busy = true;
+        if (xTaskCreate(worker, "vibe_settings", 4096, NULL, 3, NULL) != pdPASS)
+            s_settings.busy = false;
+    }
     *out = s_settings;
     xSemaphoreGive(s_lock);
     return ESP_OK;
@@ -264,7 +279,20 @@ esp_err_t vibe_settings_init(void)
         if (err == ESP_OK) err = reset_marker(false);
         if (err != ESP_OK) return err;
     }
+    s_wifi_revision = factory_network_credentials_revision();
     load(&s_settings);
+    /* Persist the default (or the adopted preference) once. Both early locale
+     * readers and the settings UI use the same key on subsequent boots. */
+    err = open_namespace("vibe_prefs", NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    uint32_t saved = 0;
+    err = nvs_get_u32(h, "lang", &saved);
+    if (err == ESP_ERR_NVS_NOT_FOUND || (err == ESP_OK && (saved < 1 || saved > 2))) {
+        err = nvs_set_u32(h, "lang", s_settings.language);
+        if (err == ESP_OK) err = nvs_commit(h);
+    }
+    nvs_close(h);
+    if (err != ESP_OK) return err;
     s_settings.revision = 1;
     s_lock = xSemaphoreCreateMutex();
     factory_locale_use(vibe_settings_language() == 1);

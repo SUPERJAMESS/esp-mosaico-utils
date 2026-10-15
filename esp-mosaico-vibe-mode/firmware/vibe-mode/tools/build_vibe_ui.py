@@ -231,6 +231,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--font-source", type=Path, help="Rebuild subset from Noto Sans CJK SC OTF or collection face 2 (requires fonttools)")
     args = parser.parse_args()
+    generate()
     if args.font_source:
         prepare_font(args.font_source)
-    generate()

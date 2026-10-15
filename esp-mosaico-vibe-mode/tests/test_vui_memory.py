@@ -21,7 +21,7 @@ def test_renderer_resource_lifetime_and_repeated_input(tmp_path):
         configure += ["-G", "MinGW Makefiles"]
     if os.environ.get("IRIS_HOST_SANITIZERS") == "1":
         configure += [
-            "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer",
+            "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer -O2",
             "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined",
         ]
     for command in (

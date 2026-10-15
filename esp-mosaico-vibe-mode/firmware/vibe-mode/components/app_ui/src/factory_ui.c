@@ -10,27 +10,68 @@
 #include "ui_services.h"
 #include "bsp/esp_mosaico.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
+#include "vibe_input_queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include <string.h>
 
 static const char *TAG = "vibe_ui";
-typedef struct {
-    int16_t x, y;
-    bool pressed;
-} input_t;
+static portMUX_TYPE s_input_lock = portMUX_INITIALIZER_UNLOCKED;
+static vibe_input_queue_t s_input;
+static bool s_input_down[2]; /* USB, physical touch */
 static struct {
     vui_handle_t ui;
     esp_display_presenter_t *presenter;
     esp_lcd_touch_handle_t touch;
     SemaphoreHandle_t lock;
-    QueueHandle_t input;
     TaskHandle_t task;
     uint16_t *frame;
-    bool touching;
-    int16_t last_x, last_y;
 } s_device;
+
+static bool enqueue_input(int16_t x, int16_t y, bool pressed, unsigned source)
+{
+    vibe_input_t event = {.x = x, .y = y, .source = source,
+                          .time_ms = (uint64_t)esp_timer_get_time() / 1000};
+    taskENTER_CRITICAL(&s_input_lock);
+    event.kind = pressed ? (s_input_down[source] ? VIBE_INPUT_MOVE : VIBE_INPUT_DOWN)
+                         : VIBE_INPUT_UP;
+    bool accepted = vibe_input_push(&s_input, event);
+    if (accepted) s_input_down[source] = pressed;
+    taskEXIT_CRITICAL(&s_input_lock);
+    if (accepted) xTaskNotifyGive(s_device.task);
+    return accepted;
+}
+static bool dequeue_input(vibe_input_t *event)
+{
+    taskENTER_CRITICAL(&s_input_lock);
+    bool available = vibe_input_pop(&s_input, event);
+    taskEXIT_CRITICAL(&s_input_lock);
+    return available;
+}
+static void touch_task(void *unused)
+{
+    (void)unused;
+    bool touching = false;
+    int16_t last_x = 0, last_y = 0;
+    TickType_t wake = xTaskGetTickCount();
+    for (;;) {
+        if (esp_lcd_touch_read_data(s_device.touch) == ESP_OK) {
+            esp_lcd_touch_point_data_t point = {0};
+            uint8_t count = 0;
+            if (esp_lcd_touch_get_data(s_device.touch, &point, &count, 1) == ESP_OK) {
+                bool pressed = count != 0;
+                int16_t x = pressed ? point.x : last_x, y = pressed ? point.y : last_y;
+                if ((pressed != touching || (pressed && (x != last_x || y != last_y))) &&
+                    enqueue_input(x, y, pressed, 1)) {
+                    touching = pressed; last_x = x; last_y = y;
+                }
+            }
+        }
+        /* Sampling never takes the render/display mutex. The UI task maps
+         * physical coordinates and is the only caller of the Vui API. */
+        vTaskDelayUntil(&wake, pdMS_TO_TICKS(10));
+    }
+}
 
 esp_err_t factory_ui_set_brightness(unsigned percent)
 {
@@ -55,6 +96,13 @@ esp_err_t factory_ui_rotate(unsigned degrees)
         return ESP_ERR_INVALID_ARG;
     if (xSemaphoreTakeRecursive(s_device.lock, pdMS_TO_TICKS(500)) != pdTRUE)
         return ESP_ERR_TIMEOUT;
+    taskENTER_CRITICAL(&s_input_lock);
+    bool active = s_input.count || s_input_down[0] || s_input_down[1];
+    taskEXIT_CRITICAL(&s_input_lock);
+    if (active) {
+        xSemaphoreGiveRecursive(s_device.lock);
+        return ESP_ERR_INVALID_STATE;
+    }
     esp_err_t err = esp_display_presenter_quiesce(s_device.presenter, 500);
     /* Rotation stays inside the presenter so transfer and touch transforms
      * share one orientation. Do not additionally rotate the physical panel. */
@@ -66,49 +114,61 @@ esp_err_t factory_ui_rotate(unsigned degrees)
     xSemaphoreGiveRecursive(s_device.lock);
     return err;
 }
-static esp_err_t present_frame(void)
+static esp_err_t present_frame(const vui_area_t *changed)
 {
-    /* Rotation can rebuild transport ownership on the policy task while
-     * this render task is quiescent. Reclaim it before submitting a frame. */
-    esp_err_t bound = esp_display_presenter_rebind_producer(s_device.presenter);
-    if (bound != ESP_OK)
-        return bound;
+    /* Keep a single presenter producer; rotation also holds s_device.lock. */
+    esp_err_t err = esp_display_presenter_rebind_producer(s_device.presenter);
+    if (err != ESP_OK) return err;
+    const esp_display_present_area_t dirty = {
+        changed->x, changed->y, changed->x + changed->w - 1, changed->y + changed->h - 1};
+    const esp_display_present_surface_request_t request = {
+        .dirty_areas = &dirty, .dirty_area_count = 1};
     esp_display_present_area_t areas[1];
     size_t count = 0;
     bool full = false;
-    esp_err_t err =
-        esp_display_presenter_begin_next_frame(s_device.presenter, NULL, areas, 1, &count, &full);
-    if (err != ESP_OK)
-        return err;
-    for (unsigned y = 0; y < 480;) {
-        esp_display_presenter_buffer_t buffer;
-        err = esp_display_presenter_acquire_buffer(s_device.presenter, &buffer);
-        if (err != ESP_OK)
-            break;
-        size_t rows = 480 - y;
-        if (buffer.resolve_rows)
-            err = buffer.resolve_rows(buffer.resolve_rows_ctx, buffer.lease_id, 960, rows, &rows);
-        else if (rows > buffer.capacity_bytes / 960)
-            rows = buffer.capacity_bytes / 960;
-        if (err != ESP_OK || !rows || rows > 480 - y || rows > buffer.capacity_bytes / 960) {
-            if (err == ESP_OK)
-                err = ESP_ERR_INVALID_SIZE;
-            break;
+    err = esp_display_presenter_begin_next_frame(s_device.presenter, &request, areas, 1,
+                                                 &count, &full);
+    if (err != ESP_OK) return err;
+    /* A fresh/rotated transport may require full coverage even for small
+     * damage. The retained framebuffer always contains the complete image. */
+    if (full) { areas[0] = (esp_display_present_area_t){0, 0, 479, 479}; count = 1; }
+    if (!count) err = ESP_ERR_INVALID_STATE;
+    for (size_t i = 0; i < count && err == ESP_OK; ++i) {
+        const esp_display_present_area_t *area = &areas[i];
+        size_t stride = (area->x2 - area->x1 + 1) * sizeof(uint16_t);
+        for (int y = area->y1; y <= area->y2;) {
+            esp_display_presenter_buffer_t buffer;
+            err = esp_display_presenter_acquire_buffer(s_device.presenter, &buffer);
+            if (err != ESP_OK) break;
+            size_t rows = area->y2 - y + 1;
+            if (buffer.resolve_rows)
+                err = buffer.resolve_rows(buffer.resolve_rows_ctx, buffer.lease_id, stride, rows, &rows);
+            else if (rows > buffer.capacity_bytes / stride)
+                rows = buffer.capacity_bytes / stride;
+            if (err != ESP_OK || !rows || rows > (size_t)(area->y2 - y + 1) ||
+                rows > buffer.capacity_bytes / stride) {
+                if (err == ESP_OK) err = ESP_ERR_INVALID_SIZE;
+                break;
+            }
+            if (stride == 960)
+                memcpy(buffer.surface.pixels, s_device.frame + y * 480, rows * stride);
+            else
+                for (size_t row = 0; row < rows; ++row)
+                    memcpy((uint8_t *)buffer.surface.pixels + row * stride,
+                           s_device.frame + (y + row) * 480 + area->x1, stride);
+            esp_display_present_area_t part = {area->x1, y, area->x2, y + rows - 1};
+            err = esp_display_presenter_submit_buffer(s_device.presenter, &buffer, &part, stride);
+            if (err != ESP_OK) break;
+            y += rows;
         }
-        memcpy(buffer.surface.pixels, s_device.frame + y * 480, rows * 960);
-        esp_display_present_area_t area = {0, y, 479, y + rows - 1};
-        err = esp_display_presenter_submit_buffer(s_device.presenter, &buffer, &area, 960);
-        if (err != ESP_OK)
-            break;
-        y += rows;
     }
     if (err == ESP_OK) {
-        const esp_display_presenter_submit_t submit = {.coverage =
-                                                           ESP_DISPLAY_PRESENT_COVERAGE_FULL};
+        const esp_display_presenter_submit_t submit = {
+            .coverage = full ? ESP_DISPLAY_PRESENT_COVERAGE_FULL : ESP_DISPLAY_PRESENT_COVERAGE_AREAS,
+            .areas = full ? NULL : areas, .area_count = full ? 0 : count};
         err = esp_display_presenter_commit_frame(s_device.presenter, &submit);
     }
-    if (err != ESP_OK)
-        esp_display_presenter_cancel_frame(s_device.presenter);
+    if (err != ESP_OK) esp_display_presenter_cancel_frame(s_device.presenter);
     return err;
 }
 static void render_task(void *unused)
@@ -121,35 +181,23 @@ static void render_task(void *unused)
         int64_t now = esp_timer_get_time();
         vui_tick(s_device.ui, (now - previous) / 1000);
         previous = now;
-        input_t input;
-        while (xQueueReceive(s_device.input, &input, 0) == pdTRUE)
-            vui_pointer(s_device.ui, input.x, input.y, input.pressed);
-        if (s_device.touch && esp_lcd_touch_read_data(s_device.touch) == ESP_OK) {
-            esp_lcd_touch_point_data_t point = {0};
-            uint8_t count = 0;
-            bool pressed =
-                esp_lcd_touch_get_data(s_device.touch, &point, &count, 1) == ESP_OK && count;
-            uint16_t x = point.x, y = point.y;
-            if (pressed) {
-                int32_t px = x, py = y;
-                if (esp_display_presenter_map_point(s_device.presenter, &px, &py) == ESP_OK) {
-                    s_device.last_x = px;
-                    s_device.last_y = py;
-                    vui_pointer(s_device.ui, px, py, true);
-                }
-            } else if (s_device.touching)
-                vui_pointer(s_device.ui, s_device.last_x, s_device.last_y, false);
-            s_device.touching = pressed;
+        vibe_input_t input;
+        for (unsigned n = 0; n < VIBE_INPUT_CAPACITY && dequeue_input(&input); ++n) {
+            int32_t x = input.x, y = input.y;
+            if (input.source && esp_display_presenter_map_point(s_device.presenter, &x, &y) != ESP_OK)
+                continue;
+            vui_pointer_at(s_device.ui, x, y, input.kind != VIBE_INPUT_UP, input.time_ms);
         }
-        if (vui_render(s_device.ui, s_device.frame)) {
-            esp_err_t err = present_frame();
+        vui_area_t changed;
+        if (vui_render_changed(s_device.ui, s_device.frame, &changed)) {
+            esp_err_t err = present_frame(&changed);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "display frame: %s", esp_err_to_name(err));
                 vui_invalidate(s_device.ui);
             }
         }
         xSemaphoreGiveRecursive(s_device.lock);
-        vTaskDelay(pdMS_TO_TICKS(10));
+        (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10));
     }
 }
 esp_err_t factory_ui_start(void)
@@ -157,10 +205,9 @@ esp_err_t factory_ui_start(void)
     if (s_device.ui)
         return ESP_ERR_INVALID_STATE;
     s_device.lock = xSemaphoreCreateRecursiveMutex();
-    s_device.input = xQueueCreate(16, sizeof(input_t));
     s_device.frame =
         heap_caps_aligned_alloc(64, 480 * 480 * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!s_device.lock || !s_device.input || !s_device.frame)
+    if (!s_device.lock || !s_device.frame)
         return ESP_ERR_NO_MEM;
     esp_display_present_target_config_t display;
     ESP_RETURN_ON_ERROR(board_display_init(&display), TAG, "display");
@@ -182,6 +229,8 @@ esp_err_t factory_ui_start(void)
                         "controller");
     if (xTaskCreate(render_task, "vibe_ui", 8192, NULL, 5, &s_device.task) != pdPASS)
         return ESP_ERR_NO_MEM;
+    if (s_device.touch && xTaskCreate(touch_task, "vibe_touch", 3072, NULL, 6, NULL) != pdPASS)
+        return ESP_ERR_NO_MEM;
     ESP_LOGI(TAG, "Vibe lightweight UI ready at 480x480");
     return ESP_OK;
 }
@@ -197,7 +246,5 @@ esp_err_t factory_ui_inject_touch(void *ctx, int16_t x, int16_t y, bool pressed)
         return ESP_ERR_INVALID_STATE;
     if (x < 0 || x >= 480 || y < 0 || y >= 480)
         return ESP_ERR_INVALID_ARG;
-    input_t input = {x, y, pressed};
-    return xQueueSend(s_device.input, &input, pdMS_TO_TICKS(100)) == pdTRUE ? ESP_OK
-                                                                            : ESP_ERR_TIMEOUT;
+    return enqueue_input(x, y, pressed, 0) ? ESP_OK : ESP_ERR_TIMEOUT;
 }

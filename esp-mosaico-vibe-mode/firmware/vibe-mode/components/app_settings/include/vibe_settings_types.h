@@ -4,7 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define VIBE_SHARED_MAX 16
+#define VIBE_SHARED_USER_MAX 16
+/* Wi-Fi credentials do not consume the user's existing shared slots. */
+#define VIBE_SHARED_MAX (VIBE_SHARED_USER_MAX + 2)
 #define VIBE_SHARED_KEY_BYTES 16
 #define VIBE_SHARED_VALUE_BYTES 257
 
@@ -12,7 +14,7 @@ typedef struct {
     char key[VIBE_SHARED_KEY_BYTES], value[VIBE_SHARED_VALUE_BYTES];
 } vibe_shared_entry_t;
 typedef struct {
-    /* 0 = first-run, 1 = English, 2 = Simplified Chinese. */
+    /* 1 = English (persisted default), 2 = Simplified Chinese. */
     unsigned language, brightness, screen_off_seconds;
     bool auto_rotate, haptics, open_confirm;
     uint32_t revision;

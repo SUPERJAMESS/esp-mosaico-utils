@@ -82,7 +82,7 @@ typedef struct { int dummy; } wifi_init_config_t;
 #define WIFI_INIT_CONFIG_DEFAULT() ((wifi_init_config_t){0})
 typedef struct {
     struct {
-        uint8_t ssid[33], password[65];
+        uint8_t ssid[32], password[64];
         int scan_method, sort_method;
         struct { int authmode; } threshold;
         struct { bool capable, required; } pmf_cfg;
@@ -130,6 +130,7 @@ esp_err_t nvs_open_from_partition(const char *, const char *, int, nvs_handle_t 
 esp_err_t nvs_get_str(nvs_handle_t, const char *, char *, size_t *);
 esp_err_t nvs_set_str(nvs_handle_t, const char *, const char *);
 esp_err_t nvs_erase_all(nvs_handle_t);
+esp_err_t nvs_erase_key(nvs_handle_t, const char *);
 esp_err_t nvs_get_u32(nvs_handle_t, const char *, uint32_t *);
 esp_err_t nvs_set_u32(nvs_handle_t, const char *, uint32_t);
 esp_err_t nvs_commit(nvs_handle_t);

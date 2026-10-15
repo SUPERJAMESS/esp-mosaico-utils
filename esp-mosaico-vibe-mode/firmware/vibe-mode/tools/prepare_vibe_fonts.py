@@ -23,6 +23,11 @@ def build(cjk_source):
     chars = set(''.join(translations.keys()) + ''.join(translations.values()))
     chars.update(chr(i) for i in range(32, 127))
     chars.update('‹›•↑↓°·×–—…简体中文')
+    # The generated scene also includes backend literals that are not entries
+    # in translations.json (for example an already-localized failure detail).
+    scene = json.loads((UI / 'main.json').read_text())
+    for obj in scene['objects']:
+        chars.update(obj.get('text', '') + obj.get('font_charset', ''))
     for source, name in [('Inter-Regular.ttf', 'VibeInter'),
                          ('ArchivoExtended-Medium.ttf', 'VibeMedium'),
                          ('ArchivoExtended-SemiBold.ttf', 'VibeDisplay')]:
@@ -39,7 +44,9 @@ def build(cjk_source):
             font = latin if code in latin.getBestCmap() else reference_cjk if code in reference_cjk.getBestCmap() else cjk
             original = font.getBestCmap().get(code)
             if original is None:
-                continue
+                if char in '\r\n\t':
+                    continue
+                raise ValueError(f'{name}: missing glyph {char!r} (U+{code:04X})')
             glyph = 'uni%04X' % code
             scale = 1000 / font['head'].unitsPerEm
             width, bearing = font['hmtx'][original]

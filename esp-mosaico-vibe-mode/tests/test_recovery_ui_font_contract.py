@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 import re
+import struct
+import zlib
 
 RECOVERY = Path(__file__).resolve().parents[1] / 'firmware/vibe-mode'
 
@@ -26,3 +28,41 @@ def test_compiled_update_font_covers_device_and_simulator_states():
     assert set('0123456789%') <= set(objects['update_percent']['font_charset'])
     assert '-' in objects['update_percent']['font_charset']
     assert set('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-') <= set(objects['bridge_code_compact']['font_charset'])
+
+
+def test_all_compiled_glyphs_have_pixels_and_dynamic_translation_coverage():
+    """Audit the actual embedded atlas, including generated keyboard glyphs."""
+    packed = (RECOVERY / 'components/app_ui/light/vui_assets.bin').read_bytes()
+    data = zlib.decompress(packed[4:])
+    _, size, nodes, count, fonts, font_count, _, _ = struct.unpack_from('<8I', data)
+    assert size == len(data)
+    atlases = []
+    for i in range(font_count):
+        offset, total = struct.unpack_from('<II', data, fonts + i * 16)
+        chars = set()
+        for n in range(total):
+            cp, pixels, _, _, w, h, _, _ = struct.unpack_from('<II6h', data, offset + n * 20)
+            chars.add(chr(cp))
+            if not chr(cp).isspace():
+                assert w > 0 and h > 0 and any(data[pixels:pixels + w * h]), (i, chr(cp))
+        atlases.append(chars)
+    scene = json.loads((RECOVERY / 'ui/main.json').read_text())
+    translations = json.loads((RECOVERY / 'ui/translations.json').read_text())
+    for i, obj in enumerate(scene['objects']):
+        if 'text' not in obj:
+            continue
+        node = struct.unpack_from('<5h15HI', data, nodes + i * 44)
+        chars = atlases[node[12]]
+        # Literal and dynamic source charsets must survive into the device pack.
+        required = set(obj.get('font_charset', '') + obj['text']) - set('\r\n')
+        assert required <= chars, (obj.get('name'), required - chars)
+        dynamic = {
+            'update_rate': ('Receive', 'Download', 'Read'),
+            'update_title': ('Checking image', 'Saving Idea', 'Verifying files'),
+            'result_title': ('Checking image', 'Saving Idea', 'Verifying files'),
+            'update_detail': ('Receiving application', 'Receiving system component',
+                              'Checking installed application', 'Preparing application'),
+        }
+        if obj.get('bind') in dynamic:
+            required = set(''.join(translations[s] for s in dynamic[obj['bind']])) - set('\r\n')
+            assert required <= chars, (obj['bind'], required - chars)

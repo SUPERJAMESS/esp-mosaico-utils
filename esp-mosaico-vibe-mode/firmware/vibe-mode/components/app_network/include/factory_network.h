@@ -62,6 +62,8 @@ esp_err_t factory_network_suspend(bool suspended);
 /* Copy a lock-consistent status and scan results into required snapshot.
  * May wait for the short snapshot mutex; performs no network or filesystem IO. */
 esp_err_t factory_network_get_snapshot(factory_network_snapshot_t *snapshot);
+/* Changes when Wi-Fi migrates/saves/forgets shared credentials. No IO. */
+unsigned factory_network_credentials_revision(void);
 
 #ifdef __cplusplus
 }

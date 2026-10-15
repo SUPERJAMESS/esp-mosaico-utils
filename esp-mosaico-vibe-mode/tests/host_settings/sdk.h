@@ -57,3 +57,4 @@ void app_storage_release(void);
 void esp_restart(void);
 
 void factory_locale_use(unsigned language);
+unsigned factory_network_credentials_revision(void);

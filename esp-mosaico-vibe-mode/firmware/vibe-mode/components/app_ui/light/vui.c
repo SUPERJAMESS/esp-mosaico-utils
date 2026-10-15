@@ -33,7 +33,7 @@ typedef struct {
     size_t stride;
     uint16_t width, height, color, value;
     int scroll;
-    bool hidden, has_color;
+    bool hidden, has_color, indeterminate;
 } value_t;
 typedef struct {
     uint16_t id;
@@ -56,9 +56,7 @@ typedef struct {
     vui_timer_cb_t callback;
     void *ctx;
 } vui_timer_state_t;
-typedef struct {
-    int x, y, w, h;
-} rect_t;
+typedef vui_area_t rect_t;
 typedef struct {
     rect_t rect;
     uint16_t node;
@@ -87,7 +85,8 @@ struct vui {
     uint16_t drag_node, fling_node;
     int velocity, scroll_fraction;
     uint64_t last_move;
-    uint16_t *pixels;
+    uint16_t *pixels, *retained;
+    rect_t damage, paint_clip;
 };
 static int min(int a, int b)
 {
@@ -111,6 +110,46 @@ static bool contains(rect_t a, int x, int y)
 {
     return x >= a.x && y >= a.y && x < a.x + a.w && y < a.y + a.h;
 }
+static void damage_add(vui_handle_t u, rect_t r)
+{
+    r = intersect(r, (rect_t){0, 0, WIDTH, HEIGHT});
+    if (!r.w || !r.h) return;
+    if (u->dirty) {
+        int x = min(u->damage.x, r.x), y = min(u->damage.y, r.y);
+        r = (rect_t){x, y, max(u->damage.x + u->damage.w, r.x + r.w) - x,
+                         max(u->damage.y + u->damage.h, r.y + r.h) - y};
+    }
+    u->damage = r;
+    u->dirty = true;
+}
+static void damage_node(vui_handle_t u, unsigned id)
+{
+    if (!valid(u, id)) return;
+    int chain[33], count = 0;
+    for (int i = id - 1; i >= 0; i = u->nodes[i].parent) {
+        if (count == 33 || u->values[i].hidden || (u->nodes[i].flags & VUI_TEMPLATE)) return;
+        chain[count++] = i;
+    }
+    rect_t clip = {0, 0, WIDTH, HEIGHT};
+    int x = 0, y = 0;
+    while (count) {
+        unsigned i = chain[--count];
+        const vui_node_t *n = &u->nodes[i];
+        x += n->x; y += n->y;
+        clip = intersect(clip, (rect_t){x, y, n->w, n->h});
+        if (n->flags & VUI_SCROLL) y -= u->values[i].scroll;
+    }
+    damage_add(u, clip);
+}
+static void damage_row(vui_handle_t u, vui_row_t row)
+{
+    for (unsigned l = 0; l < LISTS; ++l)
+        for (unsigned r = 0; r < u->lists[l].total; ++r)
+            if (row == &u->lists[l].rows[r]) {
+                damage_node(u, u->lists[l].id);
+                return;
+            }
+}
 static void release_value(value_t *v)
 {
     if (v->text) {
@@ -122,7 +161,7 @@ static void release_value(value_t *v)
         v->release(v->release_ctx);
     memset(v, 0, sizeof(*v));
 }
-static int text_value(vui_handle_t u, value_t *v, const char *text)
+static int text_value(value_t *v, const char *text, bool *changed)
 {
     if (!text || strlen(text) > MAX_TEXT)
         return VUI_ERR_INVALID_ARG;
@@ -138,7 +177,7 @@ static int text_value(vui_handle_t u, value_t *v, const char *text)
         free(v->text);
     }
     v->text = copy;
-    u->dirty = true;
+    *changed = true;
     return VUI_OK;
 }
 static value_t *row_value(vui_row_t row, unsigned id, bool create)
@@ -199,7 +238,7 @@ vui_err_t vui_create(vui_handle_t *out)
         }
         u->values[i].hidden = (n->flags & VUI_HIDDEN) != 0;
     }
-    u->dirty = true;
+    vui_invalidate(u);
     *out = u;
     return VUI_OK;
 fail:
@@ -225,15 +264,20 @@ void vui_destroy(vui_handle_t u)
 }
 vui_err_t vui_set_text(vui_handle_t u, uint16_t id, const char *text)
 {
-    return valid(u, id) ? text_value(u, &u->values[id - 1], text) : VUI_ERR_INVALID_ARG;
+    if (!valid(u, id)) return VUI_ERR_INVALID_ARG;
+    bool changed = false;
+    int err = text_value(&u->values[id - 1], text, &changed);
+    if (changed) damage_node(u, id);
+    return err;
 }
 vui_err_t vui_set_visible(vui_handle_t u, uint16_t id, bool show)
 {
     if (!valid(u, id))
         return VUI_ERR_INVALID_ARG;
     if (u->values[id - 1].hidden == show) {
+        damage_node(u, id);
         u->values[id - 1].hidden = !show;
-        u->dirty = true;
+        damage_node(u, id);
     }
     return VUI_OK;
 }
@@ -248,16 +292,25 @@ vui_err_t vui_set_value(vui_handle_t u, uint16_t id, unsigned value)
     value = min(value, 100);
     if (u->values[id - 1].value != value) {
         u->values[id - 1].value = value;
-        u->dirty = true;
+        damage_node(u, id);
     }
     return VUI_OK;
 }
-static int image_value(vui_handle_t u, value_t *v, void *png, size_t size)
+vui_err_t vui_set_indeterminate(vui_handle_t u, uint16_t id, bool active)
+{
+    if (!valid(u, id) || u->nodes[id - 1].kind != VUI_PROGRESS) return VUI_ERR_INVALID_ARG;
+    if (u->values[id - 1].indeterminate != active) {
+        u->values[id - 1].indeterminate = active;
+        damage_node(u, id);
+    }
+    return VUI_OK;
+}
+static int image_value(value_t *v, void *png, size_t size, bool *changed)
 {
     if (!png && !size) {
+        *changed = v->image != NULL;
         free(v->image);
         v->image = NULL;
-        u->dirty = true;
         return VUI_OK;
     }
     unsigned w, h;
@@ -270,12 +323,16 @@ static int image_value(vui_handle_t u, value_t *v, void *png, size_t size)
     v->width = w;
     v->height = h;
     free(png);
-    u->dirty = true;
+    *changed = true;
     return VUI_OK;
 }
 vui_err_t vui_set_image_owned(vui_handle_t u, uint16_t id, void *png, size_t size)
 {
-    return valid(u, id) ? image_value(u, &u->values[id - 1], png, size) : VUI_ERR_INVALID_ARG;
+    if (!valid(u, id)) return VUI_ERR_INVALID_ARG;
+    bool changed = false;
+    int err = image_value(&u->values[id - 1], png, size, &changed);
+    if (changed) damage_node(u, id);
+    return err;
 }
 vui_err_t vui_canvas_stop(vui_handle_t u, uint16_t id)
 {
@@ -285,7 +342,7 @@ vui_err_t vui_canvas_stop(vui_handle_t u, uint16_t id)
     if (v->release)
         v->release(v->release_ctx);
     if (v->canvas)
-        u->dirty = true;
+        damage_node(u, id);
     v->canvas = NULL;
     v->release = NULL;
     v->release_ctx = NULL;
@@ -302,7 +359,7 @@ vui_err_t vui_canvas_push(vui_handle_t u, uint16_t id, void *pixels, size_t stri
     v->stride = stride;
     v->release = release;
     v->release_ctx = ctx;
-    u->dirty = true;
+    damage_node(u, id);
     return VUI_OK;
 }
 vui_list_t vui_list_bind_component(vui_handle_t u, uint16_t id, vui_row_cb_t callback, void *ctx)
@@ -330,7 +387,7 @@ vui_err_t vui_list_refresh(vui_handle_t u, vui_list_t l)
     for (unsigned i = 0; i < v->total; i++)
         if (v->callback)
             v->callback(u, &v->rows[i], i, v->ctx);
-    u->dirty = true;
+    damage_node(u, v->id);
     return VUI_OK;
 }
 vui_err_t vui_list_set_total(vui_handle_t u, vui_list_t l, unsigned total)
@@ -353,23 +410,31 @@ vui_err_t vui_list_set_total(vui_handle_t u, vui_list_t l, unsigned total)
 vui_err_t vui_row_set_text(vui_handle_t u, vui_row_t row, uint16_t id, const char *text)
 {
     value_t *v = row ? row_value(row, id, true) : NULL;
-    return v ? text_value(u, v, text) : VUI_ERR_INVALID_ARG;
+    if (!v) return VUI_ERR_INVALID_ARG;
+    bool changed = false;
+    int err = text_value(v, text, &changed);
+    if (changed) damage_row(u, row);
+    return err;
 }
 vui_err_t vui_row_set_color(vui_handle_t u, vui_row_t row, uint16_t id, uint16_t color)
 {
     value_t *v = row ? row_value(row, id, true) : NULL;
     if (!v)
         return VUI_ERR_INVALID_ARG;
+    if (!v->has_color || v->color != color) damage_row(u, row);
     v->color = color;
     v->has_color = true;
-    u->dirty = true;
     return VUI_OK;
 }
 vui_err_t vui_row_set_image_owned(vui_handle_t u, vui_row_t row, uint16_t id, void *png,
                                   size_t size)
 {
     value_t *v = row ? row_value(row, id, true) : NULL;
-    return v ? image_value(u, v, png, size) : VUI_ERR_INVALID_ARG;
+    if (!v) return VUI_ERR_INVALID_ARG;
+    bool changed = false;
+    int err = image_value(v, png, size, &changed);
+    if (changed) damage_row(u, row);
+    return err;
 }
 vui_err_t vui_on_event(vui_handle_t u, vui_event_cb_t cb, void *ctx)
 {
@@ -440,7 +505,7 @@ vui_err_t vui_scroll_to(vui_handle_t u, uint16_t id, int offset)
     int *position = scroll_position(u, id, &limit);
     if (!position) return VUI_ERR_INVALID_ARG;
     offset = max(0, min(offset, limit));
-    if (*position != offset) { *position = offset; u->dirty = true; }
+    if (*position != offset) { *position = offset; damage_node(u, id); }
     if (u->fling_node == id) u->fling_node = 0;
     return VUI_OK;
 }
@@ -454,6 +519,7 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
 {
     if (!u)
         return;
+    uint64_t previous = u->now;
     u->now += elapsed;
     for (unsigned i = 0; i < TIMERS; i++) {
         vui_timer_state_t *t = &u->timers[i];
@@ -472,23 +538,26 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
         u->scroll_fraction += u->velocity * (int)step;
         int next = max(0, min(*position + u->scroll_fraction / 1000, limit));
         u->scroll_fraction %= 1000;
-        if (next != *position) { *position = next; u->dirty = true; }
+        if (next != *position) { *position = next; damage_node(u, u->fling_node); }
         u->velocity = u->velocity * (1000 - (int)step * 6) / 1000;
         if (!next || next == limit || abs(u->velocity) < 20) u->fling_node = 0;
     }
-    for (unsigned i = 0; i < u->header->node_count; i++)
+    for (unsigned i = 0; i < u->header->node_count; i++) {
+        if (u->values[i].indeterminate && previous / 50 != u->now / 50)
+            damage_node(u, i + 1);
         if (u->nodes[i].image) {
             const vui_image_t *im = &u->images[u->nodes[i].image - 1];
             if (im->frames > 1 && visible(u, i) && u->now / im->duration != u->animation) {
                 u->animation = u->now / im->duration;
-                u->dirty = true;
+                damage_node(u, i + 1);
             }
         }
+    }
 }
 void vui_invalidate(vui_handle_t u)
 {
     if (u)
-        u->dirty = true;
+        damage_add(u, (rect_t){0, 0, WIDTH, HEIGHT});
 }
 static uint16_t blend(uint16_t dst, uint16_t src, unsigned a)
 {
@@ -502,7 +571,7 @@ static uint16_t blend(uint16_t dst, uint16_t src, unsigned a)
 static void pixel(vui_handle_t u, int x, int y, uint16_t color, unsigned alpha)
 {
     uint16_t *p = &u->pixels[y * WIDTH + x];
-    *p = blend(*p, color, alpha);
+    *p = alpha == 255 ? color : blend(*p, color, alpha);
 }
 static unsigned coverage(rect_t r, int radius, int x, int y)
 {
@@ -520,27 +589,50 @@ static unsigned coverage(rect_t r, int radius, int x, int y)
                 count++;
     return count * 255 / 4;
 }
+static void fill(uint16_t *pixels, int count, uint16_t color)
+{
+    if (count <= 0) return;
+    if ((color & 255) == (color >> 8)) memset(pixels, color & 255, (size_t)count * 2);
+    else for (int x = 0; x < count; ++x) pixels[x] = color;
+}
 static void box(vui_handle_t u, rect_t r, rect_t clip, unsigned radius, uint16_t color)
 {
     rect_t b = intersect(r, clip);
-    for (int y = b.y; y < b.y + b.h; y++)
-        for (int x = b.x; x < b.x + b.w; x++) {
-            unsigned a = coverage(r, radius, x, y);
-            if (a)
-                pixel(u, x, y, color, a);
+    int rad = min(radius, min(r.w, r.h) / 2);
+    for (int y = b.y; y < b.y + b.h; y++) {
+        int left = b.x, right = b.x + b.w;
+        if (rad && (y < r.y + rad || y >= r.y + r.h - rad)) {
+            left = min(right, max(left, r.x + rad));
+            right = max(left, min(right, r.x + r.w - rad));
+            for (int x = b.x; x < left; ++x) {
+                unsigned a = coverage(r, rad, x, y);
+                if (a) pixel(u, x, y, color, a);
+            }
+            for (int x = right; x < b.x + b.w; ++x) {
+                unsigned a = coverage(r, rad, x, y);
+                if (a) pixel(u, x, y, color, a);
+            }
         }
+        fill(u->pixels + y * WIDTH + left, right - left, color);
+    }
 }
 static void outline(vui_handle_t u, rect_t r, rect_t clip, unsigned radius, unsigned width,
                     uint16_t color)
 {
     rect_t b = intersect(r, clip),
            inner = {r.x + width, r.y + width, r.w - 2 * width, r.h - 2 * width};
+    int rad = max(0, (int)radius - (int)width);
+    int inner_rad = min(rad, min(inner.w, inner.h) / 2);
     for (int y = b.y; y < b.y + b.h; y++)
         for (int x = b.x; x < b.x + b.w; x++) {
-            int a = (int)coverage(r, radius, x, y) -
-                    (int)coverage(inner, max(0, (int)radius - (int)width), x, y);
-            if (a > 0)
-                pixel(u, x, y, color, a);
+            /* The opaque interior contributes no border pixels. */
+            if (inner.w > 0 && inner.h > 0 && y >= inner.y && y < inner.y + inner.h &&
+                x >= inner.x + inner_rad && x < inner.x + inner.w - inner_rad) {
+                x = min(b.x + b.w, inner.x + inner.w - inner_rad) - 1;
+                continue;
+            }
+            int a = (int)coverage(r, radius, x, y) - (int)coverage(inner, rad, x, y);
+            if (a > 0) pixel(u, x, y, color, a);
         }
 }
 static uint32_t utf8(const char **s)
@@ -671,12 +763,21 @@ static void bitmap(vui_handle_t u, rect_t r, rect_t clip, const uint8_t *data, u
     if (!w || !h)
         return;
     rect_t b = intersect(r, clip);
-    for (int y = b.y; y < b.y + b.h; y++)
-        for (int x = b.x; x < b.x + b.w; x++) {
-            unsigned sx = (x - r.x) * w / r.w, sy = (y - r.y) * h / r.h;
-            const uint8_t *p = data + sy * stride + sx * (rgb ? 2 : 3);
-            pixel(u, x, y, p[0] | (p[1] << 8), rgb ? 255 : p[2]);
+    bool native = (unsigned)r.w == w && (unsigned)r.h == h;
+    for (int y = b.y; y < b.y + b.h; y++) {
+        unsigned sy = native ? (unsigned)(y - r.y) : (y - r.y) * h / r.h;
+        const uint8_t *row = data + sy * stride;
+        if (native && rgb) {
+            memcpy(u->pixels + y * WIDTH + b.x, row + (b.x - r.x) * 2, (size_t)b.w * 2);
+            continue;
         }
+        for (int x = b.x; x < b.x + b.w; x++) {
+            unsigned sx = native ? (unsigned)(x - r.x) : (x - r.x) * w / r.w;
+            const uint8_t *p = row + sx * (rgb ? 2 : 3);
+            unsigned a = rgb ? 255 : p[2];
+            if (a) pixel(u, x, y, p[0] | (p[1] << 8), a);
+        }
+    }
 }
 static void hit(vui_handle_t u, rect_t r, rect_t clip, unsigned node, vui_event_t event)
 {
@@ -697,26 +798,36 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
     if (!v)
         v = &u->values[i];
     uint16_t fg = v->has_color ? v->color : n->fg;
-    if (n->flags & VUI_BACKGROUND)
-        box(u, r, clip, n->radius, n->bg);
-    if (n->border_width)
-        outline(u, r, clip, n->radius, n->border_width, n->border);
-    if (n->kind == VUI_PROGRESS)
-        box(u, (rect_t){r.x, r.y, r.w * v->value / 100, r.h}, clip, n->radius, fg);
-    if (n->kind == VUI_IMAGE) {
-        if (v->canvas)
-            bitmap(u, r, clip, v->canvas, n->w, n->h, true, v->stride);
-        else if (v->image)
-            bitmap(u, r, clip, v->image, v->width, v->height, false, v->width * 3);
-        else if (n->image) {
-            const vui_image_t *im = &u->images[n->image - 1];
-            bitmap(u, r, clip,
-                   u->assets + im->data + (u->now / im->duration % im->frames) * im->w * im->h * 3,
-                   im->w, im->h, false, im->w * 3);
+    rect_t paint = intersect(clip, u->paint_clip);
+    if (paint.w && paint.h) {
+        if (n->flags & VUI_BACKGROUND)
+            box(u, r, paint, n->radius, n->bg);
+        if (n->border_width)
+            outline(u, r, paint, n->radius, n->border_width, n->border);
+        if (n->kind == VUI_PROGRESS) {
+            rect_t bar = {r.x, r.y, r.w * v->value / 100, r.h};
+            if (v->indeterminate) {
+                unsigned step = (u->now / 50) % 40;
+                bar.w = max(1, r.w / 4);
+                bar.x += (r.w - bar.w) * (int)(step <= 20 ? step : 40 - step) / 20;
+            }
+            box(u, bar, paint, n->radius, fg);
         }
+        if (n->kind == VUI_IMAGE) {
+            if (v->canvas)
+                bitmap(u, r, paint, v->canvas, n->w, n->h, true, v->stride);
+            else if (v->image)
+                bitmap(u, r, paint, v->image, v->width, v->height, false, v->width * 3);
+            else if (n->image) {
+                const vui_image_t *im = &u->images[n->image - 1];
+                bitmap(u, r, paint,
+                       u->assets + im->data + (u->now / im->duration % im->frames) * im->w * im->h * 3,
+                       im->w, im->h, false, im->w * 3);
+            }
+        }
+        if (n->kind == VUI_LABEL || n->kind == VUI_BUTTON)
+            text(u, n, r, paint, v->text ? v->text : (const char *)u->assets + n->text, fg);
     }
-    if (n->kind == VUI_LABEL || n->kind == VUI_BUTTON)
-        text(u, n, r, clip, v->text ? v->text : (const char *)u->assets + n->text, fg);
     if (n->kind == VUI_BUTTON)
         hit(u, r, clip, i + 1,
             (vui_event_t){.type = VUI_EVENT_CALL, .action_id = n->action, .arg = n->arg});
@@ -748,25 +859,40 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
     if ((n->flags & VUI_SCROLL) && n->content_height > n->h) {
         int track = r.h - 8, thumb = max(20, track * r.h / n->content_height);
         int y = r.y + 4 + offset * (track - thumb) / (n->content_height - n->h);
-        box(u, (rect_t){r.x + r.w - 12, r.y + 4, 4, track}, clip, 2, 0x2945);
-        box(u, (rect_t){r.x + r.w - 12, y, 4, thumb}, clip, 2, 0x9cd3);
+        box(u, (rect_t){r.x + r.w - 12, r.y + 4, 4, track}, paint, 2, 0x2945);
+        box(u, (rect_t){r.x + r.w - 12, y, 4, thumb}, paint, 2, 0x9cd3);
     }
 }
-bool vui_render(vui_handle_t u, uint16_t *pixels)
+bool vui_render_changed(vui_handle_t u, uint16_t *pixels, vui_area_t *changed)
 {
-    if (!u || !pixels || !u->dirty)
-        return false;
-    u->pixels = pixels;
+    if (!u || !pixels) return false;
+    if (u->retained != pixels) vui_invalidate(u);
+    if (!u->dirty) return false;
+    u->pixels = u->retained = pixels;
+    u->paint_clip = u->damage;
+    if (changed) *changed = u->damage;
     u->dirty = false;
+    u->damage = (rect_t){0};
     u->hit_count = 0;
-    memset(pixels, 0, WIDTH * HEIGHT * 2);
+    for (int y = u->paint_clip.y; y < u->paint_clip.y + u->paint_clip.h; ++y)
+        memset(pixels + y * WIDTH + u->paint_clip.x, 0, (size_t)u->paint_clip.w * 2);
+    /* Rebuild all hit regions using geometry clips, independently of the
+     * paint clip: a small animation update must not remove other buttons. */
     for (unsigned i = 0; i < u->header->node_count; i++)
         if (u->nodes[i].parent < 0 && !(u->nodes[i].flags & VUI_TEMPLATE))
             draw(u, i, 0, 0, (rect_t){0, 0, WIDTH, HEIGHT}, NULL, 0);
     u->pixels = NULL;
     return true;
 }
+bool vui_render(vui_handle_t u, uint16_t *pixels)
+{
+    return vui_render_changed(u, pixels, NULL);
+}
 void vui_pointer(vui_handle_t u, int x, int y, bool pressed)
+{
+    if (u) vui_pointer_at(u, x, y, pressed, u->now);
+}
+void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms)
 {
     if (!u)
         return;
@@ -779,7 +905,7 @@ void vui_pointer(vui_handle_t u, int x, int y, bool pressed)
         u->moved = false;
         u->fling_node = 0;
         u->velocity = u->scroll_fraction = 0;
-        u->last_move = u->now;
+        u->last_move = time_ms;
         u->drag_node = 0;
         for (int i = (int)u->hit_count - 1; i >= 0; i--)
             if (contains(u->hits[i].rect, x, y)) {
@@ -803,18 +929,18 @@ void vui_pointer(vui_handle_t u, int x, int y, bool pressed)
         int delta = u->last_y - y;
         if (position && u->moved && delta) {
             int next = max(0, min(*position + delta, limit));
-            uint64_t elapsed_move = u->now - u->last_move;
+            uint64_t elapsed_move = time_ms >= u->last_move ? time_ms - u->last_move : 0;
             int dt = elapsed_move > 200 ? 200 : max(1, (int)elapsed_move);
             u->velocity = max(-3000, min(3000, (next - *position) * 1000 / dt));
-            u->last_move = u->now;
-            if (next != *position) { *position = next; u->dirty = true; }
+            u->last_move = time_ms;
+            if (next != *position) { *position = next; damage_node(u, u->drag_node); }
         }
         u->last_y = y;
     }
     bool clicked =
         !pressed && u->pressed && !u->moved && u->down.node && contains(u->down.rect, x, y);
     if (!pressed && u->pressed && u->drag_node && u->moved &&
-        u->now - u->last_move < 120 && abs(u->velocity) >= 20)
+        time_ms >= u->last_move && time_ms - u->last_move < 120 && abs(u->velocity) >= 20)
         u->fling_node = u->drag_node;
     if (u->observer)
         u->observer(u, x, y, pressed, u->observer_ctx);

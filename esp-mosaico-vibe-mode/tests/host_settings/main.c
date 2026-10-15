@@ -6,12 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include SOURCE
+#include LOCALE_SOURCE
 
 typedef struct { char key[16], value[257]; bool string; uint32_t number; } entry_t;
 typedef struct { char name[16]; entry_t values[32], staged[32]; } namespace_t;
 static namespace_t namespaces[12];
 static unsigned count, commits, fail_commit, restarts;
 static bool recovery, suspended, read_lease, storage_lease, writer_busy;
+static unsigned wifi_revision;
+unsigned factory_network_credentials_revision(void) { return wifi_revision; }
 static void (*task)(void *);
 static void *task_arg;
 static entry_t *entry(nvs_handle_t h, const char *key, bool staged, bool create)
@@ -104,17 +107,31 @@ static void execute(vibe_settings_command_t c, const char *k, const char *v)
 static void reboot(void)
 {
     free(s_lock); s_lock = NULL; memset(&s_settings, 0, sizeof(s_settings));
+    factory_locale_init();
     assert(vibe_settings_init() == ESP_OK);
 }
 int main(void)
 {
-    assert(vibe_settings_init() == ESP_OK && s_settings.language == 0);
+    factory_locale_init(); assert(factory_locale_get() == 1);
+    fail_commit = 1;
+    assert(vibe_settings_init() == ESP_FAIL && !s_lock);
+    fail_commit = 0;
+    assert(vibe_settings_init() == ESP_OK && s_settings.language == 1);
+    unsigned before = commits;
+    reboot(); assert(s_settings.language == 1 && factory_locale_get() == 1 && commits == before);
+    /* Emulate an existing device before the product preference was written. */
+    free(s_lock); s_lock = NULL; memset(namespaces, 0, sizeof(namespaces)); count = 0;
     nvs_handle_t legacy;
     assert(!nvs_open_from_partition("sysmeta", "settings", NVS_READWRITE, &legacy));
     assert(!nvs_set_u8(legacy, "language", 0) && !nvs_commit(legacy));
-    reboot(); assert(s_settings.language == 2);
+    reboot(); assert(s_settings.language == 2 && factory_locale_get() == 0);
     execute(VIBE_SETTINGS_LANGUAGE, NULL, "1");
-    reboot(); assert(s_settings.language == 1);
+    reboot(); assert(s_settings.language == 1 && factory_locale_get() == 1);
+    /* A failed language commit cannot change the displayed or next-boot locale. */
+    fail_commit = commits + 1;
+    execute(VIBE_SETTINGS_LANGUAGE, NULL, "2");
+    assert(s_settings.error == ESP_FAIL && s_settings.language == 1 && factory_locale_get() == 1);
+    fail_commit = 0; reboot(); assert(s_settings.language == 1);
     execute(VIBE_SETTINGS_LANGUAGE, NULL, "2");
     execute(VIBE_SETTINGS_BRIGHTNESS, NULL, "40");
     execute(VIBE_SETTINGS_SHARED_SET, "api_key", "never-log-this");
@@ -149,15 +166,33 @@ int main(void)
         execute(VIBE_SETTINGS_RESET, NULL, NULL);
         assert(s_settings.error == ESP_FAIL && !restarts);
         fail_commit = 0; reboot();
-        assert(!s_settings.language && !s_settings.shared_count && s_settings.brightness == 80);
+        assert(s_settings.language == 1 && !s_settings.shared_count && s_settings.brightness == 80);
         size_t size = sizeof(value);
         assert(nvs_get_str(bridge, "pending_boot", value, &size) == ESP_ERR_NVS_NOT_FOUND);
         assert(!nvs_get_str(bridge, "sentinel", value, &size) && !strcmp(value, "keep"));
         for (unsigned i = 0; i < 3; ++i) { nvs_handle_t h; size_t n = sizeof(value); assert(!nvs_open_from_partition("sysmeta", preserved[i], NVS_READONLY, &h)); assert(!nvs_get_str(h, "sentinel", value, &n)); assert(!strcmp(value, "keep")); }
     }
     execute(VIBE_SETTINGS_RESET, NULL, NULL); assert(restarts == 1); reboot();
-    assert(!s_settings.language && !s_settings.shared_count);
+    assert(s_settings.language == 1 && !s_settings.shared_count);
+    /* An asynchronous Wi-Fi save refreshes the shared page and public API. */
+    nvs_handle_t shared;
+    assert(!nvs_open_from_partition("sysmeta", "shared", NVS_READWRITE, &shared));
+    assert(!nvs_set_str(shared, "wifi_ssid", "test-network"));
+    assert(!nvs_set_str(shared, "wifi_password", "test-password"));
+    assert(!nvs_commit(shared)); ++wifi_revision;
+    vibe_settings_snapshot_t snapshot;
+    assert(vibe_settings_snapshot(&snapshot) == ESP_OK && snapshot.busy && task);
+    void (*refresh)(void *) = task; task = NULL; refresh(task_arg);
+    assert(vibe_settings_snapshot(&snapshot) == ESP_OK && !snapshot.busy && snapshot.shared_count == 2);
+    assert(!mosaico_shared_get("wifi_password", value, sizeof(value)) && !strcmp(value, "test-password"));
+    assert(vibe_shared_key_secret("wifi_password"));
+    for (unsigned i = 0; i < VIBE_SHARED_USER_MAX; ++i) {
+        char key[16]; snprintf(key, sizeof(key), "custom%u", i);
+        execute(VIBE_SETTINGS_SHARED_SET, key, "keep");
+    }
+    assert(s_settings.shared_count == VIBE_SHARED_USER_MAX + 2);
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "overflow", "v") == ESP_ERR_NO_MEM);
+    execute(VIBE_SETTINGS_SHARED_SET, "wifi_password", "new-password");
+    assert(!mosaico_shared_get("wifi_password", value, sizeof(value)) && !strcmp(value, "new-password"));
     puts("preferences, shared application API and interrupted reset passed");
 }
-
-void factory_locale_use(unsigned language) { assert(language <= 1); }

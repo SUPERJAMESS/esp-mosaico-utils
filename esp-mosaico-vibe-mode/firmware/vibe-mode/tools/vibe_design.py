@@ -490,10 +490,25 @@ def runtime_charsets(root, translations):
             titles.add(key)
         if any(word in key.lower() for word in ('verif','connect','transferred','saving','restarting','committing','installing','unchanged','retained','saved in','selecting','charge above')):
             details.add(key)
+    # Follow backend title/detail producers, including stage variables. Keyword
+    # guesses alone missed Checking image / Saving Idea and their Chinese text.
+    backend = service_sources + (root/'components/app_ui/src/ui_services.c').read_text()
+    def literals(statement):
+        return [json.loads(value) for value in re.findall(r'"(?:[^"\\]|\\.)*"', statement)
+                if value != '"%s"']
+    for field, target in (('title', titles), ('detail', details)):
+        patterns = (rf'COPY\(update_{field},[^;]+;',
+                    rf'snprintf\([^;]*?(?:->|\.){field}\s*,[^;]+;',
+                    rf'\b{field}\s*=\s*[^;]+;')
+        for pattern in patterns:
+            for statement in re.findall(pattern, backend, re.S):
+                target.update(literals(statement))
     for name in ('update_title','result_title'): values.setdefault(name,set()).update(titles)
     details.update(('Reading and verifying files', 'Checking installed application',
                     'Preparing application', 'Writing application'))
     for name in ('update_detail','result_detail'): values.setdefault(name,set()).update(details)
+    # The verb is formatted through a variable, outside TEXT/FORMAT literals.
+    values.setdefault('update_rate', set()).update(('Download', 'Read', 'Receive'))
     for i in range(6):values.setdefault('cell_name_'+str(i),set()).add('Add Idea')
     values.setdefault('bundles_detail',set()).update(('Current','Update available','Updating · %u%%','Waiting'))
     values.setdefault('shared_field',set()).update(('Key','Value','Saving settings...','Please use a-z, 0-9 and _'))

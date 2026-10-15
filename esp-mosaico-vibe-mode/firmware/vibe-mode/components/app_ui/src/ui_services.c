@@ -286,14 +286,18 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
         if (ctx->ideas.command == IDEAS_DOWNLOAD) {
             if (ctx->ideas.phase == IDEAS_PHASE_VERIFY_FILES)
                 out->transfer.phase = VIBE_TRANSFER_VERIFY_FILES;
-            else if (ctx->ideas.phase == IDEAS_PHASE_CHECK_IMAGE)
+            else if (ctx->ideas.phase == IDEAS_PHASE_CHECK_IMAGE) {
                 out->transfer.phase = VIBE_TRANSFER_CHECK_IMAGE;
+                out->transfer.received = out->transfer.total = 0;
+            }
             else if (ctx->ideas.phase == IDEAS_PHASE_SAVE)
                 out->transfer.phase = VIBE_TRANSFER_SAVE;
             out->transfer.completed_components = ctx->ideas.files_verified;
             out->transfer.component_count = ctx->ideas.file_count;
         }
         if (ctx->ideas.command == IDEAS_INSTALL || ctx->ideas.command == IDEAS_OPEN) {
+            out->transfer.completed_components = ctx->ideas.files_verified;
+            out->transfer.component_count = ctx->ideas.file_count;
             if (ctx->ideas.phase == IDEAS_PHASE_VERIFY_FILES) {
                 out->transfer.phase = VIBE_TRANSFER_READ_FILES;
                 out->transfer.receiving = out->updating && ctx->ideas.cancellable;

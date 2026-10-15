@@ -89,6 +89,11 @@ static esp_err_t flash_hash(uint32_t offset, uint32_t size, const char *expected
         metrics.hash += factory_io_now() - started;
         metrics.bytes += n;
         done += n;
+        if (err == ESP_OK && ctx) {
+            xSemaphoreTake(ctx->lock, portMAX_DELAY);
+            ctx->state->received += n;
+            xSemaphoreGive(ctx->lock);
+        }
         vTaskDelay(1);
     }
     uint8_t digest[32];
@@ -118,6 +123,23 @@ esp_err_t ideas_verify_installed(const ideas_package_t *package, ideas_context_t
     if (!manifest) return ESP_ERR_NO_MEM;
     cJSON *components = cJSON_GetObjectItem(manifest, "components"), *component;
     esp_err_t err = cJSON_IsArray(components) ? ESP_OK : ESP_ERR_INVALID_ARG;
+    if (ctx) {
+        uint64_t total = 0;
+        unsigned count = 0;
+        cJSON_ArrayForEach(component, components) {
+            const cJSON *size = cJSON_GetObjectItem(component, "size");
+            if (cJSON_IsNumber(size) && size->valuedouble > 0 && size->valuedouble <= package->flash_size) {
+                total += (uint32_t)size->valuedouble;
+                ++count;
+            }
+        }
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        ctx->state->received = 0;
+        ctx->state->total = total;
+        ctx->state->files_verified = 0;
+        ctx->state->file_count = count;
+        xSemaphoreGive(ctx->lock);
+    }
     cJSON_ArrayForEach(component, components) {
         const cJSON *offset = cJSON_GetObjectItem(component, "target_offset");
         const cJSON *size = cJSON_GetObjectItem(component, "size");
@@ -129,6 +151,11 @@ esp_err_t ideas_verify_installed(const ideas_package_t *package, ideas_context_t
         }
         err = flash_hash((uint32_t)offset->valuedouble, (uint32_t)size->valuedouble, hash, ctx);
         if (err != ESP_OK) break;
+        if (ctx) {
+            xSemaphoreTake(ctx->lock, portMAX_DELAY);
+            ++ctx->state->files_verified;
+            xSemaphoreGive(ctx->lock);
+        }
     }
     cJSON_Delete(manifest);
     return err;
@@ -388,6 +415,7 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
             if (ctx->cancel_requested) err = ESP_ERR_INVALID_STATE;
             else {
                 ctx->state->phase = IDEAS_PHASE_CHECK_IMAGE;
+                ctx->state->received = ctx->state->total = 0;
                 snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Checking installed application");
             }
             xSemaphoreGive(ctx->lock);

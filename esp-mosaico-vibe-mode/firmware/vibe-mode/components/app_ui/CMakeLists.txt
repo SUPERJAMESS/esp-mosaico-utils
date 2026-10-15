@@ -17,6 +17,9 @@ idf_component_register(
     PRIV_REQUIRES app_network app_ideas app_nand_update app_system app_system_update app_bridge esp_iris esp-mosaico-bsp esp_display_present esp_lcd esp_lcd_touch esp_driver_spi esp_timer esp_wifi esp_app_format
     EMBED_FILES "light/vui_assets.bin"
 )
+# Raster loops run for every scroll frame. Keep the product's size-oriented
+# defaults elsewhere, but allow inlining and loop optimization in the renderer.
+set_source_files_properties("light/vui.c" PROPERTIES COMPILE_OPTIONS "-O2")
 # The presenter is a transport driver. Vibe owns layout, drawing and input.
 target_link_options(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=esp_display_presenter_submit_buffer")
 

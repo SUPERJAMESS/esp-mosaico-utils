@@ -24,6 +24,10 @@
 #define FACTORY_WIFI_NAMESPACE "wifi"
 #define FACTORY_WIFI_SSID_KEY "ssid"
 #define FACTORY_WIFI_PASSWORD_KEY "password"
+#define SHARED_NAMESPACE "shared"
+#define SHARED_WIFI_SSID "wifi_ssid"
+#define SHARED_WIFI_PASSWORD "wifi_password"
+static atomic_uint s_credentials_revision;
 
 typedef struct {
     SemaphoreHandle_t lock;
@@ -63,21 +67,48 @@ static void scan_set_error(factory_network_context_t *ctx, esp_err_t error)
     xSemaphoreGive(ctx->lock);
 }
 
-static esp_err_t credentials_load(char ssid[FACTORY_NETWORK_SSID_BYTES],
+static esp_err_t credentials_save(const char *ssid, const char *password);
+static esp_err_t credentials_read(const char *space, const char *ssid_key, const char *password_key,
+                                  char ssid[FACTORY_NETWORK_SSID_BYTES],
                                   char password[FACTORY_NETWORK_PASSWORD_BYTES])
 {
     nvs_handle_t handle;
     esp_err_t err = nvs_open_from_partition(FACTORY_SYSTEM_METADATA_PARTITION,
-                                            FACTORY_WIFI_NAMESPACE, NVS_READONLY, &handle);
+                                            space, NVS_READONLY, &handle);
     if (err != ESP_OK) {
         return err;
     }
     size_t ssid_size = FACTORY_NETWORK_SSID_BYTES;
     size_t password_size = FACTORY_NETWORK_PASSWORD_BYTES;
-    err = nvs_get_str(handle, FACTORY_WIFI_SSID_KEY, ssid, &ssid_size);
+    err = nvs_get_str(handle, ssid_key, ssid, &ssid_size);
     if (err == ESP_OK) {
-        err = nvs_get_str(handle, FACTORY_WIFI_PASSWORD_KEY, password, &password_size);
+        err = nvs_get_str(handle, password_key, password, &password_size);
     }
+    nvs_close(handle);
+    return err;
+}
+static esp_err_t credentials_load(char ssid[FACTORY_NETWORK_SSID_BYTES],
+                                  char password[FACTORY_NETWORK_PASSWORD_BYTES])
+{
+    esp_err_t err = credentials_read(SHARED_NAMESPACE, SHARED_WIFI_SSID, SHARED_WIFI_PASSWORD,
+                                     ssid, password);
+    if (err != ESP_ERR_NVS_NOT_FOUND || ssid[0]) return err;
+    /* Adopt existing devices once, before the shared namespace becomes the
+     * source of truth. Never replace an explicitly edited shared SSID. */
+    err = credentials_read(FACTORY_WIFI_NAMESPACE, FACTORY_WIFI_SSID_KEY,
+                           FACTORY_WIFI_PASSWORD_KEY, ssid, password);
+    return err == ESP_OK ? credentials_save(ssid, password) : err;
+}
+
+static esp_err_t legacy_credentials_erase(void)
+{
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open_from_partition(FACTORY_SYSTEM_METADATA_PARTITION,
+                                            FACTORY_WIFI_NAMESPACE, NVS_READWRITE, &handle);
+    if (err == ESP_ERR_NVS_NOT_FOUND) return ESP_OK;
+    if (err != ESP_OK) return err;
+    err = nvs_erase_all(handle);
+    if (err == ESP_OK) err = nvs_commit(handle);
     nvs_close(handle);
     return err;
 }
@@ -86,42 +117,65 @@ static esp_err_t credentials_save(const char *ssid, const char *password)
 {
     nvs_handle_t handle;
     ESP_RETURN_ON_ERROR(nvs_open_from_partition(FACTORY_SYSTEM_METADATA_PARTITION,
-                                                FACTORY_WIFI_NAMESPACE, NVS_READWRITE, &handle),
+                                                SHARED_NAMESPACE, NVS_READWRITE, &handle),
                         TAG, "open system metadata Wi-Fi namespace");
-    esp_err_t err = nvs_set_str(handle, FACTORY_WIFI_SSID_KEY, ssid);
+    esp_err_t err = nvs_set_str(handle, SHARED_WIFI_SSID, ssid);
     if (err == ESP_OK) {
-        err = nvs_set_str(handle, FACTORY_WIFI_PASSWORD_KEY, password);
+        err = nvs_set_str(handle, SHARED_WIFI_PASSWORD, password);
     }
     if (err == ESP_OK) {
         err = nvs_commit(handle);
     }
     nvs_close(handle);
+    if (err == ESP_OK) {
+        atomic_fetch_add(&s_credentials_revision, 1);
+        /* Only remove the former private copy after shared values commit. */
+        err = legacy_credentials_erase();
+    }
     return err;
 }
 
 static esp_err_t credentials_erase(void)
 {
+    /* Clear the old copy first so a partially interrupted forget cannot
+     * re-import a network the user removed from the shared namespace. */
+    ESP_RETURN_ON_ERROR(legacy_credentials_erase(), TAG, "clear former Wi-Fi settings");
     nvs_handle_t handle;
     esp_err_t err = nvs_open_from_partition(FACTORY_SYSTEM_METADATA_PARTITION,
-                                            FACTORY_WIFI_NAMESPACE, NVS_READWRITE, &handle);
+                                            SHARED_NAMESPACE, NVS_READWRITE, &handle);
     if (err == ESP_ERR_NVS_NOT_FOUND) {
         return ESP_OK;
     }
     ESP_RETURN_ON_ERROR(err, TAG, "open factory Wi-Fi NVS");
-    err = nvs_erase_all(handle);
+    err = nvs_erase_key(handle, SHARED_WIFI_SSID);
+    if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
+    if (err == ESP_OK) err = nvs_erase_key(handle, SHARED_WIFI_PASSWORD);
+    if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
     if (err == ESP_OK) {
         err = nvs_commit(handle);
     }
     nvs_close(handle);
+    if (err == ESP_OK) atomic_fetch_add(&s_credentials_revision, 1);
     return err;
+}
+unsigned factory_network_credentials_revision(void)
+{
+    return atomic_load(&s_credentials_revision);
 }
 
 static esp_err_t apply_station_config(factory_network_context_t *ctx, const char *ssid,
                                       const char *password)
 {
     wifi_config_t config = {0};
-    strlcpy((char *)config.sta.ssid, ssid, sizeof(config.sta.ssid));
-    strlcpy((char *)config.sta.password, password, sizeof(config.sta.password));
+    /* IDF uses fixed 32/64-byte arrays: full-length SSIDs/hex PSKs do not
+     * require a trailing NUL and must not lose their final byte. */
+    size_t ssid_size = strnlen(ssid, FACTORY_NETWORK_SSID_BYTES);
+    size_t password_size = strnlen(password, FACTORY_NETWORK_PASSWORD_BYTES);
+    ESP_RETURN_ON_FALSE(ssid_size && ssid_size <= sizeof(config.sta.ssid) &&
+                            password_size <= sizeof(config.sta.password),
+                        ESP_ERR_INVALID_SIZE, TAG, "invalid saved Wi-Fi lengths");
+    memcpy(config.sta.ssid, ssid, ssid_size);
+    memcpy(config.sta.password, password, password_size);
     config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
     config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
     config.sta.threshold.authmode = WIFI_AUTH_OPEN;
@@ -398,6 +452,7 @@ static esp_err_t start_network(factory_network_context_t *ctx)
     }
     /* A bad saved connection does not invalidate the initialized driver:
      * provisioning a different network must remain possible. */
+    memset(password, 0, sizeof(password));
     (void)request_scan_started(ctx);
     return ESP_OK;
 fail:

@@ -18,6 +18,7 @@ def test_settings_and_reset_preserve_identity_and_nand(tmp_path):
     executable = tmp_path / "settings-test"
     result = subprocess.run([
         "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", '-DSOURCE="' + str(source) + '"',
+        '-DLOCALE_SOURCE="' + str(ROOT / "firmware/vibe-mode/components/app_system/src/factory_locale.c") + '"',
         "-I" + str(tmp_path), "-I" + str(fixture),
         "-I" + str(source.parents[1] / "include"),
         "-I" + str(ROOT / "components/esp_mosaico_app_recovery/include"),

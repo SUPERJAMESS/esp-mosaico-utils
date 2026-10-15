@@ -76,7 +76,8 @@ BEGIN 阶段也视为 active，覆盖开始擦除但尚未创建活动 OTA 状�
 
 ## 设置与共享信息
 
-首次启动选择 English / 简体中文，然后连接 Wi-Fi 或跳过。查询云端时使用
+首次启动默认 English，并将语言写入 `sysmeta/vibe_prefs/lang`；设置页面可切换
+简体中文，重启后保留选择。已有设备的语言偏好会迁移并保留。查询云端时使用
 `en` / `zh-CN`。设备偏好写入 `sysmeta/vibe_prefs`：
 
 - 亮度 20 / 40 / 60 / 80 / 100%，默认 80%；息屏保持 10% 背光。
@@ -89,7 +90,8 @@ BEGIN 阶段也视为 active，覆盖开始擦除但尚未创建活动 OTA 状�
 触感使用计时器提供按键、确认、拒绝、成功、失败反馈；可关闭。
 可选传感器不可用不会阻止 USB 维护启动。
 
-共享信息写入 `sysmeta/shared`，最多 16 项。键为 1–15 字节的
+共享信息写入 `sysmeta/shared`，支持 16 项自定义值，另保留两个 Wi-Fi 字段。
+键为 1–15 字节的
 `[a-z0-9_]`，值最多 256 字节；屏幕键盘支持 ASCII 输入。
 包含 key/token/secret/pass/pwd 的键默认遮盖值，可手动显示。退出编辑清理
 显示缓冲；日志和模拟器状态快照不输出共享值。删除也提供确认和撤销。
@@ -107,13 +109,20 @@ esp_err_t err = mosaico_shared_get("api_key", api_key, sizeof(api_key));
 
 接口只读，不擦除、不缓存、不打印值；所有 Ideas 共享同一命名空间。
 
+Wi-Fi 连接成功后保存 `wifi_ssid` 和 `wifi_password`，共享信息页面自动刷新；
+`wifi_password` 默认遮蔽，开放网络的密码为空字符串。旧 `sysmeta/wifi` 配置
+在共享值提交成功后迁移并清理。启动和息屏唤醒直接读取共享字段，手动编辑后
+在下次启动或息屏唤醒时使用；“忘记网络”只删除这两个共享字段，不影响其他共享值。
+应用可用 `mosaico_shared_get("wifi_ssid", ...)` 和
+`mosaico_shared_get("wifi_password", ...)` 读取，缓冲区分别至少 33 / 65 字节。
+
 ## 恢复出厂设置
 
 长按三秒确认，先取得 NAND 与 NOR 的互斥租约，再写入持久化 reset 标记和
 Vibe Mode 启动意图，停止 Wi-Fi 自动重连与凭据保存。仅清理
 `wifi`、`shared`、`vibe_prefs` 三个 NVS 命名空间，并取消
 `iris_bridge_v2/pending_boot` 这一条临时远程启动请求。
-成功后重启进入首次设置；中途断电或提交失败，下次启动继续完成清理。
+成功后重启恢复英文默认设置；中途断电或提交失败，下次启动继续完成清理。
 
 **完全保留 NAND Flash**，包括 Ideas、开发副本和其他用户文件；
 保留 NOR 应用、当前 Idea 启动记录、设备身份与 Iris 配对身份。

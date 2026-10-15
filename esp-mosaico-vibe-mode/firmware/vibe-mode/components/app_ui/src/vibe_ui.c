@@ -31,7 +31,10 @@ static void transfer_text(vibe_ui_t *s)
 {
     const vibe_snapshot_t *v = &s->snapshot;
     const vibe_transfer_t *t = &v->transfer;
-    if (t->phase == VIBE_TRANSFER_CHECK_IMAGE || t->phase == VIBE_TRANSFER_SAVE) {
+    bool waiting = t->phase == VIBE_TRANSFER_SAVE ||
+                   (t->phase == VIBE_TRANSFER_CHECK_IMAGE && !t->total);
+    (void)vui_set_indeterminate(s->ui, VUI_VIBE_BIND_PROGRESS, (waiting || !t->total) && v->updating);
+    if (waiting) {
         TEXT(s, UPDATE_PERCENT, "--");
         TEXT(s, UPDATE_BYTES, "");
         TEXT(s, UPDATE_RATE, "");
@@ -57,7 +60,7 @@ static void transfer_text(vibe_ui_t *s)
                            ? T(s, "Download")
                        : !strcmp(v->update_owner, "NAND") ? T(s, "Read")
                                                           : T(s, "Receive");
-    if (t->phase == VIBE_TRANSFER_VERIFY_FILES)
+    if (t->phase == VIBE_TRANSFER_VERIFY_FILES || t->phase == VIBE_TRANSFER_CHECK_IMAGE)
         TEXT(s, UPDATE_RATE, "");
     else if (!s->rate.valid)
         FORMAT(s, UPDATE_RATE, "%s: --", verb);
@@ -67,7 +70,8 @@ static void transfer_text(vibe_ui_t *s)
         FORMAT(s, UPDATE_RATE, "%s: %u.%u %s/s", verb, tenths / 10, tenths % 10,
                rate_unit == 1024 ? "KiB" : "MiB");
     }
-    if (t->phase == VIBE_TRANSFER_VERIFY_FILES || t->phase == VIBE_TRANSFER_READ_FILES)
+    if (t->phase == VIBE_TRANSFER_VERIFY_FILES || t->phase == VIBE_TRANSFER_READ_FILES ||
+        t->phase == VIBE_TRANSFER_CHECK_IMAGE)
         FORMAT(s, UPDATE_COMPONENT, T(s, "Files verified: %u/%u"),
                t->completed_components, t->component_count);
     else if (!strcmp(v->update_owner, "Cloud"))

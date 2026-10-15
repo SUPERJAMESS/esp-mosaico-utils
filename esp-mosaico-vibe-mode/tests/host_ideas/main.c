@@ -62,7 +62,8 @@ static void library(const char *version) {
     assert(generations == 2);
 }
 static unsigned phases, last_phase, verify_samples;
-static uint64_t verify_bytes;
+static uint64_t verify_bytes, verify_total, image_bytes;
+static unsigned image_samples;
 static void observe_progress(void) {
     factory_ideas_snapshot_t s = snapshot();
     assert(s.phase >= last_phase);
@@ -72,11 +73,13 @@ static void observe_progress(void) {
         assert(s.received >= verify_bytes && s.received <= s.total);
         if (s.received > verify_bytes) ++verify_samples;
         verify_bytes = s.received;
+        verify_total = s.total;
         assert(s.files_verified <= s.file_count);
     }
-    if (s.phase >= IDEAS_PHASE_CHECK_IMAGE) {
-        assert(s.files_verified == s.file_count && s.file_count > 0);
-        assert(s.received == s.total);
+    if (s.phase == IDEAS_PHASE_CHECK_IMAGE) {
+        assert(s.received <= s.total && s.files_verified <= s.file_count);
+        if (s.received > image_bytes) ++image_samples;
+        image_bytes = s.received;
     }
 }
 static bool cancelled, cancel_in_flash, cancel_at_commit;
@@ -192,14 +195,17 @@ int main(int argc, char **argv) {
         assert(!snapshot().failed && !strcmp(snapshot().title, "Cancelled"));
         assert(!env->installs && !env->commits && !env->restarts);
         library("1.0");
-    } else if (!strcmp(scenario, "open-progress")) {
+    } else if (!strcmp(scenario, "open-progress") || !strcmp(scenario, "open-current-progress")) {
         download();
+        bool current = !strcmp(scenario, "open-current-progress");
+        if (current) run(IDEAS_OPEN);
         env->observe = observe_progress;
         run(IDEAS_OPEN);
         env->observe = NULL;
         factory_ideas_snapshot_t s = snapshot();
-        assert(!s.failed && !s.cancelled && env->installs == 1 && env->restarts == 1);
-        assert(verify_bytes == s.total && verify_samples > s.file_count);
+        assert(!s.failed && !s.cancelled && env->installs == 1 && env->restarts == (current ? 2U : 1U));
+        assert(verify_bytes == verify_total && verify_samples > 1);
+        if (current) assert(image_samples > 1 && image_bytes == s.total);
     } else if (!strcmp(scenario, "open-cancel-block") ||
                !strcmp(scenario, "open-cancel-current") ||
                !strcmp(scenario, "open-cancel-queued") ||

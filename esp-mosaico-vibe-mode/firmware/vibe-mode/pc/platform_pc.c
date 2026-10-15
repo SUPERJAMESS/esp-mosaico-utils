@@ -80,6 +80,7 @@ static void trace_state(vui_handle_t ui, void *ctx)
             model.transfer = (vibe_transfer_t){.source = 3, .phase = phase < 4 ? phase : 3,
                 .receiving = phase == 0, .received = checked, .total = expected,
                 .completed_components = verified, .component_count = files, .now_ms = clock};
+            if (phase == 2) model.transfer.received = model.transfer.total = 0;
             model.transfer.job[0] = 42;
             model.progress = vibe_transfer_permille(checked, expected);
             model.updating = phase < 4;
@@ -500,7 +501,7 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
     case VIBE_SETTINGS_RESET:
         ++reset_calls;
         ++restart_calls;
-        model.settings.language = 0;
+        model.settings.language = 1;
         model.settings.shared_count = 0;
         memset(model.settings.shared, 0, sizeof(model.settings.shared));
         model.credentials_saved = false;
@@ -513,7 +514,7 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
 static unsigned key(void *ctx) { (void)ctx; unsigned k = next_key; next_key = 0; return k; }
 vui_err_t vibe_pc_init(vui_handle_t ui)
 {
-    model.settings = (vibe_settings_snapshot_t){.language = scenario("first-run") ? 0 : 1,
+    model.settings = (vibe_settings_snapshot_t){.language = 1,
         .brightness = 80, .screen_off_seconds = 180, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
     model.device.battery_valid = true;
     model.device.battery_percent = scenario("low-battery") ? 15 : 80;

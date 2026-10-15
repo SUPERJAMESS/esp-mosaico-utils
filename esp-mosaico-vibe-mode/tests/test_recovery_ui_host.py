@@ -40,7 +40,7 @@ class Simulator:
             address, port = info["api"].replace("tcp://", "").split(":")
             self.connection = socket.create_connection((address, int(port)), timeout=15)
             self.stream = self.connection.makefile("rb")
-            self.wait(page=18 if scenario == "first-run" else 0)
+            self.wait(page=0)
         except BaseException:
             self.close()
             raise
@@ -549,10 +549,18 @@ def test_ideas_download_verification_stages(sim, english):
     sim.control("ideas-phase 1 400000 1000000 4 12 3000")
     sim.wait(page=7, progress=400, rate_valid=False)
     sim.capture("ideas-verify-files")
+    with Image.open(sim.directory / "ideas-verify-files.png") as frame:
+        assert frame.getpixel((100, 295))[0] > 200
+        assert frame.getpixel((300, 295))[0] < 100
     for phase, name in ((2, "check-image"), (3, "save"), (4, "complete")):
         sim.control("ideas-phase %d 1000000 1000000 12 12 %d" % (phase, 3000 + phase*1000))
         sim.wait(page=8 if phase == 4 else 7, rate_valid=False)
         sim.capture("ideas-" + name)
+        if phase in (2, 3):
+            with Image.open(sim.directory / ("ideas-" + name + ".png")) as frame:
+                pixels = list(frame.convert("RGB").crop((24, 294, 456, 298)).getdata())
+                orange = sum(r > 200 and g < 120 for r, g, b in pixels)
+                assert 300 < orange < 600  # Activity segment, no fake percentage.
 
 
 def test_ideas_verification_failure_has_no_download_rate(sim):
@@ -749,11 +757,12 @@ def test_language_display_and_wake_controls(sim):
 
 
 @pytest.mark.parametrize("sim", ["first-run"], indirect=True)
-def test_first_run_language_then_wifi_can_skip(sim):
-    sim.wait(page=18, language=0)
+def test_first_run_defaults_to_english(sim):
+    sim.wait(page=0, language=1)
     sim.capture("first-run")
-    sim.tap_ui("button_welcome_en"); sim.wait(page=1, language=1)
-    sim.tap(38, 36); sim.wait(page=0)
+    sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+    sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+    sim.tap_ui("button_language_zh"); sim.wait(language=2)
 
 
 @pytest.mark.parametrize("language", [1, 2])
@@ -793,7 +802,7 @@ def test_factory_reset_requires_hold_and_preserves_nand(sim, language):
     with Image.open(sim.directory / "factory-reset-outside.png") as frame:
         assert not ImageChops.difference(frame, idle).getbbox()
     sim.rpc("feed_pointer", x=240, y=300, pressed=False)
-    hold(sim, reset_calls=1, restart_calls=1, bundle_count=2, shared_count=0, language=0)
+    hold(sim, reset_calls=1, restart_calls=1, bundle_count=2, shared_count=0, language=1)
 
 
 @pytest.mark.parametrize("language", [1, 2])

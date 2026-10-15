@@ -29,7 +29,7 @@ SCENARIOS = [
     "reject-bad-descriptor", "reject-bad-flash", "rollback-hash", "rollback-truncated",
     "offline", "install-corrupt", "install-commit-failure", "boot-identity",
     "interrupted-generation", "admission", "repair-current", "io-budget",
-    "open", "open-progress", "open-cancel-block", "open-cancel-current", "open-cancel-queued", "open-cancel-gate",
+    "open", "open-progress", "open-current-progress", "open-cancel-block", "open-cancel-current", "open-cancel-queued", "open-cancel-gate",
     "delete", "delete-current", "download-cancel", "batch", "development", "development-ota-busy", "refresh-updates", "open-cancel", "no-space",
 ] + ["reject-bad-multipart-" + kind for kind in BAD_MULTIPART]
 

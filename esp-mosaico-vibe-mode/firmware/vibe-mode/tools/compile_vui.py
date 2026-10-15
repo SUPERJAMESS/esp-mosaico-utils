@@ -124,7 +124,7 @@ def compile_assets():
                         "text": text,
                         "font": "fonts/VibeMedium.otf",
                         "font_size": 22 if len(text) == 1 else 18,
-                        "font_charset": "".join(chr(c) for c in range(32, 127)) + "↑⌫",
+                        "font_charset": "".join(chr(c) for c in range(32, 127)),
                         "bg_color": "#F2F2F2" if arg == 13 else "#292829",
                         "fg_color": "#000000" if arg == 13 else "#ECECF0",
                         "radius": 8,
@@ -252,6 +252,8 @@ def compile_assets():
             w, h = r - x, b - y
             im = Image.new("L", (max(1, w), max(1, h)))
             ImageDraw.Draw(im).text((-x, -y), ch, font=font, fill=255, anchor="ls")
+            if not ch.isspace() and not im.getbbox():
+                raise ValueError(f'{path} ({size}px): empty glyph {ch!r} U+{ord(ch):04X}')
             glyphs.append(
                 struct.pack(
                     "<II6h",
