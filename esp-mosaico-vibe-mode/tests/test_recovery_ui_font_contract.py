@@ -26,3 +26,17 @@ def test_compiled_update_font_covers_device_and_simulator_states():
     assert set('0123456789%') <= set(objects['update_percent']['font_charset'])
     assert '-' in objects['update_percent']['font_charset']
     assert set('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-') <= set(objects['bridge_code_compact']['font_charset'])
+
+
+def test_online_firmware_status_fonts_cover_translations():
+    scene = json.loads((RECOVERY / 'ui/main.json').read_text())
+    objects = {item.get('name'): item for item in scene['objects']}
+    translations = json.loads((RECOVERY / 'ui/translations.json').read_text())
+    for name, strings in {
+        'firmware_progress_title': ['Updating firmware', 'Firmware update failed'],
+        'firmware_phase': ['Downloading firmware', 'Verifying firmware', 'Writing firmware', 'Restarting Vibe Mode'],
+        'firmware_power_warning': ['Do not unplug or power off.'],
+    }.items():
+        glyphs = set(objects[name]['font_charset'])
+        for text in strings:
+            assert set(text + translations[text]) <= glyphs, (name, text)

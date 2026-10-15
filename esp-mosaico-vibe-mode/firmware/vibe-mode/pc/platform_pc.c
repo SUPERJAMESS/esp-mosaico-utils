@@ -40,6 +40,22 @@ static void trace_state(vui_handle_t ui, void *ctx)
         if (!fgets(command, sizeof(command), request)) command[0] = 0;
         fclose(request);
         remove(control);
+        if (!strcmp(command, "release-available") || !strncmp(command, "release-available ", 18)) {
+            model.release_available = model.release_installable = true;
+            snprintf(model.release_version, sizeof(model.release_version), "0.2.1");
+            (void)sscanf(command, "release-available %31s", model.release_version);
+        }
+        if (!strcmp(command, "firmware-fail")) {
+            model.updating = false;
+            model.update_terminal = model.update_failed = true;
+            ++model.update_revision;
+            snprintf(model.update_title, sizeof(model.update_title), "Firmware update failed");
+            snprintf(model.update_detail, sizeof(model.update_detail), "Error 0x00000105");
+        }
+        if (!strcmp(command, "firmware-complete")) {
+            model.progress = 1000;
+            snprintf(model.update_detail, sizeof(model.update_detail), "Restarting Vibe Mode");
+        }
         if (!strcmp(command, "ideas-fail")) {
             installing = model.updating = model.transfer.receiving = false;
             model.update_terminal = model.update_failed = true;
@@ -282,6 +298,15 @@ static void snapshot(void *ctx, vibe_snapshot_t *out) {
 static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) {
     (void)ctx;
     switch (cmd) {
+    case VIBE_INSTALL_FIRMWARE:
+        if (!model.release_installable || !a || strcmp(a, model.release_version)) return 0x106;
+        model.firmware_update = model.updating = true;
+        model.update_terminal = model.update_failed = model.cancellable = model.batch = false;
+        model.progress = 250;
+        ++model.update_revision;
+        snprintf(model.update_title, sizeof(model.update_title), "Updating firmware");
+        snprintf(model.update_detail, sizeof(model.update_detail), "Downloading firmware");
+        break;
     case VIBE_SET_LANGUAGE:
         model.settings.language = !strcmp(a, "en") ? 1 : 2;
         ++model.nand_generation;

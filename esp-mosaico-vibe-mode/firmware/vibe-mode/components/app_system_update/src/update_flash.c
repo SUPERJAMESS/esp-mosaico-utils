@@ -332,7 +332,7 @@ esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERAT
                             ESP_ERR_INVALID_STATE, TAG, "application verification is missing");
     }
 
-    if (ctx->transaction.remote_bridge) {
+    if (ctx->transaction.remote_bridge || update_owner_is(ctx, FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE)) {
         const esp_partition_t *factory = esp_partition_find_first(
             ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_TEST, MOSAICO_RECOVERY_PARTITION);
         ESP_RETURN_ON_FALSE(factory != NULL, ESP_ERR_NOT_FOUND, TAG,

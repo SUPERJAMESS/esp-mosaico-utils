@@ -1,6 +1,6 @@
 {
-  "components/app_ui/light/vui_assets.bin": "8513e77fe068ce24fb9cad48c5e4745fe30bd436bdc0f345c7829fea5fad795b",
-  "components/app_ui/private/vui_ids.h": "648f961d980f08806ec9cddf1512bffed25e9b4df579124d2e304de4f8b02621",
+  "components/app_ui/light/vui_assets.bin": "e19db50ce7011f7c7eded34ebc35f1f7d61bdb51b0f0011c16688d24c1d12d32",
+  "components/app_ui/private/vui_ids.h": "6526acea448c66740a9b61527153b5d0354563d48036042b31e74dfd0b4af19f",
   "tools/compile_vui.py": "d8bc3ebdb09ee17e2eccd85a34ee72b372088455467d2c125fe4a5eac67ddce9",
   "ui/assets/anim/home.dots.json": "91dafaa774fb7e528a652ae04102965d4d87b87cb11d11d737100985b456d5f1",
   "ui/assets/icons/back-32-white.png": "319ef3fac418b5408d4bfb2d908211259334a4293faa98439f8f2c1d740897b0",
@@ -36,10 +36,10 @@
   "ui/assets/mosaic/hero_empty-80.png": "3da2a5899a707efa6e6ddf5dbad348d1fd58dc42d6b6d6ffb5e88ae6879a6cf8",
   "ui/assets/qr/develop@198.png": "2f3ac9f017fafb72e4d8e1dfdf61a32181ac242919613d3e557e91cc07e78b34",
   "ui/fonts/NotoSansSC-Bold.otf": "7b261fdfd2c11e864afb59d6370ca716d847d3ec894da05a8981dec472e4d3fd",
-  "ui/fonts/VibeDisplay.otf": "31bbfafcf1af2e6a2c8ffa2c6cb433a7e324e6a271494214bb9aeab74669aff0",
-  "ui/fonts/VibeInter.otf": "c37b5ec6e2649f77d721f2d78ba6712b0239bbd3f4425e45ab40b76dead59114",
-  "ui/fonts/VibeMedium.otf": "21fd2cf4bd1bdf55a672098d6778d03533ee7994daee9b58461f46f583dbe1bc",
-  "ui/main.json": "5a1374950dabbddfc3542e04f27a99d6163a71c694cec770f1cf5e319873fd48",
+  "ui/fonts/VibeDisplay.otf": "955e5a10eb7739c7f45e20e07fa971d042f922ce53d6e53f5104b04373c30e9f",
+  "ui/fonts/VibeInter.otf": "87524ea1bccef8e62e9f42e1cafcf41bb829e8f363cf452c412d0e4c0f3f6491",
+  "ui/fonts/VibeMedium.otf": "8298301efb6dfed787815352242822ac5ab74668c2e0a7b6913bc3a216a3bfaf",
+  "ui/main.json": "9977953a471e4b0d50fd9cf6410240515829830ea04d0a448c677ada1377ee2a",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3"
 }

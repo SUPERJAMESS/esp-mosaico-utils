@@ -176,6 +176,17 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     unsigned action = e->action_id;
     if (s->snapshot.updating && !s->snapshot.batch && action != VUI_VIBE_ACT_ID_CANCEL_DOWNLOAD) return true;
     switch (action) {
+    case VUI_VIBE_ACT_ID_FIRMWARE_START:
+        if (s->page == VIBE_FIRMWARE_NOTICE) {
+            if (!s->snapshot.release_installable) {
+                TEXT(s, FIRMWARE_READY, "Firmware file not published yet");
+                break;
+            }
+            int err = vibe_command(s, VIBE_INSTALL_FIRMWARE, s->snapshot.release_version, NULL);
+            if (err) vibe_error(s, "Firmware update failed", err);
+            else vibe_ui_poll(s);
+        }
+        break;
     case VUI_VIBE_ACT_ID_NAV_DEVELOP:
         vibe_show(s, VIBE_DEVELOP); break;
     case VUI_VIBE_ACT_ID_NAV_MANAGE:
@@ -205,7 +216,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         else if (s->page == VIBE_SHARED_EDITOR) {
             memset(s->shared_value, 0, sizeof(s->shared_value));
             vibe_show(s, VIBE_SHARED);
-        } else if (s->page == VIBE_GRID || s->page == VIBE_DEVELOP || s->page == VIBE_SETTINGS || s->page == VIBE_BOOT_TIP)
+        } else if (s->page == VIBE_GRID || s->page == VIBE_DEVELOP || s->page == VIBE_SETTINGS || s->page == VIBE_BOOT_TIP || s->page == VIBE_FIRMWARE_NOTICE)
             vibe_show(s, VIBE_HOME);
         else vibe_show(s, VIBE_SETTINGS);
         break;

@@ -7,6 +7,8 @@
 #include "factory_locale.h"
 #include "factory_nand_update.h"
 #include "factory_network.h"
+#include "factory_update_check.h"
+#include "factory_firmware_install.h"
 #include "factory_system_update.h"
 #include "vibe_settings.h"
 #include "vibe_device.h"
@@ -23,7 +25,7 @@
 typedef struct {
     factory_nand_update_snapshot_t nand;
     factory_ideas_snapshot_t ideas;
-    uint32_t ideas_revision;
+    uint32_t ideas_revision, firmware_revision;
     esp_iris_system_update_phase_t phase;
     factory_nand_update_state_t nand_state;
     uint32_t ota_job;
@@ -32,7 +34,7 @@ typedef struct {
     bool rescan_due, updates_checked, locale_refresh_due;
     unsigned language;
     uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES];
-    enum { UPDATE_NONE, UPDATE_OTA, UPDATE_SYSTEM, UPDATE_NAND, UPDATE_IDEAS } update_source;
+    enum { UPDATE_NONE, UPDATE_OTA, UPDATE_SYSTEM, UPDATE_NAND, UPDATE_IDEAS, UPDATE_FIRMWARE } update_source;
 } ui_services_context_t;
 /* Large render-owned snapshots remain zero-filled PSRAM storage. No locks. */
 static EXT_RAM_BSS_ATTR ui_services_context_t s_services;
@@ -40,6 +42,12 @@ static EXT_RAM_BSS_ATTR ui_services_context_t s_services;
 static int service_command(void *ctx, vibe_command_t cmd, const char *a, const char *b) {
     (void)ctx;
     switch (cmd) {
+    case VIBE_INSTALL_FIRMWARE: {
+        factory_update_check_snapshot_t release = {0};
+        factory_update_check_snapshot(&release);
+        if (!a || strcmp(a, release.version)) return ESP_ERR_INVALID_VERSION;
+        return factory_firmware_install_start(&release);
+    }
     case VIBE_SET_LANGUAGE: {
         if (!a || (strcmp(a, "en") && strcmp(a, "zh-CN")))
             return ESP_ERR_INVALID_ARG;
@@ -121,6 +129,12 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     factory_network_snapshot_t network = {0};
     esp_iris_status_t iris = {0};
     iris_bridge_snapshot_t bridge = {0};
+    factory_update_check_snapshot_t release = {0};
+    factory_update_check_snapshot(&release);
+    out->release_available = release.available;
+    out->release_installable = release.installable;
+    out->firmware_update = false;
+    COPY(release_version, release.version);
     (void)factory_network_get_snapshot(&network);
     (void)esp_iris_get_status(&iris);
     iris_bridge_get_snapshot(&bridge);
@@ -262,6 +276,28 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     out->transfer.now_ms = (uint64_t)esp_timer_get_time() / 1000;
     out->transfer.source = (uint8_t)ctx->update_source;
     out->update_revision = ctx->revision;
+    factory_firmware_status_t firmware = {0};
+    factory_firmware_install_status(&firmware);
+    if (ctx->firmware_revision != firmware.revision) {
+        ctx->firmware_revision = firmware.revision;
+        ctx->update_source = UPDATE_FIRMWARE;
+        ++ctx->revision;
+    }
+    if (firmware.phase != FIRMWARE_IDLE && (firmware.phase != FIRMWARE_FAILED || ctx->update_source == UPDATE_FIRMWARE)) {
+        out->firmware_update = true;
+        out->updating = firmware.phase != FIRMWARE_FAILED;
+        out->update_terminal = out->update_failed = firmware.phase == FIRMWARE_FAILED;
+        out->batch = out->cancellable = false;
+        out->update_revision = ctx->revision;
+        out->progress = vibe_transfer_permille(firmware.received, firmware.total);
+        COPY(update_title, out->update_failed ? "Firmware update failed" : "Updating firmware");
+        const char *detail = firmware.phase == FIRMWARE_DOWNLOADING ? "Downloading firmware" :
+            firmware.phase == FIRMWARE_VERIFYING ? "Verifying firmware" :
+            firmware.phase == FIRMWARE_WRITING ? "Writing firmware" : "Restarting Vibe Mode";
+        if (out->update_failed) snprintf(out->update_detail, sizeof(out->update_detail), "Error 0x%08x", (unsigned)firmware.error);
+        else COPY(update_detail, detail);
+        return;
+    }
     if (ctx->update_source == UPDATE_IDEAS) {
         out->updating = ctx->ideas.busy && (ctx->ideas.command == IDEAS_DOWNLOAD ||
                                             ctx->ideas.command == IDEAS_INSTALL ||

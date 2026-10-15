@@ -26,6 +26,7 @@ typedef enum {
     VIBE_SHARED_EDITOR, VIBE_ABOUT, VIBE_RESET, VIBE_WELCOME, VIBE_GRID,
     VIBE_OPEN_CONFIRM, VIBE_SLEEP, VIBE_BOOT_TIP, VIBE_DELETE_CONFIRM,
     VIBE_HELP, VIBE_GUIDE,
+    VIBE_FIRMWARE_NOTICE, VIBE_FIRMWARE_PROGRESS,
     VIBE_PAGE_COUNT
 } vibe_page_t;
 typedef enum {
@@ -35,6 +36,7 @@ typedef enum {
     VIBE_NET_FAILED
 } vibe_net_t;
 typedef enum {
+    VIBE_INSTALL_FIRMWARE,
     VIBE_SCAN_WIFI,
     VIBE_FORGET_WIFI,
     VIBE_CONNECT_WIFI,
@@ -74,6 +76,8 @@ typedef struct {
     char batch_code[7];
     char development_name[33], development_version[33], firmware_version[33], mac[18];
     bool credentials_saved, scanning, usb_owner, tcp_owner, session;
+    bool release_available, release_installable, firmware_update;
+    char release_version[32];
     char ssid[33], ip[16], hostname[48], token[65];
     unsigned tcp_port;
     uint32_t scan_generation;

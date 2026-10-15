@@ -586,6 +586,25 @@ int main(void)
     assert(
         factory_system_update_source_needs_restart(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE));
     assert(last_write == 0x20000 && !memcmp(flash + 0x20000, image, 0x1c0000));
+    /* Online firmware has its own owner and cannot install application/layout plans. */
+    setup();
+    assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, layout_manifest(true)) != ESP_OK);
+    setup();
+    char *online_manifest = recovery_manifest(image);
+    cJSON *online_root = cJSON_Parse(online_manifest);
+    free(online_manifest);
+    cJSON_DeleteItemFromObject(online_root, "preserve_layout");
+    online_manifest = cJSON_PrintUnformatted(online_root);
+    cJSON_Delete(online_root);
+    assert(factory_system_update_source_reserve(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, op) == ESP_OK);
+    assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, online_manifest) == ESP_OK);
+    c = s_backend.transaction.plan[0].descriptor;
+    assert(factory_system_update_source_begin_component(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, &c) == ESP_OK);
+    assert(factory_system_update_source_write_component(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, &c, 0, image, c.size) == ESP_OK);
+    assert(factory_system_update_source_end_component(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, &c, c.sha256) == ESP_OK);
+    assert(!erased);
+    assert(factory_system_update_source_commit(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, op) == ESP_OK);
+    assert(last_write == 0x20000 && !memcmp(flash + 0x20000, image, 0x1c0000));
     /* Older Recovery images cannot replace the 0.1.2 release. */
     setup();
     esp_app_desc_t *old_app =

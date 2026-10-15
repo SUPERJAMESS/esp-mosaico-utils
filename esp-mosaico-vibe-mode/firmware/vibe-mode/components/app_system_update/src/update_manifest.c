@@ -224,6 +224,10 @@ esp_err_t update_parse_manifest_root(update_context_t *ctx, const cJSON *root,
         goto done;
     }
     ctx->transaction.recovery_update = seen_kinds[ESP_IRIS_SYSTEM_UPDATE_COMPONENT_RECOVERY];
+    if (update_owner_is(ctx, FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE) && !ctx->transaction.recovery_update) {
+        err = ESP_ERR_NOT_SUPPORTED;
+        goto done;
+    }
     if (ctx->transaction.recovery_update) {
         if (ctx->transaction.plan_count != 1U ||
             ctx->transaction.plan[0].descriptor.kind != ESP_IRIS_SYSTEM_UPDATE_COMPONENT_RECOVERY) {
