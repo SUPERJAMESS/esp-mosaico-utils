@@ -9,6 +9,67 @@
 #endif
 #include "../../../src/esp_iris_transport.c"
 #include "runtime_stubs.h"
+
+/* A normal application constructor must already see the pre-start contract,
+ * including both mutexes, invalid TCP descriptors and zeroed frame buffers. */
+static void __attribute__((constructor)) test_runtime_initial_state(void)
+{
+    static const iris_runtime_t expected_control = {
+        .transport.tcp = {.listen_fd = -1, .client_fd = -1},
+        .log_lock = portMUX_INITIALIZER_UNLOCKED,
+        .event_lock = portMUX_INITIALIZER_UNLOCKED,
+        .lifecycle = ESP_IRIS_LIFECYCLE_STOPPED,
+        .task_stack_free_min_bytes = UINT32_MAX,
+    };
+    static const iris_runtime_t expected_data = {
+        .data_link = true,
+        .transport.tcp = {.listen_fd = -1, .client_fd = -1},
+        .log_lock = portMUX_INITIALIZER_UNLOCKED,
+        .event_lock = portMUX_INITIALIZER_UNLOCKED,
+    };
+    assert(memcmp(&g_iris, &expected_control, sizeof(g_iris)) == 0);
+    assert(memcmp(&g_iris_data, &expected_data, sizeof(g_iris_data)) == 0);
+}
+
+static void test_runtime_start_stop_preserves_state(void)
+{
+    const iris_runtime_t saved_control = g_iris, saved_data = g_iris_data;
+    assert(!esp_iris_is_started());
+    assert(esp_iris_stop() == ESP_OK);
+    assert(esp_iris_boot_probe() == ESP_OK);
+    g_iris.boot_id = 0x12345678;
+    g_iris.device_id[0] = 0x42;
+    g_iris.rx_frames = 17;
+    g_iris.log_dropped_bytes = 19;
+
+    esp_iris_status_t status;
+    assert(esp_iris_get_status(&status) == ESP_OK);
+    assert(status.lifecycle == ESP_IRIS_LIFECYCLE_STOPPED);
+    assert(status.task_stack_free_min_bytes == UINT32_MAX);
+    fail_task_create = true;
+    assert(esp_iris_start() == ESP_ERR_NO_MEM);
+    assert(g_iris.lifecycle == ESP_IRIS_LIFECYCLE_FAILED);
+    fail_task_create = false;
+    for (unsigned cycle = 0; cycle < 2; ++cycle) {
+        assert(esp_iris_start() == ESP_OK);
+        assert(esp_iris_start() == ESP_OK);
+        assert(esp_iris_get_status(&status) == ESP_OK);
+        assert(status.started && status.lifecycle == ESP_IRIS_LIFECYCLE_RUNNING);
+        assert(status.boot_id == 0x12345678 && status.device_id[0] == 0x42);
+        assert(status.rx_frames == 17 && status.log_dropped_bytes == 19);
+        assert(g_iris_data.data_link && g_iris_data.boot_id == status.boot_id);
+        /* The host does not schedule iris_worker; model its transport cleanup. */
+        iris_transport_stop(&g_iris_data);
+        g_iris.task = NULL;
+        assert(esp_iris_stop() == ESP_OK);
+        assert(g_iris.lifecycle == ESP_IRIS_LIFECYCLE_STOPPED);
+    }
+    assert(s_services == NULL);
+    g_iris = saved_control;
+    g_iris_data = saved_data;
+    starts = stops = 0;
+}
+
 static int64_t now_us;
 int64_t esp_timer_get_time(void) { return now_us; }
 esp_err_t esp_iris_memory_get_heap(esp_iris_heap_memory_t *out) {
@@ -409,6 +470,7 @@ static void flash_hook(void) {
     prove_ping_responsive();
     esp_iris_ota_status_t status;
     assert(esp_iris_ota_get_status(&status) == ESP_OK);
+    assert(status.active); /* Includes the erase inside an admitted BEGIN. */
     uint8_t no_payload[1] = {0};
     iris_decoded_frame_t cancel = {.header = {.channel = ESP_IRIS_CHANNEL_OTA,
         .type = ESP_IRIS_OTA_CANCEL, .request_id = 950}, .payload = no_payload};
@@ -1176,6 +1238,7 @@ static void test_acknowledged_restart_survives_disconnect(void)
 }
 
 int main(void) {
+    test_runtime_start_stop_preserves_state();
     test_rpc_lengths(); test_coalesced_frames(); test_worker_scheduling(); test_replay_and_reopen();
     test_claim_timeout(); test_executor_rpc(); test_fragmented_malformed_corpus();
 #if CONFIG_ESP_IRIS_OTA

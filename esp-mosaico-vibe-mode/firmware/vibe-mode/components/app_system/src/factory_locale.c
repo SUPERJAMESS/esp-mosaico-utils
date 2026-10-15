@@ -16,6 +16,7 @@ void factory_locale_init(void) {
     atomic_store(&language, saved);
 }
 unsigned factory_locale_get(void) { return atomic_load(&language); }
+void factory_locale_use(unsigned selected) { if (selected <= 1) atomic_store(&language, selected); }
 esp_err_t factory_locale_set(unsigned selected) {
     if (selected > 1)
         return ESP_ERR_INVALID_ARG;

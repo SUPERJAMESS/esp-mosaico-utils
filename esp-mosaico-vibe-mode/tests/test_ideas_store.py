@@ -281,3 +281,15 @@ def test_download_stages_advance_only_after_success(core, tmp_path, failure, exp
                         corrupt=failure == "hash", stages=stages)
     assert (result == 0) == (failure is None)
     assert stages == expected
+
+
+def test_first_download_failure_and_interrupted_delete_leave_no_idea(core, tmp_path):
+    assert save(core, tmp_path, fail="firmware/app.bin")[0] != 0
+    base = tmp_path / "042731"
+    assert not base.exists()
+    assert save(core, tmp_path)[0] == 0
+    assert save(core, tmp_path, "2.0.0")[0] == 0  # a previous generation also exists
+    (base / "current").rename(base / ".deleted")
+    saved = Package()
+    assert core.ideas_store_refresh(str(tmp_path).encode(), b"042731", C.byref(saved)) != 0
+    assert not base.exists()

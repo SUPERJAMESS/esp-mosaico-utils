@@ -1,0 +1,2001 @@
+{
+  "screen": "vibe",
+  "w": 480,
+  "h": 480,
+  "screen_bg": "#000000",
+  "font": "fonts/DejaVuSans.ttf",
+  "default_font_size": 20,
+  "swipe": false,
+  "objects": [
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "home",
+      "bind": "home_visible",
+      "bind_target": "visible",
+      "hidden": false
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "ESP-MOSAICO",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 24,
+      "y": 75,
+      "w": 432,
+      "h": 58,
+      "text": "Vibe Mode",
+      "font_size": 32,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 24,
+      "y": 138,
+      "w": 432,
+      "h": 28,
+      "text": "Ready for your next idea",
+      "font_size": 20,
+      "fg_color": "#91919B",
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent": 0,
+      "x": 24,
+      "y": 185,
+      "w": 432,
+      "h": 98,
+      "bg_color": "#242426",
+      "radius": 18
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 44,
+      "y": 193,
+      "w": 100,
+      "h": 36,
+      "text": "USB",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 150,
+      "y": 193,
+      "w": 282,
+      "h": 36,
+      "text": "Available",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "right",
+      "bind": "usb_status",
+      "name": "usb_status",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 44,
+      "y": 237,
+      "w": 100,
+      "h": 36,
+      "text": "Network",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 150,
+      "y": 237,
+      "w": 282,
+      "h": 36,
+      "text": "Offline",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "right",
+      "bind": "network_status",
+      "name": "network_status",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 24,
+      "y": 290,
+      "w": 432,
+      "h": 28,
+      "text": "Network setup not completed",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center",
+      "bind": "address",
+      "name": "address",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 0,
+      "x": 24,
+      "y": 327,
+      "w": 432,
+      "h": 24,
+      "text": "mosaico-ideas.espressif.com",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center"
+    },
+    {
+      "type": "button",
+      "parent": 0,
+      "x": 24,
+      "y": 363,
+      "w": 432,
+      "h": 52,
+      "text": "Download Ideas",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#FF4C01",
+      "radius": 16,
+      "name": "button_download",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "download"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 0,
+      "x": 24,
+      "y": 427,
+      "w": 108,
+      "h": 40,
+      "text": "Wi-Fi",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_wifi",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "wifi"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 0,
+      "x": 144,
+      "y": 427,
+      "w": 146,
+      "h": 40,
+      "text": "TCP pairing",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_pairing",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "pairing"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 0,
+      "x": 302,
+      "y": 427,
+      "w": 154,
+      "h": 40,
+      "text": "My Ideas",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_nand",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "nand"
+        }
+      ]
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "wifi",
+      "bind": "wifi_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": 15,
+      "x": 12,
+      "y": 12,
+      "w": 52,
+      "h": 48,
+      "text": "‹",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_back_wifi",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "back_wifi"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 15,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "Wi-Fi",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent": 15,
+      "x": 24,
+      "y": 76,
+      "w": 432,
+      "h": 85,
+      "bg_color": "#242426",
+      "radius": 18
+    },
+    {
+      "type": "label",
+      "parent": 15,
+      "x": 40,
+      "y": 80,
+      "w": 292,
+      "h": 35,
+      "text": "Not connected",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "bind": "wifi_connection",
+      "name": "wifi_connection",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 15,
+      "x": 40,
+      "y": 117,
+      "w": 310,
+      "h": 35,
+      "text": "Choose a network below",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "wifi_detail",
+      "name": "wifi_detail",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "button",
+      "parent": 15,
+      "x": 354,
+      "y": 99,
+      "w": 88,
+      "h": 44,
+      "text": "Forget",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_forget",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "forget"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 15,
+      "x": 24,
+      "y": 174,
+      "w": 316,
+      "h": 36,
+      "text": "Available networks",
+      "font_size": 20,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "wifi_scan",
+      "name": "wifi_scan",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "button",
+      "parent": 15,
+      "x": 356,
+      "y": 174,
+      "w": 100,
+      "h": 36,
+      "text": "Rescan",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_scan",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "scan"
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "parent": 15,
+      "x": 24,
+      "y": 222,
+      "w": 432,
+      "h": 216,
+      "name": "networks",
+      "item_height": 72,
+      "item_count": 0,
+      "row_template": "networks_row",
+      "scroll_snapshot": true,
+      "bg_color": "#000000",
+      "fg_color": "#FCFCFF"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 432,
+      "h": 72,
+      "template": "networks_row",
+      "callback": "select_networks",
+      "bg_color": "#000000",
+      "radius": 0
+    },
+    {
+      "type": "container",
+      "parent": 25,
+      "x": 0,
+      "y": 0,
+      "w": 432,
+      "h": 64,
+      "bg_color": "#242426",
+      "radius": 14
+    },
+    {
+      "type": "label",
+      "parent": 25,
+      "x": 16,
+      "y": 5,
+      "w": 362,
+      "h": 27,
+      "text": "Network",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "bind": "networks_title",
+      "name": "networks_title",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 25,
+      "x": 16,
+      "y": 32,
+      "w": 362,
+      "h": 26,
+      "text": "Details",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "networks_detail",
+      "name": "networks_detail",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 25,
+      "x": 389,
+      "y": 10,
+      "w": 30,
+      "h": 44,
+      "text": "›",
+      "font_size": 24,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 15,
+      "x": 24,
+      "y": 444,
+      "w": 432,
+      "h": 28,
+      "text": "USB remains available offline",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center",
+      "bind": "wifi_note",
+      "name": "wifi_note",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "password",
+      "bind": "password_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": 31,
+      "x": 12,
+      "y": 12,
+      "w": 52,
+      "h": 48,
+      "text": "‹",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_back_password",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "back_password"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 31,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "Join network",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "label",
+      "parent": 31,
+      "x": 24,
+      "y": 78,
+      "w": 432,
+      "h": 36,
+      "text": "Network",
+      "font_size": 24,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "ssid",
+      "name": "ssid",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 31,
+      "x": 24,
+      "y": 124,
+      "w": 340,
+      "h": 45,
+      "text": "Enter password",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "bind": "password_display",
+      "name": "password_display",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "button",
+      "parent": 31,
+      "x": 370,
+      "y": 124,
+      "w": 86,
+      "h": 45,
+      "text": "",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_toggle_password",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "toggle_password"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 31,
+      "x": 24,
+      "y": 180,
+      "w": 432,
+      "h": 33,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#FF4C01",
+      "text_align": "left",
+      "bind": "password_error",
+      "name": "password_error",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "keyboard",
+      "parent": 31,
+      "x": 0,
+      "y": 231,
+      "w": 480,
+      "h": 233,
+      "name": "password_keyboard",
+      "bg_color": "#000000",
+      "fg_color": "#ECECF0",
+      "font_size": 24,
+      "key_color": "#55555A",
+      "function_color": "#3B3C3D",
+      "function_text_color": "#ECECF0",
+      "delete_color": "#3B3C3D",
+      "delete_text_color": "#ECECF0",
+      "space_color": "#55555A",
+      "space_text_color": "#ECECF0",
+      "ok_color": "#FF4C01",
+      "ok_text_color": "#FCFCFF",
+      "key_radius": 8,
+      "shift_label": "SHIFT",
+      "delete_label": "DELETE",
+      "ok_label": "GO",
+      "symbols_label": "ABC",
+      "letters_label": "ABC",
+      "space_label": "",
+      "function_font_size": 20,
+      "shift_icon": "settings_keyboard_shift.png",
+      "delete_icon": "settings_keyboard_delete.png"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "pairing",
+      "bind": "pairing_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": 39,
+      "x": 12,
+      "y": 12,
+      "w": 52,
+      "h": 48,
+      "text": "‹",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_back_pairing",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "back_pairing"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 39,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "TCP pairing",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent": 39,
+      "x": 24,
+      "y": 88,
+      "w": 432,
+      "h": 102,
+      "bg_color": "#242426",
+      "radius": 18
+    },
+    {
+      "type": "label",
+      "parent": 39,
+      "x": 40,
+      "y": 94,
+      "w": 400,
+      "h": 28,
+      "text": "DEVICE ENDPOINT",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent": 39,
+      "x": 40,
+      "y": 125,
+      "w": 400,
+      "h": 55,
+      "text": "Connect Wi-Fi first",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "bind": "pairing_endpoint",
+      "name": "pairing_endpoint",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 39,
+      "x": 24,
+      "y": 213,
+      "w": 432,
+      "h": 32,
+      "text": "PAIRING TOKEN",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left"
+    },
+    {
+      "type": "container",
+      "parent": 39,
+      "x": 24,
+      "y": 253,
+      "w": 432,
+      "h": 104,
+      "bg_color": "#242426",
+      "radius": 18
+    },
+    {
+      "type": "label",
+      "parent": 39,
+      "x": 38,
+      "y": 263,
+      "w": 404,
+      "h": 84,
+      "text": "Available after startup",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "center",
+      "bind": "pairing_token",
+      "name": "pairing_token",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 39,
+      "x": 24,
+      "y": 382,
+      "w": 432,
+      "h": 67,
+      "text": "Enter this token once in the Gateway.\nIt never crosses the TCP link.",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "bridge",
+      "bind": "bridge_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 12,
+      "y": 12,
+      "w": 52,
+      "h": 48,
+      "text": "‹",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_back_bridge",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "back_bridge"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 49,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "Download Ideas",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent": 49,
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": 49,
+      "x": 24,
+      "y": 259,
+      "w": 432,
+      "h": 24,
+      "text": "mosaico-ideas.espressif.com",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center",
+      "hidden": true
+    },
+    {
+      "type": "container",
+      "parent": 49,
+      "x": 24,
+      "y": 98,
+      "w": 432,
+      "h": 69,
+      "bg_color": "#242426",
+      "radius": 18
+    },
+    {
+      "type": "label",
+      "parent": 49,
+      "x": 24,
+      "y": 69,
+      "w": 432,
+      "h": 24,
+      "text": "APPLICATION CODE",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center"
+    },
+    {
+      "type": "label",
+      "parent": 49,
+      "x": 36,
+      "y": 103,
+      "w": 408,
+      "h": 58,
+      "text": "------",
+      "font_size": 40,
+      "fg_color": "#FCFCFF",
+      "text_align": "center",
+      "bind": "bridge_code",
+      "name": "bridge_code",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
+    },
+    {
+      "type": "label",
+      "parent": 49,
+      "x": 36,
+      "y": 382,
+      "w": 408,
+      "h": 28,
+      "text": "Enter the six-digit Idea code",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center",
+      "bind": "bridge_detail",
+      "name": "bridge_detail",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 120,
+      "y": 421,
+      "w": 240,
+      "h": 44,
+      "text": "View app",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_download_code",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "download_code"
+        }
+      ]
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "nand",
+      "bind": "nand_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": 59,
+      "x": 12,
+      "y": 12,
+      "w": 52,
+      "h": 48,
+      "text": "‹",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_back_nand",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "back_nand"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 59,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "My Ideas",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "label",
+      "parent": 59,
+      "x": 24,
+      "y": 79,
+      "w": 320,
+      "h": 44,
+      "text": "Open to scan",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "nand_scan",
+      "name": "nand_scan",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "button",
+      "parent": 59,
+      "x": 354,
+      "y": 79,
+      "w": 102,
+      "h": 44,
+      "text": "Rescan",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_nand_scan",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "nand_scan"
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "parent": 59,
+      "x": 24,
+      "y": 139,
+      "w": 432,
+      "h": 306,
+      "name": "bundles",
+      "item_height": 76,
+      "item_count": 0,
+      "row_template": "bundles_row",
+      "scroll_snapshot": true,
+      "bg_color": "#000000",
+      "fg_color": "#FCFCFF"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 432,
+      "h": 76,
+      "template": "bundles_row",
+      "callback": "select_bundles",
+      "bg_color": "#242426",
+      "radius": 14
+    },
+    {
+      "type": "label",
+      "parent": 65,
+      "x": 82,
+      "y": 6,
+      "w": 300,
+      "h": 33,
+      "text": "Network",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "bind": "bundles_title",
+      "name": "bundles_title",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 65,
+      "x": 82,
+      "y": 39,
+      "w": 300,
+      "h": 27,
+      "text": "Details",
+      "font_size": 14,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "bundles_detail",
+      "name": "bundles_detail",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 65,
+      "x": 389,
+      "y": 15,
+      "w": 30,
+      "h": 45,
+      "text": "›",
+      "font_size": 24,
+      "fg_color": "#91919B",
+      "text_align": "left"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "confirm",
+      "bind": "confirm_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 12,
+      "y": 12,
+      "w": 52,
+      "h": 48,
+      "text": "‹",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_back_confirm",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "back_confirm"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 69,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "Idea details",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent": 69,
+      "x": 24,
+      "y": 87,
+      "w": 432,
+      "h": 185,
+      "bg_color": "#242426",
+      "radius": 18
+    },
+    {
+      "type": "label",
+      "parent": 69,
+      "x": 40,
+      "y": 95,
+      "w": 400,
+      "h": 30,
+      "text": "DOWNLOADED IDEA",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent": 69,
+      "x": 40,
+      "y": 133,
+      "w": 400,
+      "h": 40,
+      "text": "NAND bundle",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "bind": "release",
+      "name": "release",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 69,
+      "x": 40,
+      "y": 178,
+      "w": 400,
+      "h": 32,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "release_detail",
+      "name": "release_detail",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 69,
+      "x": 40,
+      "y": 211,
+      "w": 400,
+      "h": 25,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "release_path",
+      "name": "release_path",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 69,
+      "x": 24,
+      "y": 238,
+      "w": 432,
+      "h": 36,
+      "text": "After setup, this Idea starts on power-on.\nKeep power connected during setup.",
+      "font_size": 14,
+      "fg_color": "#91919B",
+      "text_align": "center"
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 24,
+      "y": 405,
+      "w": 204,
+      "h": 52,
+      "text": "Back",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_cancel_install",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "cancel_install"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 24,
+      "y": 337,
+      "w": 432,
+      "h": 52,
+      "text": "Set as boot application",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#FF4C01",
+      "radius": 16,
+      "name": "button_install",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "install"
+        }
+      ]
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "update",
+      "bind": "update_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "Vibe Mode",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 76,
+      "w": 432,
+      "h": 48,
+      "text": "Updating system",
+      "font_size": 32,
+      "fg_color": "#FCFCFF",
+      "text_align": "center",
+      "bind": "update_title",
+      "name": "update_title",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 130,
+      "w": 432,
+      "h": 48,
+      "text": "Preparing update",
+      "font_size": 20,
+      "fg_color": "#91919B",
+      "text_align": "center",
+      "bind": "update_detail",
+      "name": "update_detail",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 182,
+      "w": 432,
+      "h": 45,
+      "text": "0%",
+      "font_size": 32,
+      "fg_color": "#FCFCFF",
+      "text_align": "center",
+      "bind": "update_percent",
+      "name": "update_percent",
+      "font_charset": "0123456789%-"
+    },
+    {
+      "type": "progress",
+      "parent": 80,
+      "x": 24,
+      "y": 236,
+      "w": 432,
+      "h": 12,
+      "name": "progress",
+      "bind": "progress",
+      "value": 0,
+      "bg_color": "#242426",
+      "fg_color": "#FF4C01",
+      "radius": 6
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 366,
+      "w": 216,
+      "h": 30,
+      "text": "Session owner",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 240,
+      "y": 366,
+      "w": 216,
+      "h": 30,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "right",
+      "bind": "update_owner",
+      "name": "update_owner",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 402,
+      "w": 216,
+      "h": 30,
+      "text": "Verification",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 240,
+      "y": 402,
+      "w": 216,
+      "h": 30,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "right",
+      "bind": "update_verified",
+      "name": "update_verified",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 441,
+      "w": 432,
+      "h": 28,
+      "text": "Keep power connected until restart.",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "result",
+      "bind": "result_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": 91,
+      "x": 72,
+      "y": 12,
+      "w": 336,
+      "h": 48,
+      "text": "Vibe Mode",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center"
+    },
+    {
+      "type": "label",
+      "parent": 91,
+      "x": 24,
+      "y": 120,
+      "w": 432,
+      "h": 67,
+      "text": "Update complete",
+      "font_size": 32,
+      "fg_color": "#FCFCFF",
+      "text_align": "center",
+      "bind": "result_title",
+      "name": "result_title",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 91,
+      "x": 24,
+      "y": 212,
+      "w": 432,
+      "h": 125,
+      "text": "System images verified",
+      "font_size": 20,
+      "fg_color": "#91919B",
+      "text_align": "left",
+      "bind": "result_detail",
+      "name": "result_detail",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•",
+      "overflow": "clip"
+    },
+    {
+      "type": "button",
+      "parent": 91,
+      "x": 96,
+      "y": 381,
+      "w": 288,
+      "h": 56,
+      "text": "Vibe Mode home",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#FF4C01",
+      "radius": 16,
+      "name": "button_home",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "home"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 36,
+      "x": 0,
+      "y": 0,
+      "w": 86,
+      "h": 45,
+      "text": "Show",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "center",
+      "name": "password_toggle",
+      "bind": "password_toggle",
+      "font_charset": "ShowHide"
+    },
+    {
+      "type": "label",
+      "parent": 49,
+      "x": 36,
+      "y": 317,
+      "w": 408,
+      "h": 58,
+      "text": " ",
+      "font_size": 24,
+      "fg_color": "#FCFCFF",
+      "text_align": "center",
+      "bind": "bridge_code_compact",
+      "name": "bridge_code_compact",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•",
+      "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 254,
+      "w": 432,
+      "h": 30,
+      "text": "",
+      "font_size": 20,
+      "fg_color": "#91919B",
+      "text_align": "center",
+      "name": "update_bytes",
+      "bind": "update_bytes",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 291,
+      "w": 432,
+      "h": 32,
+      "text": "",
+      "font_size": 24,
+      "fg_color": "#FF4C01",
+      "text_align": "center",
+      "name": "update_rate",
+      "bind": "update_rate",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "label",
+      "parent": 80,
+      "x": 24,
+      "y": 329,
+      "w": 432,
+      "h": 28,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#91919B",
+      "text_align": "center",
+      "name": "update_component",
+      "bind": "update_component",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•"
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 70,
+      "y": 170,
+      "w": 108,
+      "h": 45,
+      "text": "1",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_1",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_1"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 186,
+      "y": 170,
+      "w": 108,
+      "h": 45,
+      "text": "2",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_2",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_2"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 302,
+      "y": 170,
+      "w": 108,
+      "h": 45,
+      "text": "3",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_3",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_3"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 70,
+      "y": 223,
+      "w": 108,
+      "h": 45,
+      "text": "4",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_4",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_4"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 186,
+      "y": 223,
+      "w": 108,
+      "h": 45,
+      "text": "5",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_5",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_5"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 302,
+      "y": 223,
+      "w": 108,
+      "h": 45,
+      "text": "6",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_6",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_6"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 70,
+      "y": 276,
+      "w": 108,
+      "h": 45,
+      "text": "7",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_7",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_7"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 186,
+      "y": 276,
+      "w": 108,
+      "h": 45,
+      "text": "8",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_8",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_8"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 302,
+      "y": 276,
+      "w": 108,
+      "h": 45,
+      "text": "9",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_9",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_9"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 186,
+      "y": 329,
+      "w": 108,
+      "h": 45,
+      "text": "0",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_0",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_0"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 49,
+      "x": 302,
+      "y": 329,
+      "w": 108,
+      "h": 45,
+      "text": "Delete",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_code_delete",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "code_delete"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 24,
+      "y": 278,
+      "w": 204,
+      "h": 44,
+      "text": "Check updates",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_check_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "check_idea"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 252,
+      "y": 278,
+      "w": 204,
+      "h": 44,
+      "text": "Download latest",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_update_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "update_idea"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 252,
+      "y": 405,
+      "w": 204,
+      "h": 52,
+      "text": "Restart now",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_start_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "start_idea"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 69,
+      "x": 290,
+      "y": 93,
+      "w": 138,
+      "h": 36,
+      "text": "View info",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 12,
+      "name": "button_preview_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "preview_idea"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "parent": 65,
+      "x": 12,
+      "y": 10,
+      "w": 56,
+      "h": 56,
+      "name": "bundles_icon",
+      "image": "assets/idea-default.svg",
+      "dynamic_image": true,
+      "bind": "bundles_icon",
+      "bind_target": "resource"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "idea_info",
+      "bind": "idea_info_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 24,
+      "y": 20,
+      "w": 432,
+      "h": 40,
+      "text": "App information",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_heading",
+      "bind": "idea_heading",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 32,
+      "y": 82,
+      "w": 328,
+      "h": 84,
+      "text": "Loading app information...",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_name",
+      "bind": "idea_name",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 32,
+      "y": 174,
+      "w": 416,
+      "h": 176,
+      "text": "Fetching details from the cloud",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_description",
+      "bind": "idea_description",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 24,
+      "y": 350,
+      "w": 432,
+      "h": 28,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_summary",
+      "bind": "idea_summary",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": 117,
+      "x": 24,
+      "y": 374,
+      "w": 432,
+      "h": 26,
+      "text": "Confirm to save in My Ideas",
+      "font_size": 16,
+      "fg_color": "#FCFCFF",
+      "text_align": "left",
+      "name": "idea_status",
+      "bind": "idea_status",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": 117,
+      "x": 24,
+      "y": 408,
+      "w": 204,
+      "h": 56,
+      "text": "Cancel",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_cancel_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "cancel_idea"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "parent": 117,
+      "x": 252,
+      "y": 408,
+      "w": 204,
+      "h": 56,
+      "text": "Download",
+      "font_size": 20,
+      "fg_color": "#FCFCFF",
+      "bg_color": "#242426",
+      "radius": 16,
+      "name": "button_accept_idea",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "accept_idea"
+        }
+      ],
+      "bind": "idea_accept",
+      "font_charset": "DownloadMy Ideas",
+      "hidden": true
+    },
+    {
+      "type": "image",
+      "parent": 117,
+      "x": 32,
+      "y": 82,
+      "w": 328,
+      "h": 84,
+      "name": "idea_title_pixels",
+      "bind": "idea_title_pixels",
+      "image": "assets/idea_title_pixels.png",
+      "codec": "lossless",
+      "hidden": true
+    },
+    {
+      "type": "image",
+      "parent": 117,
+      "x": 32,
+      "y": 174,
+      "w": 416,
+      "h": 176,
+      "name": "idea_body_pixels",
+      "bind": "idea_body_pixels",
+      "image": "assets/idea_body_pixels.png",
+      "codec": "lossless",
+      "hidden": true
+    },
+    {
+      "type": "image",
+      "parent": 117,
+      "x": 384,
+      "y": 82,
+      "w": 64,
+      "h": 64,
+      "name": "idea_icon",
+      "bind": "idea_icon",
+      "bind_target": "resource",
+      "image": "assets/idea-default.svg",
+      "dynamic_image": true,
+      "hidden": true
+    }
+  ]
+}

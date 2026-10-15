@@ -1,2 +1,3 @@
-# Build-time encoder only; Recovery continues using the ROM Deflate decoder.
+# Authoring only; normal builds embed the checked-in lightweight UI pack.
+Pillow==11.3.0
 zopfli==0.4.3

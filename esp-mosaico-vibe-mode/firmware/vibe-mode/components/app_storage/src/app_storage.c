@@ -148,6 +148,15 @@ esp_err_t app_storage_mount(void)
 {
     return ensure_mounted(&s_storage);
 }
+esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
+{
+    if (!total || !used) return ESP_ERR_INVALID_ARG;
+    if (!s_storage.mounted) return ESP_ERR_INVALID_STATE;
+    size_t t = 0, u = 0;
+    esp_err_t err = esp_littlefs_blockdev_info(s_storage.blockdev, &t, &u);
+    if (err == ESP_OK) { *total = t; *used = u; }
+    return err;
+}
 esp_err_t app_storage_reserve(void)
 {
     app_storage_context_t *ctx = &s_storage;
@@ -179,6 +188,11 @@ esp_err_t app_storage_acquire(void)
     return err;
 }
 #else
+esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
+{
+    (void)total; (void)used;
+    return ESP_ERR_NOT_SUPPORTED;
+}
 esp_err_t app_storage_mount(void)
 {
     return ESP_ERR_NOT_SUPPORTED;

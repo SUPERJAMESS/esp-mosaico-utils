@@ -90,7 +90,7 @@ static uint64_t retry_after_ms(const char *value) {
     return delta > 0 ? (uint64_t)delta * 1000 : 0;
 }
 static bool cancelled(ideas_context_t *ctx, uint32_t request) {
-    return request && ideas_cancelled(ctx, request);
+    return ideas_job_cancelled(ctx) || (request && ideas_cancelled(ctx, request));
 }
 static void progress(ideas_context_t *ctx, int64_t bytes) {
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
@@ -338,6 +338,7 @@ esp_err_t ideas_fetch_preview(ideas_context_t *ctx, const job_t *job, pending_t 
 esp_err_t ideas_fetch_file(const ideas_file_t *file, const char *path, void *argument) {
     ideas_context_t *ctx = ((pending_t *)argument)->owner;
     const pending_t *pending = argument;
+    if (ideas_job_cancelled(ctx)) return ESP_ERR_INVALID_STATE;
     const icon_t *asset = NULL;
     for (size_t i = 0; pending && i < pending->package.file_count; ++i)
         if (!strcmp(file->name, pending->package.files[i].name))

@@ -8,7 +8,7 @@
 
 #include "bsp/esp_mosaico.h"
 #include "esp_display_present.h"
-#include "esp_gsp_esp_lcd.h"
+#include "esp_display_present.h"
 #include "esp_heap_caps.h"
 #include "esp_iris.h"
 #include "esp_log.h"
@@ -30,7 +30,7 @@ _Static_assert(COVERAGE_BYTES <= SCREEN_FRAME_BYTES,
                "capture frame is too small for repaint coverage tracking");
 
 typedef struct {
-    esp_gsp_handle_t ui;
+    vui_handle_t ui;
     uint8_t *shadow;
     uint8_t *capture;
     uint32_t *coverage;
@@ -116,7 +116,7 @@ static esp_err_t screen_begin(const esp_iris_media_desc_t *requested, esp_iris_m
     if (xSemaphoreTake(mirror->lock, portMAX_DELAY) != pdTRUE) {
         return ESP_ERR_TIMEOUT;
     }
-    esp_gsp_handle_t ui = mirror->ui;
+    vui_handle_t ui = mirror->ui;
     const bool unavailable = ui == NULL || mirror->shadow == NULL || mirror->capture != NULL;
     xSemaphoreGive(mirror->lock);
     if (unavailable) {
@@ -140,7 +140,7 @@ static esp_err_t screen_begin(const esp_iris_media_desc_t *requested, esp_iris_m
     mirror->capture_ready = false;
     const bool warming = mirror->warming;
     xSemaphoreGive(mirror->lock);
-    /* The observer starts before GSP's first frame, so a capture does not
+    /* The observer starts before Vibe's first frame, so a capture does not
      * pause/resume the renderer or allocate its transient control objects.
      * Never expose unpainted pixels during an early-boot capture. */
     if (warming &&
@@ -260,12 +260,12 @@ esp_err_t iris_screen_mirror_init(void)
     }
     ESP_LOGI(
         TAG,
-        "Registered %dx%d RGB565 GSP screen backend (PSRAM shadow retained, capture on demand)",
+        "Registered %dx%d RGB565 Vibe screen backend (PSRAM shadow retained, capture on demand)",
         BSP_LCD_H_RES, BSP_LCD_V_RES);
     return ESP_OK;
 }
 
-esp_err_t iris_screen_mirror_attach(esp_gsp_handle_t ui)
+esp_err_t iris_screen_mirror_attach(vui_handle_t ui)
 {
     if (ui == NULL || s_mirror.lock == NULL) {
         return ESP_ERR_INVALID_ARG;
@@ -283,7 +283,7 @@ esp_err_t iris_screen_mirror_attach(esp_gsp_handle_t ui)
 }
 
 /* esp_display_present swaps RGB565 bytes in-place for this panel.  The linker
- * wrapper observes each GSP partition before that transport conversion, so
+ * wrapper observes each Vibe partition before that transport conversion, so
  * ESP-Iris always receives the documented little-endian RGB565 surface. */
 esp_err_t __real_esp_display_presenter_submit_buffer(esp_display_presenter_t *presenter,
                                                      const esp_display_presenter_buffer_t *buffer,

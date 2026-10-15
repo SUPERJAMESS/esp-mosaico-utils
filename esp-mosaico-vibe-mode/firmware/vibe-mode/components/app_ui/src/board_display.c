@@ -7,7 +7,7 @@
 #include "esp_log.h"
 #include "sdkconfig.h"
 
-static const char *TAG = "gsp_board";
+static const char *TAG = "vibe_board";
 
 esp_err_t board_display_init(esp_display_present_target_config_t *out_target)
 {
@@ -43,7 +43,7 @@ esp_err_t board_display_init(esp_display_present_target_config_t *out_target)
                 .mode = ESP_DISPLAY_PRESENT_MODE_AUTO,
             },
     };
-    ESP_LOGI(TAG, "GSP present target %dx%d RGB565 TE=%s GPIO=%d", BSP_LCD_H_RES, BSP_LCD_V_RES,
+    ESP_LOGI(TAG, "Vibe present target %dx%d RGB565 TE=%s GPIO=%d", BSP_LCD_H_RES, BSP_LCD_V_RES,
 #if CONFIG_BSP_CO5300_ENABLE_TE
              "on", BSP_LCD_TE
 #else

@@ -37,6 +37,7 @@ typedef struct {
     bool pending_credentials;
     bool mdns_started;
     bool wifi_initialized;
+    bool suspended;
     atomic_flag starting;
 } factory_network_context_t;
 
@@ -261,11 +262,11 @@ static void network_event(void *arg, esp_event_base_t base, int32_t id, void *da
         ctx->snapshot.ip[0] = '\0';
         ctx->snapshot.last_error =
             event != NULL ? (esp_err_t)(ESP_ERR_WIFI_BASE + event->reason) : ESP_FAIL;
-        retry = ctx->snapshot.credentials_saved || ctx->pending_credentials;
+        retry = !ctx->suspended && (ctx->snapshot.credentials_saved || ctx->pending_credentials);
         if (retry && elapsed_ms < CONFIG_IRIS_FACTORY_WIFI_CONNECT_TIMEOUT_MS) {
             ctx->snapshot.state = FACTORY_NETWORK_CONNECTING;
         } else {
-            ctx->snapshot.state = FACTORY_NETWORK_FAILED;
+            ctx->snapshot.state = ctx->suspended ? FACTORY_NETWORK_STOPPED : FACTORY_NETWORK_FAILED;
             retry = false;
         }
         xSemaphoreGive(ctx->lock);
@@ -283,6 +284,10 @@ static void network_event(void *arg, esp_event_base_t base, int32_t id, void *da
         char ssid[FACTORY_NETWORK_SSID_BYTES] = {0};
         char password[FACTORY_NETWORK_PASSWORD_BYTES] = {0};
         xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        if (ctx->suspended) {
+            xSemaphoreGive(ctx->lock);
+            return;
+        }
         strlcpy(ctx->snapshot.ip, ip, sizeof(ctx->snapshot.ip));
         ctx->snapshot.state = FACTORY_NETWORK_CONNECTED;
         ctx->snapshot.last_error = ESP_OK;
@@ -292,17 +297,16 @@ static void network_event(void *arg, esp_event_base_t base, int32_t id, void *da
             ctx->pending_credentials = false;
             save = true;
         }
-        xSemaphoreGive(ctx->lock);
-
         if (save) {
             const esp_err_t save_err = credentials_save(ssid, password);
-            xSemaphoreTake(ctx->lock, portMAX_DELAY);
             ctx->snapshot.credentials_saved = save_err == ESP_OK;
             if (save_err != ESP_OK) {
                 ctx->snapshot.last_error = save_err;
             }
-            xSemaphoreGive(ctx->lock);
         }
+        memset(password, 0, sizeof(password));
+        memset(ctx->pending_password, 0, sizeof(ctx->pending_password));
+        xSemaphoreGive(ctx->lock);
         mdns_start(ctx);
         char connected_ssid[FACTORY_NETWORK_SSID_BYTES];
         xSemaphoreTake(ctx->lock, portMAX_DELAY);
@@ -482,9 +486,11 @@ esp_err_t factory_network_connect(const char *ssid, const char *password)
 esp_err_t factory_network_forget(void)
 {
     factory_network_context_t *ctx = &s_network;
-    ESP_RETURN_ON_FALSE(ctx->lock, ESP_ERR_INVALID_STATE, TAG, "factory network is not started");
-    ESP_RETURN_ON_ERROR(credentials_erase(), TAG, "erase factory credentials");
+    if (!ctx->lock)
+        return credentials_erase();
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    esp_err_t err = credentials_erase();
+    if (err != ESP_OK) { xSemaphoreGive(ctx->lock); return err; }
     ctx->pending_credentials = false;
     memset(ctx->pending_ssid, 0, sizeof(ctx->pending_ssid));
     memset(ctx->pending_password, 0, sizeof(ctx->pending_password));
@@ -493,9 +499,36 @@ esp_err_t factory_network_forget(void)
     ctx->snapshot.ip[0] = '\0';
     ctx->snapshot.state = FACTORY_NETWORK_NO_CREDENTIALS;
     ctx->snapshot.last_error = ESP_OK;
+    bool suspended = ctx->suspended;
     xSemaphoreGive(ctx->lock);
     (void)esp_wifi_disconnect();
-    return factory_network_request_scan();
+    return suspended ? ESP_OK : factory_network_request_scan();
+}
+
+esp_err_t factory_network_suspend(bool suspended)
+{
+    factory_network_context_t *ctx = &s_network;
+    if (!ctx->lock || !ctx->wifi_initialized)
+        return suspended ? ESP_OK : factory_network_start();
+    xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    bool changed = ctx->suspended != suspended;
+    ctx->suspended = suspended;
+    if (suspended) {
+        ctx->snapshot.state = FACTORY_NETWORK_STOPPED;
+        ctx->snapshot.ip[0] = 0;
+        ctx->snapshot.scanning = false;
+    }
+    xSemaphoreGive(ctx->lock);
+    if (!changed) return ESP_OK;
+    if (suspended) return esp_wifi_stop();
+    esp_err_t err = esp_wifi_start();
+    if (err != ESP_OK) return err;
+    char ssid[FACTORY_NETWORK_SSID_BYTES] = {0};
+    char password[FACTORY_NETWORK_PASSWORD_BYTES] = {0};
+    if (credentials_load(ssid, password) == ESP_OK)
+        err = apply_station_config(ctx, ssid, password);
+    memset(password, 0, sizeof(password));
+    return err;
 }
 
 esp_err_t factory_network_get_snapshot(factory_network_snapshot_t *snapshot)

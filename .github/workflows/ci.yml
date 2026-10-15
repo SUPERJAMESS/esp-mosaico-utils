@@ -47,16 +47,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Set up GSP bootstrap Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - name: Prepare pinned GSP host dependencies
-        run: |
-          python -m pip install --disable-pip-version-check esp-gsp-tools==0.1.1
-          python -m pip install --disable-pip-version-check -r esp-mosaico-vibe-mode/firmware/vibe-mode/tools/requirements.txt
-          python tools/ci/prepare_gsp.py
-
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
@@ -72,7 +62,7 @@ jobs:
           -r esp-mosaico-vibe-mode/tests/requirements-ui.txt
       - name: Install Recovery C test dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev
       - uses: actions/checkout@v7
         with:
           repository: DaveGamble/cJSON
@@ -153,7 +143,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r ESP-Iris/components/esp_iris/tools/requirements-test.txt
       - name: Install Recovery C test dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev
       - uses: actions/checkout@v7
         if: runner.os == 'Linux'
         with:

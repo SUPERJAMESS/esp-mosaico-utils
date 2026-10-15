@@ -1,4 +1,4 @@
-"""Recovery must select its cached standalone GSPC before IDF configures GSP."""
+"""Vibe firmware configures without any GSP compiler or Python graphics package."""
 import os
 from pathlib import Path
 import shutil
@@ -11,7 +11,7 @@ UTILS_ROOT = Path(__file__).resolve().parents[2]
 RECOVERY = UTILS_ROOT / "esp-mosaico-vibe-mode/firmware/vibe-mode"
 
 
-def test_recovery_bootstraps_without_python_gsp_package(tmp_path):
+def test_recovery_does_not_bootstrap_a_ui_framework(tmp_path):
     cmake = shutil.which("cmake")
     if cmake is None:
         pytest.skip("CMake is required for the Recovery configure regression")
@@ -49,5 +49,6 @@ def test_recovery_bootstraps_without_python_gsp_package(tmp_path):
     output = result.stdout + result.stderr
     assert "test reached IDF configuration boundary" in output, output
     resolved = (build / "resolved-gspc.txt").read_text(encoding="utf-8")
-    assert Path(resolved) == binary, output
+    assert resolved == "", output
+    assert "esp-gsp" not in (RECOVERY / "main/idf_component.yml").read_text()
     assert "ModuleNotFoundError" not in output

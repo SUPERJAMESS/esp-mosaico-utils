@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 #include <stdbool.h>
+#include <stdint.h>
 #include "esp_err.h"
 #define APP_STORAGE_MOUNT_PATH "/nand"
 #define APP_STORAGE_VOLUME_ID "nand"
@@ -16,3 +17,5 @@ esp_err_t app_storage_reserve(void);
 esp_err_t app_storage_acquire(void);
 /* Release a successful reserve/acquire once all caller IO has completed. */
 void app_storage_release(void);
+/* Read filesystem usage while holding a storage reservation. */
+esp_err_t app_storage_info(uint64_t *total, uint64_t *used);

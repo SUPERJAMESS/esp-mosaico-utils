@@ -19,27 +19,31 @@
 #define IRIS_MAX_TASK_MEMORY_RECORDS 128U
 #define IRIS_WORKER_RUN_BUDGET_US (20LL * 1000LL)
 
-iris_runtime_t g_iris = {
-    .transport = {
-        .tcp = {
-            .listen_fd = -1,
-            .client_fd = -1,
-        },
-    },
-    .log_lock = portMUX_INITIALIZER_UNLOCKED,
-    .event_lock = portMUX_INITIALIZER_UNLOCKED,
-    .lifecycle = ESP_IRIS_LIFECYCLE_STOPPED,
-    .task_stack_free_min_bytes = UINT32_MAX,
-};
+iris_runtime_t g_iris;
 
 #if CONFIG_ESP_IRIS_DATA_LINK
-iris_runtime_t g_iris_data = {
-    .data_link = true,
-    .transport.tcp = {.listen_fd = -1, .client_fd = -1},
-    .log_lock = portMUX_INITIALIZER_UNLOCKED,
-    .event_lock = portMUX_INITIALIZER_UNLOCKED,
-};
+iris_runtime_t g_iris_data;
 #endif
+
+/* Keep the large, mostly-zero runtimes in BSS. Run before ordinary application
+ * constructors, not on esp_iris_start(): callers can use status/log/boot APIs
+ * before starting a transport, and stop/start must preserve runtime state. */
+static void __attribute__((constructor(101))) iris_runtime_boot_init(void)
+{
+    g_iris.transport.tcp.listen_fd = -1;
+    g_iris.transport.tcp.client_fd = -1;
+    g_iris.log_lock = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
+    g_iris.event_lock = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
+    g_iris.lifecycle = ESP_IRIS_LIFECYCLE_STOPPED;
+    g_iris.task_stack_free_min_bytes = UINT32_MAX;
+#if CONFIG_ESP_IRIS_DATA_LINK
+    g_iris_data.data_link = true;
+    g_iris_data.transport.tcp.listen_fd = -1;
+    g_iris_data.transport.tcp.client_fd = -1;
+    g_iris_data.log_lock = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
+    g_iris_data.event_lock = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
+#endif
+}
 
 iris_runtime_t *iris_peer_runtime(const iris_runtime_t *runtime)
 {

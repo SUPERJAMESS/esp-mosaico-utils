@@ -7,7 +7,7 @@ import shlex
 RECOVERY = Path(__file__).resolve().parents[1] / "firmware/vibe-mode"
 COMPONENTS = RECOVERY / "components"
 OPTIONS = {"SRCS", "INCLUDE_DIRS", "PRIV_INCLUDE_DIRS", "REQUIRES",
-           "PRIV_REQUIRES", "WHOLE_ARCHIVE"}
+           "PRIV_REQUIRES", "WHOLE_ARCHIVE", "EMBED_FILES"}
 
 
 def registration(component):

@@ -41,7 +41,7 @@ static TickType_t remaining_ticks(int64_t deadline)
     return ticks > 0 ? ticks : 1;
 }
 
-static void process_commands(esp_gsp_handle_t ui, void *argument)
+static void process_commands(vui_handle_t ui, void *argument)
 {
     ui_dispatch_context_t *ctx = argument;
     if (!ctx->init_attempted) {
@@ -65,7 +65,7 @@ static void process_commands(esp_gsp_handle_t ui, void *argument)
     }
 }
 
-esp_err_t factory_ui_dispatch_start(esp_gsp_handle_t ui, const vibe_services_t *services)
+esp_err_t factory_ui_dispatch_start(vui_handle_t ui, const vibe_services_t *services)
 {
     ui_dispatch_context_t *ctx = &s_dispatch;
     if (ctx->started)
@@ -78,8 +78,9 @@ esp_err_t factory_ui_dispatch_start(esp_gsp_handle_t ui, const vibe_services_t *
         goto fail;
     ctx->started = true;
     ctx->services = *services;
-    if (!esp_gsp_timer_create(ui, 50, process_commands, ctx))
+    if (!vui_timer_create(ui, 50, process_commands, ctx))
         goto fail;
+    process_commands(ui, ctx);
     /* Once registered, the callback owns these resources, including after a
      * timeout. It may complete later without accessing a caller's stack. */
     if (xSemaphoreTake(ctx->initialized, pdMS_TO_TICKS(UI_START_TIMEOUT_MS)) != pdTRUE)

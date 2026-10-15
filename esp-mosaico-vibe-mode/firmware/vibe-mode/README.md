@@ -19,6 +19,8 @@ manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 保留原始 `factory
 - [应用集成](../../../mosaico-tools/docs/application-integration.md)：原生
   `idf.py flash monitor` 与默认 Mosaico 更新流程。
 - [软件规格](../../docs/esp-mosaico-vibe-mode-software-spec-zh.md)：完整功能和验收边界。
+- [EMVM-73078 使用、管理与开发流程](../../docs/vibe-mode-workflows.md)：本轮实现、
+  本地保存、共享信息 API、恢复出厂范围及验证记录。
 
 保留 Wi-Fi、Download Ideas、HTTPS Bridge 维护后端、NAND、文件、截图、输入及维护自更新。
 高速 USB 使用 console/data 双 CDC；TCP 使用独立端口；控制链支持按需截图。
@@ -39,9 +41,11 @@ Download Ideas 输入六位应用编号（字符串，保留前导零），点�
 - **检查更新**：以编号和设备能力获取最新兼容发布，再与本地 application ID、release ID 比较。已是最新版本时直接提示；
   有更新时进入同一确认页。“Download latest” 也先展示信息，确认后替换 NAND 当前版本，
   保持 NOR 中原应用及其开机标记。
-- **设为开机应用**：完全离线，从 NAND 重新校验所有文件，然后写 NOR、验证读回、
-  提交分区表和下次启动目标。完成后仍停留在 Vibe Mode，可继续选择另一个 Idea。
-  “Restart now” 启动当前已选的开机应用。界面不显示“已安装”状态。
+- **打开**：完全离线，从 NAND 重新校验所有文件；需要切换时写 NOR、验证读回、
+  提交分区表和启动目标，随后自动重启。相同版本也核对 NOR 中的应用、布局和资源，
+  完全一致才跳过写入。未保存开发内容时只提供“放弃并打开 / 取消”。
+- **管理**：启动联网后检查更新，支持逐个确认更新和后台批量更新；更新只替换 NAND 副本，
+  下次点击“打开”才写入运行槽。删除须长按确认，四秒内可以撤销；当前 Idea 不允许删除。
 - 开机应用身份保存在保留的 `sysmeta` 分区独立 `ideas` 命名空间；标记同时核对
   实际 NOR 应用与分区表的 SHA-256。它不依赖 NAND 中当前版本是否等于 NOR 版本。
 - 新包先在 `.incoming` 完整下载并校验，再通过目录重命名替换 `current`；`.previous`
@@ -91,14 +95,14 @@ recovery_version、当前系统 locale，以及 `Accept: multipart/related`。�
 发布端进行排版、换行和字形子集化，保存字形 ID、灰度位图及每个字形的位置，
 使阿拉伯文等语言的组合字形和书写方向得以保留。设备只解码所需字形；
 `ideas_font.c` 和 `ideas_presentation.c` 不依赖 GSP 或 ESP-IDF。
-`vibe_ui.c` 是当前 GSP 显示适配器，通过 Canvas 显示字形像素、通过 PNG 显示图标。
+`vibe_ui.c` 是设备和 PC 共用的控制器；项目内的轻量绘制器显示字形像素与 PNG 图标。
 页面位置、颜色、按钮和点击行为属于固件，未来换 UI 框架可复用相同下载资源。
 
 预览阶段获取并校验展示 JSON、字体和图标，成功后才启用 Download；确认后将
 这些已校验的缓存资源与固件一并保存到 NAND，不重复解析版本或下载资源。
 离线 View info 使用同一解析器，只提供返回操作，关闭时释放预览资源。
-不带展示 JSON 的包仅支持内置 ASCII 名称及描述。列表中超出内置字符集的名称
-仍显示编号，完整名称和描述在信息页显示。
+云端 Idea 的列表和详情标题复用已下载的字形像素，中文名称无需将整套字体编入固件。
+本地开发副本使用内置字体；完整云端名称和描述可在信息页查看。
 
 发布端安装 `tools/requirements-presentation.txt` 及系统 libraqm >= 0.9，运行：
 
@@ -144,8 +148,9 @@ ESP32-S31 构建通过（仍排除上述已有导入失败测试）；候选固�
 及新旧卡片离线查看均覆盖。取消发生在本地文件校验期间时，结束后再次检查请求编号，
 避免继续获取卡片；对应[原生界面回归](../../tests/test_recovery_ui_host.py)覆盖取消、重复确认和已下载分支。
 
-真机验证修正了 GSP 1.4 在 S31 ROM 上解码 PNG 时缺少线性输出标志的问题，
-并为多行列表显式配置图标槽；见[PNG 适配回归](../../tests/test_ideas_presentation_host.py)。
+此前真机验证修正了旧 GSP 1.4 的 S31 PNG 解码标志和列表图标槽问题。
+当前轻量 UI 使用独立的有界 PNG 解码器，见[图片回归](../../tests/test_ideas_presentation_host.py)；
+旧 GSP 真机记录不能代替本轮轻量 UI 的设备验收。
 新展示资源使用 Vibe 原生页面，实体触摸和 USB 输入直接交由同一个界面处理。
 此功能不替换已评审的 `prebuilt/recovery`。生产云端联调和实际断电恢复仍需另行验收。
 
@@ -165,7 +170,7 @@ panic/watchdog 跳过正常 shutdown 的路径；Iris 在正常软件重启前�
 可能与新应用代码重叠。Vibe Mode 的 panic 处理器放入内部 RAM，以保留
 Flash/cache 故障的诊断能力。USB Serial/JTAG 控制器不受此处理影响。
 
-构建仍使用锁定 ESP-IDF、GSP 1.4.0 与 GSPC 0.5.0。`recovery-current-bundle`
+构建使用锁定 ESP-IDF 和 Vibe 自有轻量 UI，不再需要 GSP/GSPC。`recovery-current-bundle`
 仅生成未评审候选；完成设备身份、各启动入口、更新、回退及原生工具实测前，
 不得运行 `update-recovery-prebuilt` 发布候选。产品原生应用 flash 不写维护镜像；
 本维护工程自身的 flash 清单明确将 `vibe-mode.bin` 写入 `vibe_mode`。
@@ -436,7 +441,7 @@ Vibe Mode 的普通 `malloc` 优先使用 PSRAM，并保留 64 KiB 片内分配�
 速率。任务内存观察接口保持启用，可结合日志区分网络等待、Flash 写入和内存压力。
 
 Vibe Mode 支持 Gateway Web 工作台截图，以及 USB 会话下的交互输入。
-触摸输入使用 Gateway 的 `0x1001/1` pointer RPC，交由 GSP 输入处理按下、移动和抬起；TCP 会话不能通过此接口操作 Vibe Mode 界面。
+触摸输入使用 Gateway 的 `0x1001/1` pointer RPC，交由 Vibe 轻量 UI 处理按下、移动和抬起；TCP 会话不能通过此接口操作 Vibe Mode 界面。
 
 ```sh
 python mosaico.py iris test recovery-wifi --ssid SSID
@@ -567,51 +572,55 @@ PC 后端从公共控制器接口创建实例并读取无凭据状态，不能�
 
 ## Vibe Mode 界面与构建
 
-用户可见名称为 **Vibe Mode**；工程 `factory`、协议角色 `recovery`、
-`recover` 命令和 Recovery ABI 2 保持不变；固件兼容版本由 `sdkconfig.recovery.defaults` 独立维护。
-界面页面由 `ui/main.json` 和可移植的 `components/app_ui/src/vibe_ui.c` 实现，PC 与设备共享
-同一控制器及 `ui/profile.yaml` RGB565 编译配置。
-`components/app_ui/src/ui_services.c` 适配网络、Bridge、NAND 和更新状态；
-异步状态在 GSP 渲染上下文汇总，外部打开下载页的请求通过队列提交。
+用户可见固件为 **Vibe Mode**；工程为 `vibe-mode`。Recovery 命令、协议标识、
+ABI 2 和布局版本 5 不变。固件及原生模拟器使用同一套 C 控制器和轻量绘制代码，
+不链接 GSP、LVGL 或其他 UI 框架。应用工程仍可自行选择 GSP，本改动只涉及维护固件。
 
-使用 Component Registry 的 **ESP-GSP 1.4.0**，BSP 开启硬件显示但关闭
-`CONFIG_BSP_DISPLAY_LVGL_ENABLE`。该 BSP 选项默认开启，保留现有 LVGL
-应用行为。构建必须使用包含该选项的 workspace BSP；旧版 BSP 不支持此模式。
-GSP 在调用方同步创建、校验 UI，Vibe Mode 将
-`CONFIG_ESP_MAIN_TASK_STACK_SIZE` 设为 20480；仅增加渲染任务栈不能覆盖该阶段。
-启动日志记录 UI 初始化后的主任务栈余量，便于检查后续资源改动。
+- `components/app_ui/src/vibe_ui.c`、`vibe_product.c` 保留业务状态机。
+- `components/app_ui/light/vui.c` 负责 RGB565 绘制、文字、圆角、列表、键盘、
+  GIF 预解码帧、触摸及计时器。资源和帧缓冲位于 PSRAM。
+- `vui_decode.c` 验证 PNG CRC、尺寸、颜色类型、解压长度和行滤波；支持 PNG 的合法 1/2/4/8/16 位颜色组合与 Adam7 交错图，尺寸上限 256×256。
+  Idea 服务原有的 96×96 图标上限不变。
+- BSP、`esp_lcd_touch` 和固定版本 `esp_display_present` 1.1.1 仅作为硬件传输驱动。
+  绘制、排版、输入均由 Vibe 实现。旋转先等待在途显示完成，再同步显示与触摸坐标。
+- Iris 请求通过队列进入渲染任务，USB 注入触摸走同一路径；截图继续观察 RGB565 提交。
 
-场景、字形与键盘图标全部嵌入 Vibe Mode，不依赖应用资源分区。
-GSPB 在构建时无损 Deflate 压缩，启动时使用 ROM 解压器还原到 PSRAM；
-GSP 继续执行原始 bundle 校验。内置界面使用预烘焙字形，不启用 GSP 运行时字体引擎；
-通过 `CONFIG_ESP_GSP_ENABLE_JPEG=n` 排除 JPEG 解码器，
-现有图标仍为编译后的 RGB565_A8。32 px 更新标题与百分比只打包对应状态文案
-和数字所需的字形，网络名称与密码仍保留完整的既有字符集。
-Ideas 下载的 MIFF 字形由独立解析器处理，再作为普通像素交给 GSP。
-若增加 GSP 运行时字体或 JPEG 图片，必须同步启用相应能力并重新验证大小和功能。
-原生键盘支持大小写、符号、删除、确认、密码显示切换和 64 字节上限，
-离开输入页会清理密码。
-
-在宿主 workspace 中启动共享控制器的模拟器：
+页面结构保存在 `ui/main.json`，由 `tools/build_vibe_ui.py` 从作者布局生成。
+`tools/compile_vui.py` 将原版字体、图标、动画和页面编译为固定节点、预烘焙字形、
+RGB565+A8 图片，并无损压缩到 `components/app_ui/light/vui_assets.bin`。
+普通构建直接嵌入已提交的资源包，只用 Python 标准库验证来源哈希，不下载图形工具。
+修改页面或素材后，在 authoring Python 环境中运行：
 
 ```sh
-python3 tools/gsp-sim/run.py submodule/esp-mosaico-utils/esp-mosaico-vibe-mode/firmware/vibe-mode/ui/main.json --headless
+python -m pip install -r tools/requirements.txt
+python tools/build_vibe_ui.py
+python tools/compile_vui.py
 ```
 
-运行 Vibe Mode 主机测试前，设置 `GSPC_EXECUTABLE`（0.5.0）和
-`GSP_SIM_EXECUTABLE`（1.4.0），安装 `tests/requirements-ui.txt` 中的主机依赖。
-原生模拟器测试使用真实键盘、列表和回调，
-并检查 Wi-Fi 列表的截图像素，覆盖字形完整性、卡片间距和反复导航。
-二维码由独立解码器直接从渲染截图验证；OTA 使用确定性的时间与字节数序列，
-覆盖组件切换、停滞、重试、新任务、未知大小及传输完成后的提交失败。
-服务数据由 PC 后端模拟；模拟通过不代表真机网络或更新验收通过。
+内置字体保持 Inter/Archivo 与 Noto Sans SC 字形，许可证见 `ui/fonts/OFL-*.txt`。
+下载的 MIFF 字形和 PNG 图标仍通过原公开展示契约进入固定页面，不接收远端布局或动作。
+键盘支持大小写、符号、删除、确认、64 字节 Wi-Fi 密码上限和显示切换；离开页面清除密码。
+恢复出厂设置保留 NAND、设备身份和当前应用。下载先写 NAND，用户明确打开后才写 NOR 并重启。
 
-网站二维码是提交到 `ui/assets/ideas-qr.png` 的静态资源，无设备端编码库。
-需要重新生成时，在主机安装 `tools/requirements-qr.txt`，运行
-`python tools/generate_ideas_qr.py`。脚本固定完整 HTTPS URL、QR version 3、
-M 级纠错、四模块白边和 5 倍整数缩放，生成 185×185 PNG；普通构建直接使用
-该文件，经现有 GSPB 与 Zopfli 压缩链路嵌入固件。
+在此固件目录启动模拟器（主机需 C 编译器、CMake、zlib 开发库与 Pillow）：
 
-固定 Vibe Mode 槽仍为 `0x20000` / `0x1c0000`。须核对实际构建目录中的
-`vibe-mode.bin` 大小；不能仅凭 IDF 构建成功判断镜像适合较小的 `vibe_mode` 槽。
-预编译包只在真机验收后通过 `update-recovery-prebuilt` 整体更新。
+```sh
+cmake -S pc -B build-sim -DCMAKE_BUILD_TYPE=Release
+cmake --build build-sim --config Release
+python pc/simulator.py --library build-sim/libvibe_ui.so --directory /tmp/vibe-preview --port 3223
+```
+
+macOS 使用 `libvibe_ui.dylib`；Windows 使用 MinGW CMake generator 和生成的 DLL。
+打开 `http://localhost:3223/`。浏览器只显示 C 绘制的帧并转发触摸，默认无示例 App，
+`--scenario` 仅为测试注入模型数据。主机测试不再需要 GSPC 或 GSP 模拟器环境变量。
+安装 `../../tests/requirements-ui.txt` 后，从 utils 根目录运行：
+
+```sh
+python -m pytest mosaico-tools/tests esp-mosaico-vibe-mode/tests
+IRIS_HOST_SANITIZERS=1 python -m pytest esp-mosaico-vibe-mode/tests/test_vui_memory.py
+```
+
+二维码仍是提交的静态图片，按原资源更新工具生成后重新编译轻量资源包。
+模拟器检查页面和交互，不能替代面板 TE/DMA、实体触摸、自动旋转及实际更新的设备验收。
+固定槽保持 `0x20000` / `0x1c0000`，构建执行镜像大小及 USB/Iris 内部 BSS 检查。
+本轮不更新已评审的 `prebuilt/recovery`；新镜像完成设备验证后再发布。

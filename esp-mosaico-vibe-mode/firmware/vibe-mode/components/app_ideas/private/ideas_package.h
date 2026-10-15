@@ -40,6 +40,8 @@ typedef struct {
 } ideas_package_t;
 
 bool ideas_code_valid(const char *code);
+/* Local developer copies use d + five hex digits, never sent to the cloud. */
+bool ideas_local_code_valid(const char *code);
 bool ideas_filename_valid(const char *name);
 bool ideas_path_valid(const char *path);
 /* Root metadata and dependencies are parsed before fetching the inner manifest.
@@ -81,3 +83,9 @@ esp_err_t ideas_store_verify(const char *root, const ideas_package_t *package,
                              ideas_verify_fn verify, void *ctx);
 esp_err_t ideas_store_path(const char *root, const char *code, const char *name,
                            char out[IDEAS_PATH_BYTES]);
+esp_err_t ideas_store_delete(const char *root, const char *code);
+/* Same transaction with a cancellation/commit gate before the rename boundary. */
+esp_err_t ideas_store_download_gated(const char *root, const char *json, size_t size,
+                                    const ideas_package_t *package, ideas_fetch_fn fetch,
+                                    ideas_verify_fn verify, void *ctx, ideas_store_stage_fn stage,
+                                    esp_err_t (*commit_gate)(void *));

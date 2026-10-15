@@ -10,14 +10,13 @@
 | ESP-IDF | >= 6.2；S31 验证 checkout 由固件验证记录锁定 | 更新后端 SDK 私有 Flash API；bootloader 保持既有实现 |
 | ESP-Iris | 同仓库 `ESP-Iris/components/esp_iris` | app_iris 平台钩子和产品服务 |
 | ESP-Mosaico BSP | Git `05e067de0613a0aa3fe2af42e75616804decbf4b` | app_system 静音、app_storage NAND、app_ui 显示 |
-| ESP-GSP / GSPC | 1.4.0 / 0.5.0 | app_ui bundle 压缩、PNG inflate wrapper |
 | esp_display_present | 1.1.1 | app_ui 提交 wrapper，用于按需截图 |
 | mDNS / cJSON / LittleFS | 1.12.0 / ^1.7.19 / ^1.22.0 | 使用公共 API |
 
 显式固定 presenter 1.1.1，防止组件图重算时将已验证的传递依赖升级为 1.1.2。
-当前 PNG 修正位于 `app_ui/src/vibe_png_inflate.c`，没有修改 GSP/ROM 的源码。
-GSP 预编译包通过 `INTERFACE_SOURCES` 导出的公共触摸适配器由 `app_ui`
-编译一次，并用 linker `-u` 保证提取；不向入口传播 C 源码，也不修改托管源码。
+轻量 UI 的字体与图片在作者工具中用 Pillow / Zopfli 编译；普通构建不需要这些包。
+设备端 Deflate 使用 ESP-IDF 提供的 ROM API，PC 端使用 zlib；PNG 容器及滤波由项目代码处理。
+固件不再依赖 ESP-GSP、GSPC 或其触摸适配器，也不修改任何托管组件源码。
 
 如需第三方源码修正，将版本、来源、校验值、修改原因和统一 diff 一起提交到
 本目录的 `patches/<原组件名>/`。先从锁定来源复制到独立构建目录，校验补丁基线，

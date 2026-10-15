@@ -36,7 +36,7 @@ static esp_err_t join(const char *a, const char *b, char out[IDEAS_PATH_BYTES]) 
     return n > 0 && n < IDEAS_PATH_BYTES ? ESP_OK : ESP_ERR_INVALID_SIZE;
 }
 static esp_err_t base_path(const char *root, const char *code, char out[IDEAS_PATH_BYTES]) {
-    return root && ideas_code_valid(code) ? join(root, code, out) : ESP_ERR_INVALID_ARG;
+    return root && ideas_local_code_valid(code) ? join(root, code, out) : ESP_ERR_INVALID_ARG;
 }
 esp_err_t ideas_store_path(const char *root, const char *code, const char *name,
                            char out[IDEAS_PATH_BYTES]) {
@@ -249,6 +249,7 @@ static esp_err_t load_generation(const char *base, const char *code, const journ
         if (err == ESP_OK && !ideas_hash_file(path, p->files[i].size, p->files[i].sha256))
             err = ESP_ERR_INVALID_CRC;
     }
+    if (!ideas_code_valid(code)) return err;
     /* Validate both locales; return metadata for the package's default locale. */
     unsigned active = !strcmp(p->default_locale, "en");
     if (err == ESP_OK)
@@ -319,6 +320,7 @@ esp_err_t ideas_store_metadata(const char *root, const char *code, ideas_package
 esp_err_t ideas_store_select(const char *root, ideas_package_t *p, unsigned language) {
     if (!p || language > 1)
         return ESP_ERR_INVALID_ARG;
+    if (!ideas_code_valid(p->code)) return ESP_OK;
     char path[IDEAS_PATH_BYTES];
     size_t size;
     esp_err_t err =
@@ -350,6 +352,7 @@ esp_err_t ideas_store_finish(const char *root, const ideas_package_t *p) {
     return err;
 }
 
+static esp_err_t finish_delete(const char *base);
 esp_err_t ideas_store_prepare(const char *root, const char *code, ideas_package_t *p) {
     if (!p)
         return ESP_ERR_INVALID_ARG;
@@ -359,6 +362,12 @@ esp_err_t ideas_store_prepare(const char *root, const char *code, ideas_package_
     if (base_path(root, code, base) != ESP_OK || join(base, "current", current) != ESP_OK ||
         join(base, ".previous", previous) != ESP_OK || join(base, ".incoming", incoming) != ESP_OK)
         return ESP_ERR_INVALID_ARG;
+    char deleted[IDEAS_PATH_BYTES];
+    if (join(base, ".deleted", deleted) != ESP_OK) return ESP_ERR_INVALID_SIZE;
+    if (directory(deleted)) {
+        esp_err_t err = finish_delete(base);
+        return err == ESP_OK ? ESP_ERR_NOT_FOUND : err;
+    }
     journal_t journal;
     if (!read_journal(base, &journal))
         return ESP_ERR_INVALID_CRC;
@@ -382,8 +391,14 @@ esp_err_t ideas_store_recover(const char *root, const char *code) {
     if (base_path(root, code, base) != ESP_OK || join(base, "current", current) != ESP_OK ||
         join(base, ".previous", previous) != ESP_OK || join(base, ".incoming", incoming) != ESP_OK)
         return ESP_ERR_INVALID_ARG;
-    if (!directory(current) && !directory(previous))
-        return remove_generation(incoming);
+    char deleted[IDEAS_PATH_BYTES];
+    if (join(base, ".deleted", deleted) != ESP_OK) return ESP_ERR_INVALID_SIZE;
+    if (directory(deleted)) return finish_delete(base);
+    if (!directory(current) && !directory(previous)) {
+        esp_err_t err = remove_generation(incoming);
+        if (err == ESP_OK) (void)finish_delete(base);
+        return err;
+    }
     ideas_package_t *p = malloc(sizeof(*p));
     if (!p)
         return ESP_ERR_NO_MEM;
@@ -399,9 +414,14 @@ esp_err_t ideas_store_refresh(const char *root, const char *code, ideas_package_
     journal_t journal;
     if (base_path(root, code, base) != ESP_OK)
         return ESP_ERR_INVALID_ARG;
+    if (join(base, ".deleted", path) != ESP_OK) return ESP_ERR_INVALID_SIZE;
+    if (directory(path)) {
+        esp_err_t err = finish_delete(base);
+        return err == ESP_OK ? ESP_ERR_NOT_FOUND : err;
+    }
     bool clean = read_journal(base, &journal) && !journal.roots[1].size;
-    const char *pending[] = {".incoming", ".previous", ".roots.tmp"};
-    for (unsigned i = 0; clean && i < 3; ++i) {
+    const char *pending[] = {".incoming", ".previous", ".roots.tmp", ".deleted"};
+    for (unsigned i = 0; clean && i < 4; ++i) {
         struct stat st;
         clean = join(base, pending[i], path) == ESP_OK && node_stat(path, &st) != 0 &&
                 errno == ENOENT;
@@ -425,9 +445,10 @@ esp_err_t ideas_store_verify(const char *root, const ideas_package_t *p, ideas_v
     }
     return ESP_OK;
 }
-esp_err_t ideas_store_download(const char *root, const char *json, size_t size,
+esp_err_t ideas_store_download_gated(const char *root, const char *json, size_t size,
                                const ideas_package_t *p, ideas_fetch_fn fetch,
-                               ideas_verify_fn verify, void *ctx, ideas_store_stage_fn stage) {
+                               ideas_verify_fn verify, void *ctx, ideas_store_stage_fn stage,
+                                    esp_err_t (*commit_gate)(void *)) {
     char sha[65];
     if (!p || !fetch || !verify || !p->firmware_ready || size != p->root_size ||
         !ideas_hash_data(json, size, sha) || strcmp(sha, p->root_sha256))
@@ -504,6 +525,8 @@ esp_err_t ideas_store_download(const char *root, const char *json, size_t size,
     free(check);
     if (err == ESP_OK && stage)
         stage(IDEAS_STORE_SAVE, ctx);
+    if (err == ESP_OK && commit_gate)
+        err = commit_gate(ctx);
     /* Flush new files and directories before authorizing the root for recovery.
      */
     if (err == ESP_OK)
@@ -520,9 +543,44 @@ esp_err_t ideas_store_download(const char *root, const char *json, size_t size,
         err = sync_directory(base);
     if (err != ESP_OK) {
         /* Keep either valid generation; recovery chooses only a verified root. */
+        (void)remove_generation(incoming);
         (void)ideas_store_recover(root, p->code);
         return err;
     }
     /* Retain previous as a fallback until the next verified recovery/scan. */
     return ESP_OK;
+}
+
+
+esp_err_t ideas_store_download(const char *root, const char *json, size_t size,
+                               const ideas_package_t *p, ideas_fetch_fn fetch,
+                               ideas_verify_fn verify, void *ctx, ideas_store_stage_fn stage) {
+    return ideas_store_download_gated(root, json, size, p, fetch, verify, ctx, stage, NULL);
+}
+static esp_err_t finish_delete(const char *base) {
+    char path[IDEAS_PATH_BYTES];
+    /* Keep the deletion marker until every potential fallback is gone. */
+    const char *dirs[] = {".previous", ".incoming", ".deleted"};
+    for (unsigned i = 0; i < 3; ++i) {
+        if (join(base, dirs[i], path) != ESP_OK) return ESP_ERR_INVALID_SIZE;
+        esp_err_t err = remove_generation(path);
+        if (err != ESP_OK) return err;
+    }
+    const char *files[] = {".roots", ".roots.tmp"};
+    for (unsigned i = 0; i < 2; ++i) {
+        if (join(base, files[i], path) != ESP_OK) return ESP_ERR_INVALID_SIZE;
+        if (unlink(path) && errno != ENOENT) return ESP_FAIL;
+    }
+    return rmdir(base) == 0 || errno == ENOENT ? ESP_OK : ESP_FAIL;
+}
+esp_err_t ideas_store_delete(const char *root, const char *code) {
+    char base[IDEAS_PATH_BYTES], current[IDEAS_PATH_BYTES], deleted[IDEAS_PATH_BYTES];
+    if (base_path(root, code, base) != ESP_OK || join(base, "current", current) != ESP_OK ||
+        join(base, ".deleted", deleted) != ESP_OK) return ESP_ERR_INVALID_ARG;
+    esp_err_t err = ideas_store_recover(root, code);
+    if (err != ESP_OK) return err;
+    /* Rename is the deletion commit; recovery must never revive .previous. */
+    if (rename(current, deleted)) return ESP_ERR_NOT_FOUND;
+    err = sync_directory(base);
+    return err == ESP_OK ? finish_delete(base) : err;
 }

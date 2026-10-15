@@ -8,6 +8,10 @@
 #include "factory_nand_update.h"
 #include "factory_network.h"
 #include "factory_system_update.h"
+#include "vibe_settings.h"
+#include "vibe_device.h"
+#include "esp_app_desc.h"
+#include "esp_mac.h"
 #include "iris_bridge.h"
 #include "sdkconfig.h"
 #include "vibe_ui.h"
@@ -25,6 +29,8 @@ typedef struct {
     uint32_t ota_job;
     int ota_state;
     uint32_t revision;
+    bool rescan_due, updates_checked, locale_refresh_due;
+    unsigned language;
     uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES];
     enum { UPDATE_NONE, UPDATE_OTA, UPDATE_SYSTEM, UPDATE_NAND, UPDATE_IDEAS } update_source;
 } ui_services_context_t;
@@ -37,22 +43,7 @@ static int service_command(void *ctx, vibe_command_t cmd, const char *a, const c
     case VIBE_SET_LANGUAGE: {
         if (!a || (strcmp(a, "en") && strcmp(a, "zh-CN")))
             return ESP_ERR_INVALID_ARG;
-        factory_ideas_snapshot_t *state = malloc(sizeof(*state));
-        if (!state)
-            return ESP_ERR_NO_MEM;
-        esp_err_t err = factory_ideas_snapshot(state);
-        if (err == ESP_OK && (state->busy || state->preview_ready))
-            err = ESP_ERR_INVALID_STATE;
-        free(state);
-        unsigned before = factory_locale_get();
-        if (err == ESP_OK)
-            err = factory_locale_set(!strcmp(a, "en"));
-        if (err == ESP_OK) {
-            err = factory_ideas_request(IDEAS_RELOCALIZE, NULL);
-            if (err != ESP_OK)
-                (void)factory_locale_set(before);
-        }
-        return err;
+        return vibe_settings_request(VIBE_SETTINGS_LANGUAGE, NULL, !strcmp(a, "en") ? "1" : "2");
     }
     case VIBE_SCAN_WIFI:
         return factory_network_request_scan();
@@ -86,6 +77,16 @@ static int service_command(void *ctx, vibe_command_t cmd, const char *a, const c
         return factory_ideas_request(IDEAS_START, a);
     case VIBE_PREVIEW_IDEA:
         return factory_ideas_request(IDEAS_PREVIEW, a);
+    case VIBE_OPEN_IDEA:
+        return factory_ideas_request(IDEAS_OPEN, a);
+    case VIBE_DELETE_IDEA:
+        return factory_ideas_request(IDEAS_DELETE, a);
+    case VIBE_SAVE_DEVELOPMENT:
+        return factory_ideas_request(IDEAS_SAVE_DEVELOPMENT, NULL);
+    case VIBE_RUN_DEVELOPMENT:
+        return factory_ideas_request(IDEAS_RUN_DEVELOPMENT, NULL);
+    case VIBE_UPDATE_ALL:
+        return factory_ideas_request(IDEAS_UPDATE_ALL, NULL);
     default:
         return ESP_ERR_INVALID_ARG;
     }
@@ -104,8 +105,19 @@ static void *service_preview(void *ctx, uint32_t request, unsigned slot, size_t 
 }
 #define COPY(field, value) snprintf(out->field, sizeof(out->field), "%s", value)
 static void service_snapshot(void *argument, vibe_snapshot_t *out) {
-    out->language = factory_locale_get();
     ui_services_context_t *ctx = argument;
+    (void)vibe_settings_snapshot(&out->settings);
+    if (ctx->language != out->settings.language) {
+        ctx->language = out->settings.language;
+        ctx->locale_refresh_due = true;
+    }
+    (void)vibe_device_snapshot(&out->device);
+    snprintf(out->firmware_version, sizeof(out->firmware_version), "%s", esp_app_get_description()->version);
+    if (!out->mac[0]) {
+        uint8_t mac[6];
+        if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK)
+            snprintf(out->mac, sizeof(out->mac), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    }
     factory_network_snapshot_t network = {0};
     esp_iris_status_t iris = {0};
     iris_bridge_snapshot_t bridge = {0};
@@ -141,6 +153,17 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     out->bridge_error = bridge.error;
     (void)factory_nand_update_get_snapshot(&ctx->nand);
     (void)factory_ideas_snapshot(&ctx->ideas);
+    out->storage_total = ctx->ideas.storage_total;
+    out->storage_used = ctx->ideas.storage_used;
+    out->development_available = ctx->ideas.development_available;
+    out->development_saved = ctx->ideas.development_saved;
+    COPY(development_name, ctx->ideas.development_name);
+    COPY(development_version, ctx->ideas.development_version);
+    out->cancellable = ctx->ideas.cancellable;
+    out->batch = ctx->ideas.batch;
+    out->batch_index = ctx->ideas.batch_index;
+    out->batch_total = ctx->ideas.batch_total;
+    COPY(batch_code, ctx->ideas.batch_code);
     out->nand_generation = ctx->ideas.generation;
     out->nand_scanning = ctx->ideas.scanning;
     out->nand_error = ctx->ideas.scan_error;
@@ -171,6 +194,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
                  c->description);
         out->bundles[i].boot = c->boot;
         out->bundles[i].update_available = c->update_available;
+        out->bundles[i].queued = c->queued;
         out->bundles[i].bytes = c->bytes;
         out->bundles[i].components = c->components;
     }
@@ -180,6 +204,17 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     (void)factory_system_update_get_status(&system);
     const bool nand_changed = ctx->nand_state != ctx->nand.update_state;
     const bool ota_changed = ota.job_id != ctx->ota_job || (int)ota.state != ctx->ota_state;
+    if (ota_changed && ota.job_id && !ota.active) ctx->rescan_due = true;
+    if (ctx->rescan_due && !ctx->ideas.busy && factory_ideas_request(IDEAS_SCAN, NULL) == ESP_OK)
+        ctx->rescan_due = false;
+    if (ctx->locale_refresh_due && !ctx->ideas.busy && !ctx->ideas.preview_ready &&
+        factory_ideas_request(IDEAS_RELOCALIZE, NULL) == ESP_OK)
+        ctx->locale_refresh_due = false;
+    if (!ctx->updates_checked && network.state == FACTORY_NETWORK_CONNECTED &&
+        !ctx->ideas.busy && !ctx->ideas.preview_ready && ctx->ideas.generation &&
+        !ota.active && !factory_system_update_writer_busy() &&
+        factory_ideas_request(IDEAS_REFRESH_UPDATES, NULL) == ESP_OK)
+        ctx->updates_checked = true;
     const bool system_changed =
         ctx->phase != system.update.phase ||
         memcmp(ctx->operation_id, system.update.operation_id, sizeof(ctx->operation_id)) != 0;
@@ -190,6 +225,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     ctx->ota_state = ota.state;
     ctx->phase = system.update.phase;
     memcpy(ctx->operation_id, system.update.operation_id, sizeof(ctx->operation_id));
+    if (system_changed && system.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED) ctx->rescan_due = true;
     const bool system_active = system.update.phase != ESP_IRIS_SYSTEM_UPDATE_PHASE_IDLE &&
                                system.update.phase < ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED;
     if (nand_changed && ctx->nand.update_state == FACTORY_NAND_UPDATE_FAILED)
@@ -205,14 +241,21 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
         ctx->update_source = UPDATE_OTA;
     if (system_active)
         ctx->update_source = UPDATE_SYSTEM;
-    if (ctx->ideas.revision != ctx->ideas_revision) {
+    if (ctx->ideas.revision != ctx->ideas_revision && ctx->ideas.command != IDEAS_REFRESH_UPDATES) {
         ctx->ideas_revision = ctx->ideas.revision;
         ++ctx->revision;
         ctx->update_source = UPDATE_IDEAS;
     }
     if (ctx->ideas.busy &&
-        (ctx->ideas.command == IDEAS_DOWNLOAD || ctx->ideas.command == IDEAS_INSTALL))
+        (ctx->ideas.command == IDEAS_DOWNLOAD || ctx->ideas.command == IDEAS_INSTALL ||
+         ctx->ideas.command == IDEAS_OPEN || ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT ||
+         (ctx->ideas.command == IDEAS_UPDATE_ALL || ctx->ideas.command == IDEAS_RUN_DEVELOPMENT)))
         ctx->update_source = UPDATE_IDEAS;
+    if (ota.active) ctx->update_source = UPDATE_OTA;
+    if (system_active && !(ctx->ideas.busy &&
+        (ctx->ideas.command == IDEAS_OPEN || ctx->ideas.command == IDEAS_INSTALL)))
+        ctx->update_source = UPDATE_SYSTEM;
+    if (ctx->update_source != UPDATE_IDEAS) out->batch = out->cancellable = false;
     out->updating = out->update_terminal = out->update_failed = false;
     out->progress = 0;
     memset(&out->transfer, 0, sizeof(out->transfer));
@@ -221,16 +264,22 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     out->update_revision = ctx->revision;
     if (ctx->update_source == UPDATE_IDEAS) {
         out->updating = ctx->ideas.busy && (ctx->ideas.command == IDEAS_DOWNLOAD ||
-                                            ctx->ideas.command == IDEAS_INSTALL);
+                                            ctx->ideas.command == IDEAS_INSTALL ||
+                                            ctx->ideas.command == IDEAS_OPEN ||
+                                            ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT ||
+                                            (ctx->ideas.command == IDEAS_UPDATE_ALL || ctx->ideas.command == IDEAS_RUN_DEVELOPMENT));
         out->update_terminal = ctx->ideas.terminal;
+        if ((ctx->ideas.command == IDEAS_DELETE || ctx->ideas.command == IDEAS_REFRESH_UPDATES) && !ctx->ideas.failed) out->update_terminal = false;
         out->update_failed = ctx->ideas.failed;
         COPY(update_title, ctx->ideas.title);
         COPY(update_detail, ctx->ideas.detail);
-        COPY(update_owner, ctx->ideas.command == IDEAS_INSTALL ? "NAND" : "Cloud");
+        COPY(update_owner, ctx->ideas.command == IDEAS_INSTALL || ctx->ideas.command == IDEAS_OPEN
+                               ? "NAND" : ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT ? "Device" : "Cloud");
         COPY(update_verified, "SHA-256");
         out->transfer.total = ctx->ideas.total;
         out->transfer.received = ctx->ideas.received;
         memcpy(out->transfer.job, &ctx->ideas.revision, sizeof(ctx->ideas.revision));
+    out->progress = vibe_transfer_permille(ctx->ideas.received, ctx->ideas.total);
         out->transfer.receiving = out->updating && ctx->ideas.command == IDEAS_DOWNLOAD &&
                                   ctx->ideas.phase == IDEAS_PHASE_DOWNLOAD;
         if (ctx->ideas.command == IDEAS_DOWNLOAD) {
@@ -243,7 +292,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
             out->transfer.completed_components = ctx->ideas.files_verified;
             out->transfer.component_count = ctx->ideas.file_count;
         }
-        if (ctx->ideas.command == IDEAS_INSTALL && system_active) {
+        if ((ctx->ideas.command == IDEAS_INSTALL || ctx->ideas.command == IDEAS_OPEN) && system_active) {
             out->transfer.total = system.total_size;
             out->transfer.received = system.received_size;
             out->transfer.component_id = system.update.active_component_id;
@@ -346,7 +395,28 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
                                                                             : "TCP");
     COPY(update_verified, "Unsigned");
 }
-const vibe_services_t *factory_ui_services(void) {
+static int service_setting(void *ctx, vibe_settings_command_t command, const char *key, const char *value)
+{
+    (void)ctx;
+    if (command == VIBE_SETTINGS_RESET) {
+        esp_iris_ota_status_t ota = {0};
+        (void)esp_iris_ota_get_status(&ota);
+        if (ota.active || factory_system_update_writer_busy() || s_services.ideas.busy)
+            return ESP_ERR_INVALID_STATE;
+    }
+    return vibe_settings_request(command, key, value);
+}
+static void service_device_policy(void *ctx, bool asleep, bool rotation_allowed)
+{
+    (void)ctx; vibe_device_policy(asleep, rotation_allowed);
+}
+static void service_haptic(void *ctx, unsigned pattern)
+{
+    (void)ctx; vibe_device_haptic(pattern);
+}
+static unsigned service_key(void *ctx) { (void)ctx; return vibe_device_poll_key(); }
+const vibe_services_t *factory_ui_services(void)
+{
     static const vibe_services_t services = {
         .ctx = &s_services,
         .snapshot = service_snapshot,
@@ -354,6 +424,8 @@ const vibe_services_t *factory_ui_services(void) {
         .icon = service_icon,
         .title = service_title,
         .preview = service_preview,
+        .setting = service_setting, .device_policy = service_device_policy,
+        .haptic = service_haptic, .key = service_key,
     };
     return &services;
 }

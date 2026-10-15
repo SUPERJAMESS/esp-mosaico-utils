@@ -1,7 +1,7 @@
 #include "sdk.h"
 #include SOURCE
 
-static mock_gsp_callback_t timer_callback;
+static vui_timer_cb_t timer_callback;
 static void *timer_context;
 static bool fail_timer;
 static esp_err_t init_result, open_result;
@@ -10,13 +10,13 @@ static unsigned char state_storage;
 static vibe_ui_t *state = (vibe_ui_t *)&state_storage;
 static const vibe_services_t services;
 
-void *esp_gsp_timer_create(esp_gsp_handle_t ui, unsigned period,
-                           mock_gsp_callback_t callback, void *ctx)
+void *vui_timer_create(vui_handle_t ui, unsigned period,
+                           vui_timer_cb_t callback, void *ctx)
 {
     if (fail_timer) return NULL;
     timer_callback = callback; timer_context = ctx; return (void *)1;
 }
-esp_gsp_err_t vibe_ui_create(esp_gsp_handle_t ui, const vibe_services_t *svc, vibe_ui_t **out)
+vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *svc, vibe_ui_t **out)
 {
     *out = state;
     assert(svc != &services); /* Caller storage is copied. */
@@ -49,12 +49,10 @@ int main(void)
     fail_timer = false;
     assert(factory_ui_dispatch_open_bridge() == ESP_ERR_INVALID_STATE);
 
-    /* No render callback: startup returns to the USB maintenance path. */
+    /* Initialization completes before handing ownership to the render task. */
     mock_now = 0;
-    assert(factory_ui_dispatch_start((void *)1, &services) == ESP_ERR_TIMEOUT);
-    assert(mock_now == 5000000);
-    assert(factory_ui_dispatch_open_bridge() == ESP_ERR_INVALID_STATE);
-    render(); /* Late initialization uses only live, owned storage. */
+    assert(factory_ui_dispatch_start((void *)1, &services) == ESP_OK);
+    assert(mock_now == 0);
     mock_wait = render; open_result = 123;
     assert(factory_ui_dispatch_open_bridge() == 123 && opens == 1);
 

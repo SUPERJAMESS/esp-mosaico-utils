@@ -29,6 +29,7 @@ SCENARIOS = [
     "reject-bad-descriptor", "reject-bad-flash", "rollback-hash", "rollback-truncated",
     "offline", "install-corrupt", "install-commit-failure", "boot-identity",
     "interrupted-generation", "admission", "repair-current", "io-budget",
+    "open", "delete", "delete-current", "download-cancel", "batch", "development", "development-ota-busy", "refresh-updates", "open-cancel", "no-space",
 ] + ["reject-bad-multipart-" + kind for kind in BAD_MULTIPART]
 
 
@@ -96,7 +97,7 @@ def worker(tmp_path_factory):
     assert sources, "Build Recovery first or set CJSON_COMPONENT_DIR"
     cjson_source = sources[0]
     for name in ("esp_err.h", "esp_attr.h", "esp_crt_bundle.h", "esp_flash.h", "esp_heap_caps.h",
-                 "esp_http_client.h", "esp_random.h", "esp_app_desc.h", "esp_ota_ops.h", "esp_system.h", "esp_timer.h", "nvs.h",
+                 "esp_http_client.h", "esp_random.h", "esp_app_desc.h", "mosaico_boot.h", "esp_partition.h", "esp_image_format.h", "esp_flash_partitions.h", "esp_ota_ops.h", "esp_system.h", "esp_timer.h", "nvs.h",
                  "sdkconfig.h", "freertos/FreeRTOS.h", "freertos/semphr.h", "freertos/task.h", "freertos/queue.h", "psa/crypto.h"):
         header = build / name
         header.parent.mkdir(parents=True, exist_ok=True)
@@ -108,7 +109,7 @@ def worker(tmp_path_factory):
                "-I" + str(ROOT / "include"),
                "-I" + str(ROOT.parent / "ESP-Iris/components/esp_iris/include"),
                *["-I" + str(COMPONENTS / name / "include") for name in (
-                   "app_ideas", "app_storage", "app_nand_update", "app_network", "app_system", "app_system_update")],
+                   "app_ideas", "app_settings", "app_storage", "app_nand_update", "app_network", "app_system", "app_system_update")],
                "-I" + str(COMPONENTS / "app_ideas/private"),
                *map(str, sorted((COMPONENTS / "app_ideas/src").glob("*.c"))),
                str(FIXTURE / "sdk.c"), str(FIXTURE / "main.c"), str(cjson_source),
@@ -122,6 +123,14 @@ def worker(tmp_path_factory):
     fixtures.mkdir()
     for release in ["v1", "v2", "bad-font", "bad-display", "bad-icon", "bad-descriptor", "bad-flash", *["bad-multipart-" + k for k in BAD_MULTIPART]]:
         write_release(fixtures, release, "2.0" if release == "v2" else "1.0")
+    for release in ("v1", "v2"):
+        document = json.loads((fixtures / (release + ".json")).read_text())
+        document["application"].update(code="042732", id="stable-app-id-2")
+        (fixtures / (release + "-042732.json")).write_text(json.dumps(document))
+        for locale in ("en", "zh-CN"):
+            wire, media = preview_response(encoded(document), locale, lambda sha: (fixtures / sha).read_bytes())
+            (fixtures / f"{release}-042732-{locale}.multipart").write_bytes(wire)
+            (fixtures / f"{release}-042732-{locale}.media").write_text(media)
     return executable, fixtures
 
 

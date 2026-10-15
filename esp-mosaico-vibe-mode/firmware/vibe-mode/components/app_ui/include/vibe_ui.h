@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
-#include "esp_gsp.h"
-#include "vibe_transfer.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "vui.h"
+#include "vibe_transfer.h"
+#include "vibe_settings_types.h"
+#include "vibe_device_types.h"
 
 #define VIBE_AP_MAX 16
 #define VIBE_BUNDLE_MAX 16
@@ -20,6 +22,10 @@ typedef enum {
     VIBE_UPDATE,
     VIBE_RESULT,
     VIBE_IDEA_INFO,
+    VIBE_DEVELOP, VIBE_SETTINGS, VIBE_DISPLAY, VIBE_LANGUAGE, VIBE_SHARED,
+    VIBE_SHARED_EDITOR, VIBE_ABOUT, VIBE_RESET, VIBE_WELCOME, VIBE_GRID,
+    VIBE_OPEN_CONFIRM, VIBE_SLEEP, VIBE_BOOT_TIP, VIBE_DELETE_CONFIRM,
+    VIBE_HELP, VIBE_GUIDE,
     VIBE_PAGE_COUNT
 } vibe_page_t;
 typedef enum {
@@ -44,7 +50,8 @@ typedef enum {
     VIBE_PREVIEW_IDEA,
     VIBE_RESOLVE_IDEA,
     VIBE_CANCEL_IDEA,
-    VIBE_SET_LANGUAGE
+    VIBE_SET_LANGUAGE,
+    VIBE_OPEN_IDEA, VIBE_DELETE_IDEA, VIBE_SAVE_DEVELOPMENT, VIBE_UPDATE_ALL, VIBE_RUN_DEVELOPMENT
 } vibe_command_t;
 typedef struct {
     char ssid[33];
@@ -55,11 +62,17 @@ typedef struct {
     char release[129], path[256], code[7], version[65], description[513];
     uint64_t bytes;
     unsigned components;
-    bool boot, update_available;
+    bool boot, update_available, queued;
 } vibe_bundle_t;
 typedef struct {
     vibe_net_t network;
-    unsigned language;
+    vibe_settings_snapshot_t settings;
+    vibe_device_snapshot_t device;
+    uint64_t storage_total, storage_used;
+    bool development_available, development_saved, cancellable, batch;
+    unsigned batch_index, batch_total;
+    char batch_code[7];
+    char development_name[33], development_version[33], firmware_version[33], mac[18];
     bool credentials_saved, scanning, usb_owner, tcp_owner, session;
     char ssid[33], ip[16], hostname[48], token[65];
     unsigned tcp_port;
@@ -95,6 +108,10 @@ typedef struct {
     void *(*title)(void *ctx, const char *code, size_t *size);
     /* malloc-owned copies: title/body RGB565, then encoded icon PNG. */
     void *(*preview)(void *ctx, uint32_t request, unsigned slot, size_t *size);
+    int (*setting)(void *ctx, vibe_settings_command_t command, const char *key, const char *value);
+    void (*device_policy)(void *ctx, bool asleep, bool rotation_allowed);
+    void (*haptic)(void *ctx, unsigned pattern);
+    unsigned (*key)(void *ctx);
 } vibe_services_t;
 typedef struct vibe_ui vibe_ui_t;
 typedef struct {
@@ -104,13 +121,15 @@ typedef struct {
     bool rate_valid;
     uint64_t rate_bytes_per_second;
     char idea_code[7];
+    unsigned grid_page, language;
+    bool asleep, pending_delete;
 } vibe_ui_status_t;
 
 /* Create this backend's single controller on the render task. Copies services;
  * services->ctx and ui must outlive the controller. out is component-owned,
  * stable storage (PSRAM on device), including on partial initialization error;
  * never free it. A live controller cannot be initialized twice. */
-esp_gsp_err_t vibe_ui_create(esp_gsp_handle_t ui, const vibe_services_t *services, vibe_ui_t **out);
+vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *services, vibe_ui_t **out);
 /* Copy observable UI state without exposing secrets. Render task only. */
 void vibe_ui_get_status(const vibe_ui_t *state, vibe_ui_status_t *out);
 /* Detach callbacks and clear secrets on the render task before UI destruction.

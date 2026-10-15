@@ -33,6 +33,8 @@ esp_err_t factory_ideas_confirm(uint32_t request_id, bool download) {
     ctx->state->phase = IDEAS_PHASE_DOWNLOAD;
     ctx->state->files_verified = 0;
     ctx->state->file_count = ctx->pending->package.file_count;
+    ctx->cancel_requested = false;
+    ctx->state->cancellable = job->command == IDEAS_DOWNLOAD;
     ctx->pending = NULL;
     esp_err_t err = ideas_launch_locked(ctx, job);
     if (err != ESP_OK) {
@@ -55,6 +57,8 @@ esp_err_t factory_ideas_cancel(void) {
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     uint32_t ready = ctx->state->preview_ready ? ctx->state->preview_id : 0;
+    if (ctx->state->busy && ctx->state->cancellable)
+        ctx->cancel_requested = true;
     if (!ready && ctx->state->resolving) {
         ctx->state->preview_id = 0;
         ctx->state->resolving = false;
@@ -68,8 +72,10 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     ideas_context_t *ctx = &s_ideas;
     if (!atomic_load(&ctx->initialized))
         return ESP_ERR_INVALID_STATE;
-    if (command < IDEAS_SCAN || (command > IDEAS_RESOLVE && command != IDEAS_RELOCALIZE) || command == IDEAS_DOWNLOAD ||
-        (command != IDEAS_SCAN && command != IDEAS_RELOCALIZE && !ideas_code_valid(code)))
+    bool no_code = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL || command == IDEAS_RUN_DEVELOPMENT || command == IDEAS_REFRESH_UPDATES;
+    if (command < IDEAS_SCAN || command > IDEAS_REFRESH_UPDATES || command == IDEAS_DOWNLOAD ||
+        command == IDEAS_DISMISS || command == IDEAS_ROW || (!no_code && !ideas_local_code_valid(code)) ||
+        ((command == IDEAS_CHECK || command == IDEAS_RESOLVE) && !ideas_code_valid(code)))
         return ESP_ERR_INVALID_ARG;
     job_t *job = calloc(1, sizeof(*job));
     if (!job)
@@ -92,10 +98,13 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
         return ESP_OK;
     }
     job->command = command;
-    if (code)
+    if (!no_code)
         strcpy(job->code, code);
     ctx->state->busy = true;
     ctx->state->command = command;
+    ctx->cancel_requested = false;
+    ctx->state->cancellable = command == IDEAS_OPEN;
+    ctx->state->batch = command == IDEAS_UPDATE_ALL;
     ctx->state->scanning = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE;
     if (command == IDEAS_RESOLVE || command == IDEAS_CHECK || command == IDEAS_PREVIEW) {
         if (++ctx->request_id == 0)

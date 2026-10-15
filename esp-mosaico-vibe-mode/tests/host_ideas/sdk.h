@@ -70,7 +70,7 @@ typedef struct {
     char *header_key, *header_value;
 } esp_http_client_event_t;
 typedef struct {
-    char version[32];
+    char project_name[32], version[32];
 } esp_app_desc_t;
 const esp_app_desc_t *esp_app_get_description(void);
 typedef struct {
@@ -107,7 +107,7 @@ int psa_hash_compute(int algorithm, const uint8_t *data, size_t size, uint8_t *o
 
 typedef unsigned nvs_handle_t;
 typedef struct {
-    uint32_t address;
+    uint32_t address, size;
 } esp_partition_t;
 esp_err_t nvs_open_from_partition(const char *partition, const char *ns, int mode,
                                   nvs_handle_t *out);
@@ -135,7 +135,7 @@ typedef struct {
         MOCK_SERVICE_UNAVAILABLE,
         MOCK_ETAG
     } fault;
-    bool network, lease, storage_busy, fail_send, fail_commit, deny_new_tasks;
+    bool network, lease, storage_busy, fail_send, fail_commit, deny_new_tasks, read_lease, ota_busy, ota_missing, development, cancel_on_delay, no_space;
     unsigned fail_init_step, tasks_created, tasks_entered, jobs_finished, mutex_live, queue_live;
     unsigned writes, resolves, assets, firmware, http_live, installs, commits, restarts;
     unsigned cancels, requests_with_identity, fault_limit, fault_hits, firmware_reads, read_chunk;
@@ -149,3 +149,22 @@ void mock_run_one_job(void);
 void mock_stop_worker(void);
 void mock_assert_idle(void);
 void mock_corrupt_flash(void);
+
+#define ESP_PARTITION_TYPE_APP 0
+#define ESP_PARTITION_TYPE_DATA 1
+#define ESP_PARTITION_SUBTYPE_APP_OTA_0 16
+#define ESP_PARTITION_SUBTYPE_ANY 255
+#define ESP_PARTITION_TABLE_MAX_ENTRIES 95
+#define ESP_IMAGE_VERIFY_SILENT 0
+typedef struct { uint32_t offset, size; } esp_partition_pos_t;
+typedef struct { uint16_t magic; uint8_t type, subtype; esp_partition_pos_t pos; char label[16]; uint32_t flags; } esp_partition_info_t;
+typedef struct { uint8_t bytes[24]; } esp_image_header_t;
+typedef struct { uint8_t bytes[8]; } esp_image_segment_header_t;
+typedef struct { uint32_t image_len; } esp_image_metadata_t;
+
+esp_err_t esp_partition_table_verify(const esp_partition_info_t *table, bool log, int *count);
+esp_err_t esp_image_verify(int mode, const esp_partition_pos_t *position, esp_image_metadata_t *out);
+void mock_development(void);
+void mock_change_resource(void);
+
+esp_err_t mosaico_boot_select(uint32_t address);

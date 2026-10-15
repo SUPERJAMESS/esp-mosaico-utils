@@ -36,6 +36,10 @@ static bool alnum_ascii(char c) {
 bool ideas_code_valid(const char *code) {
     return code && strlen(code) == 6 && strspn(code, "0123456789") == 6;
 }
+bool ideas_local_code_valid(const char *code) {
+    return ideas_code_valid(code) || (code && strlen(code) == 6 && code[0] == 'd' &&
+                                      strspn(code + 1, "0123456789abcdef") == 5);
+}
 bool ideas_path_valid(const char *path) {
     if (!path || !*path || strlen(path) > 192)
         return false;
@@ -184,7 +188,7 @@ static bool reference(ideas_package_t *p, const cJSON *obj, uint32_t maximum) {
 }
 esp_err_t ideas_package_parse(const char *json, size_t size, const char *code,
                               ideas_package_t *out) {
-    if (!out || !ideas_code_valid(code))
+    if (!out || !ideas_local_code_valid(code))
         return ESP_ERR_INVALID_ARG;
     cJSON *root = parse(json, size, IDEAS_DESCRIPTOR_BYTES);
     if (!root)
@@ -193,12 +197,13 @@ esp_err_t ideas_package_parse(const char *json, size_t size, const char *code,
     memset(out, 0, sizeof(*out));
     out->root_size = size;
     out->total_size = size;
+    bool local = !ideas_code_valid(code);
     const cJSON *app = get(root, "application"), *fw = get(root, "firmware"),
                 *dev = get(root, "device");
     if (!keys(root, "|schema||release_id||application||firmware||device|", 5, 5) ||
-        strcmp(str(root, "schema"), "mosaico-ideas/device-release/1") ||
+        strcmp(str(root, "schema"), local ? "mosaico-ideas/local/2" : "mosaico-ideas/device-release/1") ||
         !copy(root, "release_id", out->release_id, sizeof(out->release_id)) ||
-        !identity(out->release_id) || !keys(app, "|id||code|", 2, 2) ||
+        !identity(out->release_id) || !(local ? keys(app, "|id||code||name||description|", 4, 4) : keys(app, "|id||code|", 2, 2)) ||
         strcmp(str(app, "code"), code) ||
         !copy(app, "id", out->application_id, sizeof(out->application_id)) ||
         !identity(out->application_id) || !keys(fw, "|manifest|", 1, 1) ||
@@ -211,6 +216,15 @@ esp_err_t ideas_package_parse(const char *json, size_t size, const char *code,
         goto done;
     strcpy(out->code, code);
     const cJSON *views = get(dev, "presentations");
+    if (local) {
+        if (!cJSON_IsArray(views) || cJSON_GetArraySize(views) ||
+            !copy(app, "name", out->name, sizeof(out->name)) || !*out->name ||
+            !copy(app, "description", out->description, sizeof(out->description))) goto done;
+        strcpy(out->locale, out->default_locale);
+        if (!ideas_hash_data(json, size, out->root_sha256)) { err = ESP_FAIL; goto done; }
+        err = ESP_OK;
+        goto done;
+    }
     if (!cJSON_IsArray(views) || cJSON_GetArraySize(views) != 2)
         goto done;
     bool seen[2] = {false};

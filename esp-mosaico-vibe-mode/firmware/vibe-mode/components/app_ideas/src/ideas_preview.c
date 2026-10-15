@@ -3,7 +3,7 @@
 
 bool ideas_cancelled(ideas_context_t *ctx, uint32_t request_id) {
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
-    bool value = request_id != ctx->state->preview_id;
+    bool value = ctx->cancel_requested || request_id != ctx->state->preview_id;
     xSemaphoreGive(ctx->lock);
     return value;
 }
@@ -37,6 +37,7 @@ esp_err_t ideas_prepare_assets(ideas_context_t *ctx, const job_t *job, pending_t
                                bool local) {
     pending->owner = ctx;
     ideas_package_t *p = &pending->package;
+    if (local && !ideas_code_valid(p->code)) return ESP_OK;
     unsigned language = factory_locale_get();
     unsigned display_index = p->display_index[language];
     esp_err_t err = ideas_fetch_asset(ctx, job, pending, display_index, local);
@@ -140,6 +141,11 @@ esp_err_t ideas_prepare_download(ideas_context_t *ctx, job_t *job) {
         (remote->flash_size != flash_size ||
          (existing == ESP_OK && strcmp(local->application_id, remote->application_id))))
         err = ESP_ERR_INVALID_ARG;
+    if (job->metadata_only) {
+        job->up_to_date = err == ESP_OK && existing == ESP_OK && !strcmp(local->release_id, remote->release_id);
+        free(local);
+        return err;
+    }
     if (err == ESP_OK && existing == ESP_OK && !strcmp(local->release_id, remote->release_id)) {
         err = app_storage_acquire();
         if (err == ESP_OK) {

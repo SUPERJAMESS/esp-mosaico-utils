@@ -1,5 +1,0 @@
-# Keep simulator and device resource format and tile geometry identical.
-name: vibe_rgb565
-pixel_format: rgb565
-resource_alignment: 64
-stride_alignment: 64
