@@ -243,8 +243,9 @@ def test_home_dot_motion_tap_navigation_and_sleep(sim):
     sim.wait(page=0)
 
 
+@pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
 @pytest.mark.parametrize("language", [1, 2])
-def test_release_notice_waits_for_home_and_is_not_repeated(sim, language):
+def test_release_notice_and_manual_recheck(sim, language):
     if language == 2:
         sim.tap(390, 360); sim.wait(page=11)
         sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
@@ -266,6 +267,11 @@ def test_release_notice_waits_for_home_and_is_not_repeated(sim, language):
     sim.wait(page=0)
     time.sleep(1)
     sim.wait(page=0)
+    sim.tap(390, 360); sim.wait(page=11)
+    sim.swipe(240, 410, 240, 170); sim.wait(page=11)
+    sim.tap_ui("button_settings_bottom_about"); sim.wait(page=16)
+    sim.tap_ui("button_about_check")
+    sim.wait(page=26)
 
 
 @pytest.mark.parametrize("language", [1, 2])

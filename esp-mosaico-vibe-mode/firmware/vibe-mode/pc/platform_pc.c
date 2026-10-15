@@ -300,6 +300,10 @@ static void snapshot(void *ctx, vibe_snapshot_t *out) {
 static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) {
     (void)ctx;
     switch (cmd) {
+    case VIBE_CHECK_FIRMWARE:
+        ++model.release_generation;
+        model.release_error = 0;
+        break;
     case VIBE_INSTALL_FIRMWARE:
         if (!model.release_installable || !a || strcmp(a, model.release_version)) return 0x106;
         model.firmware_update = model.updating = true;

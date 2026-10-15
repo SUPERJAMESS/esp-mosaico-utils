@@ -1,6 +1,6 @@
 {
-  "components/app_ui/light/vui_assets.bin": "3531a8a0d9af14e0cbbb6246d092636fada7a58b0df592f00273485264445f3d",
-  "components/app_ui/private/vui_ids.h": "6526acea448c66740a9b61527153b5d0354563d48036042b31e74dfd0b4af19f",
+  "components/app_ui/light/vui_assets.bin": "506d38067be0178533672af37410b0152e850cbb9babfd0cc672534484f6c77f",
+  "components/app_ui/private/vui_ids.h": "025c04b15712100e83fc2c1f78dcabca36f4a2bfe08ff2a7b63c715d1a6e0939",
   "tools/compile_vui.py": "bd2cbd2df94606829c5098c21272f2e677f2833dd35fd109866d33ba0ae7779b",
   "ui/assets/icons/back-32-white.png": "319ef3fac418b5408d4bfb2d908211259334a4293faa98439f8f2c1d740897b0",
   "ui/assets/icons/backspace-32-white.png": "3c275c7ab5c06b64769e356670d50b5be39c8b2bf197ee42da8299fc533e1730",
@@ -38,7 +38,7 @@
   "ui/fonts/VibeDisplay.otf": "4dcfa7ec6a3c16b831efe78b3b06cc5c5165b1c07f06b79b4107106e64354780",
   "ui/fonts/VibeInter.otf": "34716d16fd14aaefba86428692286d37296e1003b0aaa8307091c5b7dd218bf5",
   "ui/fonts/VibeMedium.otf": "1cf01d1997672a2825a9c6a487dce5365a47df4be6ce89cfc3ef25cd04922f57",
-  "ui/main.json": "204fba0a5cf67e390d16f4792f781a35ba0e55d433f23948a874650fcc1e4d61",
+  "ui/main.json": "1c30fc3b5e688a12effeed53e3e99b5b9b98fb9a027296379392e43517b94542",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3"
 }

@@ -192,6 +192,8 @@
   "Checking installed application": "正在检查已安装应用",
   "Preparing application": "正在准备应用",
   "Writing application": "正在写入应用",
+  "Write": "写入",
+  "Checking application manifest": "正在检查应用清单",
   "Connect USB to your computer": "请连接电脑 USB",
   "Saved": "已保存",
   "Ready to save": "可保存到本机",
@@ -327,5 +329,8 @@
   "Downloading firmware": "正在下载固件",
   "Verifying firmware": "正在校验固件",
   "Writing firmware": "正在写入固件",
-  "Restarting Vibe Mode": "正在重启 Vibe Mode"
+  "Restarting Vibe Mode": "正在重启 Vibe Mode",
+  "Checking...": "正在检查…",
+  "Up to date": "已是最新",
+  "Check failed": "检查失败"
 }

@@ -37,6 +37,7 @@ typedef enum {
 } vibe_net_t;
 typedef enum {
     VIBE_INSTALL_FIRMWARE,
+    VIBE_CHECK_FIRMWARE,
     VIBE_SCAN_WIFI,
     VIBE_FORGET_WIFI,
     VIBE_CONNECT_WIFI,
@@ -78,6 +79,9 @@ typedef struct {
     bool credentials_saved, scanning, usb_owner, tcp_owner, session;
     bool release_available, release_installable, firmware_update;
     char release_version[32];
+    bool release_checking;
+    uint32_t release_generation;
+    int release_error;
     char ssid[33], ip[16], hostname[48], token[65];
     unsigned tcp_port;
     uint32_t scan_generation;

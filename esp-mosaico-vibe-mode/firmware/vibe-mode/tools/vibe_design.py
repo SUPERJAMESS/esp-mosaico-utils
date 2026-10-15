@@ -370,6 +370,10 @@ def apply(scene):
         text(p,'about_key_'+str(i),title,36,105+44*i,160,26,18,color=MUTED)
         text(p,value,'ESP-Mosaico' if i==1 else '',196,105+44*i,248,26,18,align='right')
         if i:rect(p,36,96+44*i,408,1,TILE,0)
+    move('about_key_0',36,105,86,26)
+    move('about_version',126,105,156,26)
+    check=button(p,'button_about_check','Check updates',294,100,158,36,action='firmware_check')
+    objects[check].update(bind='about_check',font_size=14,font=FONT['sans'])
     row(p,'about_pairing','TCP pairing','Connect your development tools','usb-32-cream',284,'pairing')
     row(p,'about_download','Find Ideas','Browse Mosaico Ideas','globe-32-cream',372,'download')
 
@@ -508,7 +512,7 @@ def runtime_charsets(root, translations):
                     'Preparing application', 'Writing application'))
     for name in ('update_detail','result_detail'): values.setdefault(name,set()).update(details)
     # The verb is formatted through a variable, outside TEXT/FORMAT literals.
-    values.setdefault('update_rate', set()).update(('Download', 'Read', 'Receive'))
+    values.setdefault('update_rate', set()).update(('Download', 'Read', 'Receive', 'Write'))
     values.setdefault('firmware_progress_title', set()).update(('Updating firmware', 'Firmware update failed'))
     values.setdefault('firmware_phase', set()).update(('Downloading firmware', 'Verifying firmware', 'Writing firmware', 'Restarting Vibe Mode'))
     for i in range(6):values.setdefault('cell_name_'+str(i),set()).add('Add Idea')

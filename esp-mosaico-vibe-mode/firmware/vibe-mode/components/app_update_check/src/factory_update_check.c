@@ -104,6 +104,18 @@ done:
     return err;
 }
 
+static void check_complete(const factory_update_check_snapshot_t *result, esp_err_t error)
+{
+    portENTER_CRITICAL(&s_lock);
+    uint32_t generation = s_snapshot.generation + 1;
+    /* Keep a known release on transient failures, but expose this check result. */
+    if (result) s_snapshot = *result;
+    s_snapshot.generation = generation;
+    s_snapshot.error = error;
+    s_running = false;
+    portEXIT_CRITICAL(&s_lock);
+}
+
 static void check_task(void *arg)
 {
     (void)arg;
@@ -138,25 +150,25 @@ static void check_task(void *arg)
     }
     if (err != ESP_OK) ESP_LOGW(TAG, "Update check failed: %s (HTTP %d)", esp_err_to_name(err), status);
     else ESP_LOGI(TAG, "Published version %s, update available=%d", result.version, result.available);
-    portENTER_CRITICAL(&s_lock);
-    /* A transient network failure must not discard an already discovered release. */
-    if (err == ESP_OK) s_snapshot = result;
-    s_running = false;
-    portEXIT_CRITICAL(&s_lock);
+    check_complete(err == ESP_OK ? &result : NULL, err);
     vTaskDelete(NULL);
 }
 
-void factory_update_check_request(void)
+void factory_update_check_request(bool manual)
 {
     const char *url = CONFIG_IRIS_FACTORY_UPDATE_MANIFEST_URL;
-    if (!url[0]) return;
+    if (!url[0]) {
+        check_complete(NULL, ESP_ERR_NOT_SUPPORTED);
+        return;
+    }
     if (strncmp(url, "https://", 8)) {
+        check_complete(NULL, ESP_ERR_INVALID_ARG);
         ESP_LOGE(TAG, "Update manifest URL must use HTTPS");
         return;
     }
     int64_t now = esp_timer_get_time();
     portENTER_CRITICAL(&s_lock);
-    if (s_running || (s_last_attempt && now - s_last_attempt < CHECK_INTERVAL_US)) {
+    if (s_running || (!manual && s_last_attempt && now - s_last_attempt < CHECK_INTERVAL_US)) {
         portEXIT_CRITICAL(&s_lock);
         return;
     }
@@ -164,9 +176,7 @@ void factory_update_check_request(void)
     s_last_attempt = now;
     portEXIT_CRITICAL(&s_lock);
     if (xTaskCreate(check_task, "vibe_check", 6144, NULL, 3, NULL) != pdPASS) {
-        portENTER_CRITICAL(&s_lock);
-        s_running = false;
-        portEXIT_CRITICAL(&s_lock);
+        check_complete(NULL, ESP_ERR_NO_MEM);
         ESP_LOGE(TAG, "Could not start update check");
     }
 }
@@ -176,5 +186,6 @@ void factory_update_check_snapshot(factory_update_check_snapshot_t *out)
     if (!out) return;
     portENTER_CRITICAL(&s_lock);
     *out = s_snapshot;
+    out->checking = s_running;
     portEXIT_CRITICAL(&s_lock);
 }

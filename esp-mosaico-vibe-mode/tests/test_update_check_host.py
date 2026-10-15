@@ -22,11 +22,14 @@ def test_update_check(tmp_path):
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#define strlcpy mock_strlcpy
 typedef int esp_err_t;
 #define ESP_OK 0
 #define ESP_ERR_INVALID_SIZE 1
 #define ESP_ERR_INVALID_RESPONSE 2
 #define ESP_ERR_NO_MEM 3
+#define ESP_ERR_NOT_SUPPORTED 4
+#define ESP_ERR_INVALID_ARG 5
 #define CONFIG_IRIS_FACTORY_UPDATE_PRODUCT "esp-mosaico-vibe-mode"
 #define CONFIG_IRIS_FACTORY_UPDATE_MANIFEST_URL "https://example.com/vibe.json"
 typedef int portMUX_TYPE;
@@ -37,11 +40,11 @@ typedef int portMUX_TYPE;
 #define ESP_LOGW(...) ((void)0)
 #define ESP_LOGE(...) ((void)0)
 #define pdPASS 1
-static int creates;
+static int creates, create_result = pdPASS;
 static int64_t now = 100;
 static int64_t esp_timer_get_time(void) { return now; }
 static int xTaskCreate(void (*fn)(void *), const char *name, int stack, void *arg, int priority, void *handle)
-{ ++creates; return pdPASS; }
+{ ++creates; return create_result; }
 static void vTaskDelete(void *task) {}
 typedef struct { char version[32]; } esp_app_desc_t;
 static const esp_app_desc_t *esp_app_get_description(void)
@@ -114,18 +117,33 @@ int main(void)
     assert(receive(&event) == ESP_ERR_INVALID_SIZE);
     response.length = 0;
     assert(receive(&event) == ESP_ERR_INVALID_SIZE);
-    factory_update_check_request();
-    factory_update_check_request();
+    factory_update_check_request(false);
+    factory_update_check_request(false);
     assert(creates == 1);
     s_running = false;
-    factory_update_check_request();
+    factory_update_check_request(false);
     assert(creates == 1);
     now += CHECK_INTERVAL_US;
-    factory_update_check_request();
+    factory_update_check_request(false);
     assert(creates == 2);
     s_snapshot.available = true;
     check_task(NULL);
-    assert(s_snapshot.available && !s_running);
+    assert(s_snapshot.available && !s_running && s_snapshot.error == ESP_ERR_NO_MEM);
+    uint32_t generation = s_snapshot.generation;
+    factory_update_check_request(true);
+    factory_update_check_request(true);
+    assert(creates == 3);
+    factory_update_check_snapshot_t snapshot;
+    factory_update_check_snapshot(&snapshot);
+    assert(snapshot.checking && snapshot.generation == generation);
+    factory_update_check_snapshot_t fresh = {.available = false};
+    check_complete(&fresh, ESP_OK);
+    factory_update_check_snapshot(&snapshot);
+    assert(!snapshot.checking && !snapshot.available && !snapshot.error && snapshot.generation == generation + 1);
+    create_result = 0;
+    factory_update_check_request(true);
+    factory_update_check_snapshot(&snapshot);
+    assert(!snapshot.checking && snapshot.error == ESP_ERR_NO_MEM && snapshot.generation == generation + 2);
     return 0;
 }
 ''')

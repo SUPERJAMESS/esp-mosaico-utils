@@ -8,7 +8,7 @@ static bool fail_shared_commit;
 static struct { char ssid[33], password[65]; bool has_ssid, has_password; } shared, staged;
 static wifi_config_t configured;
 static esp_netif_t netif;
-void factory_update_check_request(void) { ++update_requests; }
+void factory_update_check_request(bool manual) { (void)manual; ++update_requests; }
 static esp_err_t next(void) { return ++step == fail_step ? ESP_FAIL : ESP_OK; }
 esp_err_t esp_netif_init(void) { return next(); }
 esp_err_t esp_event_loop_create_default(void)
