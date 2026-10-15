@@ -71,6 +71,12 @@ esp_err_t app_display_init(esp_gsp_esp_lcd_config_t *out_config)
 {
     ESP_RETURN_ON_FALSE(out_config != NULL, ESP_ERR_INVALID_ARG, TAG, "output is null");
     esp_gsp_esp_lcd_config_t config = ESP_GSP_ESP_LCD_CONFIG_INIT();
+    /* CO5300 QSPI requires both the X origin and width in multiples of 4 pixels.
+     * GSP defaults to no expansion; the BSP rounder only covers LVGL. */
+    config.render_alignment = (esp_display_present_render_alignment_t) {
+        .x_pixels = 4,
+        .width_pixels = 4,
+    };
     ESP_RETURN_ON_ERROR(board_display_init(&config.display), TAG, "display initialization");
     ESP_RETURN_ON_ERROR(board_touch_init(&config.touch), TAG, "touch initialization");
     *out_config = config;

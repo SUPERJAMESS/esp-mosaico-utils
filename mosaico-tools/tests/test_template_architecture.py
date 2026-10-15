@@ -74,3 +74,31 @@ def test_public_component_behavior(tmp_path, template, component, fixture, stub_
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
     subprocess.run([str(executable)], check=True, timeout=10)
+
+
+@pytest.mark.parametrize("te_enabled", [0, 1])
+def test_device_display_returns_co5300_alignment(tmp_path, te_enabled):
+    """Check the device config contract, not physical panel rendering."""
+    compiler = next((shutil.which(name) for name in ("cc", "gcc", "clang") if shutil.which(name)), None)
+    if not compiler:
+        if os.environ.get("IRIS_REQUIRE_HOST_CC") == "1":
+            pytest.fail("A native C compiler is required")
+        pytest.skip("No native C compiler")
+    # The harness supplies SDK types and hardware stubs. Compile the real device
+    # adapter and public header, independently of managed components/workspaces.
+    for name in ("esp_err.h", "esp_gsp_esp_lcd.h", "bsp/esp_mosaico.h",
+                 "esp_check.h", "esp_log.h", "sdkconfig.h"):
+        header = tmp_path / name
+        header.parent.mkdir(parents=True, exist_ok=True)
+        header.touch()
+    directory = TEMPLATES / "hello_world/components/app_display"
+    executable = tmp_path / ("display.exe" if os.name == "nt" else "display")
+    result = subprocess.run(
+        [compiler, "-std=c11", "-Wall", "-Wextra", "-Werror",
+         f"-DCONFIG_BSP_CO5300_ENABLE_TE={te_enabled}",
+         "-I", str(tmp_path), "-I", str(directory), "-I", str(directory / "include"),
+         str(FIXTURES / "display_contract.c"), "-o", str(executable)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    subprocess.run([str(executable)], check=True, timeout=10)
