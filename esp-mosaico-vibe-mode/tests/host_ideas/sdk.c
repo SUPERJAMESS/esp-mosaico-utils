@@ -606,7 +606,7 @@ void mock_development(void)
         {.magic = 0x50aa, .type = ESP_PARTITION_TYPE_DATA, .subtype = 0x82, .pos = {0x310000, 4096}}};
     memcpy(flash + 0x8000, table, sizeof(table));
     memset(flash + 0x210000, 42, 512);
-    esp_app_desc_t app = {.project_name = "dev-example", .version = "1.0"};
+    esp_app_desc_t app = {.magic_word = ESP_APP_DESC_MAGIC_WORD, .project_name = "dev-example", .version = "1.0"};
     memcpy(flash + 0x210000 + 32, &app, sizeof(app));
     memset(flash + 0x310000, 99, 4096);
     boot.address = 0x210000;

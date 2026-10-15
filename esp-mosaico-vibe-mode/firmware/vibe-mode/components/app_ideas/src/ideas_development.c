@@ -212,43 +212,23 @@ static esp_err_t capture_gate(void *argument)
 }
 void ideas_development_status(ideas_context_t *ctx)
 {
-    esp_err_t lease = factory_system_update_read_acquire();
-    if (lease != ESP_OK) {
-        xSemaphoreTake(ctx->lock, portMAX_DELAY);
-        ctx->state->development_available = false;
-        ctx->state->development_saved = false;
-        xSemaphoreGive(ctx->lock);
-        return;
-    }
-    development_t *dev = calloc(1, sizeof(*dev));
-    esp_err_t err = dev ? inspect(dev) : ESP_ERR_NO_MEM;
-    bool saved = false;
-    char boot_code[7] = "";
-    xSemaphoreTake(ctx->lock, portMAX_DELAY);
-    if (err == ESP_OK)
-        for (size_t i = 0; i < ctx->state->count; ++i) {
-            saved |= !strcmp(ctx->state->items[i].release_id, dev->package.release_id);
-            if (ctx->state->items[i].boot) strcpy(boot_code, ctx->state->items[i].code);
-        }
-    xSemaphoreGive(ctx->lock);
-    if (err == ESP_OK && !saved && boot_code[0]) {
-        ideas_package_t *package = malloc(sizeof(*package));
-        saved = package && ideas_store_read(ROOT, boot_code, package) == ESP_OK &&
-                ideas_verify_installed(package, NULL) == ESP_OK;
-        free(package);
-    }
+    esp_err_t err = factory_system_update_read_acquire();
+    if (err != ESP_OK) return;
+    esp_app_desc_t app = {0};
+    /* Discovery reads only the fixed-layout app description; user actions verify the image. */
+    err = esp_flash_read(esp_flash_default_chip, &app,
+        0x210000 + sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t), sizeof(app));
+    bool available = err == ESP_OK && app.magic_word == ESP_APP_DESC_MAGIC_WORD &&
+        memchr(app.project_name, 0, sizeof(app.project_name)) && memchr(app.version, 0, sizeof(app.version));
     factory_system_update_read_release();
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
-    ctx->state->development_available = err == ESP_OK;
-    ctx->state->development_saved = saved;
-    snprintf(ctx->development_release_id, sizeof(ctx->development_release_id), "%s",
-             err == ESP_OK ? dev->package.release_id : "");
-    if (err == ESP_OK) {
-        snprintf(ctx->state->development_name, sizeof(ctx->state->development_name), "%s", dev->app.project_name);
-        snprintf(ctx->state->development_version, sizeof(ctx->state->development_version), "%s", dev->app.version);
-    }
+    ctx->state->development_available = available;
+    /* Without a full audit, saved identity is unknown until an explicit save succeeds. */
+    ctx->state->development_saved = false;
+    ctx->development_release_id[0] = 0;
+    snprintf(ctx->state->development_name, sizeof(ctx->state->development_name), "%s", available ? app.project_name : "");
+    snprintf(ctx->state->development_version, sizeof(ctx->state->development_version), "%s", available ? app.version : "");
     xSemaphoreGive(ctx->lock);
-    free(dev);
 }
 esp_err_t ideas_save_development(ideas_context_t *ctx)
 {
@@ -286,10 +266,16 @@ esp_err_t ideas_save_development(ideas_context_t *ctx)
                                          ideas_verify_file, dev, NULL, capture_gate);
     if (err == ESP_OK) err = ideas_store_finish(ROOT, existing);
     if (err == ESP_OK) err = ideas_save_boot(existing);
-    if (err == ESP_OK) ctx->boot_verified = ideas_boot_record(&ctx->verified_boot, false);
+    if (err == ESP_OK) {
+        ctx->boot_verified = ideas_boot_record(&ctx->verified_boot, false);
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        ctx->state->development_available = true;
+        snprintf(ctx->development_release_id, sizeof(ctx->development_release_id), "%s", p->release_id);
+        xSemaphoreGive(ctx->lock);
+    }
     cJSON_free(json); cJSON_Delete(root); cJSON_free(dev->firmware); free(existing); free(dev);
     factory_system_update_read_release();
-    if (err == ESP_OK) { (void)ideas_scan(ctx, false); ideas_development_status(ctx); ideas_message(ctx, "Development Idea saved", "Available in My Ideas"); }
+    if (err == ESP_OK) { (void)ideas_scan(ctx, false); ideas_message(ctx, "Development Idea saved", "Available in My Ideas"); }
     return err;
 }
 

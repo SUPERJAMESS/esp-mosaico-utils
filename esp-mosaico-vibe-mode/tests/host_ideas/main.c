@@ -282,6 +282,17 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < s.count; ++i)
             assert(!strcmp(s.items[i].version, "2.0") && !s.items[i].queued && !s.items[i].update_available);
         assert(!env->installs && !env->restarts);
+    } else if (!strcmp(scenario, "scan-metadata-only")) {
+        mock_development();
+        uint64_t before = env->flash_read_bytes;
+        run(IDEAS_SCAN);
+        assert(snapshot().development_available && !snapshot().failed && !env->read_lease);
+        assert(env->flash_read_bytes - before == sizeof(esp_app_desc_t));
+        assert(!env->writes);
+        mock_change_resource();
+        before = env->flash_read_bytes;
+        run(IDEAS_SCAN);
+        assert(env->flash_read_bytes - before == sizeof(esp_app_desc_t));
     } else if (!strncmp(scenario, "development", 11)) {
         mock_development();
         env->ota_missing = true; /* Offline boot before a lazy Iris OTA session exists. */
