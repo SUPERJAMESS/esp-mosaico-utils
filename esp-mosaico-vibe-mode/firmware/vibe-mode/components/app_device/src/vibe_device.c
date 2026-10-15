@@ -21,7 +21,11 @@ static bool s_asleep, s_rotate_allowed = true;
 static unsigned s_pattern;
 static esp_timer_handle_t s_motor_timer;
 static SemaphoreHandle_t s_motor_lock;
-static const unsigned s_patterns[][3] = {{8, 0, 0}, {8, 45, 8}, {24, 0, 0}, {14, 70, 22}, {40, 60, 40}};
+/* BSP already drives the motor at 100%; strengthen feedback by doubling
+ * the on-time of each pulse while preserving the inter-pulse pauses. */
+static const unsigned s_patterns[][3] = {
+    {16, 0, 0}, {16, 45, 16}, {48, 0, 0}, {28, 70, 44}, {80, 60, 80},
+};
 static unsigned s_motor_pattern, s_motor_step;
 static void motor_step(void *ctx)
 {
