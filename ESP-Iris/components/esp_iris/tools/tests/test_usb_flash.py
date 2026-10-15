@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import ast
 import json
-import subprocess
 import sys
 from contextlib import ExitStack
 from pathlib import Path
@@ -59,20 +58,19 @@ def test_wait_requires_topology_role_and_mac(world):
 
 
 def test_rom_mac_mismatch_prevents_handoff(monkeypatch):
-    origin, rom = port(), port("/dev/ttyACM4", rom=True)
+    origin, rom = port(), port("/dev/ttyACM4", rom=True, mac="30:ed:a0:f4:0c:10")
     calls = []
     monkeypatch.setattr(usb, "enter_download", lambda p: calls.append(p))
     monkeypatch.setattr(usb, "wait_for_port", lambda *a, **kw: rom)
-    monkeypatch.setattr(usb, "read_rom_mac", lambda p: "30eda0f40c10")
     with pytest.raises(usb.UsbFlashError, match="no flash performed"):
         usb.prepare_rom(origin, VID, PID)
     assert calls == [origin]
 
 
 def test_rom_start_uses_hardware_identity_without_reset(monkeypatch):
-    rom = port(rom=True, mac="not-an-app-serial")
+    rom = port(rom=True, mac="30:ed:a0:f4:51:8e")
     monkeypatch.setattr(usb, "enter_download", lambda p: pytest.fail("already in ROM"))
-    monkeypatch.setattr(usb, "read_rom_mac", lambda p: MAC)
+    monkeypatch.setattr(usb.serial, "Serial", lambda *a, **kw: pytest.fail("must not open ROM before flash"))
     assert usb.prepare_rom(rom, VID, PID) == (rom, MAC)
 
 
@@ -89,28 +87,20 @@ def test_reenumeration_timeout_is_bounded(world, monkeypatch):
         usb.wait_for_port(world[0], VID, PID, rom=True)
 
 
-def test_rom_probe_does_not_write_or_reset(monkeypatch):
-    calls = []
-
-    def run(command, **kwargs):
-        calls.append(command)
-        assert kwargs["timeout"] == 15
-        return SimpleNamespace(stdout="esptool v5\nConnected to ESP32-S31:\n"
-                               "MAC:                30:ed:a0:f4:51:8e\n\n"
-                               "MAC:                30:ed:a0:f4:51:8e\n")
-
-    monkeypatch.setattr(subprocess, "run", run)
-    assert usb.read_rom_mac(port(rom=True)) == MAC
-    assert calls[0][-1] == "read-mac"
-    assert calls[0].count("no-reset") == 2
+def test_prepare_rom_uses_descriptor_without_opening_rom(monkeypatch):
+    origin, rom = port(), port("/dev/ttyACM4", rom=True, mac="30:ED:A0:F4:51:8E")
+    requests = []
+    monkeypatch.setattr(usb, "enter_download", lambda p: requests.append(p))
+    monkeypatch.setattr(usb, "wait_for_port", lambda *a, **kw: rom)
+    monkeypatch.setattr(usb.serial, "Serial", lambda *a, **kw: pytest.fail("extra ROM session would reset it"))
+    assert usb.prepare_rom(origin, VID, PID) == (rom, MAC)
+    assert requests == [origin]
 
 
-@pytest.mark.parametrize("output", ["no MAC", "MAC: 30:ed:a0:f4:51:8e:ff:ff\n",
-                                    "MAC: 30:ed:a0:f4:51:8e\nMAC: 30:ed:a0:f4:0c:10\n"])
-def test_rom_probe_rejects_missing_or_conflicting_identity(monkeypatch, output):
-    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout=output))
-    with pytest.raises(usb.UsbFlashError, match="one hardware MAC"):
-        usb.read_rom_mac(port(rom=True))
+@pytest.mark.parametrize("value", ["", "not-a-mac", "30:ed:a0:f4:51:8e:00:00", "junk30eda0f4518e"])
+def test_missing_or_invalid_rom_identity_prevents_flash(value):
+    with pytest.raises(usb.UsbFlashError, match="cannot verify"):
+        usb.prepare_rom(port(rom=True, mac=value), VID, PID)
 
 
 def test_handshake_initializes_lines_before_open_and_closes(monkeypatch):

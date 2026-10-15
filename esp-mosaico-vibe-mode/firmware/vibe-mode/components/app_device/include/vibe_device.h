@@ -6,8 +6,10 @@
 #include "vibe_device_types.h"
 /* Start board sampling after display/UI startup. Failures of optional sensors
  * remain explicit in snapshots and never disable the maintenance transport. */
-/* Rotate callback runs on the device service task, outside the render task. */
-esp_err_t vibe_device_start(esp_err_t (*rotate)(unsigned degrees));
+/* Display callbacks run on the device service task. The UI owner must serialize
+ * panel access with rendering and drain pending transfers before commands. */
+esp_err_t vibe_device_start(esp_err_t (*rotate)(unsigned degrees),
+                            esp_err_t (*brightness)(unsigned percent));
 esp_err_t vibe_device_snapshot(vibe_device_snapshot_t *out);
 /* Nonblocking desired state, applied by the board worker. */
 void vibe_device_policy(bool asleep, bool rotation_allowed);

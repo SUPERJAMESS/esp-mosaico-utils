@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import re
-import subprocess
 import sys
 import time
 from contextlib import ExitStack
@@ -149,16 +148,16 @@ def wait_for_port(origin: Port, vid: int, pid: int, *, rom: bool,
                         "Older firmware needs manual Boot/ROM entry.")
 
 
-def read_rom_mac(port: Port) -> str:
-    command = [sys.executable, "-m", "esptool", "--chip", "esp32s31", "--port", port.device,
-               "--before", "no-reset", "--after", "no-reset", "--no-stub", "read-mac"]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=15, check=True)
-    # esptool prints it in both the connection banner and read-mac result.
-    found = set(re.findall(r"(?im)^\s*MAC:\s*([0-9a-f]{2}(?::[0-9a-f]{2}){5})\s*$",
-                           result.stdout.lower()))
-    if len(found) != 1:
-        raise UsbFlashError("The selected ROM port did not report one hardware MAC.")
-    return mac_serial(found.pop())
+def rom_mac(port: Port) -> str:
+    # S31 ROM's USB serial descriptor is its eFuse base MAC. Inspecting it
+    # does not open CDC. A separate esptool read-mac session can reset ROM
+    # when it closes, despite --after=no-reset; leave the sole ROM serial
+    # session to the native flash target.
+    if not port.rom or not re.fullmatch(r"(?:[0-9a-f]{12}|(?:[0-9a-f]{2}:){5}[0-9a-f]{2})",
+                                      port.serial, flags=re.IGNORECASE):
+        raise UsbFlashError("The selected ROM USB serial does not contain a valid hardware MAC; "
+                            "cannot verify the target device.")
+    return mac_serial(port.serial)
 
 
 def prepare_rom(origin: Port, vid: int, pid: int) -> tuple[Port, str]:
@@ -170,7 +169,7 @@ def prepare_rom(origin: Port, vid: int, pid: int) -> tuple[Port, str]:
         print(f"Iris: requesting ROM download on {origin.device}...", flush=True)
         enter_download(origin)
         rom = wait_for_port(origin, vid, pid, rom=True)
-    mac = read_rom_mac(rom)
+    mac = rom_mac(rom)
     if not origin.rom and mac != mac_serial(origin.serial):
         raise UsbFlashError("ROM hardware MAC differs from the selected Iris device; no flash performed.")
     return rom, mac

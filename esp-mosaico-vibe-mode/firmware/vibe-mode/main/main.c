@@ -68,7 +68,7 @@ void app_main(void)
     }
     ESP_LOGI(TAG, "UI initialization stack headroom: %u bytes",
              (unsigned)uxTaskGetStackHighWaterMark(NULL));
-    ESP_ERROR_CHECK_WITHOUT_ABORT(vibe_device_start(factory_ui_rotate));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(vibe_device_start(factory_ui_rotate, factory_ui_set_brightness));
     const esp_err_t input_err = app_iris_input_register(&ui_commands);
     if (input_err != ESP_OK) {
         ESP_LOGE(TAG, "Vibe Mode input failed: %s; USB maintenance remains active",

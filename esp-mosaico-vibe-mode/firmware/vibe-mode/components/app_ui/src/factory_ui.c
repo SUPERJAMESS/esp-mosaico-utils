@@ -32,6 +32,23 @@ static struct {
     int16_t last_x, last_y;
 } s_device;
 
+esp_err_t factory_ui_set_brightness(unsigned percent)
+{
+    if (percent > 100)
+        return ESP_ERR_INVALID_ARG;
+    if (!s_device.ui)
+        return ESP_ERR_INVALID_STATE;
+    if (xSemaphoreTakeRecursive(s_device.lock, pdMS_TO_TICKS(500)) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+    /* The LCD command shares the frame-transfer SPI device. A mutex alone
+     * cannot protect transfers still pending after present_frame() returns. */
+    esp_err_t err = esp_display_presenter_quiesce(s_device.presenter, 500);
+    if (err == ESP_OK)
+        err = bsp_display_brightness_set(percent);
+    xSemaphoreGiveRecursive(s_device.lock);
+    return err;
+}
+
 esp_err_t factory_ui_rotate(unsigned degrees)
 {
     if (!s_device.ui || (degrees != 0 && degrees != 90 && degrees != 180 && degrees != 270))

@@ -59,11 +59,13 @@ After installing it once, `idf.py -p CONSOLE_PORT flash monitor` can use the
 same high-speed USB connector: CDC0 recognizes the BSP-style DTR/RTS download
 handshake, while CDC1 remains the data interface. The project `idf_ext.py`
 loads Iris's host extension before the first build. It builds before reset,
-follows the selected USB location into ROM, verifies the hardware MAC, calls
+follows the selected USB location into ROM, checks the MAC in its USB serial descriptor, calls
 IDF's original flash target, and waits for the matching application console
 before starting monitor with `--no-reset`. Multiple boards require explicit
 `-p` selection. Release both Gateway connections and any other monitor first.
 The extension reserves both CDC interfaces until monitor exits.
+Identity checks do not open the ROM CDC: closing a separate `esptool read-mac`
+session can reset S31 out of ROM even with `--after=no-reset`.
 Exit monitor before starting another flash; its built-in reflash shortcut does
 not yet hand off the parent process's USB locks to its child.
 

@@ -310,3 +310,35 @@ Enter 发送、上下键访问最近 32 条历史；离线、Observe 和只有�
 记录继续显示；同时核对发送按钮与输入框同行。未重启 Gateway 或设备、未更新固件。
 
 [空行显示修复截图](../../ESP-Iris/docs/images/workbench-log-filter-0.2.png)
+
+## 原生高速 USB 烧录修复（2026-10-15）
+
+基于 `a98d721` 验证当前源码，未替换 `prebuilt/recovery`。环境为 Linux、
+ESP-IDF 6.2 `7b9cc1ac79f865983f59bb8ff3ff43eb74ff1dbe`（保留 SDK 既有改动）、
+esptool 5.3.1；设备为 ESP32-S31 rev 0.0 `30:ed:a0:f4:0c:10`，高速 USB 双 CDC。
+
+- 原故障实测为：进入 ROM 后，独立 `read-mac` 会话关闭串口使 ROM 再次脱离 USB，
+  原生 flash 随后打开已消失的 `/dev/ttyACM0`。`--after=no-reset` 未避免该现象。
+  改为读取 ROM USB 序列号中的 MAC，并保留同一 USB 位置和 MAC 的匹配；
+  缺失、格式错误或不匹配的身份拒绝烧录，不在正式 flash 前打开 ROM 串口。
+- 复测还捕获了独立的运行期崩溃。Core Dump 与当时 ELF 的完整 SHA-256
+  `cf70a8bf5532337c02d68a982afedcb45464b435f3a03bda8787bd71d64d0126` 匹配，
+  栈为 `vibe_device` → 亮度设置 → `panel_io_spi_tx_param` →
+  `spi_device_release_bus` 断言。亮度命令现在复用 UI 互斥锁，并先等待 presenter
+  完成在途传输，避免与刷屏并发访问同一 SPI 设备；不新增任务或缓冲区。
+- 最终源码连续完成 `idf.py flash --all monitor`、`idf.py flash monitor` 和
+  `idf.py flash`，均自动选择唯一 console、进入同一设备的 ROM、完成校验并返回
+  应用 console。全量写入 1,434,272 字节 Vibe 镜像及 bootloader、分区表、安装
+  otadata，四项均哈希校验通过。原生增量烧录参数保持不变。
+- 两次 monitor 均收到 `project=vibe-mode version=0.2.0 healthy=1`，每次在
+  观察期内重复查询 Boot ID 不变；退出 monitor 后再次烧录无需手动 Boot 操作。
+  最后一次普通 flash 后，消费工作区 launcher 读取截图与实时状态成功：
+  当前 ELF 匹配、运行时间超过 62 秒、`crash_count=0`、`invalid_frames=0`。
+  这是单板有限次数验证，不代表其它主机平台或长时间压力验收。
+
+最终 Vibe ELF SHA-256 为
+`8590d91fd1a52b73a0bbebfc0f1fae52c8ebbb8d5be0ebd2a878c549d8154420`。
+Iris host 全套 634 项通过，Mosaico/Vibe host 全套 850 项通过、24 项跳过；
+ROM 身份与禁止额外串口探测的回归已覆盖。亮度修复后重跑 UI、设置及组件边界
+回归 43 项通过，最终固件构建与 Python Ruff 检查通过。设备日志和崩溃解码记录保存在本地
+`.codex-runs/usb-native-flash-20261015/`，不随评审基础包发布。

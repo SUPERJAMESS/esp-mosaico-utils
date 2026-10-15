@@ -44,6 +44,7 @@ static void motor_play(unsigned pattern)
     xSemaphoreGive(s_motor_lock);
 }
 static esp_err_t (*s_rotate)(unsigned degrees);
+static esp_err_t (*s_brightness)(unsigned percent);
 static EXT_RAM_BSS_ATTR vibe_settings_snapshot_t s_preferences;
 
 void vibe_device_policy(bool asleep, bool rotation_allowed)
@@ -107,7 +108,7 @@ static void sample_task(void *unused)
             sleeping = asleep;
         }
         unsigned level = asleep ? 10 : s_preferences.brightness ? s_preferences.brightness : 80;
-        if (level != brightness && bsp_display_brightness_set(level) == ESP_OK) brightness = level;
+        if (level != brightness && s_brightness && s_brightness(level) == ESP_OK) brightness = level;
         snapshot.usb_connected = tud_mounted();
         if (battery && now >= next_battery) {
             bsp_battery_status_t status;
@@ -152,10 +153,12 @@ static void sample_task(void *unused)
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
-esp_err_t vibe_device_start(esp_err_t (*rotate)(unsigned degrees))
+esp_err_t vibe_device_start(esp_err_t (*rotate)(unsigned degrees),
+                            esp_err_t (*brightness)(unsigned percent))
 {
     if (s_keys) return ESP_OK;
     s_rotate = rotate;
+    s_brightness = brightness;
     s_keys = xQueueCreate(16, sizeof(unsigned));
     if (!s_keys) return ESP_ERR_NO_MEM;
     if (xTaskCreate(sample_task, "vibe_device", 6144, NULL, 2, NULL) != pdPASS) {
