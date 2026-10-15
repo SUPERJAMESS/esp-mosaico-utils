@@ -52,6 +52,8 @@ static void test_runtime_start_stop_preserves_state(void)
     fail_task_create = false;
     for (unsigned cycle = 0; cycle < 2; ++cycle) {
         assert(esp_iris_start() == ESP_OK);
+        assert(g_iris.stdio_redirected == (bool)CONFIG_ESP_IRIS_REDIRECT_STDIO);
+        assert(g_iris.vfs_registered == (bool)CONFIG_ESP_IRIS_REDIRECT_STDIO);
         assert(esp_iris_start() == ESP_OK);
         assert(esp_iris_get_status(&status) == ESP_OK);
         assert(status.started && status.lifecycle == ESP_IRIS_LIFECYCLE_RUNNING);

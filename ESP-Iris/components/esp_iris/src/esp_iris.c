@@ -735,6 +735,7 @@ esp_err_t esp_iris_start(void)
         if (err == ESP_OK) err = iris_transport_start(&g_iris_data);
     }
 #endif
+#if CONFIG_ESP_IRIS_REDIRECT_STDIO
     if (err == ESP_OK) {
         err = iris_log_vfs_init(&g_iris);
         g_iris.vfs_registered = err == ESP_OK;
@@ -743,6 +744,7 @@ esp_err_t esp_iris_start(void)
         err = iris_log_redirect_stdio();
         g_iris.stdio_redirected = err == ESP_OK;
     }
+#endif
     if (err == ESP_OK) {
         g_iris.running = true;
         g_iris.task_stack_free_min_bytes = UINT32_MAX;

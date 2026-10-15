@@ -306,6 +306,13 @@ config ESP_IRIS_TASK_PRIORITY
     range 1 20
     default 5
 
+config ESP_IRIS_REDIRECT_STDIO
+    bool "Redirect stdout/stderr to Iris logs"
+    default y
+    help
+        Capture standard output and error for Iris console and live logs.
+        Disable to keep the native ESP-IDF console output unchanged.
+
 config ESP_IRIS_LOG_RING_BYTES
     int "stdout/stderr log ring size"
     range 2048 16384
