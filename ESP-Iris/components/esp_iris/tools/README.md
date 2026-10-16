@@ -466,6 +466,40 @@ python "$IRIS" ctl --profile lab-a \
 
 ## Troubleshooting
 
+### Diagnostic retention and storage failures
+
+Ordinary events default to 7 days, 200,000 rows and a 512 MiB allocated-page
+budget. Compressed raw logs default to 7 days and 256 MiB. Background maintenance
+uses batches of at most 512 rows, with a 50 ms work window each second; a batch
+already executing may finish after that window. Bursts can temporarily exceed
+the budget. State, credentials, operations, saved artifacts and operation-bound
+healthy observations are protected. Slow clients and unavailable event storage
+produce explicit `history_gap` records; live delivery continues. A failed
+critical state commit rejects a new device write with `storage_unavailable`.
+An uncommitted device result remains unknown after restart and is never replayed.
+
+Use `web --retention-policy policy.json` to save overrides for `event_days`,
+`event_rows`, `event_bytes`, `raw_days`, `raw_bytes` and `batch_rows` (1–4096).
+Health reports storage failures, lost events and maintenance state. Project
+launches rotate process stdout/stderr at 8 MiB with three backups; a direct
+launch can use `--process-log PATH` and `--process-log-bytes N`.
+
+For an existing large 0.2 database, preview before maintenance:
+
+```bash
+python "$IRIS" storage --state-dir /path/to/state
+# Stop this Gateway and back up its state before applying destructive retention.
+python "$IRIS" storage --state-dir /path/to/state --apply
+# Optional offline physical compaction; allow free disk space for SQLite's copy.
+python "$IRIS" storage --state-dir /path/to/state --apply --compact
+```
+
+Logical deletion frees pages for reuse. New databases reclaim free pages
+incrementally; older 0.2 files may remain physically large until offline
+compaction. WAL/SHM sizes are reported separately. No full-table deletion or
+VACUUM runs in the startup or device callback. The 0.2 schema upgrade preserves
+existing state and adds operation-bound evidence; it does not import 0.1 data.
+
 ### The Workbench says the frontend is not built
 
 Run `npm ci && npm run build` in `tools/frontend`, then restart the Gateway.

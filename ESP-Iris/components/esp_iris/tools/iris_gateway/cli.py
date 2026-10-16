@@ -4,12 +4,14 @@ import argparse
 import asyncio
 import base64
 import contextlib
+import dataclasses
 import getpass
 import ipaddress
 import json
 import os
 import pathlib
 import signal
+import sqlite3
 import ssl
 import sys
 import threading
@@ -45,6 +47,7 @@ from .link import EndpointLock
 from .ownership import OwnershipRegistry
 from .project_gateway import ProjectGateway
 from .recovery_transition import recovery_preconditions
+from .retention import RetentionPolicy, disk_usage, maintain, prune_events
 from .security import DEFAULT_DEVELOPER_PASSWORD
 from .store import GatewayStore
 from .system_update import (
@@ -134,6 +137,9 @@ async def _web(args: argparse.Namespace) -> None:
 
 async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
     store = GatewayStore(state_dir)
+    if getattr(args, "retention_policy", None):
+        policy = RetentionPolicy(**json.loads(pathlib.Path(args.retention_policy).read_text(encoding="utf-8")))
+        store.set_setting("storage.retention", dataclasses.asdict(policy))
     _recover_interrupted(store)
     system_update_trust_key = None
     if args.system_update_trust_key:
@@ -165,6 +171,19 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
     owner_task = None
     drain_task = None
     idle_task = None
+    maintenance_stop = asyncio.Event()
+
+    async def maintenance() -> None:
+        while not maintenance_stop.is_set():
+            try:
+                await asyncio.wait_for(maintenance_stop.wait(), timeout=1)
+            except asyncio.TimeoutError:
+                try:
+                    service.maintenance_state = await asyncio.get_running_loop().run_in_executor(None, maintain, state_dir)
+                except (sqlite3.Error, OSError) as exc:
+                    service.maintenance_state = {"status": "degraded", "error": str(exc)}
+
+    maintenance_task = None
     shared = getattr(args, "project_shared", False)
     project_session_id = getattr(args, "project_session_id", None)
     if project_session_id:
@@ -185,6 +204,7 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
         service.project = ProjectGateway(registry, service, hub, stop, pairing_token=args.pairing_token, shared=shared)
         drain_task = asyncio.create_task(service.project.drain())
     try:
+        maintenance_task = asyncio.create_task(maintenance())
         if args.demo:
             await hub.start()
         else:
@@ -302,6 +322,9 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
         await stop.wait()
         await runner.cleanup()
     finally:
+        maintenance_stop.set()
+        if maintenance_task is not None:
+            await maintenance_task
         if idle_task is not None:
             idle_task.cancel()
             await asyncio.gather(idle_task, return_exceptions=True)
@@ -902,6 +925,9 @@ def build_parser() -> argparse.ArgumentParser:
     web_parser.add_argument("--ota-health-timeout", type=float,
                             help="override product HELLO health timeout, seconds (1..600)")
     web_parser.add_argument("--state-dir")
+    web_parser.add_argument("--retention-policy", help="JSON retention policy, saved in this Gateway's state")
+    web_parser.add_argument("--process-log", help="rotate process stdout/stderr at this path")
+    web_parser.add_argument("--process-log-bytes", type=int, default=8 * 1024 * 1024)
     web_parser.add_argument("--project-session-id")
     web_parser.add_argument("--project-id")
     web_parser.add_argument("--project-path")
@@ -1080,9 +1106,50 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional PEM ECDSA P-256 trust key; omit for unsigned bundles",
     )
 
+    storage = subparsers.add_parser("storage", help="preview or perform offline diagnostics maintenance")
+    storage.add_argument("--state-dir", required=True)
+    storage.add_argument("--apply", action="store_true", help="prune disposable diagnostics under the saved policy")
+    storage.add_argument("--compact", action="store_true", help="with --apply, VACUUM the stopped database")
     doctor = subparsers.add_parser("doctor", help="cross-platform environment and USB diagnostics")
     doctor.add_argument("--json", action="store_true")
     return parser
+
+
+def _storage(args: argparse.Namespace) -> int:
+    root = pathlib.Path(args.state_dir).expanduser().resolve()
+    if args.compact and not args.apply:
+        raise ValueError("--compact requires --apply and a stopped Gateway")
+    if not args.apply:
+        with contextlib.closing(sqlite3.connect((root / "gateway.sqlite3").as_uri() + "?mode=ro", uri=True)) as db:
+            count = db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+            reclaimable = db.execute("PRAGMA freelist_count").fetchone()[0] * db.execute("PRAGMA page_size").fetchone()[0]
+            row = db.execute("SELECT value FROM settings WHERE key='storage.retention'").fetchone()
+        print(json.dumps({"state_dir": str(root), "event_rows": count, "reusable_bytes": reclaimable,
+                          "policy": dataclasses.asdict(RetentionPolicy(**(json.loads(row[0]) if row else {}))),
+                          **disk_usage(root), "applied": False}))
+        return 0
+    lock = EndpointLock("gateway-state:" + os.path.normcase(str(root)))
+    try:
+        lock.acquire()
+        store = GatewayStore(root)
+        try:
+            policy = RetentionPolicy(**store.get_setting("storage.retention", {}))
+            removed = 0
+            while True:
+                count = prune_events(store, policy)
+                removed += count
+                if not count:
+                    break
+            store.cleanup_raw_logs(policy.raw_days, policy.raw_bytes)
+            if args.compact:
+                store.db.execute("VACUUM")
+            store.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            print(json.dumps({"removed_events": removed, **disk_usage(root), "applied": True}))
+        finally:
+            store.close()
+    finally:
+        lock.close()
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1098,10 +1165,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _bundle(args)
         if args.command == "ctl":
             return asyncio.run(_ctl(args))
-        asyncio.run(_web(args))
+        if args.command == "storage":
+            return _storage(args)
+        if args.process_log:
+            from .process_log import redirect_process_log
+
+            with redirect_process_log(pathlib.Path(args.process_log), max_bytes=args.process_log_bytes):
+                asyncio.run(_web(args))
+        else:
+            asyncio.run(_web(args))
     except KeyboardInterrupt:
         return 130
-    except (OSError, RuntimeError, TypeError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, sqlite3.Error, RuntimeError, TypeError, ValueError, json.JSONDecodeError) as exc:
         print(f"esp_iris.py: error: {exc}", file=sys.stderr)
         return 2
     return 0

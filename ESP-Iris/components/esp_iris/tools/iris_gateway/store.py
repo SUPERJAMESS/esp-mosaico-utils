@@ -316,6 +316,19 @@ class GatewayStore:
         ).fetchone()
         return _loads(row[0], None) if row else None
 
+    def find_healthy_evidence(self, operation: dict[str, Any], boot: Any) -> dict[str, Any] | None:
+        healthy = self.healthy_evidence(operation["operation_id"], boot)
+        if healthy is None:
+            # Existing 0.2 history is preserved lazily, never scanned at startup.
+            events = self.latest_events(device_id=operation["device_id"], categories=["device"], limit=5000)
+            healthy = next((event for event in reversed(events)
+                            if event.get("event_name") == "healthy" and event.get("boot_id") == boot
+                            and event.get("host_receive_ns", 0) >= operation["created_ns"]), None)
+            if healthy:
+                with self.db:
+                    self.preserve_event_evidence(healthy, operation["device_id"])
+        return healthy
+
     def events_after(
         self,
         cursor: int,
@@ -329,6 +342,7 @@ class GatewayStore:
         oldest_row = self.db.execute("SELECT MIN(event_id) AS value FROM events").fetchone()
         oldest = int(oldest_row["value"] or 0)
         history_gap = bool(cursor and oldest and cursor < oldest - 1)
+        history_gap = history_gap or bool(cursor and cursor < int(self.get_setting("events.pruned_through", 0)))
         clauses = ["event_id > ?"]
         values: list[Any] = [cursor]
         if device_id:
@@ -741,9 +755,6 @@ class GatewayStore:
             (device_id, relative, event_id, event_id, host_ns, host_ns, size),
         )
         self.db.commit()
-        if host_ns - self._last_log_cleanup_ns >= 60_000_000_000:
-            self._last_log_cleanup_ns = host_ns
-            self.cleanup_raw_logs()
 
 
 __all__ = ["GatewayStore"]
