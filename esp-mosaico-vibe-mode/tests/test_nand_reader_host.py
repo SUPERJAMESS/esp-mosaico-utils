@@ -32,7 +32,11 @@ def test_internal_nand_reader(tmp_path):
                "-lcrypto", "-pthread", "-o", str(exe)]
     if os.environ.get("IRIS_HOST_SANITIZERS") == "1":
         command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-no-pie"]
+    if os.name == "nt":
+        # PE linkers resolve unused RTOS worker references before discarding
+        # sections. This single-translation-unit fixture only exports main.
+        command += ["-O2", "-fwhole-program"]
     result = subprocess.run(command, text=True, capture_output=True)
     assert result.returncode == 0, result.stdout + result.stderr
-    result = subprocess.run([str(exe)], text=True, capture_output=True, timeout=10)
+    result = subprocess.run([str(exe), str(tmp_path / "nand-reader-XXXXXX")], text=True, capture_output=True, timeout=10)
     assert result.returncode == 0, result.stdout + result.stderr

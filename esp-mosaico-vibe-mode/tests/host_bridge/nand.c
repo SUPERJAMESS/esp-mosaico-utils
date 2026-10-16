@@ -9,6 +9,10 @@
 #include <assert.h>
 #include <pthread.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 #define CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE 1
 #define CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE_TASK_STACK 8192
 #define MALLOC_CAP_INTERNAL 4
@@ -178,10 +182,14 @@ esp_err_t factory_system_update_source_end_component(factory_system_update_owner
     ends++;
     return digest_fail ? ESP_ERR_INVALID_CRC : ESP_OK;
 }
-int main(void) {
-    char path[] = "/tmp/nand-reader-XXXXXX";
+int main(int argc, char **argv) {
+    assert(argc == 2);
+    char *path = argv[1];
     int fd = mkstemp(path);
     assert(fd >= 0);
+#ifdef _WIN32
+    assert(_setmode(fd, _O_BINARY) >= 0);
+#endif
     for (unsigned i = 0; i < sizeof(expected); ++i) expected[i] = (uint8_t)(i * 17);
     assert(write(fd, expected, sizeof(expected)) == sizeof(expected));
     close(fd);

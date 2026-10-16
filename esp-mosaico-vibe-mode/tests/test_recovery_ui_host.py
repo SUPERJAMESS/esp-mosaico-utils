@@ -174,7 +174,8 @@ class Simulator:
 def native_build(tmp_path_factory):
     build = tmp_path_factory.mktemp("vibe-native-build")
     generator = ["-G", "MinGW Makefiles"] if os.name == "nt" else []
-    for command in (["cmake", "-S", str(RECOVERY / "pc"), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release"] + generator,
+    for command in (["cmake", "-S", str(RECOVERY / "pc"), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release",
+                     "-DPython3_EXECUTABLE=" + sys.executable] + generator,
                     ["cmake", "--build", str(build), "--config", "Release", "-j4"]):
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
         assert result.returncode == 0, result.stdout + result.stderr
