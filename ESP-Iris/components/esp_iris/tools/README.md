@@ -443,6 +443,37 @@ python "$IRIS" ctl --profile lab-a \
 
 ## Runtime and storage model
 
+Project clients keep diagnostics in the selected application's `.gateway/`:
+`state/gateway.sqlite3`, `state/logs/`, `state/artifacts/` and `gateway.log`.
+The directory contains a Git ignore file and is independent of `build/`.
+Connection records, launch locks and cross-project device ownership remain in
+the host's `project-sessions/` and `ownership/` directories. Passwords, tokens,
+host identity and TLS files stay in a separate host-local credentials store.
+Moving or copying a project preserves its history without copying a live
+Gateway connection or its authentication credentials.
+
+For read-only or network-mounted projects, pass `mosaico.py iris run
+--gateway-data-dir /local/disk/project-gateway`. This location is remembered for
+that project on this host and cannot be assigned to a second project. The CLI
+prints the actual data location; `/v2/health` also reports it. Stop the Gateway
+before changing this location.
+
+Existing 0.2 data is relocated explicitly while the Gateway is stopped:
+
+```bash
+python "$IRIS" storage --state-dir /host/project-sessions/PROJECT/state \
+  --migrate-to /application/.gateway/state
+```
+
+The copy is validated and published atomically. It omits credentials and TLS
+keys; the original host directory continues to supply authentication. An
+interrupted copy can be retried, and an existing destination is never replaced.
+The source is retained as a migration-time snapshot. To roll back, stop the new
+Gateway, retain its project directory, and run the previous code against the
+original host directory. Records created after migration remain in the project
+copy; rollback does not merge or replay them. The retained source still consumes
+disk space: inspect it with `storage` before explicitly pruning or archiving it.
+
 - One Gateway supervises many USB/TCP endpoints concurrently and indexes their
   sessions and events by stable `device_id`.
 - Each physical device has at most one active session, even if more than one

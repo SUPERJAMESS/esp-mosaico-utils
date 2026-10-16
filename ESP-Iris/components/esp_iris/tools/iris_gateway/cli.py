@@ -49,6 +49,7 @@ from .project_gateway import ProjectGateway
 from .recovery_transition import recovery_preconditions
 from .retention import RetentionPolicy, disk_usage, maintain, prune_events
 from .security import DEFAULT_DEVELOPER_PASSWORD
+from .state_store import StateStore
 from .store import GatewayStore
 from .system_update import (
     build_system_update_bundle,
@@ -137,6 +138,8 @@ async def _web(args: argparse.Namespace) -> None:
 
 async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
     store = GatewayStore(state_dir)
+    credentials = (StateStore(pathlib.Path(args.credentials_dir).expanduser().resolve())
+                   if getattr(args, "credentials_dir", None) else store)
     if getattr(args, "retention_policy", None):
         policy = RetentionPolicy(**json.loads(pathlib.Path(args.retention_policy).read_text(encoding="utf-8")))
         store.set_setting("storage.retention", dataclasses.asdict(policy))
@@ -153,6 +156,7 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
         frontend_dist=pathlib.Path(__file__).resolve().parent.parent / "frontend" / "dist",
         system_update_trust_key=system_update_trust_key,
         ota_health_timeout=args.ota_health_timeout,
+        credentials_store=credentials,
     )
     listener_is_loopback = _listen_is_loopback(args.listen)
     default_password_selected = False
@@ -236,7 +240,7 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
             raise ValueError("--no-tls cannot be combined with TLS options")
         if tls_requested:
             cert, key, fingerprint = ensure_certificate(
-                state_dir,
+                credentials.root,
                 cert_path=pathlib.Path(args.tls_cert) if args.tls_cert else None,
                 key_path=pathlib.Path(args.tls_key) if args.tls_key else None,
             )
@@ -350,6 +354,8 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
             store.cleanup_raw_logs()
         finally:
             store.close()
+            if credentials is not store:
+                credentials.close()
 
 
 def _profile_path() -> pathlib.Path:
@@ -925,6 +931,7 @@ def build_parser() -> argparse.ArgumentParser:
     web_parser.add_argument("--ota-health-timeout", type=float,
                             help="override product HELLO health timeout, seconds (1..600)")
     web_parser.add_argument("--state-dir")
+    web_parser.add_argument("--credentials-dir", help="host-local authentication and TLS directory")
     web_parser.add_argument("--retention-policy", help="JSON retention policy, saved in this Gateway's state")
     web_parser.add_argument("--process-log", help="rotate process stdout/stderr at this path")
     web_parser.add_argument("--process-log-bytes", type=int, default=8 * 1024 * 1024)
@@ -1110,6 +1117,7 @@ def build_parser() -> argparse.ArgumentParser:
     storage.add_argument("--state-dir", required=True)
     storage.add_argument("--apply", action="store_true", help="prune disposable diagnostics under the saved policy")
     storage.add_argument("--compact", action="store_true", help="with --apply, VACUUM the stopped database")
+    storage.add_argument("--migrate-to", help="copy stopped 0.2 diagnostics to a fresh project state directory")
     doctor = subparsers.add_parser("doctor", help="cross-platform environment and USB diagnostics")
     doctor.add_argument("--json", action="store_true")
     return parser
@@ -1117,6 +1125,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _storage(args: argparse.Namespace) -> int:
     root = pathlib.Path(args.state_dir).expanduser().resolve()
+    if args.migrate_to:
+        if args.apply or args.compact:
+            raise ValueError("migration cannot be combined with pruning or compaction")
+        from .storage_migration import migrate_project_data
+
+        print(json.dumps(migrate_project_data(root, pathlib.Path(args.migrate_to).expanduser().resolve())))
+        return 0
     if args.compact and not args.apply:
         raise ValueError("--compact requires --apply and a stopped Gateway")
     if not args.apply:

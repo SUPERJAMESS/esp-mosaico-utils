@@ -10,7 +10,7 @@ import time
 from collections.abc import Iterable
 from typing import Any
 
-from .store import GatewayStore
+from .state_store import StateStore
 
 DEFAULT_DEVELOPER_PASSWORD = "espressif"
 AGENT_TOKEN_SCOPES = frozenset({"files.read", "files.write", "files.delete"})
@@ -33,7 +33,7 @@ class AuthManager:
     COOKIE_NAME = "esp_iris_session"
     PASSWORD_ROUNDS = 310_000
 
-    def __init__(self, store: GatewayStore) -> None:
+    def __init__(self, store: StateStore) -> None:
         self.store = store
         self._sessions: dict[str, tuple[Actor, int]] = {}
 
