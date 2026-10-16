@@ -139,6 +139,7 @@ class GatewayService:
         self.rpc_catalog = self._load_rpc_catalog()
         self.project: Any = None
         self.jobs: dict[tuple[str, int], dict[str, Any]] = {}
+        self.maintenance_state: dict[str, Any] = {"status": "pending"}
 
     def attach_hub(self, hub: GatewayHub) -> None:
         self.hub = hub
@@ -740,6 +741,7 @@ def create_app(service: GatewayService) -> web.Application:
             {
                 "status": "ok",
                 "storage": service.store.storage_health(),
+                "storage_maintenance": service.maintenance_state,
                 "instance_id": service.instance_id,
                 "host_id": service.host_id,
                 "gateway_api": GATEWAY_API,

@@ -114,6 +114,7 @@ class LocalProject:
     def launch_arguments(self, session_id: str) -> list[str]:
         """Arguments for the pinned esp_iris.py web entrypoint."""
         return ["--state-dir", str(self.directory / "state"),
+                "--process-log", str(self.log_file),
                 "--project-session-id", session_id, "--project-id", self.project_id,
                 "--project-path", str(self.project), "--project-connection-file", str(self.connection_file),
                 "--ownership-dir", str(self.root / "ownership"),

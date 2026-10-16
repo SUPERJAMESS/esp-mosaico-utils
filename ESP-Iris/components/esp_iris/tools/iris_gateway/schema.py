@@ -102,6 +102,7 @@ def initialize_schema(db: sqlite3.Connection) -> int:
         raise RuntimeError(
             f"unsupported Gateway database schema {current}; Iris 0.2 requires a fresh state directory. "
             "Archive the old state and follow the documented migration guide.")
+    db.execute("PRAGMA auto_vacuum=INCREMENTAL")
     db.executescript("BEGIN IMMEDIATE;" + _SCHEMA + _EVIDENCE_SCHEMA +
                      f"PRAGMA user_version={SCHEMA_VERSION}; COMMIT;")
     return SCHEMA_VERSION
