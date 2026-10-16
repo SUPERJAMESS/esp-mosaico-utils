@@ -110,7 +110,14 @@ esp_err_t update_source_prepare(update_context_t *ctx, factory_system_update_own
     const char *parse_end = NULL;
     cJSON *root =
         cJSON_ParseWithLengthOpts((const char *)manifest, manifest_size, &parse_end, false);
-    if (root == NULL || parse_end != (const char *)manifest + manifest_size) {
+    /* JSON permits trailing SP, HT, LF and CR. Keep the original bytes for
+     * integrity checks, and reject any other bytes after the parsed value. */
+    const char *end = (const char *)manifest + manifest_size;
+    while (root != NULL && parse_end < end &&
+           (*parse_end == ' ' || *parse_end == '\t' || *parse_end == '\n' || *parse_end == '\r')) {
+        ++parse_end;
+    }
+    if (root == NULL || parse_end != end) {
         cJSON_Delete(root);
         return ESP_ERR_INVALID_ARG;
     }

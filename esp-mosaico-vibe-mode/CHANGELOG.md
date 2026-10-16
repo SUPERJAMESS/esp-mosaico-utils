@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Use `https://mosaico-ideas.espressif.com` as the default Ideas origin.
+  Accept trailing JSON whitespace in firmware manifests without changing the
+  bytes used for integrity checks; continue rejecting trailing values and
+  non-JSON control bytes. This fixes error `0x102` when opening Idea `200019`.
+  Report open failures as "Open failed" / "打开失败".
+
 - Rename the product directory to `esp-mosaico-vibe-mode` and the firmware
   project to `firmware/vibe-mode`, with CMake project name `vibe-mode`.
   Update tooling, application integration, CI and documentation; build new

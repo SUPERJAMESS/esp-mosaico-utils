@@ -383,6 +383,42 @@ int main(void)
     cJSON_InitHooks(NULL);
     free(trailing);
 
+    /* Published Ideas manifests may end in JSON whitespace. The NAND install
+     * parser must accept it without accepting another value or control bytes. */
+    const struct {
+        const char *suffix;
+        size_t size;
+        esp_err_t expected;
+    } endings[] = {
+        {"", 0, ESP_OK},
+        {"\n", 1, ESP_OK},
+        {"\r\n", 2, ESP_OK},
+        {" \t\r\n", 4, ESP_OK},
+        {" \nx", 3, ESP_ERR_INVALID_ARG},
+        {"\n{}", 3, ESP_ERR_INVALID_ARG},
+        {"\n\0", 2, ESP_ERR_INVALID_ARG},
+        {"\v", 1, ESP_ERR_INVALID_ARG},
+        {"\f", 1, ESP_ERR_INVALID_ARG},
+    };
+    for (size_t i = 0; i < sizeof(endings) / sizeof(endings[0]); ++i) {
+        setup();
+        char *json = layout_manifest_without_data();
+        size_t size = strlen(json);
+        json = realloc(json, size + endings[i].size + 1);
+        assert(json);
+        memcpy(json + size, endings[i].suffix, endings[i].size);
+        size += endings[i].size;
+        json[size] = '\0';
+        assert(factory_system_update_source_reserve_idea(op) == ESP_OK);
+        esp_err_t result = factory_system_update_source_prepare(
+            FACTORY_SYSTEM_UPDATE_OWNER_NAND, (uint8_t *)json, size, op);
+        if (result != endings[i].expected)
+            fprintf(stderr, "manifest ending %zu: expected %d, got %d\n", i, endings[i].expected, result);
+        assert(result == endings[i].expected);
+        assert(erased == 0 && mock_writes == 0);
+        free(json);
+    }
+
     setup();
     assert(factory_system_update_source_reserve(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                                                 op) == 0);

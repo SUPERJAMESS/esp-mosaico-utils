@@ -494,8 +494,12 @@ int main(int argc, char **argv) {
             assert(factory_ideas_request(IDEAS_START, code) == ESP_OK && env->restarts == 1);
         } else {
             assert(s.failed && !s.items[0].boot && !env->commits);
+            assert(!strcmp(s.title, "Installation failed"));
             assert(env->installs == 1); /* Corruption is caught in NOR, before boot commit. */
             assert(factory_ideas_request(IDEAS_START, code) == ESP_ERR_INVALID_STATE);
+            run(IDEAS_OPEN);
+            s = snapshot();
+            assert(s.failed && !strcmp(s.title, "Open failed") && !env->restarts);
         }
         assert(requests == env->resolves + env->assets + env->firmware);
     } else if (!strcmp(scenario, "io-budget")) {

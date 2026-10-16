@@ -65,7 +65,7 @@ config IRIS_FACTORY_BRIDGE_BOARD_ID
 
 config IRIS_FACTORY_IDEAS_SERVER_URL
     string "Ideas HTTPS origin (no trailing slash)"
-    default IRIS_FACTORY_BRIDGE_SERVER_URL
+    default "https://mosaico-ideas.espressif.com"
     help
         Direct manifest and content-addressed file service. Empty disables
         Ideas downloads. System language is selected locally and persisted.

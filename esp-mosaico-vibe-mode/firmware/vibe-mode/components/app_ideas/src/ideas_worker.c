@@ -85,6 +85,7 @@ static void run_job(job_t *job) {
             snprintf(ctx->state->title, sizeof(ctx->state->title), "%s failed",
                      preparing                       ? "App information"
                      : job->command == IDEAS_INSTALL ? "Installation"
+                     : job->command == IDEAS_OPEN    ? "Open"
                                                      : "Download");
             snprintf(ctx->state->detail, sizeof(ctx->state->detail), "%s (0x%x).\n%s",
                      esp_err_to_name(err), (unsigned)err,

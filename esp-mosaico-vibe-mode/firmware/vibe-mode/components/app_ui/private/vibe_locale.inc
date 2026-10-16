@@ -60,6 +60,7 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"Hide", "隐藏"},
     {"Idea %s", "创意 %s"},
     {"Installation failed", "安装失败"},
+    {"Open failed", "打开失败"},
     {"Loading app information...", "正在读取 Idea 信息…"},
     {"NAND unavailable: 0x%x", "NAND 不可用：0x%x"},
     {"Network setup not completed", "尚未连接网络"},

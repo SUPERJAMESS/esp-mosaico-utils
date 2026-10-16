@@ -101,7 +101,8 @@ Ideas 可继续使用经过验证的新分区表描述重新安装。
 和[单响应预览格式](../../../mosaico-tools/docs/ideas-file-release/preview-response.zh-CN.md)为准。
 不支持旧 download/1 或 V0.1，不调用 POST resolve。
 
-设备使用 CONFIG_IRIS_FACTORY_IDEAS_SERVER_URL 配置的 HTTPS origin，验证 TLS，
+设备使用 CONFIG_IRIS_FACTORY_IDEAS_SERVER_URL 配置的 HTTPS origin，默认值为
+`https://mosaico-ideas.espressif.com`（不带末尾 `/`），独立于 Bridge 地址。验证 TLS，
 直接 GET `/api/v1/ideas/{code}/manifest.json`，携带 profile、chip_id、flash_size、
 recovery_version、当前系统 locale，以及 `Accept: multipart/related`。服务器一次
 返回最新兼容发布的根清单、固件清单及当前语言 display、字体、图标的原始字节。
