@@ -36,6 +36,7 @@ from .compat import BooleanOptionalAction
 from .compatibility import compatibility_expectation
 from .demo import DemoHub
 from .discovery import discover_iris_usb_devices
+from .export_jobs import ExportPolicy
 from .gateway import (
     DEFAULT_OTA_VALIDATION_MODE,
     OTA_VALIDATION_MODES,
@@ -147,6 +148,9 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
     if getattr(args, "resource_policy", None):
         limits = GatewayLimits(**json.loads(pathlib.Path(args.resource_policy).read_text(encoding="utf-8")))
         store.set_setting("resources.limits", dataclasses.asdict(limits))
+    if getattr(args, "export_policy", None):
+        policy = ExportPolicy(**json.loads(pathlib.Path(args.export_policy).read_text(encoding="utf-8")))
+        store.set_setting("exports.policy", dataclasses.asdict(policy))
     _recover_interrupted(store)
     system_update_trust_key = None
     if args.system_update_trust_key:
@@ -940,6 +944,7 @@ def build_parser() -> argparse.ArgumentParser:
     web_parser.add_argument("--credentials-dir", help="host-local authentication and TLS directory")
     web_parser.add_argument("--retention-policy", help="JSON retention policy, saved in this Gateway's state")
     web_parser.add_argument("--resource-policy", help="JSON resource limits, saved in this Gateway's state")
+    web_parser.add_argument("--export-policy", help="JSON export budgets and expiry, saved in this Gateway state")
     web_parser.add_argument("--process-log", help="rotate process stdout/stderr at this path")
     web_parser.add_argument("--process-log-bytes", type=int, default=8 * 1024 * 1024)
     web_parser.add_argument("--project-session-id")

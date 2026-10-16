@@ -664,3 +664,42 @@ reserved identity locally. This peer endpoint is an implementation detail;
 there is no owner-initiated public transfer API, callback accept API or legacy
 route alias. The durable registry transaction still uses the internal transfer
 schema and retains reservations across interrupted HTTP requests.
+
+### Background evidence exports
+
+`POST /v2/export` now returns HTTP 202 with a job ID, `status_url` and
+`download_url`. Poll `GET /v2/exports/{job_id}` (or list `/v2/exports`), then
+stream the completed ZIP from its download URL. Workbench Settings provides
+range fields, progress, cancellation, download and deletion. Downloads stream
+directly to the browser instead of buffering a ZIP in browser memory.
+
+The optional JSON body accepts `device_id`, `operation_id`, inclusive `since_ns`
+and `until_ns`, and `retain` (default false). The project is the current Gateway's
+storage root. Operation scope includes its durable evidence plus that device's
+logs within the operation interval. Device exports omit project-wide audit
+entries that cannot be attributed to the device. A manifest records the effective
+scope, event watermark and pruning boundary; `history-gaps.jsonl` and gap events
+explain missing history. `events.jsonl` contains resolved device/capture identity
+and replaces duplicate raw gzip files and segment databases in the bundle.
+Credentials, tokens and the internal state database are never packaged.
+
+One export runs at a time, with default limits of 1 GiB for snapshot plus ZIP and
+input bytes, 2 GiB for all exports, 32 retained jobs, 4096 files, and 300 seconds.
+`web --export-policy policy.json` saves overrides as `exports.policy` in Gateway
+state and `/v2/health` reports the limits and job counts. The policy accepts `job_bytes`, `total_bytes`, `jobs`,
+`ttl_seconds` and `timeout_seconds`. Ordinary downloads expire after one hour;
+`retain: true` keeps a bundle until explicitly deleted and still counts toward
+quotas. `POST /v2/exports/{job_id}/cancel` cancels work, while `DELETE
+/v2/exports/{job_id}` removes a terminal job. Failed or cancelled jobs remove
+partial data; startup marks interrupted jobs and removes abandoned snapshots.
+A disconnected download can be retried before expiry. ZIP and member SHA-256
+checksums support validation after download.
+
+Snapshots cover committed history at their recorded watermark; event ingress
+continues while an export is accepted. Snapshots briefly seal and hard-link closed segments on the same filesystem,
+then back up a SQLite read snapshot and release it before packing. Retention can
+continue deleting original segment names while the export reads its bounded
+snapshot. The filesystem must support hard links; an unsupported filesystem
+produces a failed job with its OS error. Explicit synchronous Python
+`store.export_zip(target)` remains available for offline callers, using the same
+bounded streaming writer; such caller-owned archives are outside HTTP job expiry.
