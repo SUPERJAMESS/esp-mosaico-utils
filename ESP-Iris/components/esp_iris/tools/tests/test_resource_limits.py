@@ -18,19 +18,21 @@ from iris_gateway.store import GatewayStore
 
 
 def test_byte_budget_reports_loss_and_releases_bytes():
-    queue = ByteBudgetQueue(100, 2048)
-    for index in range(100):
-        queue.push({"kind": "log", "text": str(index) + "x" * 600})
-        assert queue.bytes <= 2048
-    retained = []
-    while not queue.empty():
-        retained.append(queue.get_nowait())
-    assert queue.bytes == 0
-    assert retained[-1]["text"].startswith("99")
-    assert sum(item.get("dropped_events", 1) for item in retained) == 100
-    queue.push({"kind": "log", "text": "x" * 10000})
-    assert queue.get_nowait()["kind"] == "history_gap"
-    assert queue.bytes == 0
+    async def scenario():
+        queue = ByteBudgetQueue(100, 2048)
+        for index in range(100):
+            queue.push({"kind": "log", "text": str(index) + "x" * 600})
+            assert queue.bytes <= 2048
+        retained = []
+        while not queue.empty():
+            retained.append(queue.get_nowait())
+        assert queue.bytes == 0
+        assert retained[-1]["text"].startswith("99")
+        assert sum(item.get("dropped_events", 1) for item in retained) == 100
+        queue.push({"kind": "log", "text": "x" * 10000})
+        assert queue.get_nowait()["kind"] == "history_gap"
+        assert queue.bytes == 0
+    asyncio.run(scenario())
 
 
 def test_operation_capacity_rejects_before_side_effect_and_releases_on_cancel(tmp_path):
