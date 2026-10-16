@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sqlite3
 
@@ -92,7 +93,7 @@ def test_migration_refuses_running_source_and_retries_interrupted_copy(tmp_path)
     source, target = tmp_path / "old", tmp_path / "new"
     store = GatewayStore(source)
     store.close()
-    lock = EndpointLock("gateway-state:" + str(source))
+    lock = EndpointLock("gateway-state:" + os.path.normcase(str(source.resolve())))
     lock.acquire()
     try:
         with pytest.raises(RuntimeError):
