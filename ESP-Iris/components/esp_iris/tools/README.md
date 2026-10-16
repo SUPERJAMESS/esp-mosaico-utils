@@ -444,7 +444,7 @@ python "$IRIS" ctl --profile lab-a \
 ## Runtime and storage model
 
 Project clients keep diagnostics in the selected application's `.gateway/`:
-`state/gateway.sqlite3`, `state/logs/`, `state/artifacts/` and `gateway.log`.
+`state/gateway.sqlite3`, `state/events/`, `state/artifacts/` and `gateway.log`.
 The directory contains a Git ignore file and is independent of `build/`.
 Connection records, launch locks and cross-project device ownership remain in
 the host's `project-sessions/` and `ownership/` directories. Passwords, tokens,
@@ -499,8 +499,13 @@ disk space: inspect it with `storage` before explicitly pruning or archiving it.
 
 ### Diagnostic retention and storage failures
 
-Ordinary events default to 7 days, 200,000 rows and a 512 MiB allocated-page
-budget. Compressed raw logs default to 7 days and 256 MiB. Background maintenance
+Ordinary events default to 7 days, 200,000 rows and a 512 MiB budget. New events
+are stored once in SQLite segments, rotating at 8 MiB or one hour, with at most
+64 retained segments. Closed segments are retired as whole files, so a row
+budget can retain fewer rows and age expiry can lag by one segment's duration.
+Segment accounting includes indexes and journal sidecars; maintenance can
+temporarily lag a burst by the in-flight batch and its maintenance interval.
+Legacy compressed raw logs default to 7 days and 256 MiB. Background maintenance
 uses batches of at most 512 rows, with a 50 ms work window each second; a batch
 already executing may finish after that window. Bursts can temporarily exceed
 the budget. State, credentials, operations, saved artifacts and operation-bound
@@ -510,7 +515,8 @@ critical state commit rejects a new device write with `storage_unavailable`.
 An uncommitted device result remains unknown after restart and is never replayed.
 
 Use `web --retention-policy policy.json` to save overrides for `event_days`,
-`event_rows`, `event_bytes`, `raw_days`, `raw_bytes` and `batch_rows` (1–4096).
+`event_rows`, `event_bytes`, `raw_days`, `raw_bytes`, `batch_rows` (1–4096),
+`segment_bytes` (at least 16 KiB), `segment_seconds` and `segment_files` (1–1024).
 Health reports storage failures, lost events and maintenance state. Project
 launches rotate process stdout/stderr at 8 MiB with three backups; a direct
 launch can use `--process-log PATH` and `--process-log-bytes N`.
@@ -529,7 +535,14 @@ Logical deletion frees pages for reuse. New databases reclaim free pages
 incrementally; older 0.2 files may remain physically large until offline
 compaction. WAL/SHM sizes are reported separately. No full-table deletion or
 VACUUM runs in the startup or device callback. The 0.2 schema upgrade preserves
-existing state and adds operation-bound evidence; it does not import 0.1 data.
+existing state and adds operation-bound evidence and a segment catalog; it does
+not import 0.1 data. Existing events stay queryable in the old database while
+bounded maintenance retires them. New IDs continue above the old sequence.
+Retiring a segment records its boundary before deleting its files, and an
+interrupted event commit becomes a history gap on recovery. Identity bindings
+are resolved through the state catalog across closed segments; early bytes
+never acquire an invented boot identity. Critical evidence commits before
+disposable history, so a missing segment cannot erase an operation's evidence.
 
 ### The Workbench says the frontend is not built
 

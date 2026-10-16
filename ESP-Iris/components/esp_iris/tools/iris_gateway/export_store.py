@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import pathlib
 import shutil
+import sqlite3
 import tempfile
 import time
 import zipfile
@@ -19,6 +21,7 @@ class ExportStore:
     def __init__(self, state: StateStore, events: EventStore, artifacts: ArtifactStore) -> None:
         self.state, self.root, self.db = state, state.root, state.db
         self.logs_dir, self.artifacts_dir = events.logs_dir, artifacts.artifacts_dir
+        self.events = events
 
     def export_zip(self, target: pathlib.Path | None = None) -> pathlib.Path:
         if target is None:
@@ -43,6 +46,14 @@ class ExportStore:
             with (temp / "system-audit.jsonl").open("w", encoding="utf-8") as handle:
                 for item in reversed(self.state.audits(limit=1_000_000)):
                     handle.write(_json(item) + "\n")
+            # Include structured segments now that raw bodies are stored once.
+            with self.events.segments.lock:
+                event_folder = temp / "events"
+                event_folder.mkdir()
+                for row in self.db.execute("SELECT start_id FROM event_segments WHERE status!='deleting'"):
+                    source = self.events.segments.path(row[0])
+                    with contextlib.closing(sqlite3.connect(source)) as old, contextlib.closing(sqlite3.connect(event_folder / source.name)) as snapshot:
+                        old.backup(snapshot)
             if self.logs_dir.exists():
                 shutil.copytree(self.logs_dir, temp / "logs", dirs_exist_ok=True)
             if self.artifacts_dir.exists():

@@ -43,6 +43,8 @@ def test_readonly_reconciliation_keeps_history(tmp_path, healthy, sha, boot, out
         # Ordinary history may be rotated independently of operation evidence.
         with store.db:
             store.db.execute("DELETE FROM events")
+        from iris_gateway.retention import RetentionPolicy
+        store.events.segments.prune(RetentionPolicy(event_rows=0))
         store.close()
         store = GatewayStore(tmp_path)
 

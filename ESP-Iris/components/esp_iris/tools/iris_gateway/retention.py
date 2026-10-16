@@ -16,6 +16,9 @@ class RetentionPolicy:
     raw_days: int = 7
     raw_bytes: int = 256 * 1024 * 1024
     batch_rows: int = 512
+    segment_bytes: int = 8 * 1024 * 1024
+    segment_seconds: int = 3600
+    segment_files: int = 64
 
     def __post_init__(self) -> None:
         for field in dataclasses.fields(self):
@@ -24,13 +27,17 @@ class RetentionPolicy:
                 raise ValueError(f"{field.name} must be a non-negative integer")
         if not 1 <= self.batch_rows <= 4096:
             raise ValueError("batch_rows must be 1..4096")
+        if self.segment_bytes < 16384 or self.segment_seconds < 1 or not 1 <= self.segment_files <= 1024:
+            raise ValueError("segments require at least 16 KiB, 1 second and 1..1024 files")
 
 
 def disk_usage(root: pathlib.Path) -> dict[str, int]:
     database = root / "gateway.sqlite3"
-    return {name: path.stat().st_size if path.exists() else 0 for name, path in (
+    result = {name: path.stat().st_size if path.exists() else 0 for name, path in (
         ("database_bytes", database), ("wal_bytes", pathlib.Path(str(database) + "-wal")),
         ("shm_bytes", pathlib.Path(str(database) + "-shm")))}
+    result["event_segment_bytes"] = sum(path.stat().st_size for path in (root / "events").glob("segment-*") if path.is_file())
+    return result
 
 
 def prune_events(store: Any, policy: RetentionPolicy, *, now_ns: int | None = None) -> int:
@@ -63,7 +70,7 @@ def prune_events(store: Any, policy: RetentionPolicy, *, now_ns: int | None = No
         db.execute("DELETE FROM events WHERE event_id<=?", (last,))
         db.execute("INSERT INTO settings(key,value,updated_ns) VALUES('events.pruned_through',?,?) "
                    "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_ns=excluded.updated_ns",
-                   (str(last), time.time_ns()))
+                   (str(max(last, int(store.get_setting("events.pruned_through", 0)))), time.time_ns()))
     return len(selected)
 
 
@@ -82,6 +89,7 @@ def maintain(root: pathlib.Path) -> dict[str, Any]:
             removed += count
             if not count:
                 break
+        removed += store.events.segments.prune(policy)
         store.cleanup_raw_logs(policy.raw_days, policy.raw_bytes)
         store.db.execute("PRAGMA wal_checkpoint(PASSIVE)")
         store.db.execute("PRAGMA incremental_vacuum(128)")

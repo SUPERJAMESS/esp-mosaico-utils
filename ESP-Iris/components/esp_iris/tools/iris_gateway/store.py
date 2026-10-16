@@ -28,7 +28,7 @@ class GatewayStore(StateStore):
         self.logs_dir = self.events.logs_dir
         self.artifacts_dir = self.artifacts.artifacts_dir
         self._lost_captures = self.events._lost_captures
-        self._event_error: str | None = None
+        self._event_error: str | None = self.events.recovery_error
         self._retry_events_at = 0.0
         self._lost_events = 0
         self._pending_loss = 0
@@ -75,8 +75,10 @@ class GatewayStore(StateStore):
         self._pending_loss += 1
         capture = payload.get("capture_id")
         if capture and payload.get("kind") == "console_raw":
-            self._lost_captures[str(capture)] = int(payload["offset"]) + len(
-                base64.b64decode(payload["data_base64"], validate=True))
+            offset = int(payload["offset"])
+            previous = self._lost_captures.get(str(capture))
+            self._lost_captures[str(capture)] = (previous[0] if previous else offset, offset + len(
+                base64.b64decode(payload["data_base64"], validate=True)))
             self._lost_captures.move_to_end(str(capture))
             while len(self._lost_captures) > 1024:
                 self._lost_captures.popitem(last=False)

@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import re
+import sqlite3
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -706,6 +707,8 @@ def create_app(service: GatewayService) -> web.Application:
         except OperationOutcomeUnknown as exc:
             return _error(409, "outcome_unknown", str(exc))
         except StorageUnavailable as exc:
+            return _error(503, "storage_unavailable", str(exc))
+        except sqlite3.Error as exc:
             return _error(503, "storage_unavailable", str(exc))
         except (asyncio.TimeoutError, TimeoutError) as exc:
             return _error(504, "device_timeout", str(exc) or "device request timed out")

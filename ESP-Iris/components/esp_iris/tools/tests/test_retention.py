@@ -26,7 +26,9 @@ def test_retention_is_bounded_preserves_evidence_and_persists_gap(tmp_path):
                      ("device", "device", 2, json.dumps({"event_name": "healthy", "boot_id": 17})))
     store.db.commit()
     for index in range(9):
-        store.append_event("device", {"kind": "log", "host_receive_wall_ns": 3 + index})
+        store.db.execute("INSERT INTO events(category,host_receive_ns,payload_json) VALUES('device',?,?)",
+                         (3 + index, json.dumps({"kind": "log"})))
+    store.db.commit()
     policy = RetentionPolicy(event_rows=2, batch_rows=3)
     assert prune_events(store, policy) == 3
     assert len(store.latest_events()) == 7
@@ -48,7 +50,9 @@ def test_retention_is_bounded_preserves_evidence_and_persists_gap(tmp_path):
 def test_each_capacity_budget_prunes_recent_events(tmp_path, limit):
     store = GatewayStore(tmp_path)
     for _ in range(20):
-        store.append_event("device", {"data": "x" * 4096})
+        store.db.execute("INSERT INTO events(category,host_receive_ns,payload_json) VALUES('device',?,?)",
+                         (time.time_ns(), json.dumps({"data": "x" * 4096})))
+    store.db.commit()
     policy = RetentionPolicy(**{limit: 0}, batch_rows=5)
     assert prune_events(store, policy) == 5
     assert len(store.latest_events()) == 15
@@ -61,8 +65,8 @@ def test_background_maintenance_uses_saved_policy(tmp_path):
     for _ in range(10):
         store.append_event("device", {"kind": "log"})
     result = maintain(tmp_path)
-    assert result["removed_events"] == 8
-    assert len(store.latest_events()) == 2
+    assert result["removed_events"] == 10
+    assert len(store.latest_events()) <= 2
     store.close()
 
 
