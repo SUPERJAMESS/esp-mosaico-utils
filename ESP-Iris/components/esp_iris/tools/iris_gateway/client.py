@@ -117,7 +117,7 @@ class LocalProject:
             raise LocalStateError(
                 "Existing Gateway history needs an offline move. Stop its Gateway, then run "
                 f"esp_iris.py storage --state-dir {str(legacy)!r} --migrate-to {str(self.state_directory)!r}. "
-                "The source is retained for rollback; credentials stay on this host.")
+                "Back up the source before upgrading; it remains the live host credentials store.")
         self.data_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         marker = self.data_directory / "project.json"
         if (self.data_directory != self.project / ".gateway" and marker.exists()

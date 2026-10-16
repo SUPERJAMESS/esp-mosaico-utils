@@ -460,6 +460,11 @@ before changing this location.
 
 Existing 0.2 data is relocated explicitly while the Gateway is stopped:
 
+Before upgrading, stop every Gateway using the data and make a separate backup
+of the complete state directory, including any SQLite WAL/SHM files, logs,
+artifacts and event segments. Back up the host credentials directory too if it
+is separate. Keep these backups outside `.gateway/` and outside retention paths.
+
 ```bash
 python "$IRIS" storage --state-dir /host/project-sessions/PROJECT/state \
   --migrate-to /application/.gateway/state
@@ -468,11 +473,19 @@ python "$IRIS" storage --state-dir /host/project-sessions/PROJECT/state \
 The copy is validated and published atomically. It omits credentials and TLS
 keys; the original host directory continues to supply authentication. An
 interrupted copy can be retried, and an existing destination is never replaced.
-The source is retained as a migration-time snapshot. To roll back, stop the new
-Gateway, retain its project directory, and run the previous code against the
-original host directory. Records created after migration remain in the project
-copy; rollback does not merge or replay them. The retained source still consumes
-disk space: inspect it with `storage` before explicitly pruning or archiving it.
+The source is retained, but it continues to serve as the live credentials store:
+starting the new Gateway can upgrade its schema and update authentication state.
+Use the separate pre-upgrade backup for rollback, not that live source.
+
+Opening a schema 200 or 201 database upgrades it in place to schema 202. This
+also applies to standalone `web --state-dir` and the `storage` inspection command;
+reverting the code alone does not downgrade the database. To roll back, stop the
+new Gateway, archive its current data, restore the complete pre-upgrade state
+and credentials directories, and start the previous code against those restored
+directories. Records and credential changes made after the backup remain only in
+the archived new state; rollback does not merge or replay them. The retained
+source and backups still consume disk space and require explicit archiving or
+deletion after the upgrade is accepted.
 
 - One Gateway supervises many USB/TCP endpoints concurrently and indexes their
   sessions and events by stable `device_id`.
@@ -672,6 +685,11 @@ schema and retains reservations across interrupted HTTP requests.
 stream the completed ZIP from its download URL. Workbench Settings provides
 range fields, progress, cancellation, download and deletion. Downloads stream
 directly to the browser instead of buffering a ZIP in browser memory.
+
+Clients that previously downloaded the POST response as a ZIP must adopt the
+job/poll/download sequence. Detect `background-export/v1` in `/v2/health`
+when selecting this behavior; deploy Gateway and its bundled Workbench together.
+The synchronous offline Python export API remains available as described below.
 
 The optional JSON body accepts `device_id`, `operation_id`, inclusive `since_ns`
 and `until_ns`, and `retain` (default false). The project is the current Gateway's

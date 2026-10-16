@@ -4,6 +4,16 @@ All notable ESP-Iris component changes are documented in this file.
 
 ## Unreleased
 
+- Keep project Gateway history in `.gateway/`, with host-local credentials and
+  explicit offline relocation of existing data. Schema 200/201 upgrades to 202;
+  rollback requires complete pre-upgrade state and credentials backups.
+- Bound event segments, process logs, subscriber buffers, writer batches and
+  operation concurrency; report missing history and preserve operation evidence
+  independently of diagnostic retention.
+- Change `POST /v2/export` to an HTTP 202 background job with scoped snapshots,
+  progress, cancellation, checksums and expiring downloads. HTTP clients must
+  poll the job then download its ZIP; the bundled Workbench supports this flow.
+
 - Target 0.2: standard printable console, native monitor/reset/JTAG support,
   UART and product-owned ESP-IDF REPL integration.
 - Independent USB CDC and TCP data sessions with device/boot/owner binding;
