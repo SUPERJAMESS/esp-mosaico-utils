@@ -55,7 +55,7 @@ class StateStore:
         )
         self.db.commit()
 
-    def remember_device(self, info: dict[str, Any]) -> None:
+    def remember_device(self, info: dict[str, Any], *, commit: bool = True) -> None:
         device_id = str(info["device_id"])
         now = time.time_ns()
         existing = self.db.execute(
@@ -94,7 +94,8 @@ class StateStore:
                     "VALUES(?, ?, ?, ?, ?, ?)",
                     (device_id, str(boot_id), str(session_id), endpoint, role, now),
                 )
-        self.db.commit()
+        if commit:
+            self.db.commit()
 
     def set_alias(self, device_id: str, alias: str | None) -> None:
         try:

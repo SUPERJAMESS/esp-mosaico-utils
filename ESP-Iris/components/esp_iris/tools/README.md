@@ -514,6 +514,16 @@ produce explicit `history_gap` records; live delivery continues. A failed
 critical state commit rejects a new device write with `storage_unavailable`.
 An uncommitted device result remains unknown after restart and is never replayed.
 
+The event writer owns its SQLite connections on a dedicated thread. Its normal
+queue holds at most 1,024 events / 4 MiB, with 16 entries / 512 KiB reserved for
+critical evidence. Each transaction processes at most 128 queued events or
+512 KiB (one oversized event is handled alone). Durable cursors are broadcast
+only after commit. A full queue provides live, explicitly unpersisted events
+and records a history gap; it does not wait for disk space. Healthy observations
+wait for their persistence acknowledgement. Unchanged device snapshots refresh
+at most every five seconds. Shutdown drains the writer; an abnormal exit leaves
+a durable marker so the next writer reports its uncertain buffer window.
+
 Use `web --retention-policy policy.json` to save overrides for `event_days`,
 `event_rows`, `event_bytes`, `raw_days`, `raw_bytes`, `batch_rows` (1–4096),
 `segment_bytes` (at least 16 KiB), `segment_seconds` and `segment_files` (1–1024).

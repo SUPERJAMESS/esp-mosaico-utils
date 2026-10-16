@@ -340,6 +340,7 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
             await asyncio.gather(drain_task, return_exceptions=True)
         await service.operations.close()
         await hub.close()
+        await service.close_events()
         if registry is not None:
             if args.project_connection_file:
                 with contextlib.suppress(OSError, ValueError):

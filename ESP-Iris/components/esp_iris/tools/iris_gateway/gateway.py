@@ -30,6 +30,7 @@ from .crashes import (
 from .crashes import register_routes as register_crash_routes
 from .device_state import describe as describe_device
 from .discovery import discover_iris_usb_devices, usb_endpoint
+from .event_writer import EventWriter
 from .file_routes import register_file_routes
 from .files import FileServiceError, file_error_http_status
 from .firmware import inspect_firmware_image
@@ -134,6 +135,7 @@ class GatewayService:
         store.set_setting("mode", self.mode)
         self.mode_transition = False
         self._subscribers: set[asyncio.Queue[dict[str, Any]]] = set()
+        self._event_writer: EventWriter | None = None
         self._memory_requests: dict[str, asyncio.Task[dict[str, Any]]] = {}
         self._crash_archives_in_progress: set[str] = set()
         self.operations = OperationManager(store, self.on_device_event, self.metrics)
@@ -190,6 +192,8 @@ class GatewayService:
             category = "console"
         elif kind == "operation":
             category = "operation"
+        elif kind == "system_audit":
+            category = "system"
         else:
             category = "device"
         item = normalize_event(item, category=category, component="gateway")
@@ -202,8 +206,17 @@ class GatewayService:
                     current["connected"] = True
                     device = current
                     break
-        for persisted in self.store.record_event(category, item, device_id, device):
-            self._broadcast_event(persisted)
+        if self._event_writer is None:
+            self._event_writer = EventWriter(self.store.root, self._events_written)
+            self.store.before_close(self._event_writer.close_sync)
+        accepted, acknowledgement = self._event_writer.submit(
+            category, item, device, critical=item.get("event_name") == "healthy")
+        if not accepted:
+            self._broadcast_event({"kind": "history_gap", "category": "system",
+                                   "reason": "event writer queue is full", "dropped_events": 1})
+            self._broadcast_event(dict(item, category=category, persisted=False))
+        elif acknowledgement is not None:
+            await asyncio.wrap_future(acknowledgement)
         if (
             device_id
             and item.get("event_name") == "core_dump_available"
@@ -211,6 +224,22 @@ class GatewayService:
         ):
             self._crash_archives_in_progress.add(str(device_id))
             asyncio.create_task(self._auto_archive_crash(str(device_id)))
+
+    def _events_written(self, events: list[dict[str, Any]]) -> None:
+        for event in events:
+            self._broadcast_event(event)
+        if self._event_writer is not None:
+            snapshot = self._event_writer.snapshot()
+            self.metrics.gauge("events.writer.queued_bytes", snapshot["queued_bytes"])
+            self.metrics.gauge("events.writer.dropped", snapshot["dropped_events"])
+
+    async def flush_events(self) -> None:
+        if self._event_writer is not None:
+            await self._event_writer.flush()
+
+    async def close_events(self) -> None:
+        if self._event_writer is not None:
+            await self._event_writer.close()
 
     def _broadcast_event(self, persisted: dict[str, Any]) -> None:
         for queue in tuple(self._subscribers):
@@ -308,13 +337,7 @@ class GatewayService:
         }
 
     async def _broadcast_system(self, audit: dict[str, Any]) -> None:
-        item = self.store.append_event(
-            "system",
-            {"kind": "system_audit", "audit": audit, "host_receive_wall_ns": time.time_ns()},
-        )
-        for queue in tuple(self._subscribers):
-            if not queue.full():
-                queue.put_nowait(item)
+        await self.on_device_event({"kind": "system_audit", "audit": audit, "host_receive_wall_ns": time.time_ns()})
 
     def list_devices(self) -> list[dict[str, Any]]:
         connected = {
@@ -742,11 +765,15 @@ def create_app(service: GatewayService) -> web.Application:
     if service.project is not None:
         middlewares.append(service.project.guard)
     app = web.Application(middlewares=middlewares, client_max_size=GATEWAY_CLIENT_MAX_SIZE)
+    async def flush_events(app: web.Application) -> None:
+        await service.flush_events()
+    app.on_cleanup.append(flush_events)
     async def health(request: web.Request) -> web.Response:
         return web.json_response(
             {
                 "status": "ok",
                 "storage": service.store.storage_health(),
+                "event_writer": service._event_writer.snapshot() if service._event_writer else None,
                 "storage_maintenance": service.maintenance_state,
                 "storage_paths": {"data": str(service.store.root), "credentials": str(service.credentials.root)},
                 "instance_id": service.instance_id,
