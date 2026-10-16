@@ -329,3 +329,14 @@ see [local integration testing](docs/ideas-file-release/testing.zh-CN.md).
 python3 -m pytest mosaico-tools/tests
 python3 -m pytest esp-mosaico-vibe-mode/tests
 ```
+
+Streaming build commands write complete stdout/stderr bytes to a unique
+`stdout-*.log` in the command's run directory; `raw.log` points to this file and
+records progress. `RunContext.run(..., output_status=...)` returns at most the
+last 64 KiB in `CompletedProcess.stdout`, with `stdout_path`,
+`stdout_truncated` and `progress_dropped` metadata. Checked-command and timeout
+exceptions carry the same bounded diagnostic output and file path. Progress
+notifications use a bounded queue and may skip old lines under load; long lines
+are split into 16 KiB character chunks. Sensitive output is never spooled or
+forwarded to progress callbacks. Non-streaming structured command responses
+retain their existing stdout contract.

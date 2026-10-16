@@ -8,12 +8,12 @@ import re
 import subprocess
 import sys
 import time
+import uuid
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from queue import Empty, Queue
-from threading import Thread
-from typing import Any, Callable, Sequence
+from typing import Any
 
 from .build_progress import decode_progress
 from .errors import BuildError, DeviceError, EnvironmentError
@@ -23,6 +23,7 @@ from .host import (
     prepare_idf_environment,
     valid_idf_path,
 )
+from .process_output import stream_process
 from .workspace import WorkspaceConfig
 
 
@@ -110,15 +111,17 @@ class RunContext:
                     cwd=cwd,
                     env=env,
                     output_status=output_status,
+                    sensitive_output=sensitive_output,
                 )
         except (OSError, subprocess.TimeoutExpired) as error:
             self.note(f"process error: {error}")
             raise
         self.note(f"exit_code={result.returncode}")
         if check and result.returncode:
-            raise subprocess.CalledProcessError(
-                result.returncode, command, output=result.stdout
-            )
+            error = subprocess.CalledProcessError(result.returncode, command, output=result.stdout)
+            error.stdout_path = getattr(result, "stdout_path", None)
+            error.stdout_truncated = getattr(result, "stdout_truncated", False)
+            raise error
         return result
 
     def _run_streaming(
@@ -129,60 +132,21 @@ class RunContext:
         cwd: Path | None,
         env: dict[str, str] | None,
         output_status: Callable[[str], str | None],
+        sensitive_output: bool = False,
     ) -> subprocess.CompletedProcess[str]:
-        process = subprocess.Popen(
-            command,
-            cwd=cwd,
-            env=env,
-            text=True,
-            bufsize=1,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        stdout = process.stdout
-        assert stdout is not None
-        sentinel = object()
-        events: Queue[str | object] = Queue()
+        path = None if sensitive_output else self.directory / f"stdout-{uuid.uuid4().hex}.log"
+        self.note("[sensitive output omitted]" if path is None else f"complete stdout: {path}")
 
-        def read_output() -> None:
-            for line in stdout:
-                events.put(line)
-            events.put(sentinel)
+        def report(line: str) -> None:
+            if not sensitive_output:
+                message = output_status(line)
+                if message:
+                    self.status(message)
 
-        reader = Thread(target=read_output, daemon=True)
-        reader.start()
-        deadline = None if timeout is None else time.monotonic() + timeout
-        output: list[str] = []
-        while True:
-            remaining = None if deadline is None else deadline - time.monotonic()
-            if remaining is not None and remaining <= 0:
-                process.kill()
-                process.wait()
-                reader.join(timeout=1)
-                stdout.close()
-                assert timeout is not None
-                raise subprocess.TimeoutExpired(
-                    command, timeout, output="".join(output)
-                )
-            try:
-                event = events.get(
-                    timeout=0.25 if remaining is None else min(0.25, remaining)
-                )
-            except Empty:
-                continue
-            if event is sentinel:
-                break
-            line = str(event)
-            output.append(line)
-            self.note(line)
-            message = output_status(line)
-            if message:
-                self.status(message)
-        reader.join(timeout=1)
-        stdout.close()
-        return subprocess.CompletedProcess(
-            command, process.wait(), "".join(output), None
-        )
+        result = stream_process(command, path=path, timeout=timeout, cwd=cwd, env=env, on_line=report)
+        if result.progress_dropped:
+            self.note(f"progress notifications skipped: {result.progress_dropped}; complete output: {path}")
+        return result
 
 
 def resolve_idf_path(workspace: WorkspaceConfig, project: Path | None = None) -> Path:
