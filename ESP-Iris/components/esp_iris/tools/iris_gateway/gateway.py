@@ -198,13 +198,18 @@ class GatewayService:
         persisted = self.store.append_event(category, item, device_id)
         for queue in tuple(self._subscribers):
             if queue.full():
-                with contextlib.suppress(asyncio.QueueEmpty):
-                    queue.get_nowait()
+                # Both the gap and the newest event need a slot. In particular,
+                # a slow observer must never raise into the device read loop.
+                dropped = 0
+                while queue.qsize() > queue.maxsize - 2:
+                    previous = queue.get_nowait()
+                    dropped += int(previous.get("dropped_events", 1))
                 gap = {
                     "kind": "history_gap",
                     "category": "system",
                     "host_receive_ns": time.time_ns(),
                     "reason": "live subscriber queue overflow",
+                    "dropped_events": dropped,
                 }
                 queue.put_nowait(gap)
             queue.put_nowait(persisted)
