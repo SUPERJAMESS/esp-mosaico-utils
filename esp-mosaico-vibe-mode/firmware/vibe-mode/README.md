@@ -23,10 +23,12 @@ ROM 身份不符、端口不唯一或重枚举超时会停止，不尝试其它�
 当前源码使用 ESP-Iris 0.2、Recovery ABI 2 和 `mosaico-retained-test-2m-v2`
 布局。`vibe_mode` 为 `app/test`，`main_app` 为 `app/ota_0`。固件工程名为
 `vibe-mode`，新构建产物为 `vibe-mode.bin`、`vibe-mode.elf`，候选包的
-manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 已于 2026-10-15 更新为
-源码提交 `31b1957` 的 `vibe-mode.bin`，版本保持 0.2.0，替换原 `factory.bin`。
-基础安装、启动往返和用户手动验证已通过，S31 产品统一使用 QIO。具体覆盖范围与未验证项目见
-[0.2 验证记录](../../docs/validation-0.2.md)，不以基础包更新代表全部平台验收。
+manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 已于 2026-10-16 更新为
+源码提交 `ca0ecf7` 的 `vibe-mode.bin`，版本保持 0.2.0，镜像大小为 1,488,608 字节。
+默认 Ideas 地址为 `https://mosaico-ideas.espressif.com`，包含固件清单尾部 JSON
+空白解析修复及“打开失败”提示。主程序与 ESP32-S31 实机自更新、重启后 ELF 哈希
+核对及用户手动验收通过的镜像字节一致；bootloader、分区表及初始 OTA 数据保持原评审包
+字节不变。完整包通过 manifest、布局、大小和 SHA-256 校验，S31 产品统一使用 QIO。
 
 目录改名后须使用新的构建目录重新配置，避免复用包含旧绝对路径的 CMake 缓存。
 `recover` launcher 已使用新的 `build-mosaico-vibe-mode` 构建目录。
