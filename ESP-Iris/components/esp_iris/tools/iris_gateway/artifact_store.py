@@ -140,5 +140,3 @@ class ArtifactStore:
             except FileExistsError:
                 continue
         raise FileExistsError("could not allocate a unique artifact filename")
-
-

@@ -293,5 +293,3 @@ class StateStore:
             item["details"] = _loads(item.pop("details_json"), {})
             result.append(boot_id_text(item))
         return result
-
-
