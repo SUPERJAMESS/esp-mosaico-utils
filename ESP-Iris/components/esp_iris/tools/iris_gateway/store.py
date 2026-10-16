@@ -4,7 +4,7 @@ import base64
 import pathlib
 import sqlite3
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from .artifact_store import ArtifactStore
@@ -18,6 +18,7 @@ class GatewayStore(StateStore):
 
     def __init__(self, root: pathlib.Path) -> None:
         super().__init__(root)
+        self._closers: list[Callable[[], None]] = []
         try:
             self.events = EventStore(self, root)
             self.artifacts = ArtifactStore(self, root)
@@ -34,6 +35,40 @@ class GatewayStore(StateStore):
         self._pending_loss = 0
         self._loss_start_ns = 0
         self._loss_end_ns = 0
+
+    def before_close(self, callback: Callable[[], None]) -> None:
+        self._closers.append(callback)
+
+    def close(self) -> None:
+        for callback in getattr(self, "_closers", []):
+            callback()
+        self._closers = []
+        super().close()
+
+    def record_batch(self, events: list[tuple[str, dict[str, Any], str | None]],
+                     devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        now = time.monotonic()
+        if now >= self._retry_events_at:
+            try:
+                prefix = []
+                if self._pending_loss:
+                    prefix.append(("system", {"kind": "history_gap", "reason": "event storage unavailable",
+                                               "dropped_events": self._pending_loss,
+                                               "from_host_receive_ns": self._loss_start_ns,
+                                               "to_host_receive_ns": self._loss_end_ns}, None))
+                result = self.events.append_batch([*prefix, *events], devices)
+                self._pending_loss = 0
+                self._event_error = self._state_error = None
+                self._retry_events_at = 0
+                return result
+            except (sqlite3.Error, OSError) as exc:
+                self.storage_failed(exc)
+                self._event_error = str(exc)
+                self._retry_events_at = now + 1
+        result = []
+        for category, payload, device_id in events:
+            result.extend(self.record_event(category, payload, device_id))
+        return result
 
     def storage_health(self) -> dict[str, Any]:
         return {"status": "degraded" if self._event_error or self._state_error else "ok",

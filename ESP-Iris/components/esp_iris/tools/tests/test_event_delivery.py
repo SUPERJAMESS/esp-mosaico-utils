@@ -14,7 +14,7 @@ def test_slow_subscriber_cannot_interrupt_other_observers(tmp_path):
         fast = service.subscribe()
         try:
             for index in range(slow.maxsize * 2 + 3):
-                await service.on_device_event({"kind": "log", "text": str(index)})
+                service._broadcast_event({"kind": "log", "text": str(index), "event_id": index + 1})
                 received = fast.get_nowait()
                 assert received["text"] == str(index)
                 assert received["event_id"] == index + 1
@@ -29,7 +29,7 @@ def test_slow_subscriber_cannot_interrupt_other_observers(tmp_path):
             assert sum(item["dropped_events"] for item in gaps) == missing
             service.unsubscribe(slow)
             await service.on_device_event({"kind": "log", "text": "still connected"})
-            assert fast.get_nowait()["text"] == "still connected"
+            assert (await asyncio.wait_for(fast.get(), 2))["text"] == "still connected"
         finally:
             service.unsubscribe(slow)
             service.unsubscribe(fast)

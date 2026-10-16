@@ -7,6 +7,7 @@ import sqlite3
 import pytest
 
 from iris_gateway.cli import _recover_interrupted
+from iris_gateway.event_store import EventStore
 from iris_gateway.gateway import GatewayService
 from iris_gateway.security import Actor
 from iris_gateway.storage_health import StorageUnavailable
@@ -20,7 +21,7 @@ def test_failed_event_storage_keeps_live_delivery_and_recovers(tmp_path, monkeyp
         store = GatewayStore(tmp_path)
         service = GatewayService(store, instance_id="fault")
         queue = service.subscribe()
-        append = store.append_event
+        append = EventStore.append_batch
         attempts = 0
 
         def broken(*args, **kwargs):
@@ -28,22 +29,22 @@ def test_failed_event_storage_keeps_live_delivery_and_recovers(tmp_path, monkeyp
             attempts += 1
             raise failure
 
-        monkeypatch.setattr(store, "append_event", broken)
+        monkeypatch.setattr(EventStore, "append_batch", broken)
         for index in range(10):
             await service.on_device_event({"kind": "log", "text": str(index)})
-            assert queue.get_nowait()["kind"] == "history_gap"
-            item = queue.get_nowait()
+            assert (await asyncio.wait_for(queue.get(), 2))["kind"] == "history_gap"
+            item = await asyncio.wait_for(queue.get(), 2)
             assert item["text"] == str(index) and item["persisted"] is False
         assert attempts == 1
-        assert store.storage_health()["lost_events"] == 10
-        assert store.storage_health()["status"] == "degraded"
-        monkeypatch.setattr(store, "append_event", append)
-        monkeypatch.setattr(store, "_retry_events_at", 0)
+        assert service._event_writer.snapshot()["dropped_events"] == 10
+        assert service._event_writer.snapshot()["status"] == "degraded"
+        monkeypatch.setattr(EventStore, "append_batch", append)
+        await asyncio.sleep(1.05)
         await service.on_device_event({"kind": "log", "text": "recovered"})
-        gap = queue.get_nowait()
+        gap = await asyncio.wait_for(queue.get(), 2)
         assert gap["kind"] == "history_gap" and gap["dropped_events"] == 10
-        assert queue.get_nowait()["text"] == "recovered"
-        assert store.storage_health()["status"] == "ok"
+        assert (await asyncio.wait_for(queue.get(), 2))["text"] == "recovered"
+        assert service._event_writer.snapshot()["status"] == "ok"
         assert store.latest_events()[0]["dropped_events"] == 10
         store.close()
 

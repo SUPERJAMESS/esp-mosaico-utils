@@ -31,17 +31,29 @@ class EventStore:
 
     def append_event(self, category: str, payload: dict[str, Any],
                      device_id: str | None = None) -> dict[str, Any]:
+        return self.append_batch([(category, payload, device_id)])[-1]
+
+    def append_batch(self, events: list[tuple[str, dict[str, Any], str | None]],
+                     devices: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         with self.segments.lock:
             self.segments.recover_pending()
             try:
-                rows = self.prepare_event(category, payload, device_id)
+                for device in devices or []:
+                    self.state.remember_device(device, commit=False)
+                rows = []
+                for category, payload, device_id in events:
+                    rows.extend(self.prepare_event(category, payload, device_id))
                 result = self.segments.append(rows)
             except BaseException:
                 self.db.rollback()
                 raise
-            if payload.get("kind") == "console_raw":
-                self._lost_captures.pop(str(payload.get("capture_id")), None)
-            return result[-1]
+            for _, payload, _ in events:
+                if payload.get("kind") == "console_raw":
+                    capture = str(payload.get("capture_id"))
+                    lost = self._lost_captures.get(capture)
+                    if lost and int(payload["offset"]) >= lost[1]:
+                        self._lost_captures.pop(capture, None)
+            return result
 
     def prepare_event(self, category: str, payload: dict[str, Any],
                       device_id: str | None) -> list[tuple[str, dict[str, Any], str | None, int]]:
