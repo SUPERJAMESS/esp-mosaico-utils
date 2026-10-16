@@ -204,6 +204,8 @@ class GatewayStore:
         if cursor.lastrowid is None:
             raise RuntimeError("SQLite did not return an event ID")
         event_id = int(cursor.lastrowid)
+        self.preserve_event_evidence(dict(payload, event_id=event_id, category=category,
+                                         host_receive_ns=host_ns), device_id)
         self.db.commit()
         item = dict(payload)
         item.update(event_id=event_id, category=category, host_receive_ns=host_ns)
@@ -212,6 +214,30 @@ class GatewayStore:
         elif category == "log" and device_id:
             self._append_raw_log(device_id, event_id, host_ns, item)
         return item
+
+    def preserve_event_evidence(self, event: dict[str, Any], device_id: str | None) -> None:
+        """Bind healthy observations to unresolved writes in the caller's transaction."""
+        if not device_id or event.get("event_name") != "healthy" or event.get("boot_id") is None:
+            return
+        self.db.execute(
+            """INSERT INTO operation_evidence(operation_id, kind, boot_id, host_receive_ns, payload_json)
+               SELECT operation_id, 'healthy', ?, ?, ? FROM operations
+               WHERE device_id=? AND created_ns<=?
+                 AND action IN ('firmware.ota', 'firmware.system_update', 'host.recovery')
+                 AND status NOT IN ('succeeded', 'failed', 'cancelled')
+               ON CONFLICT(operation_id, kind, boot_id) DO UPDATE SET
+                 host_receive_ns=excluded.host_receive_ns, payload_json=excluded.payload_json
+               WHERE excluded.host_receive_ns >= operation_evidence.host_receive_ns""",
+            (str(event["boot_id"]), event["host_receive_ns"], _json(event),
+             device_id, event["host_receive_ns"]),
+        )
+
+    def healthy_evidence(self, operation_id: str, boot_id: Any) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT payload_json FROM operation_evidence WHERE operation_id=? AND kind='healthy' AND boot_id=?",
+            (operation_id, str(boot_id)),
+        ).fetchone()
+        return _loads(row[0], None) if row else None
 
     def events_after(
         self,
@@ -571,6 +597,9 @@ class GatewayStore:
             with (temp / "reconciliations.jsonl").open("w", encoding="utf-8") as handle:
                 for row in self.db.execute("SELECT record_json FROM operation_reconciliations ORDER BY rowid"):
                     handle.write(row[0] + "\n")
+            with (temp / "operation-evidence.jsonl").open("w", encoding="utf-8") as handle:
+                for row in self.db.execute("SELECT * FROM operation_evidence ORDER BY operation_id, boot_id"):
+                    handle.write(_json(dict(row)) + "\n")
             with (temp / "system-audit.jsonl").open("w", encoding="utf-8") as handle:
                 for item in reversed(self.audits(limit=1_000_000)):
                     handle.write(_json(item) + "\n")

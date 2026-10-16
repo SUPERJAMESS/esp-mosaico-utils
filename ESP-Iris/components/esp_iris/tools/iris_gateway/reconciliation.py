@@ -87,10 +87,16 @@ async def reconcile_operation(
             progress = operation.get("progress") or {}
             writer_boot = progress.get("writer_boot_id", progress.get("previous_boot_id"))
             boot = status["boot_id"]
-            events = store.latest_events(device_id=device_id, categories=["device"], limit=5000)
-            healthy = next((event for event in reversed(events)
-                            if event.get("event_name") == "healthy" and event.get("boot_id") == boot
-                            and event.get("host_receive_ns", 0) >= operation["created_ns"]), None)
+            healthy = store.healthy_evidence(operation_id, boot)
+            if healthy is None:
+                # Existing 0.2 history is preserved lazily, never scanned at startup.
+                events = store.latest_events(device_id=device_id, categories=["device"], limit=5000)
+                healthy = next((event for event in reversed(events)
+                                if event.get("event_name") == "healthy" and event.get("boot_id") == boot
+                                and event.get("host_receive_ns", 0) >= operation["created_ns"]), None)
+                if healthy:
+                    with store.db:
+                        store.preserve_event_evidence(healthy, device_id)
             if healthy is not None:
                 record["evidence"]["healthy_event"] = healthy
             params = operation["params"]
