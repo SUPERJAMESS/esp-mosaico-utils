@@ -483,9 +483,10 @@ reverting the code alone does not downgrade the database. To roll back, stop the
 new Gateway, archive its current data, restore the complete pre-upgrade state
 and credentials directories, and start the previous code against those restored
 directories. Records and credential changes made after the backup remain only in
-the archived new state; rollback does not merge or replay them. The retained
-source and backups still consume disk space and require explicit archiving or
-deletion after the upgrade is accepted.
+the archived new state; rollback does not merge or replay them. Keep the retained
+source while it is the live credentials store. Independent pre-upgrade backups
+still consume disk space; archive or delete them explicitly once the rollback
+window has closed.
 
 - One Gateway supervises many USB/TCP endpoints concurrently and indexes their
   sessions and events by stable `device_id`.
