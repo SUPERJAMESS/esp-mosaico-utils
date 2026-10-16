@@ -9,6 +9,8 @@ import sys
 import tempfile
 from typing import Any
 
+from .chip_targets import ChipTarget, target_from_chip_id
+
 _PANIC_RE = re.compile(r"^Panic reason:\s*(.+)$", re.MULTILINE)
 _TASK_RE = re.compile(r"^Crashed task handle:.*?name:\s*'([^']+)'", re.MULTILINE)
 _FRAME_RE = re.compile(
@@ -28,7 +30,7 @@ def _inside(path: str, root: str) -> bool:
         return False
 
 
-def _tooling() -> tuple[pathlib.Path, pathlib.Path, str] | None:
+def _tooling(target: ChipTarget) -> tuple[pathlib.Path, pathlib.Path, str] | None:
     idf_value = os.environ.get("ESP_IRIS_IDF_PATH") or os.environ.get("IDF_PATH")
     if not idf_value:
         return None
@@ -37,7 +39,7 @@ def _tooling() -> tuple[pathlib.Path, pathlib.Path, str] | None:
     python = pathlib.Path(
         os.environ.get("ESP_IRIS_IDF_PYTHON") or sys.executable
     ).expanduser().absolute()
-    gdb_value = os.environ.get("ESP_IRIS_GDB") or "riscv32-esp-elf-gdb"
+    gdb_value = os.environ.get("ESP_IRIS_GDB") or target.gdb
     gdb = shutil.which(gdb_value)
     if not script.is_file() or not python.is_file() or gdb is None:
         return None
@@ -80,11 +82,19 @@ def decode_coredump(
     without inflating structured crash metadata.
     """
 
-    tooling = _tooling()
+    try:
+        target = target_from_chip_id(firmware_artifact.get("chip_id"))
+    except ValueError as error:
+        return ({
+            "status": "unavailable", "reason": str(error),
+            "source_location_confirmed": False,
+            "incident_identity_confirmed": False,
+        }, b"")
+    tooling = _tooling(target)
     if tooling is None:
         return ({
             "status": "unavailable",
-            "reason": "ESP-IDF coredump decoder or RISC-V GDB is unavailable",
+            "reason": f"ESP-IDF coredump decoder or GDB for {target.name} is unavailable",
             "source_location_confirmed": False,
             "incident_identity_confirmed": False,
         }, b"")
@@ -105,7 +115,7 @@ def decode_coredump(
     with tempfile.TemporaryDirectory(prefix="esp-iris-coredump-") as temporary:
         normalized = pathlib.Path(temporary) / "core.elf"
         command = [
-            str(python), str(script), "--chip", "esp32s31", "info_corefile",
+            str(python), str(script), "--chip", target.name, "info_corefile",
             "--core", str(core_path), "--core-format", "raw",
             "--save-core", str(normalized), "--gdb", gdb, str(elf),
         ]

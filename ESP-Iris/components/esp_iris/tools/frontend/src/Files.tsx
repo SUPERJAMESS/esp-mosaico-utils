@@ -25,6 +25,8 @@ export default function Files({ device, mode }: { device?: Device; mode: "develo
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const requestRevision = useRef(0);
+  const filesAvailable = !!device?.capability_names?.includes("files");
+  const dataAvailable = !!(device?.data_available || device?.demo);
   const uploadInput = useRef<HTMLInputElement>(null);
 
   async function loadDirectory(targetVolume: string, targetPath: string, targetCursor = 0) {
@@ -62,7 +64,8 @@ export default function Files({ device, mode }: { device?: Device; mode: "develo
     setEntries([]);
     setError("");
     setNotice("");
-    if (!device || !device.connected || mode !== "develop" || !device.capability_names?.includes("files")) return () => { current = false; };
+    setLoading(false);
+    if (!device || !device.connected || mode !== "develop" || !filesAvailable || !dataAvailable) return () => { current = false; };
     setLoading(true);
     void api<{ volumes: FileVolume[] }>(`/v2/devices/${encodeURIComponent(device.device_id)}/files/volumes`)
       .then(async (result) => {
@@ -73,7 +76,7 @@ export default function Files({ device, mode }: { device?: Device; mode: "develo
       .catch((reason: unknown) => { if (current && revision === requestRevision.current) setError(reason instanceof Error ? reason.message : String(reason)); })
       .finally(() => { if (current && revision === requestRevision.current) setLoading(false); });
     return () => { current = false; if (requestRevision.current === revision) requestRevision.current += 1; };
-  }, [device?.device_id, device?.connected, mode]);
+  }, [device?.device_id, device?.connected, filesAvailable, dataAvailable, mode]);
 
   const selectedVolume = volumes.find((item) => item.id === volume);
   const supports = (capability: string) => selectedVolume?.capability_names.includes(capability) ?? false;
@@ -194,8 +197,8 @@ export default function Files({ device, mode }: { device?: Device; mode: "develo
   if (!device) return <main className="workspace-empty"><strong>未选择设备</strong><span>从左侧选择一台设备以浏览文件</span></main>;
   if (mode === "observe") return <main className="workspace-empty"><strong>观察模式不访问设备文件</strong><span>切换到开发模式后可访问产品显式导出的逻辑卷</span></main>;
   if (!device.connected) return <main className="workspace-empty"><strong>设备当前离线</strong><span>文件目录不会使用缓存结果</span></main>;
-  if (!device.data_available && !device.demo) return <main className="workspace-empty"><strong>数据链路未连接</strong><span>文件传输需要 High-Speed USB 或 TCP 数据链路；控制链路仍可用于日志、RPC 和截图。</span></main>;
   if (!device.capability_names?.includes("files")) return <main className="workspace-empty"><strong>设备未提供文件服务</strong><span>产品需要在启动 ESP-Iris 前注册逻辑卷</span></main>;
+  if (!device.data_available && !device.demo) return <main className="workspace-empty"><strong>数据链路未连接</strong><span>文件传输需要应用 USB 或 TCP 数据链路；控制链路仍可用于日志、RPC 和截图。</span></main>;
 
   const parts = path ? path.split("/") : [];
   return (

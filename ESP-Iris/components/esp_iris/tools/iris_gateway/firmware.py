@@ -4,6 +4,8 @@ import dataclasses
 import hashlib
 import struct
 
+from .chip_targets import target_from_chip_id
+
 ESP_IMAGE_MAGIC = 0xE9
 ESP_APP_DESC_MAGIC = 0xABCD5432
 ESP32S31_CHIP_ID = 0x0020
@@ -30,10 +32,7 @@ def inspect_firmware_image(image: bytes) -> FirmwareImage:
     if len(image) < 112 or image[0] != ESP_IMAGE_MAGIC:
         raise ValueError("not an ESP application image")
     chip_id = struct.unpack_from("<H", image, 12)[0]
-    if chip_id != ESP32S31_CHIP_ID:
-        raise ValueError(
-            f"firmware chip id 0x{chip_id:04x} is not ESP32-S31 (0x{ESP32S31_CHIP_ID:04x})"
-        )
+    target_from_chip_id(chip_id)
     app_desc_offset = 24 + 8
     magic = struct.unpack_from("<I", image, app_desc_offset)[0]
     if magic != ESP_APP_DESC_MAGIC:

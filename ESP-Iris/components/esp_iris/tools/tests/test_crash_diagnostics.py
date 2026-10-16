@@ -3,11 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from iris_gateway import crash_diagnostics
 
 
+@pytest.mark.parametrize("chip_id,target,gdb", [(0, "esp32", "xtensa-esp-elf-gdb"), (9, "esp32s3", "xtensa-esp-elf-gdb"), (12, "esp32c2", "riscv32-esp-elf-gdb"), (32, "esp32s31", "riscv32-esp-elf-gdb")])
 def test_decode_coredump_confirms_source_and_failed_boot(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, chip_id, target, gdb
 ) -> None:
     idf = tmp_path / "idf"
     script = idf / "components" / "espcoredump" / "espcoredump.py"
@@ -27,7 +30,7 @@ def test_decode_coredump_confirms_source_and_failed_boot(
     core.write_bytes(b"core")
     monkeypatch.setenv("ESP_IRIS_IDF_PATH", str(idf))
     monkeypatch.setenv("ESP_IRIS_IDF_PYTHON", str(python))
-    monkeypatch.setenv("ESP_IRIS_GDB", "riscv32-esp-elf-gdb")
+    monkeypatch.delenv("ESP_IRIS_GDB", raising=False)
     monkeypatch.setattr(crash_diagnostics.shutil, "which", lambda value: value)
 
     calls = 0
@@ -37,6 +40,8 @@ def test_decode_coredump_confirms_source_and_failed_boot(
         calls += 1
         if calls == 1:
             assert command[0] == str(python.absolute())
+            assert command[command.index("--chip") + 1] == target
+            assert command[command.index("--gdb") + 1] == gdb
             Path(command[command.index("--save-core") + 1]).write_bytes(b"core-elf")
             return SimpleNamespace(
                 returncode=0,
@@ -51,7 +56,7 @@ def test_decode_coredump_confirms_source_and_failed_boot(
     monkeypatch.setattr(crash_diagnostics.subprocess, "run", run)
     diagnosis, raw = crash_diagnostics.decode_coredump(
         core,
-        {"path": str(elf_dir), "files": {"firmware.elf": "firmware.elf"}},
+        {"chip_id": chip_id, "path": str(elf_dir), "files": {"firmware.elf": "firmware.elf"}},
         expected_failed_boot_id=77,
     )
 
@@ -98,7 +103,7 @@ def test_decode_coredump_rejects_another_boot(
     monkeypatch.setattr(crash_diagnostics.subprocess, "run", run)
     diagnosis, _ = crash_diagnostics.decode_coredump(
         tmp_path / "core.bin",
-        {"path": str(elf_dir)},
+        {"chip_id": 32, "path": str(elf_dir)},
         expected_failed_boot_id=77,
     )
 
@@ -144,8 +149,23 @@ def test_decode_coredump_does_not_claim_idf_frame_as_app_source(
     monkeypatch.setattr(crash_diagnostics.subprocess, "run", run)
     diagnosis, _ = crash_diagnostics.decode_coredump(
         tmp_path / "core.bin",
-        {"path": str(elf_dir)},
+        {"chip_id": 32, "path": str(elf_dir)},
         expected_failed_boot_id=77,
     )
 
     assert diagnosis["source_location"]["function"] == "app_fault"
+
+
+@pytest.mark.parametrize("chip_id", [None, True, 0xffff])
+def test_unknown_target_does_not_launch_decoder(tmp_path, monkeypatch, chip_id):
+    def unexpected(*args, **kwargs):
+        pytest.fail("must not invoke decoder without a known target")
+    monkeypatch.setattr(crash_diagnostics.subprocess, "run", unexpected)
+    diagnosis, raw = crash_diagnostics.decode_coredump(
+        tmp_path / "core", {"path": str(tmp_path), "chip_id": chip_id},
+        expected_failed_boot_id=77,
+    )
+    assert diagnosis["status"] == "unavailable"
+    assert "chip ID" in diagnosis["reason"]
+    assert not diagnosis["source_location_confirmed"]
+    assert raw == b""

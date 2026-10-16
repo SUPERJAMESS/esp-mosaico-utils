@@ -6,7 +6,7 @@ iris_root="$repository_root/ESP-Iris"
 build_group="${1:-all}"
 
 usage() {
-    echo "usage: $0 [all|baseline|media|ota|system]" >&2
+    echo "usage: $0 [all|baseline|multichip|media|ota|system]" >&2
     exit 2
 }
 
@@ -17,6 +17,7 @@ build_iris() {
     local project="$2"
     local defaults="${3:-}"
     local profile="${4:-}"
+    local target="${5:-}"
     local build_dir="$iris_root/build-ci-$name"
     local arguments=(
         -C "$iris_root/components/esp_iris/$project"
@@ -28,6 +29,9 @@ build_iris() {
     fi
     if [[ -n "$profile" ]]; then
         arguments+=(-D "ESP_IRIS_BUILD_PROFILE=$profile")
+    fi
+    if [[ -n "$target" ]]; then
+        arguments+=(-D "IDF_TARGET=$target")
     fi
     idf.py "${arguments[@]}" build
 }
@@ -41,6 +45,12 @@ build_baseline() {
     build_iris tcp-pairing examples/tcp_pairing
     build_iris rpc-jobs examples/rpc_jobs
     build_iris rpc-jobs-usj examples/rpc_jobs sdkconfig.usj.defaults usj
+}
+
+build_multichip() {
+    build_iris c2-uart test_apps/services_c2 "" uart esp32c2
+    build_iris h2-usj test_apps/services_h2 "" usj esp32h2
+    build_iris esp32-uart test_apps/services_uart "" uart esp32
 }
 
 build_media() {
@@ -89,6 +99,7 @@ check_artifact_budgets() {
 
 case "$build_group" in
     baseline) build_baseline ;;
+    multichip) build_multichip ;;
     media) build_media ;;
     ota) build_ota ;;
     system)
@@ -97,6 +108,7 @@ case "$build_group" in
         ;;
     all)
         build_baseline
+        build_multichip
         build_media
         build_ota
         build_system

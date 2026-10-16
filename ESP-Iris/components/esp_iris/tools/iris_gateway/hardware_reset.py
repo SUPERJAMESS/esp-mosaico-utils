@@ -9,6 +9,8 @@ from __future__ import annotations
 import time
 from typing import Callable, Iterable, Protocol, Tuple
 
+from .chip_targets import target_from_name
+
 Step = Tuple[str, float]
 
 
@@ -19,7 +21,7 @@ class SerialControlLines(Protocol):
     rts: bool
 
 
-def reset_steps(mode: str, circuit: str, *, chip: str = "esp32s31") -> tuple[Step, ...]:
+def reset_steps(mode: str, circuit: str, *, chip: str | None = None) -> tuple[Step, ...]:
     if mode not in {"run", "rom", "attach"}:
         raise ValueError("reset mode must be run, rom, or attach")
     if circuit not in {"uart", "usb_serial_jtag"}:
@@ -32,6 +34,8 @@ def reset_steps(mode: str, circuit: str, *, chip: str = "esp32s31") -> tuple[Ste
         return (("R", 0), ("D", 0), ("W", 0.1), ("D", 1), ("R", 0),
                 ("W", 0.1), ("R", 1), ("D", 0), ("R", 1), ("W", 0.1),
                 ("D", 0), ("R", 0))
+    # UART boot timing is target dependent; never silently assume S31.
+    target_from_name(chip)
     enter, release = (1.3, 0.45) if chip == "esp32" else (0.1, 0.05)
     return (("D", 0), ("R", 1), ("W", enter), ("D", 1), ("R", 0),
             ("W", release), ("D", 0))

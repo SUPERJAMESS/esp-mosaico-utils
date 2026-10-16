@@ -1,0 +1,375 @@
+{
+  "schema": "esp-iris-multichip-validation/v1",
+  "date": "2026-10-16",
+  "issue": "EMVM-75731",
+  "host_branch": "feat/EMVM-75731",
+  "host_base_commit": "c415e03d491c00ede36bb61da0f07c1c2226dbf4",
+  "host_worktree_modified": true,
+  "device_operations_entrypoint": "consuming workspace mosaico.py",
+  "firmware_flashed": false,
+  "scope": "Current host against installed fc63d43-dirty services fixtures; newly built fixture binaries were not flashed.",
+  "host_source_sha256": {
+    "iris_gateway/session.py": "b42908fc949bfe4c3a84d8fa7e237cb9073ef0c5b432de7bd097235b1489973d",
+    "iris_gateway/chip_targets.py": "d724c183c31c0e09850d6f724b2dcc9d7b00cd1df52a7461e4650290a914aeef",
+    "iris_gateway/compatibility.py": "05a898dbcb6eebe699d6e4c8bfb970e8fab9e3d8cc6ee4ab101e6620a956dd38",
+    "iris_gateway/crash_diagnostics.py": "6968903a7737f87c38aff7a33c78cfe0f412967832034e87470d9815bd78ff12",
+    "iris_gateway/hardware_reset.py": "58d21b6dcac686c3fff11c02cdf29250dd1732d52fde597b259e2803835d6bab",
+    "iris_gateway/hub.py": "d7710931f08010d32b404954738f7a4d60c4ec9f880eb06aa73c4ad63eb0bd55"
+  },
+  "devices": [
+    {
+      "chip_target": "esp32c2",
+      "hardware_mac": "e8:6b:ea:4c:69:24",
+      "device_id": "4553502d495249530100e86bea4c6924",
+      "transport": "UART",
+      "baudrate": 74880,
+      "project_name": "esp_iris_services_c2_test",
+      "app_version": "fc63d43-dirty",
+      "firmware_sha256": "3d87795a1a9a89987a149dad23dfee1b22e3ffecaa19db53137d0b26ce4afba4",
+      "idf_version": "v6.2-dev-2221-g7b9cc1ac79f-dirt",
+      "passed": [
+        "HELLO identity and target",
+        "live status and heap",
+        "binary RPC echo lengths 0, 1, 32, 128, 512",
+        "2x2 screenshot via control link",
+        "stdout/stderr log burst",
+        "asynchronous job completion",
+        "file/mirror rejected without data link",
+        "80 RPCs with stable boot/session",
+        "software restart with same-device new Boot ID",
+        "hardware reset with same-device new Boot ID"
+      ],
+      "soak": {
+        "rpc_count": 80,
+        "seconds": 49.576,
+        "invalid_frames": 0,
+        "log_dropped_bytes": 0
+      },
+      "screenshot": {
+        "bytes": 75,
+        "sha256": "e6d66889131220f931fddfb05730d647a0992456c63ae0a8154b4ae32ff219ef",
+        "description": "{\"x\": 0, \"y\": 0, \"width\": 2, \"height\": 2, \"stride\": 6, \"format\": 4, \"quality\": 0, \"mirror_reused\": 0, \"transfer_path\": \"control\", \"source_format\": 1, \"source_stride\": 4}"
+      },
+      "boot_ids": {
+        "before": "3485530330757058202",
+        "after_software_restart": "154694418409674902",
+        "after_hardware_reset": "17741687114858250563"
+      },
+      "raw_evidence": [
+        {
+          "file": "esp32c2-e2e-soak.json",
+          "sha256": "3e218926c09a2e0e28768348c3cc8dae0026ed063e14837104e3b4b7a112b712"
+        },
+        {
+          "file": "esp32c2-e2e-check.json",
+          "sha256": "24623a40bf4aaaa7bf7d03aa01dc50299734732bd938724fde0f7d3ae2ccb475"
+        }
+      ]
+    },
+    {
+      "chip_target": "esp32h2",
+      "hardware_mac": "60:55:f9:f7:2e:60",
+      "device_id": "4553502d4952495301006055f9f72e60",
+      "transport": "USB Serial/JTAG",
+      "baudrate": null,
+      "project_name": "esp_iris_services_h2_test",
+      "app_version": "fc63d43-dirty",
+      "firmware_sha256": "37530b2500f546af42fc23e039081ab8cb3dfdb324ff4519825b971295a7de55",
+      "idf_version": "v6.2-dev-2221-g7b9cc1ac79f-dirt",
+      "passed": [
+        "HELLO identity and target",
+        "live status and heap",
+        "binary RPC echo lengths 0, 1, 32, 128, 512",
+        "2x2 screenshot via control link",
+        "stdout/stderr log burst",
+        "asynchronous job completion",
+        "file/mirror rejected without data link",
+        "80 RPCs with stable boot/session",
+        "software restart with same-device new Boot ID",
+        "hardware reset with same-device new Boot ID"
+      ],
+      "soak": {
+        "rpc_count": 80,
+        "seconds": 47.59,
+        "invalid_frames": 0,
+        "log_dropped_bytes": 0
+      },
+      "screenshot": {
+        "bytes": 75,
+        "sha256": "e6d66889131220f931fddfb05730d647a0992456c63ae0a8154b4ae32ff219ef",
+        "description": "{\"x\": 0, \"y\": 0, \"width\": 2, \"height\": 2, \"stride\": 6, \"format\": 4, \"quality\": 0, \"mirror_reused\": 0, \"transfer_path\": \"control\", \"source_format\": 1, \"source_stride\": 4}"
+      },
+      "boot_ids": {
+        "before": "5697591996575751516",
+        "after_software_restart": "17330623136929291839",
+        "after_hardware_reset": "18371280020964567583"
+      },
+      "raw_evidence": [
+        {
+          "file": "esp32h2-e2e-soak.json",
+          "sha256": "c9a3ea870222b4700299f89ff3f4df110b62cffb17e7429199f82e9052f72401"
+        },
+        {
+          "file": "esp32h2-e2e-check.json",
+          "sha256": "07aaef77388e17b55afca2890f91cdf563cac6460b9d3b1ef3ac38c69f3d2e37"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Task memory observation is not enabled by the installed firmware; heap/status values remain available.",
+    "UART and USB Serial/JTAG have no independently connected data link: files and continuous mirror are rejected explicitly.",
+    "OTA, system update, flash writes, coredump decoding and other IDF versions were not exercised on hardware."
+  ],
+  "extended_automation": {
+    "scope": "Same Gateway, installed fixtures, no flash writes",
+    "checks": [
+      {
+        "name": "same_gateway_acquisition",
+        "targets": [
+          "esp32c2",
+          "esp32h2"
+        ]
+      },
+      {
+        "name": "concurrent_soak",
+        "seconds": 180.19,
+        "rpc_counts": {
+          "esp32c2": 377,
+          "esp32h2": 377
+        }
+      },
+      {
+        "name": "error_recovery",
+        "target": "esp32c2",
+        "case": "unknown_service",
+        "error": "Project Gateway rejected the request: {'error': {'code': 'device_request_failed', 'message': 'device error 0x00000105'}}"
+      },
+      {
+        "name": "error_recovery",
+        "target": "esp32c2",
+        "case": "unknown_method",
+        "error": "Project Gateway rejected the request: {'error': {'code': 'device_request_failed', 'message': 'device error 0x00000105'}}"
+      },
+      {
+        "name": "error_recovery",
+        "target": "esp32c2",
+        "case": "invalid_arguments",
+        "error": "Project Gateway rejected the request: {'error': {'code': 'device_request_failed', 'message': 'RPC failed with device error 0x00000104'}}"
+      },
+      {
+        "name": "error_recovery",
+        "target": "esp32c2",
+        "case": "deadline",
+        "error": "Project Gateway rejected the request: {'error': {'code': 'device_request_failed', 'message': 'RPC failed with device error 0x00000107'}}"
+      },
+      {
+        "name": "log_burst_recovery",
+        "target": "esp32c2",
+        "records": 64
+      },
+      {
+        "name": "error_recovery",
+        "target": "esp32h2",
+        "case": "unknown_service",
+        "error": "Project Gateway rejected the request: {'error': {'code': 'device_request_failed', 'message': 'device error 0x00000105'}}"
+      },
+      {
+        "name": "error_recovery",
+        "target": "esp32h2",
+        "case": "unknown_method",
+        "error": "Project Gateway rejected the request: {'error': {'code': 'device_request_failed', 'message': 'device error 0x00000105'}}"
+      },
+      {
+        "name": "error_recovery",
+        "target": "esp32h2",
+        "case": "invalid_arguments",
+        "error": "Project Gateway rejected the request: {'error': {'code': 'device_request_failed', 'message': 'RPC failed with device error 0x00000104'}}"
+      },
+      {
+        "name": "error_recovery",
+        "target": "esp32h2",
+        "case": "deadline",
+        "error": "Project Gateway rejected the request: {'error': {'code': 'device_request_failed', 'message': 'RPC failed with device error 0x00000107'}}"
+      },
+      {
+        "name": "log_burst_recovery",
+        "target": "esp32h2",
+        "records": 64
+      },
+      {
+        "name": "restart_isolation",
+        "target": "esp32c2",
+        "iteration": 0,
+        "peer_rpc_count": 14
+      },
+      {
+        "name": "restart_isolation",
+        "target": "esp32h2",
+        "iteration": 0,
+        "peer_rpc_count": 11
+      },
+      {
+        "name": "restart_isolation",
+        "target": "esp32c2",
+        "iteration": 1,
+        "peer_rpc_count": 13
+      },
+      {
+        "name": "restart_isolation",
+        "target": "esp32h2",
+        "iteration": 1,
+        "peer_rpc_count": 10
+      },
+      {
+        "name": "restart_isolation",
+        "target": "esp32c2",
+        "iteration": 2,
+        "peer_rpc_count": 13
+      },
+      {
+        "name": "restart_isolation",
+        "target": "esp32h2",
+        "iteration": 2,
+        "peer_rpc_count": 10
+      },
+      {
+        "target": "esp32c2",
+        "name": "job_cancel",
+        "job": {
+          "job_id": 1,
+          "job_kind": 32766,
+          "job_state": "cancelled",
+          "job_state_code": 4,
+          "cancel_requested": true,
+          "progress_permille": 0,
+          "result": 259
+        }
+      },
+      {
+        "target": "esp32c2",
+        "name": "release_reacquire",
+        "iteration": 0
+      },
+      {
+        "target": "esp32c2",
+        "name": "release_reacquire",
+        "iteration": 1
+      },
+      {
+        "target": "esp32c2",
+        "name": "release_reacquire",
+        "iteration": 2
+      },
+      {
+        "target": "esp32h2",
+        "name": "job_cancel",
+        "job": {
+          "job_id": 1,
+          "job_kind": 32766,
+          "job_state": "cancelled",
+          "job_state_code": 4,
+          "cancel_requested": true,
+          "progress_permille": 0,
+          "result": 259
+        }
+      },
+      {
+        "target": "esp32h2",
+        "name": "release_reacquire",
+        "iteration": 0
+      },
+      {
+        "target": "esp32h2",
+        "name": "release_reacquire",
+        "iteration": 1
+      },
+      {
+        "target": "esp32h2",
+        "name": "release_reacquire",
+        "iteration": 2
+      },
+      {
+        "name": "H2 ROM probe and application recovery",
+        "passed": true,
+        "flash_written": false
+      }
+    ],
+    "passed": true,
+    "raw_evidence": [
+      {
+        "file": "extended-results.json",
+        "sha256": "e92ac02577d2b6cea9797121225ef22b25dbe0ad04b201f3dc58a7fdc40eedc9"
+      },
+      {
+        "file": "lifecycle-results.json",
+        "sha256": "9772ab0697c43e13c27f1e3a5951edd9ec1b740a84a12e064271a9bfa121713f"
+      },
+      {
+        "file": "esp32h2-e2e-probe.json",
+        "sha256": "03561fe8c5042db69fc1308ae53f50c0615056ef3235864ccdd5aec7d7dbfeea"
+      }
+    ],
+    "host_regression": {
+      "python_3_8": {
+        "passed": 689,
+        "seconds": 81.66
+      },
+      "product_integration": {
+        "passed": 885,
+        "skipped": 24,
+        "seconds": 461.63
+      }
+    }
+  },
+  "manual_pending": [],
+  "manual_validation": {
+    "date": "2026-10-16",
+    "scope": "Installed fixtures; USB unplug/replug combined with user-confirmed full cold-power cycle, original USB sockets. No flash writes.",
+    "note": "Observed offline duration starts when polling detects absence; actual power-off duration was confirmed by the user.",
+    "devices": [
+      {
+        "chip_target": "esp32c2",
+        "passed": true,
+        "device_id": "4553502d495249530100e86bea4c6924",
+        "before_boot_id": "291196837390775333",
+        "after_boot_id": "5769099015397407768",
+        "firmware_sha256": "3d87795a1a9a89987a149dad23dfee1b22e3ffecaa19db53137d0b26ce4afba4",
+        "observed_offline_seconds": 4.275594919919968,
+        "user_confirmed_all_power_disconnected_at_least_5_seconds": true,
+        "assertions": [
+          "disconnect observed",
+          "automatic reconnect",
+          "same device identity and target",
+          "new Boot ID",
+          "binary RPC echo succeeds"
+        ],
+        "raw_evidence": {
+          "file": "esp32c2-manual-results.json",
+          "sha256": "967b3579639c68e33277461e5b3fcf1ff1e281cca494fefa5be6bc3d61278d87"
+        }
+      },
+      {
+        "chip_target": "esp32h2",
+        "passed": true,
+        "device_id": "4553502d4952495301006055f9f72e60",
+        "before_boot_id": "18371280020964567583",
+        "after_boot_id": "1008291892270038672",
+        "firmware_sha256": "37530b2500f546af42fc23e039081ab8cb3dfdb324ff4519825b971295a7de55",
+        "observed_offline_seconds": 4.043980329763144,
+        "user_confirmed_all_power_disconnected_at_least_5_seconds": true,
+        "assertions": [
+          "disconnect observed",
+          "automatic reconnect",
+          "same device identity and target",
+          "new Boot ID",
+          "binary RPC echo succeeds"
+        ],
+        "raw_evidence": {
+          "file": "esp32h2-manual-results.json",
+          "sha256": "b4de6070b0b074562da838cb910d1a902f59a1c5aa436878baea4ca634002a06"
+        }
+      }
+    ]
+  }
+}

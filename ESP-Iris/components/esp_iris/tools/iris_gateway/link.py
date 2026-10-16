@@ -192,7 +192,7 @@ class SerialLink(Link):
         if written != len(data):
             raise OSError(f"short serial write: {written}/{len(data)}")
 
-    async def hardware_reset(self, mode: str, circuit: str, *, chip: str = "esp32s31") -> None:
+    async def hardware_reset(self, mode: str, circuit: str, *, chip: str | None = None) -> None:
         from .hardware_reset import execute_reset, reset_steps
         steps = reset_steps(mode, circuit, chip=chip)
         await asyncio.wait_for(self.reader_started.wait(), 2.0)

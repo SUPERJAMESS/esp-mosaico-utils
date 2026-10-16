@@ -62,6 +62,7 @@ class DeviceSession:
     LOG_CREDIT_GRANT = 256 * 1024
     LOG_CREDIT_LOW_WATER = 128 * 1024
     AUTH_MISSING_TOKEN_DELAY_SECONDS = 0.5
+    CONSOLE_PROBE_INTERVAL_SECONDS = 2.0
     # The bounded firmware service executor admits one Flash request at a
     # time. No larger receive window is negotiated by protocol 0.2.
     OTA_MAX_IN_FLIGHT = 1
@@ -207,13 +208,15 @@ class DeviceSession:
         while not self._closed:
             try:
                 async with self._write_lock:
-                    if self._closed or self._ready.is_set():
+                    if self._closed:
                         return
                     await self.link.write(HELLO_COMMAND)
             except (ConnectionError, OSError):
                 await self.link.close()
                 return
-            await asyncio.sleep(2.0)
+            # UART and Serial/JTAG may reboot without closing the port. Keep
+            # querying identity so the supervisor can replace a stale session.
+            await asyncio.sleep(self.CONSOLE_PROBE_INTERVAL_SECONDS)
 
     async def _console_log(self, data: bytes) -> None:
         await self._on_event({
@@ -489,6 +492,9 @@ class DeviceSession:
         ):
             raise ProtocolError("device identity/session changed on a live link")
         self.info = info
+        if self._console and self._ready.is_set():
+            # An unchanged periodic HELLO is not a new authentication attempt.
+            return
         if (
             info.capabilities & Capability.SESSION_REOPEN
             and not self._reopen_requested
@@ -1153,6 +1159,10 @@ class DeviceSession:
                 ProtocolError,
                 RuntimeError,
             ):
+                if self._closed:
+                    # Python 3.8 wait_for can deliver the pending request's
+                    # failure during cancellation. Do not delay teardown.
+                    return
                 if (
                     self._console
                 ):

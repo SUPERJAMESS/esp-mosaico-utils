@@ -777,7 +777,8 @@ class IrisHub:
                  "device_id": session.info.device_id if session.info else None,
                  "boot_id": None, "host_receive_wall_ns": time.time_ns()}
         await self._on_event({**event, "state": "started"})
-        await session.link.hardware_reset(mode, circuit)
+        chip = session.info.chip_target if session.info else None
+        await session.link.hardware_reset(mode, circuit, chip=chip)
         result = {**event, "state": "sequence_completed", "reader_started_before_reset": True}
         await self._on_event(result)
         return result

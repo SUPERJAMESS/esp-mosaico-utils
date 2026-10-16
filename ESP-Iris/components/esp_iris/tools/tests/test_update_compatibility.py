@@ -109,3 +109,30 @@ def test_cli_accepts_explicit_compatibility(command) -> None:
         '{"chip_target":"esp32s31","recovery_abi":1}',
     ])
     assert args.compatibility == {"chip_target": "esp32s31", "recovery_abi": 1}
+
+
+@pytest.mark.parametrize("chip_id,target", [(0, "esp32"), (9, "esp32s3"), (12, "esp32c2"), (16, "esp32h2")])
+def test_update_matches_actual_target_across_recovery(chip_id, target):
+    required = validate_update_compatibility(
+        {"firmware_mode": "normal", "chip_target": target}, chip_id
+    )
+    assert required == {"chip_target": target}
+    assert validate_update_compatibility(
+        {"firmware_mode": "recovery", "chip_target": target}, chip_id, required, recovery=True
+    ) == required
+    for wrong in (None, "esp32s31"):
+        with pytest.raises(ValueError, match="chip_target"):
+            validate_update_compatibility(
+                {"firmware_mode": "recovery", "chip_target": wrong}, chip_id, required, recovery=True
+            )
+    with pytest.raises(ValueError, match="artifact"):
+        validate_update_compatibility(
+            {"firmware_mode": "normal", "chip_target": target}, chip_id,
+            {"chip_target": "esp32s31"},
+        )
+
+
+@pytest.mark.parametrize("chip_id", [None, True, "0", 0xffff, [], {}])
+def test_unknown_or_invalid_chip_id_rejected(chip_id):
+    with pytest.raises(ValueError, match="chip ID"):
+        validate_update_compatibility({"firmware_mode": "normal"}, chip_id)

@@ -33,8 +33,17 @@ def test_inspect_esp32s31_firmware_descriptor() -> None:
     assert result.sha256 == hashlib.sha256(image).hexdigest()
 
 
-def test_reject_wrong_chip_before_ota() -> None:
+def test_reject_unknown_chip_before_ota() -> None:
     image = bytearray(firmware_image())
-    struct.pack_into("<H", image, 12, 0x0009)
-    with pytest.raises(ValueError, match="not ESP32-S31"):
+    struct.pack_into("<H", image, 12, 0xFFFF)
+    with pytest.raises(ValueError, match="unsupported or missing firmware chip ID"):
         inspect_firmware_image(bytes(image))
+
+
+@pytest.mark.parametrize("chip_id", [0, 2, 5, 9, 12, 13, 16, 18, 20, 23, 25, 28, 32])
+def test_inspect_known_targets(chip_id):
+    image = bytearray(firmware_image())
+    struct.pack_into("<H", image, 12, chip_id)
+    result = inspect_firmware_image(bytes(image))
+    assert result.chip_id == chip_id
+    assert result.project_name == "esp-iris-template"

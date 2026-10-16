@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .firmware import ESP32S31_CHIP_ID
+from .chip_targets import target_from_chip_id
 
 TEXT_FIELDS = ("chip_target", "product_contract", "board_id", "layout_id")
 CONTRACT_FIELDS = (*TEXT_FIELDS, "recovery_abi")
@@ -48,12 +48,11 @@ def validate_update_compatibility(
     role = status.get("firmware_mode")
     if role not in ("normal", "recovery") or (recovery and role != "recovery"):
         raise ValueError("update requires an explicit compatible firmware role; migrate legacy firmware with product recovery")
-    if type(chip_id) is not int or chip_id != ESP32S31_CHIP_ID:
-        raise ValueError("update artifact has an unsupported or missing chip ID")
+    target = target_from_chip_id(chip_id)
     required = compatibility_expectation(expectation)
-    if required.get("chip_target", "esp32s31") != "esp32s31":
+    if required.get("chip_target", target.name) != target.name:
         raise ValueError("compatibility chip_target does not match the artifact")
-    required["chip_target"] = "esp32s31"
+    required["chip_target"] = target.name
     for key, expected in required.items():
         actual = status.get(key)
         if actual != expected or type(actual) is not type(expected):

@@ -101,3 +101,75 @@ def test_raw_capture_rejects_missing_bytes_and_preserves_rotation_gap(tmp_path):
     assert not list(store.logs_dir.rglob("*.jsonl.gz"))
     assert store.events_after(first["event_id"] - 1, capture_id=capture)[0][0]["data_base64"] == event["data_base64"]
     store.close()
+
+
+def test_console_reboot_without_port_eof_is_rediscovered(monkeypatch, tmp_path):
+    from iris_gateway.console_protocol import HELLO_COMMAND
+    from iris_gateway.session import DeviceSession
+
+    monkeypatch.setattr(DeviceSession, "CONSOLE_PROBE_INTERVAL_SECONDS", 0.01)
+
+    async def scenario():
+        boot = 77
+        links = []
+        events = []
+
+        class RebootingConsole(ConsoleLink):
+            endpoint = "fake:reboot:" + str(tmp_path)
+
+            def __init__(self):
+                super().__init__()
+                self.hello_count = 0
+                self.ack_count = 0
+
+            async def write(self, data):
+                self.writes.append(data)
+                if data == HELLO_COMMAND:
+                    self.hello_count += 1
+                    await self.incoming.put(encode_record(Frame(
+                        channel=Channel.CONTROL, type=ControlType.HELLO,
+                        session_id=boot, payload=encode_tlv([
+                            (TlvTag.DEVICE_ID, b"d" * 16),
+                            (TlvTag.BOOT_ID, struct.pack("<Q", boot)),
+                            (TlvTag.PROTOCOL_VERSION, struct.pack("<H", 2)),
+                            (TlvTag.LINK_ROLE, b"\0"),
+                        ])), request=False))
+                elif data.startswith(b"iris @"):
+                    frame = decode_record(data, request=True)
+                    if frame.type == ControlType.HELLO_ACK:
+                        self.ack_count += 1
+                        await self.incoming.put(encode_record(Frame(
+                            channel=Channel.CONTROL, type=ControlType.AUTH_RESULT,
+                            session_id=boot, sequence=1, payload=b"\x01"), request=False))
+
+        async def sink(event):
+            events.append(event)
+
+        async def opener():
+            link = RebootingConsole()
+            links.append(link)
+            return link
+
+        async def until(predicate):
+            for _ in range(300):
+                if predicate():
+                    return
+                await asyncio.sleep(0.01)
+            raise AssertionError("console identity was not refreshed")
+
+        hub = IrisHub(event_sink=sink)
+        hub._add_supervisor(RebootingConsole.endpoint, opener)
+        try:
+            await until(lambda: links and links[0].hello_count >= 3)
+            assert len(links) == 1
+            assert links[0].ack_count == 1
+            boot = 78
+            await until(lambda: any(e.get("connection_state") == "rebooted"
+                                   and e.get("boot_id") == 78 for e in events))
+            assert links[0].closed
+            assert len(links) == 2
+            assert links[1].ack_count == 1
+        finally:
+            await hub.close()
+
+    asyncio.run(scenario())

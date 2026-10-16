@@ -39,6 +39,65 @@ can supervise many device endpoints concurrently. Workbench, CLI, and agent
 connections receive independent event streams; device-changing operations are
 serialized per device.
 
+## Chip and transport support
+
+The component declares ESP-IDF >=5.5; this is a dependency floor, not a claim
+that every target/IDF/transport combination has been validated. CI currently
+uses the pinned ESP-IDF 6.2 development revision in `.github/workflows/ci.yml`.
+
+| Target | Control transport | Fixture / CI group | Validation scope |
+| --- | --- | --- | --- |
+| ESP32-C2 | UART | `services_c2` / `multichip` | Compile coverage + installed control fixture verified at 74880 baud |
+| ESP32-H2 | USB Serial/JTAG | `services_h2` / `multichip` | Compile coverage + installed control fixture verified |
+| ESP32 | UART | `services_uart`, explicit target `esp32` / `multichip` | Compile coverage; hardware not validated here |
+| ESP32-S31 | UART, USB Serial/JTAG, application USB, TCP | Existing baseline/system groups | Existing S31 validation; no new hardware run in this change |
+| Other SDK targets | UART; USB Serial/JTAG where the SoC supports it | Not yet in the build matrix | Unverified |
+
+Run `bash tools/ci/build_firmware.sh multichip` from the repository root in the
+pinned IDF environment. It uses separate build directories and explicit targets.
+The first three rows compiled locally on 2026-10-16 with IDF revision
+`7b9cc1ac79f865983f59bb8ff3ff43eb74ff1dbe`; that checkout also contained local
+camera-driver edits. Remote CI and physical-board validation remain separate.
+
+On 2026-10-16, C2 and H2 hardware checks passed through a consuming workspace's
+`mosaico.py`, using this branch's host against the installed `fc63d43-dirty`
+service fixtures (no firmware flash). Coverage includes HELLO, status/heap,
+binary RPC, control-link screenshot, logs, jobs, 80 sustained RPCs per board,
+and software/hardware reset with verified new Boot IDs. The installed C2 image
+uses 74880 baud; select it explicitly rather than the usual 115200. Task memory
+observation is disabled in both installed fixtures. Files and continuous media
+correctly reject the missing data link; OTA and coredump decoding were not tested.
+See [the hardware validation record](test_apps/multichip-validation.json) for
+firmware identities and evidence hashes. Continuous HELLO probes now discover
+reboots on UART/Serial-JTAG even when the port does not re-enumerate; unchanged
+HELLO replies do not repeat authentication.
+
+Additional checks on the same date passed with both boards in one Gateway:
+180 seconds and 377 RPCs per board, three restarts per board while the peer
+remained responsive, recovery after unknown services/methods, invalid arguments
+and RPC deadlines, 64-record log bursts, job cancellation, and three ownership
+release/reacquire cycles per board. H2 ROM identity probing and application
+recovery passed without flash writes. Physical unplug and user-confirmed full cold-power cycles
+also passed on C2/H2: automatic reconnection preserved device identity, changed
+the Boot ID, and restored binary RPC responses.
+
+The host recognizes image chip IDs through `iris_gateway/chip_targets.py`.
+Recognition permits image inspection, but updates still require the device's
+explicit target to match the image and preserve any product/board/layout/ABI
+contract across Recovery. Unknown IDs and missing targets do not default to S31.
+Coredump analysis uses the archived image's chip ID and the matching Xtensa or
+RISC-V GDB; `ESP_IRIS_GDB` remains an explicit tool override. UART ROM-entry
+reset requires a known live target because its boot timing is chip dependent;
+plain run reset and USB Serial/JTAG reset also work without a HELLO identity.
+
+UART and USB Serial/JTAG provide the control link. Files, OTA, system-update
+writes and continuous media require a separately connected application USB or
+TCP data link as well as the firmware service. Application USB CDC and its ROM
+USB download extension remain S31-specific; recognizing another chip does not
+open that driver. Additional USB adapters, other IDF versions and board-level
+reset circuits need their own validation. Mosaico Recovery ABI/layout policy
+continues to belong to the product layer.
+
 ## What you get
 
 | Layer | Included capability |

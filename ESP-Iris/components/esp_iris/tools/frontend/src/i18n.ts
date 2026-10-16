@@ -58,7 +58,7 @@ const translations: Record<string, string> = {
   "数据：": "Data: ",
   "未连接": "Disconnected",
   "数据链路未连接": "Data link disconnected",
-  "文件传输需要 High-Speed USB 或 TCP 数据链路；控制链路仍可用于日志、RPC 和截图。": "Files require a High-Speed USB or TCP data link; logs, RPC and snapshots remain available on the control link.",
+  "文件传输需要应用 USB 或 TCP 数据链路；控制链路仍可用于日志、RPC 和截图。": "Files require an application USB or TCP data link; logs, RPC and snapshots remain available on the control link.",
   "空闲": "Idle",
   "忙碌": "Busy",
   "连接中": "Connecting",

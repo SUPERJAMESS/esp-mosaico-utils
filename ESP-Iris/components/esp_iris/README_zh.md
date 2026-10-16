@@ -34,6 +34,51 @@ Gateway 与原版 monitor 互斥占用控制台，无需切换设备模式。
 Workbench、CLI 和 Agent 连接分别接收独立的事件流；修改设备的操作会按
 设备串行化。
 
+## 芯片与传输支持
+
+组件声明 ESP-IDF >=5.5，这是依赖下限，不代表所有芯片和 SDK 组合均已验证。
+当前 CI 使用固定的 ESP-IDF 6.2 开发提交，新增 `multichip` 构建组：
+
+| 芯片 | 控制链路 | 测试工程 | 验证范围 |
+| --- | --- | --- | --- |
+| ESP32-C2 | UART | `services_c2` | 编译通过；现有控制链路 fixture 实机通过，74880 baud |
+| ESP32-H2 | USB Serial/JTAG | `services_h2` | 编译通过；现有控制链路 fixture 实机通过 |
+| ESP32 | UART | `services_uart`，显式指定目标 | 本地编译通过，尚无本轮实机验证 |
+| ESP32-S31 | UART、USB Serial/JTAG、应用 USB、TCP | 既有 baseline/system 构建组 | 沿用既有验证，本轮未操作设备 |
+| 其他 SDK 目标 | UART；具备外设时可选 USB Serial/JTAG | 尚未纳入构建矩阵 | 未验证 |
+
+在仓库根目录初始化固定版本 IDF 后，执行 `bash tools/ci/build_firmware.sh multichip`。
+各目标使用独立构建目录。前三项于 2026-10-16 在 IDF 提交
+`7b9cc1ac79f865983f59bb8ff3ff43eb74ff1dbe` 编译通过；该本地 SDK 另有摄像头驱动修改。
+远程 CI 与实机验证需分别记录，不能以编译成功替代。
+
+2026-10-16 已通过消费工作区的 `mosaico.py` 完成 C2/H2 实机验证，使用本分支主机端
+连接设备已安装的 `fc63d43-dirty` service fixture，本次未烧录新固件。覆盖 HELLO、
+状态/堆内存、二进制 RPC、控制链路截图、日志、异步任务、每板 80 次持续 RPC，以及
+软件重启和硬件复位后的同一设备、新 Boot ID 确认。C2 现有固件需显式指定 74880 baud。
+两块板当前固件均未启用任务内存观测；文件与持续媒体明确拒绝缺少数据链路的请求，
+OTA 和 coredump 解析未做实机验证。固件身份及证据哈希见
+[实机验证记录](test_apps/multichip-validation.json)。本次同时修复了串口不重新枚举时
+无法识别重启的问题：持续探测 HELLO，身份未变化的回复不重复触发认证。
+
+
+同日补充验证：同一 Gateway 同时连接 C2/H2，持续 180 秒、每板 377 次 RPC；
+每板 3 次重启期间另一板持续响应。未知服务/方法、非法参数和 RPC 超时后的恢复、
+64 条日志突发、任务取消、每板 3 次释放/重新接管均通过。H2 自动进入 ROM 读取身份
+并恢复应用后的冒烟测试通过，无 Flash 写入。C2/H2 物理拔插与用户确认的完全断电冷启动均已通过：
+自动重连后身份不变、Boot ID 更新，二进制 RPC 正常。
+
+主机统一识别镜像芯片 ID，升级时要求镜像与设备实际目标一致，并在进入 Recovery 后
+继续核对产品、板型、布局和 ABI 契约。未知 ID 或缺失目标不会默认成 S31。
+coredump 根据归档镜像选择目标及 Xtensa/RISC-V GDB，保留 `ESP_IRIS_GDB` 显式覆盖。
+UART 进入 ROM 下载的复位需要已知的实时目标；普通运行复位和 USB Serial/JTAG 复位
+不依赖 HELLO 身份。
+
+UART、USB Serial/JTAG 提供控制链路；文件、OTA、系统更新写入和持续媒体仍需要
+固件启用对应服务，以及独立连接的应用 USB 或 TCP 数据链路。应用 USB CDC 驱动及
+ROM USB 下载扩展仍限定 S31；新增芯片 ID 识别不等于开放该驱动。其他 USB 适配器、
+IDF 版本和板级复位电路需另行验证。Mosaico 的 Recovery ABI 和布局规则仍由产品层提供。
+
 ## 包含内容
 
 | 层级 | 能力 |
