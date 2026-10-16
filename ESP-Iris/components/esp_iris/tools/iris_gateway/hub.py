@@ -6,8 +6,8 @@ import contextlib
 import secrets
 import struct
 import time
-from collections.abc import AsyncIterator
-from typing import Any, Awaitable, Callable, Dict
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Any
 
 from .compat import to_thread
 from .discovery import (
@@ -20,12 +20,18 @@ from .link import EndpointLock, Link, SerialLink, TcpLink
 from .mdns_discovery import IrisMdnsDevice, IrisMdnsDiscovery
 from .ownership import OwnershipRegistry
 from .protocol import ProtocolError, Transport
+from .resource_limits import (
+    ByteBudgetQueue,
+    GatewayLimits,
+    ResourceExhausted,
+    event_size,
+)
 from .session import DeviceError, DeviceSession
 from .system_update import SystemUpdateBundle
 from .usb_ownership import UsbEndpointBusy, usb_admission
 
 LinkOpener = Callable[[], Awaitable[Link]]
-EventCallback = Callable[[Dict[str, Any]], Awaitable[None]]
+EventCallback = Callable[[dict[str, Any]], Awaitable[None]]
 SCREEN_CHANNEL = 3
 RAW_MEDIA_FORMATS = {1, 2}
 ENCODED_MEDIA_FORMATS = {3, 4}
@@ -52,6 +58,8 @@ async def _next_complete_screen_frame(
         or (format_ in RAW_MEDIA_FORMATS and stride <= 0)
     ):
         raise ValueError("screen mirror has an empty frame description")
+    if format_ in RAW_MEDIA_FORMATS and stride * height > 16 * 1024 * 1024:
+        raise ValueError("screen mirror exceeds the 16 MiB frame budget")
 
     async def receive() -> tuple[dict[str, int], bytes]:
         frame_id: int | None = None
@@ -70,6 +78,8 @@ async def _next_complete_screen_frame(
             if tile_format in ENCODED_MEDIA_FORMATS:
                 if not payload:
                     continue
+                if len(payload) > 16 * 1024 * 1024:
+                    raise ValueError("screen mirror exceeds the 16 MiB frame budget")
                 return tile, payload
             if tile_format != format_:
                 continue
@@ -115,8 +125,10 @@ class IrisHub:
         event_sink: EventCallback | None = None,
         hello_timeout_seconds: float = 5.0,
         ownership: OwnershipRegistry | None = None,
+        limits: GatewayLimits | None = None,
     ) -> None:
         self.instance_id = instance_id
+        self.limits = limits or GatewayLimits()
         self._owner_id = secrets.token_bytes(16)
         self.ownership = ownership
         self._candidates: dict[str, dict[str, Any]] = {}
@@ -144,8 +156,8 @@ class IrisHub:
         self._subscribers: dict[str, set[asyncio.Queue[dict[str, Any]]]] = (
             collections.defaultdict(set)
         )
-        self._history: dict[str, collections.deque[dict[str, Any]]] = (
-            collections.defaultdict(lambda: collections.deque(maxlen=100))
+        self._history: dict[str, ByteBudgetQueue] = (
+            collections.defaultdict(lambda: ByteBudgetQueue(100, self.limits.device_history_bytes))
         )
         self._media_subscribers: dict[
             tuple[str, int], set[asyncio.Queue[dict[str, Any]]]
@@ -319,6 +331,8 @@ class IrisHub:
     ) -> None:
         if self._closing:
             raise RuntimeError("ESP-Iris Hub is closing")
+        if endpoint not in self._endpoint_tasks and len(self._endpoint_tasks) >= self.limits.endpoints:
+            raise ResourceExhausted("device endpoints", self.limits.endpoints)
         if self.ownership is not None:
             candidate = {"endpoint": endpoint, **(metadata or {}),
                          "last_seen_ns": time.time_ns(), "present": True}
@@ -897,27 +911,26 @@ class IrisHub:
             if self._event_sink is not None:
                 await self._event_sink(event)
             return
+        if device_id not in self._history and len(self._history) >= self.limits.history_devices:
+            expired = next(iter(self._history))
+            del self._history[expired]
+            self._last_boot_id.pop(expired, None)
         self._history[device_id].append(event)
         if self._event_sink is not None:
             await self._event_sink(event)
         for queue in tuple(self._subscribers.get(device_id, ())):
-            if queue.full():
-                with contextlib.suppress(asyncio.QueueEmpty):
-                    queue.get_nowait()
-            queue.put_nowait(event)
+            queue.push(event)
 
     async def _on_media(self, event: dict[str, Any]) -> None:
         device_id = event.get("device_id")
         channel = event.get("channel")
         if not device_id or channel is None:
             return
+        size = event_size(event)
         for queue in tuple(
             self._media_subscribers.get((device_id, int(channel)), ())
         ):
-            if queue.full():
-                with contextlib.suppress(asyncio.QueueEmpty):
-                    queue.get_nowait()
-            queue.put_nowait(event)
+            queue.push(event, size)
 
     def list_devices(self) -> list[dict[str, Any]]:
         result = []
@@ -1325,14 +1338,18 @@ class IrisHub:
 
     def subscribe(self, device_id: str) -> asyncio.Queue[dict[str, Any]]:
         self.get(device_id)
-        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=256)
+        if sum(len(group) for group in self._subscribers.values()) >= self.limits.hub_observers:
+            raise ResourceExhausted("device observers", self.limits.hub_observers)
+        queue = ByteBudgetQueue(256, self.limits.device_history_bytes)
         self._subscribers[device_id].add(queue)
         for event in self._history.get(device_id, ()):
-            queue.put_nowait(event)
+            queue.push(event)
         return queue
 
     def unsubscribe(self, device_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
         self._subscribers[device_id].discard(queue)
+        if not self._subscribers[device_id]:
+            self._subscribers.pop(device_id, None)
 
     def subscribe_media(
         self, device_id: str, channel: int, *, maxsize: int = 8
@@ -1340,9 +1357,11 @@ class IrisHub:
         self.get(device_id)
         if channel not in (3, 4, 5):
             raise ValueError("media channel must be 3, 4, or 5")
-        if maxsize <= 0:
-            raise ValueError("media subscriber queue size must be positive")
-        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=maxsize)
+        if maxsize <= 1:
+            raise ValueError("media subscriber queue size must be at least 2")
+        if sum(len(group) for group in self._media_subscribers.values()) >= self.limits.media_subscribers:
+            raise ResourceExhausted("media subscribers", self.limits.media_subscribers)
+        queue = ByteBudgetQueue(min(maxsize, 256), self.limits.media_bytes)
         self._media_subscribers[(device_id, channel)].add(queue)
         return queue
 
@@ -1353,6 +1372,8 @@ class IrisHub:
         queue: asyncio.Queue[dict[str, Any]],
     ) -> None:
         self._media_subscribers[(device_id, channel)].discard(queue)
+        if not self._media_subscribers[(device_id, channel)]:
+            self._media_subscribers.pop((device_id, channel), None)
 
     async def close(self) -> None:
         self._closing = True

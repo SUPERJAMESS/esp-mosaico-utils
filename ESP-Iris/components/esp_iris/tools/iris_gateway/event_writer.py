@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import concurrent.futures
 import logging
 import pathlib
@@ -26,9 +25,14 @@ class EventWriter:
     BATCH_ITEMS = 128
     BATCH_BYTES = 512 * 1024
 
-    def __init__(self, root: pathlib.Path, publish: Callable[[list[dict[str, Any]]], None]) -> None:
+    def __init__(self, root: pathlib.Path, publish: Callable[[list[dict[str, Any]]], None], *,
+                 max_items: int | None = None, max_bytes: int | None = None,
+                 max_event_bytes: int = 256 * 1024) -> None:
         self.root, self.publish = root, publish
         self.loop = asyncio.get_running_loop()
+        self.max_items = self.MAX_ITEMS if max_items is None else max_items
+        self.max_bytes = self.MAX_BYTES if max_bytes is None else max_bytes
+        self.max_event_bytes = max_event_bytes
         self.condition = threading.Condition()
         self.items: Any = deque()
         self.bytes = 0
@@ -55,8 +59,8 @@ class EventWriter:
         with self.condition:
             # Reserve a small amount of space for evidence acknowledgements.
             extra_items, extra_bytes = (16, self.BATCH_BYTES) if critical else (0, 0)
-            if (self.closing or len(self.items) >= self.MAX_ITEMS + extra_items
-                    or self.bytes + size > self.MAX_BYTES + extra_bytes):
+            if (self.closing or size > self.max_event_bytes or len(self.items) >= self.max_items + extra_items
+                    or self.bytes + size > self.max_bytes + extra_bytes):
                 self._note_loss(item)
                 return False, None
             self.items.append((size, category, item, device, future))
@@ -75,8 +79,9 @@ class EventWriter:
         if capture and item.get("kind") == "console_raw":
             start = int(item["offset"])
             old = self.lost_captures.get(capture)
-            self.lost_captures[capture] = (old[0] if old else start,
-                                           start + len(base64.b64decode(item["data_base64"])))
+            encoded = item["data_base64"]
+            raw_size = len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip("=")))
+            self.lost_captures[capture] = (old[0] if old else start, start + raw_size)
             self.lost_captures.move_to_end(capture)
             while len(self.lost_captures) > 1024:
                 self.lost_captures.popitem(last=False)
@@ -125,7 +130,9 @@ class EventWriter:
                 changed.append(info)
                 self.device_cache[device_id] = (encoded, now)
                 self.device_cache.move_to_end(device_id)
-        while len(self.device_cache) > 1024:
+        cache_bytes = sum(len(value[0].encode()) for value in self.device_cache.values())
+        while len(self.device_cache) > 1024 or cache_bytes > self.max_bytes:
+            cache_bytes -= len(next(iter(self.device_cache.values()))[0].encode())
             self.device_cache.popitem(last=False)
         return changed
 

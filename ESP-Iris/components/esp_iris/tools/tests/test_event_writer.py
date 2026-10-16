@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from iris_gateway.event_segments import EventSegments
 from iris_gateway.event_writer import EventWriter
 from iris_gateway.gateway import GatewayService
+from iris_gateway.resource_limits import GatewayLimits
 from iris_gateway.store import GatewayStore
 
 
@@ -63,7 +64,7 @@ def test_full_writer_queue_reports_loss_and_critical_evidence_waits_for_commit(t
         store.create_operation({"operation_id": "ota", "device_id": "device", "actor_type": "local",
                                 "actor_name": "test", "action": "firmware.ota", "status": "outcome_unknown",
                                 "created_ns": 1})
-        service = GatewayService(store, instance_id="overflow")
+        service = GatewayService(store, instance_id="overflow", limits=GatewayLimits(writer_items=8, writer_bytes=16 * 1024))
         queue = service.subscribe()
         entered, release = threading.Event(), threading.Event()
         append = EventSegments.append

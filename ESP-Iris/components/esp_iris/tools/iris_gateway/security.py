@@ -10,6 +10,7 @@ import time
 from collections.abc import Iterable
 from typing import Any
 
+from .resource_limits import ResourceExhausted
 from .state_store import StateStore
 
 DEFAULT_DEVELOPER_PASSWORD = "espressif"
@@ -33,8 +34,9 @@ class AuthManager:
     COOKIE_NAME = "esp_iris_session"
     PASSWORD_ROUNDS = 310_000
 
-    def __init__(self, store: StateStore) -> None:
+    def __init__(self, store: StateStore, *, max_sessions: int = 128) -> None:
         self.store = store
+        self.max_sessions = max_sessions
         self._sessions: dict[str, tuple[Actor, int]] = {}
 
     @property
@@ -87,6 +89,10 @@ class AuthManager:
     def login(self, password: str) -> str:
         if not self.verify_password(password):
             raise PermissionError("invalid developer password")
+        cutoff = time.time_ns() - 12 * 3600 * 1_000_000_000
+        self._sessions = {key: entry for key, entry in self._sessions.items() if entry[1] >= cutoff}
+        if len(self._sessions) >= self.max_sessions:
+            raise ResourceExhausted("authentication sessions", self.max_sessions)
         token = secrets.token_urlsafe(32)
         self._sessions[token] = (Actor("developer", "Developer"), time.time_ns())
         return token
@@ -99,6 +105,9 @@ class AuthManager:
         if not token:
             return None
         entry = self._sessions.get(token)
+        if entry and time.time_ns() - entry[1] > 12 * 3600 * 1_000_000_000:
+            self._sessions.pop(token, None)
+            return None
         return entry[0] if entry else None
 
     def create_agent_token(

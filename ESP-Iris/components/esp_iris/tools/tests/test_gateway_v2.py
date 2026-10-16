@@ -44,12 +44,13 @@ def _firmware_bundle() -> tuple[bytes, bytes, bytes]:
     return bytes(image), elf, b"memory map"
 
 
-def test_gateway_client_max_size_is_one_gibibyte(tmp_path) -> None:
+def test_gateway_client_max_size_matches_upload_budget(tmp_path) -> None:
     service = GatewayService(GatewayStore(tmp_path), instance_id="test", demo=True)
     app = create_app(service)
 
-    assert GATEWAY_CLIENT_MAX_SIZE == 1024**3
+    assert GATEWAY_CLIENT_MAX_SIZE == 128 * 1024**2
     assert app._client_max_size == GATEWAY_CLIENT_MAX_SIZE
+    service.store.close()
 
 
 def test_system_inventory_endpoint_returns_live_layout_hash(tmp_path) -> None:

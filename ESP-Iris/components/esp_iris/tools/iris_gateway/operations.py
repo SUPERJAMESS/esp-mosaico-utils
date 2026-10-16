@@ -12,9 +12,11 @@ from typing import Any
 
 from .observability import MetricsRegistry
 from .operation_identity import request_fingerprint, require_same_request
+from .resource_limits import GatewayLimits, OperationAdmission, ResourceExhausted
 from .security import Actor
 from .state_machine import TERMINAL_OPERATION_STATES, operation_transition
 from .storage_health import StorageUnavailable
+from .storage_json import encode_json
 from .store import GatewayStore
 
 
@@ -44,6 +46,8 @@ class _Pending:
     device_id: str
     cancelled: bool = False
     running: bool = False
+    task: asyncio.Task[Any] | None = None
+    released: asyncio.Event = dataclasses.field(default_factory=asyncio.Event)
 
 
 def _safe_value(value: Any) -> Any:
@@ -67,6 +71,7 @@ class OperationManager:
         store: GatewayStore,
         event_sink: Callable[[dict[str, Any]], Awaitable[None]],
         metrics: MetricsRegistry | None = None,
+        limits: GatewayLimits | None = None,
     ) -> None:
         self.store = store
         self.event_sink = event_sink
@@ -76,6 +81,25 @@ class OperationManager:
         self._submission_ids: set[str] = set()
         self._exclusive: dict[str, str] = {}
         self.metrics = metrics or MetricsRegistry()
+        self.admission = OperationAdmission(limits or GatewayLimits())
+        self._lock_users: defaultdict[str, int] = defaultdict(int)
+
+    def _admit(self, operation_id: str, device_id: str, actor: Actor,
+               params: dict[str, Any], cost_bytes: int, token: object | None = None) -> object:
+        cost = cost_bytes + len(encode_json(_safe_value(params)).encode())
+        if not cost_bytes:
+            cost += max(int(params.get("request_bytes", 0)), int(params.get("bytes", 0)))
+        try:
+            result = self.admission.acquire(operation_id, device_id, actor.kind + ":" + actor.name, cost, token)
+        except ResourceExhausted:
+            self.metrics.increment("operations.admission_rejected")
+            raise
+        self.metrics.gauge("operations.admitted", len(self.admission.reservations))
+        return result
+
+    def _release(self, operation_id: str, token: object) -> None:
+        self.admission.release(operation_id, token)
+        self.metrics.gauge("operations.admitted", len(self.admission.reservations))
 
     @staticmethod
     def _fingerprint(device_id: str, actor: Actor, action: str, params: dict[str, Any]) -> str:
@@ -178,6 +202,7 @@ class OperationManager:
         serialized: bool = True,
         result_summary: Callable[[Any], Any] | None = None,
         exclusive_resources: tuple[str, ...] = (),
+        cost_bytes: int = 0,
     ) -> tuple[dict[str, Any], bool]:
         """Queue an operation and return immediately while it runs in background."""
 
@@ -197,6 +222,7 @@ class OperationManager:
                     require_same_request(existing, fingerprint)
                     return existing, False
             raise RuntimeError("concurrent operation submission was not registered")
+        reservation = self._admit(operation_id, device_id, actor, params, cost_bytes)
         self._submission_ids.add(operation_id)
         task = asyncio.create_task(
             self.execute(
@@ -209,6 +235,8 @@ class OperationManager:
                 serialized=serialized,
                 result_summary=result_summary,
                 exclusive_resources=exclusive_resources,
+                cost_bytes=cost_bytes,
+                _reservation=reservation,
             ),
             name=f"esp-iris-operation-{operation_id}",
         )
@@ -217,6 +245,7 @@ class OperationManager:
         def completed(done: asyncio.Task[Any]) -> None:
             self._tasks.discard(done)
             self._submission_ids.discard(operation_id)
+            self._release(operation_id, reservation)
             # Retrieve the exception so a failed background request does not
             # become an unhandled asyncio task. Its durable operation row is
             # the public result channel.
@@ -239,6 +268,7 @@ class OperationManager:
     async def cancel_queued(self, device_id: str | None = None, *,
                             reason: str = "cancelled when gateway entered observe mode") -> int:
         count = 0
+        releasing = []
         for pending in tuple(self._pending.values()):
             if device_id is not None and pending.device_id != device_id and self._exclusive.get(device_id) != pending.operation_id:
                 continue
@@ -251,7 +281,12 @@ class OperationManager:
                     error=reason,
                     finished_ns=time.time_ns(),
                 )
+                if pending.task is not None and pending.task is not asyncio.current_task():
+                    pending.task.cancel()
+                    releasing.append(pending.released)
                 await self._emit(operation)
+        if releasing:
+            await asyncio.gather(*(released.wait() for released in releasing))
         return count
 
     async def close(self) -> None:
@@ -262,6 +297,26 @@ class OperationManager:
             await asyncio.gather(*tasks, return_exceptions=True)
 
     async def execute(
+        self, device_id: str, actor: Actor, action: str, params: dict[str, Any],
+        call: Callable[[], Awaitable[Any]], *, operation_id: str | None = None,
+        serialized: bool = True, result_summary: Callable[[Any], Any] | None = None,
+        exclusive_resources: tuple[str, ...] = (), cost_bytes: int = 0,
+        _reservation: object | None = None,
+    ) -> tuple[dict[str, Any], Any, bool]:
+        operation_id = operation_id or str(uuid.uuid4())
+        existing = self.store.operation(operation_id)
+        if existing is not None:
+            require_same_request(existing, self._fingerprint(device_id, actor, action, params))
+            return existing, existing.get("result"), False
+        reservation = self._admit(operation_id, device_id, actor, params, cost_bytes, _reservation)
+        try:
+            return await self._execute(device_id, actor, action, params, call, operation_id=operation_id,
+                                       serialized=serialized, result_summary=result_summary,
+                                       exclusive_resources=exclusive_resources)
+        finally:
+            self._release(operation_id, reservation)
+
+    async def _execute(
         self,
         device_id: str,
         actor: Actor,
@@ -302,10 +357,12 @@ class OperationManager:
         )
         if not created:
             return operation, operation.get("result"), False
-        pending = _Pending(operation_id, device_id)
+        pending = _Pending(operation_id, device_id, task=asyncio.current_task())
         if exclusive_resources:
             self._exclusive.update({key: operation_id for key in resources})
         self._pending[operation_id] = pending
+        for key in resources:
+            self._lock_users[key] += 1
         try:
             await self._emit(operation)
             if serialized:
@@ -324,11 +381,20 @@ class OperationManager:
                 pending, call, result_summary=result_summary
             )
             return completed, result, True
+        except asyncio.CancelledError:
+            if pending.cancelled:
+                raise OperationCancelled("operation cancelled before it reached the device") from None
+            raise
         finally:
             self._pending.pop(operation_id, None)
             for key in resources:
+                self._lock_users[key] -= 1
+                if not self._lock_users[key]:
+                    del self._lock_users[key]
+                    self._locks.pop(key, None)
                 if self._exclusive.get(key) == operation_id:
                     del self._exclusive[key]
+            pending.released.set()
 
     async def _run(
         self,
