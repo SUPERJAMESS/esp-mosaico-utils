@@ -6,8 +6,8 @@ import contextlib
 import secrets
 import struct
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Any
+from collections.abc import AsyncIterator
+from typing import Any, Awaitable, Callable, Dict
 
 from .compat import to_thread
 from .discovery import (
@@ -31,7 +31,7 @@ from .system_update import SystemUpdateBundle
 from .usb_ownership import UsbEndpointBusy, usb_admission
 
 LinkOpener = Callable[[], Awaitable[Link]]
-EventCallback = Callable[[dict[str, Any]], Awaitable[None]]
+EventCallback = Callable[[Dict[str, Any]], Awaitable[None]]
 SCREEN_CHANNEL = 3
 RAW_MEDIA_FORMATS = {1, 2}
 ENCODED_MEDIA_FORMATS = {3, 4}

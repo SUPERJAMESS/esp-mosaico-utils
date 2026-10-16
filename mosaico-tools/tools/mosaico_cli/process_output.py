@@ -99,6 +99,11 @@ def stream_process(command: list[str], *, path: Path | None, timeout: float | No
         result.progress_dropped = dropped
         return result
 
+    def diagnostic_tail() -> str:
+        # Preserve subprocess text-mode newline behavior while the disk spool
+        # retains the child's original bytes on every host.
+        return tail.decode("utf-8", "replace").replace("\r\n", "\n").replace("\r", "\n")
+
     try:
         while not done.is_set() or not lines.empty():
             if failures:
@@ -113,7 +118,7 @@ def stream_process(command: list[str], *, path: Path | None, timeout: float | No
         if failures:
             raise failures[0]
         remaining = None if deadline is None else max(0, deadline - time.monotonic())
-        return annotate(subprocess.CompletedProcess(command, process.wait(timeout=remaining), tail.decode("utf-8", "replace")))
+        return annotate(subprocess.CompletedProcess(command, process.wait(timeout=remaining), diagnostic_tail()))
     except BaseException as exc:
         try:
             if os.name == "posix":
@@ -125,7 +130,7 @@ def stream_process(command: list[str], *, path: Path | None, timeout: float | No
         process.wait()
         reader.join(timeout=2)
         if isinstance(exc, subprocess.TimeoutExpired):
-            exc.output = tail.decode("utf-8", "replace")
+            exc.output = diagnostic_tail()
             annotate(exc)
         raise
     finally:
