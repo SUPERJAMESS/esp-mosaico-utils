@@ -102,12 +102,18 @@ jobs:
           path: .host-deps/cjson
           persist-credentials: false
       - name: Test ESP-Iris
+        id: iris-tests
+        continue-on-error: true
         run: python -m pytest -q --ignore=tests/e2e --junitxml=iris-results.xml
         working-directory: ESP-Iris/components/esp_iris/tools
       - name: Test ESP-Mosaico Tools
+        id: tools-tests
+        continue-on-error: true
         if: runner.os != 'Windows'
         run: python -m pytest -q shared mosaico-tools/tests esp-mosaico-vibe-mode/tests --junitxml=tools-results.xml
       - name: Test ESP-Mosaico Tools on Windows
+        id: windows-tests
+        continue-on-error: true
         if: runner.os == 'Windows'
         run: >-
           python -m pytest -q shared mosaico-tools/tests esp-mosaico-vibe-mode/tests
@@ -117,6 +123,8 @@ jobs:
           --deselect=esp-mosaico-vibe-mode/tests/test_cli.py::RecoveryCommandTests::test_idf_wrapper_reports_bounded_cmake_diagnostic
           --junitxml=tools-results.xml
       - name: Validate generated project hooks
+        id: hooks-tests
+        continue-on-error: true
         env:
           MOSAICO_TEST_PRE_COMMIT: "1"
         run: |
@@ -131,6 +139,16 @@ jobs:
             tools-results.xml
           if-no-files-found: error
           retention-days: 14
+
+      - name: Require every host suite to pass
+        if: always()
+        # Collect all suite failures in one run without relaxing the job gate.
+        run: >-
+          python -c "import sys;
+          results = ['${{ steps.iris-tests.outcome }}', '${{ steps.hooks-tests.outcome }}',
+          '${{ steps.tools-tests.outcome }}', '${{ steps.windows-tests.outcome }}'];
+          print('Host suite outcomes:', results);
+          sys.exit(0 if results[:2] == ['success', 'success'] and sorted(results[2:]) == ['skipped', 'success'] else 1)"
 
   quality:
     runs-on: ubuntu-22.04
