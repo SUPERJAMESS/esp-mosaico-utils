@@ -42,7 +42,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15-intel, windows-2022]
+        # Ideas text shaping requires libraqm >= 0.9 (Jammy ships 0.7).
+        os: [ubuntu-24.04, macos-15-intel, windows-2022]
         python: ["3.8", "3.12"]
     steps:
       - uses: actions/checkout@v7
@@ -69,6 +70,10 @@ jobs:
           NATIVE_PREFIX: ${{ steps.msys.outputs.msys2-location }}/mingw64
         run: |
           "$env:NATIVE_PREFIX/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # MSYS2's dependencies also install Python; keep the selected matrix
+          # interpreter ahead of it when invoking pip and pytest.
+          "$env:pythonLocation/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "$env:pythonLocation" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           "CMAKE_PREFIX_PATH=$env:NATIVE_PREFIX" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           # ctypes.find_library searches for raqm.dll, while MSYS2 versions its DLL.
           Copy-Item "$env:NATIVE_PREFIX/bin/libraqm-0.dll" "$env:NATIVE_PREFIX/bin/raqm.dll"
@@ -155,7 +160,7 @@ jobs:
           ESP-Iris/components/esp_iris/tools/iris_gateway
 
   sanitizers:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       IRIS_HOST_SANITIZERS: "1"
