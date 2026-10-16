@@ -75,6 +75,7 @@ from .recovery_transition import (
 )
 from .security import Actor, AuthManager
 from .source_identity import running_source
+from .storage_health import StorageUnavailable
 from .store import GatewayStore
 from .system_update import (
     SystemUpdateBundle,
@@ -188,14 +189,25 @@ class GatewayService:
             category = "device"
         item = normalize_event(item, category=category, component="gateway")
         self.metrics.increment(f"events.{category}")
+        device = None
         if device_id and self.hub is not None:
             for current in self.hub.list_devices():
                 if current.get("device_id") == device_id:
                     current = dict(current)
                     current["connected"] = True
-                    self.store.remember_device(current)
+                    device = current
                     break
-        persisted = self.store.append_event(category, item, device_id)
+        for persisted in self.store.record_event(category, item, device_id, device):
+            self._broadcast_event(persisted)
+        if (
+            device_id
+            and item.get("event_name") == "core_dump_available"
+            and device_id not in self._crash_archives_in_progress
+        ):
+            self._crash_archives_in_progress.add(str(device_id))
+            asyncio.create_task(self._auto_archive_crash(str(device_id)))
+
+    def _broadcast_event(self, persisted: dict[str, Any]) -> None:
         for queue in tuple(self._subscribers):
             if queue.full():
                 # Both the gap and the newest event need a slot. In particular,
@@ -214,13 +226,6 @@ class GatewayService:
                 queue.put_nowait(gap)
             queue.put_nowait(persisted)
         self.metrics.gauge("events.subscribers", len(self._subscribers))
-        if (
-            device_id
-            and item.get("event_name") == "core_dump_available"
-            and device_id not in self._crash_archives_in_progress
-        ):
-            self._crash_archives_in_progress.add(str(device_id))
-            asyncio.create_task(self._auto_archive_crash(str(device_id)))
 
     def _matching_crash_artifact(
         self, report: dict[str, Any]
@@ -696,6 +701,8 @@ def create_app(service: GatewayService) -> web.Application:
             return _error(409, "operation_cancelled", str(exc))
         except OperationOutcomeUnknown as exc:
             return _error(409, "outcome_unknown", str(exc))
+        except StorageUnavailable as exc:
+            return _error(503, "storage_unavailable", str(exc))
         except (asyncio.TimeoutError, TimeoutError) as exc:
             return _error(504, "device_timeout", str(exc) or "device request timed out")
         except (RuntimeError, ConnectionError) as exc:
@@ -732,6 +739,7 @@ def create_app(service: GatewayService) -> web.Application:
         return web.json_response(
             {
                 "status": "ok",
+                "storage": service.store.storage_health(),
                 "instance_id": service.instance_id,
                 "host_id": service.host_id,
                 "gateway_api": GATEWAY_API,
@@ -955,6 +963,9 @@ def create_app(service: GatewayService) -> web.Application:
             nonlocal last_event_id
             while True:
                 item = await queue.get()
+                if item.get("kind") == "history_gap":
+                    await websocket.send_json(item)
+                    continue
                 if device_id and item.get("device_id") != device_id:
                     continue
                 if capture_id and item.get("capture_id") != capture_id:
