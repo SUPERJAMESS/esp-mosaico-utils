@@ -59,7 +59,12 @@ def table():
 def archive(files):
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        for path, data in files.items(): z.writestr(path, data)
+        for path, data in files.items():
+            info = zipfile.ZipInfo(path)
+            # Malformed names must reach the validator unchanged on Windows.
+            info.filename = path
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, data)
     return out.getvalue()
 
 

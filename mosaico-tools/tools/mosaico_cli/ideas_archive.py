@@ -95,7 +95,7 @@ def package_project(project, output, bundle=None):
                     "Prebuilt resources must use basenames")
             resources = {"display.json": raw}
             for name in names:
-                resources[name] = read_source(source_path(root, str((display_path.parent / name).relative_to(root))), 1024*1024)
+                resources[name] = read_source(source_path(root, (display_path.parent / name).relative_to(root).as_posix()), 1024*1024)
         prefix = "device/" + locale + "/"
         for name, data in resources.items(): files[prefix + name] = data
         presentations.append({"display": descriptor(prefix + "display.json", resources["display.json"]),

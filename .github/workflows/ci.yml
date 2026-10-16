@@ -13,6 +13,7 @@ permissions:
 env:
   ESP_IDF_REVISION: 7b9cc1ac79f865983f59bb8ff3ff43eb74ff1dbe
   IRIS_REQUIRE_HOST_CC: "1"
+  PYTHONUTF8: "1"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -35,7 +36,7 @@ jobs:
   host:
     name: Host / ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       CJSON_COMPONENT_DIR: ${{ github.workspace }}/.host-deps/cjson
     strategy:
@@ -50,10 +51,32 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - name: Make MinGW compiler available
+      - name: Install Windows native test dependencies
+        if: runner.os == 'Windows'
+        id: msys
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc mingw-w64-x86_64-make
+            mingw-w64-x86_64-openssl mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-libraqm
+      - name: Configure Windows native dependencies and temporary paths
         if: runner.os == 'Windows'
         shell: pwsh
-        run: '"C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
+        env:
+          NATIVE_PREFIX: ${{ steps.msys.outputs.msys2-location }}/mingw64
+        run: |
+          "$env:NATIVE_PREFIX/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "CMAKE_PREFIX_PATH=$env:NATIVE_PREFIX" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # ctypes.find_library searches for raqm.dll, while MSYS2 versions its DLL.
+          Copy-Item "$env:NATIVE_PREFIX/bin/libraqm-0.dll" "$env:NATIVE_PREFIX/bin/raqm.dll"
+          # Generated project references require the checkout and fixtures on one drive.
+          $testTemp = Join-Path $env:GITHUB_WORKSPACE '.host-tmp'
+          New-Item -ItemType Directory -Force $testTemp | Out-Null
+          "TEMP=$testTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TMP=$testTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Install host dependencies
         run: >-
           python -m pip install --disable-pip-version-check
@@ -63,7 +86,10 @@ jobs:
           -r mosaico-tools/requirements-ideas.txt
       - name: Install Recovery C test dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev libraqm0
+      - name: Install macOS text shaping dependency
+        if: runner.os == 'macOS'
+        run: brew install libraqm
       - uses: actions/checkout@v7
         with:
           repository: DaveGamble/cJSON
@@ -142,10 +168,13 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: python -m pip install --disable-pip-version-check -r ESP-Iris/components/esp_iris/tools/requirements-test.txt
+      - run: >-
+          python -m pip install --disable-pip-version-check
+          -r ESP-Iris/components/esp_iris/tools/requirements-test.txt
+          -r mosaico-tools/requirements-ideas.txt
       - name: Install Recovery C test dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev libraqm0
       - uses: actions/checkout@v7
         if: runner.os == 'Linux'
         with:
