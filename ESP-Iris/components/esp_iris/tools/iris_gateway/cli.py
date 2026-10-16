@@ -320,11 +320,13 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
                     if json.loads(connection.read_text()).get("session_id") == project_session_id:
                         connection.unlink()
             registry.close(clean=not service.project.drain_timed_out)
-        store.add_audit(
-            "system", "gateway", "gateway.stopped", {"instance_id": args.instance_id}
-        )
-        store.cleanup_raw_logs()
-        store.close()
+        try:
+            store.add_audit(
+                "system", "gateway", "gateway.stopped", {"instance_id": args.instance_id}
+            )
+            store.cleanup_raw_logs()
+        finally:
+            store.close()
 
 
 def _profile_path() -> pathlib.Path:

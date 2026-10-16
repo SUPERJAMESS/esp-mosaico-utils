@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import gzip
 import hashlib
 import json
@@ -11,12 +12,14 @@ import sqlite3
 import tempfile
 import time
 import zipfile
+from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any
 
 from .boot_identity import boot_id_text
 from .operation_identity import request_fingerprint, require_same_request
 from .schema import initialize_schema
+from .storage_health import durable_write
 
 
 def _json(value: Any) -> str:
@@ -53,6 +56,69 @@ class GatewayStore:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
         self._last_log_cleanup_ns = 0
+        self._state_error: str | None = None
+        self._event_error: str | None = None
+        self._retry_events_at = 0.0
+        self._lost_events = 0
+        self._pending_loss = 0
+        self._loss_start_ns = 0
+        self._loss_end_ns = 0
+        self._lost_captures: OrderedDict[str, int] = OrderedDict()
+
+    def storage_failed(self, exc: BaseException) -> None:
+        with contextlib.suppress(sqlite3.Error):
+            self.db.rollback()
+        self._state_error = str(exc)
+
+    def storage_health(self) -> dict[str, Any]:
+        return {"status": "degraded" if self._event_error or self._state_error else "ok",
+                "state_error": self._state_error, "event_error": self._event_error,
+                "lost_events": self._lost_events, "pending_loss": self._pending_loss}
+
+    def record_event(self, category: str, payload: dict[str, Any],
+                     device_id: str | None = None,
+                     device: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        """Best-effort diagnostics never interrupt the device receive loop."""
+        now = time.monotonic()
+        if now >= self._retry_events_at:
+            try:
+                if device is not None:
+                    self.remember_device(device)
+                recovered = []
+                if self._pending_loss:
+                    recovered.append(self.append_event("system", {
+                        "kind": "history_gap", "reason": "event storage unavailable",
+                        "dropped_events": self._pending_loss,
+                        "from_host_receive_ns": self._loss_start_ns,
+                        "to_host_receive_ns": self._loss_end_ns,
+                    }))
+                    self._pending_loss = 0
+                item = self.append_event(category, payload, device_id)
+                self._event_error = None
+                self._state_error = None
+                self._retry_events_at = 0
+                return [*recovered, item]
+            except (sqlite3.Error, OSError) as exc:
+                self.storage_failed(exc)
+                self._event_error = str(exc)
+                self._retry_events_at = now + 1.0
+        host_ns = int(payload.get("host_receive_wall_ns") or time.time_ns())
+        self._lost_events += 1
+        if not self._pending_loss:
+            self._loss_start_ns = host_ns
+        self._loss_end_ns = host_ns
+        self._pending_loss += 1
+        capture = payload.get("capture_id")
+        if capture and payload.get("kind") == "console_raw":
+            self._lost_captures[str(capture)] = int(payload["offset"]) + len(
+                base64.b64decode(payload["data_base64"], validate=True))
+            self._lost_captures.move_to_end(str(capture))
+            while len(self._lost_captures) > 1024:
+                self._lost_captures.popitem(last=False)
+        item = dict(payload, category=category, host_receive_ns=host_ns, persisted=False)
+        gap = {"kind": "history_gap", "category": "system", "host_receive_ns": host_ns,
+               "reason": "event storage unavailable", "dropped_events": 1}
+        return [gap, item]
 
     def close(self) -> None:
         self.db.close()
@@ -63,6 +129,7 @@ class GatewayStore:
         ).fetchone()
         return _loads(row["value"], default) if row else default
 
+    @durable_write
     def set_setting(self, key: str, value: Any) -> None:
         self.db.execute(
             """INSERT INTO settings(key, value, updated_ns) VALUES(?, ?, ?)
@@ -176,11 +243,19 @@ class GatewayStore:
                                   (capture_id,)).fetchone()
             expected = int(row[0]) if row else 0
             if offset != expected:
-                raise ValueError("raw console capture contains an offset gap")
+                if offset <= expected or self._lost_captures.get(str(capture_id)) != offset:
+                    raise ValueError("raw console capture contains an offset gap")
+                gap = dict(payload, kind="console_gap", offset=expected, end_offset=offset,
+                           reason="event storage unavailable")
+                gap.pop("data_base64", None)
+                self.db.execute(
+                    "INSERT INTO events(device_id, category, host_receive_ns, payload_json, capture_id) "
+                    "VALUES(?, 'console', ?, ?, ?)", (device_id, host_ns, _json(gap), capture_id))
             self.db.execute(
                 "INSERT INTO console_captures(capture_id, endpoint, device_id, first_ns, last_ns, bytes_received) "
                 "VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(capture_id) DO UPDATE SET "
-                "last_ns=excluded.last_ns, bytes_received=excluded.bytes_received",
+                "last_ns=excluded.last_ns, bytes_received=excluded.bytes_received, "
+                "device_id=COALESCE(excluded.device_id, console_captures.device_id)",
                 (capture_id, payload["endpoint"], device_id, host_ns, host_ns, offset + len(raw)))
         elif payload.get("kind") == "console_binding" and device_id:
             pending = self.db.execute(
@@ -207,6 +282,8 @@ class GatewayStore:
         self.preserve_event_evidence(dict(payload, event_id=event_id, category=category,
                                          host_receive_ns=host_ns), device_id)
         self.db.commit()
+        if capture_id and payload.get("kind") == "console_raw":
+            self._lost_captures.pop(str(capture_id), None)
         item = dict(payload)
         item.update(event_id=event_id, category=category, host_receive_ns=host_ns)
         if capture_id and payload.get("kind") in {"console_raw", "console_binding", "console_gap", "hardware_reset"}:
@@ -333,6 +410,7 @@ class GatewayStore:
             items.append(item)
         return items
 
+    @durable_write
     def create_operation(self, operation: dict[str, Any]) -> tuple[dict[str, Any], bool]:
         fingerprint = operation.get("request_fingerprint") or request_fingerprint(operation)
         cursor = self.db.execute(
@@ -360,6 +438,7 @@ class GatewayStore:
         require_same_request(stored, fingerprint)
         return stored, cursor.rowcount == 1
 
+    @durable_write
     def update_operation(self, operation_id: str, **changes: Any) -> dict[str, Any]:
         columns = {
             "status",

@@ -7,13 +7,14 @@ import time
 import uuid
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, suppress
 from typing import Any
 
 from .observability import MetricsRegistry
 from .operation_identity import request_fingerprint, require_same_request
 from .security import Actor
 from .state_machine import TERMINAL_OPERATION_STATES, operation_transition
+from .storage_health import StorageUnavailable
 from .store import GatewayStore
 
 
@@ -226,6 +227,8 @@ class OperationManager:
         await asyncio.sleep(0)
         operation = self.store.operation(operation_id)
         if operation is None:
+            if task.done():
+                task.result()
             raise RuntimeError("background operation was not registered")
         require_same_request(operation, fingerprint)
         if task.done():
@@ -357,6 +360,17 @@ class OperationManager:
             await self._emit(operation)
             raise
         except OperationCancelled:
+            raise
+        except StorageUnavailable:
+            # The command may already have reached the device. If even this
+            # transition fails, leave the active durable row for restart recovery.
+            with suppress(StorageUnavailable):
+                operation = self._transition(
+                    pending.operation_id, "outcome_unknown",
+                    error="state storage failed during device operation; writes were not replayed",
+                    finished_ns=time.time_ns(),
+                )
+                await self._emit(operation)
             raise
         except (OperationOutcomeUnknown, asyncio.TimeoutError, TimeoutError) as exc:
             operation = self._transition(
