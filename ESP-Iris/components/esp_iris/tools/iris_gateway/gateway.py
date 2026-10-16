@@ -31,6 +31,7 @@ from .crashes import register_routes as register_crash_routes
 from .device_state import describe as describe_device
 from .discovery import discover_iris_usb_devices, usb_endpoint
 from .event_writer import EventWriter
+from .export_jobs import register_exports
 from .file_routes import register_file_routes
 from .files import FileServiceError, file_error_http_status
 from .firmware import inspect_firmware_image
@@ -105,6 +106,7 @@ GATEWAY_CAPABILITIES = [
     "recovery-preconditions/v1",
     "update-acceptance/v1",
     "recovery-transition/v1",
+    "background-export/v1",
 ]
 
 
@@ -814,6 +816,8 @@ def create_app(service: GatewayService) -> web.Application:
                 "status": "ok",
                 "storage": service.store.storage_health(),
                 "event_writer": service._event_writer.snapshot() if service._event_writer else None,
+                "exports": {"limits": dataclasses.asdict(service.exports.policy), "active": len(service.exports.cancel_events),
+                            "retained_jobs": len(service.exports.jobs), "storage_error": service.exports.storage_error},
                 "resources": {"limits": dataclasses.asdict(service.limits), "active": service.resource_usage,
                               "subscribers": len(service._subscribers),
                               "subscriber_bytes": sum(queue.bytes for queue in service._subscribers),
@@ -1649,11 +1653,6 @@ def create_app(service: GatewayService) -> web.Application:
         service.auth.change_password(str(body.get("password", "")), _actor(request))
         return web.json_response({"changed": True, "login_required": True})
 
-    async def export(request: web.Request) -> web.StreamResponse:
-        del request
-        target = service.store.export_zip()
-        return web.FileResponse(target, headers={"Content-Disposition": f'attachment; filename="{target.name}"'})
-
     async def openapi(request: web.Request) -> web.Response:
         return web.json_response(
             build_openapi(service.authentication_required(request))
@@ -1755,7 +1754,7 @@ def create_app(service: GatewayService) -> web.Application:
     app.router.add_post("/v2/auth/tokens", tokens)
     app.router.add_delete("/v2/auth/tokens/{token_id}", revoke_token)
     app.router.add_put("/v2/auth/password", change_password)
-    app.router.add_post("/v2/export", export)
+    register_exports(app, service)
     app.router.add_get("/v2/openapi.json", openapi)
     if service.project is not None:
         service.project.register_routes(app)

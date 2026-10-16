@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { api, formatTime } from "./api";
 import PageHeading from "./PageHeading";
 import ProjectSession from "./ProjectSession";
+import ExportPanel from "./ExportPanel";
 
 type Token = { token_id: string; name: string; scopes: string[]; created_ns: number; last_used_ns?: number; revoked_ns?: number; token?: string };
 type Props = { mode: "develop" | "observe"; demo: boolean; localAuthRequired: boolean; projectSession?: boolean; onOpenDocs: () => void };
@@ -12,7 +13,6 @@ export default function Settings({ mode, demo, localAuthRequired, projectSession
   const [tokenProfile, setTokenProfile] = useState("read");
   const [shownToken, setShownToken] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
 
   async function refreshTokens() {
     const result = await api<{ tokens: Token[] }>("/v2/auth/tokens");
@@ -47,23 +47,11 @@ export default function Settings({ mode, demo, localAuthRequired, projectSession
     location.reload();
   }
 
-  async function exportData() {
-    const response = await fetch("/v2/export", { method: "POST" });
-    if (!response.ok) return setMessage("导出失败");
-    const blob = await response.blob();
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "esp-iris-export.zip";
-    link.click();
-    URL.revokeObjectURL(link.href);
-    setMessage("证据包已导出");
-  }
-
   return <main className="content-page settings-page">
     <PageHeading title="设置" copy="管理网关凭据、数据和开发者资源。" />
-    {message && <div className="inline-notice page-notice">{message}</div>}
     <div className="settings-grid">
       {projectSession && <ProjectSession />}
+      <ExportPanel />
       <section className="settings-section">
         <div className="panel-title"><span>访问认证</span></div>
         <dl className="settings-dl"><dt>本机访问</dt><dd>{localAuthRequired ? "需要开发口令或 Agent Token" : "当前免认证"}</dd><dt>远程访问</dt><dd>需要开发口令或具名 Agent Token</dd><dt>当前模式</dt><dd>{mode === "develop" ? "开发模式" : "观察模式"} · 在页面顶部切换</dd></dl>
@@ -89,7 +77,7 @@ export default function Settings({ mode, demo, localAuthRequired, projectSession
 
       <section className="settings-section">
         <div className="panel-title"><span>数据与开发者资源</span></div>
-        <div className="settings-actions"><button onClick={exportData}>导出证据包 ZIP</button><button onClick={onOpenDocs}>查看 API 文档</button><a href="/v2/openapi.json" target="_blank" rel="noreferrer">打开 OpenAPI JSON</a></div>
+        <div className="settings-actions"><button onClick={onOpenDocs}>查看 API 文档</button><a href="/v2/openapi.json" target="_blank" rel="noreferrer">打开 OpenAPI JSON</a></div>
       </section>
     </div>
   </main>;

@@ -22,6 +22,18 @@ def build_openapi(auth_required: bool) -> dict[str, Any]:
         "/v2/devices/{device_id}/mirror/stop": "Stop media mirror",
     }
     paths: dict[str, Any] = {
+        "/v2/export": {"post": {"summary": "Create a bounded background evidence export",
+            "requestBody": {"content": {"application/json": {"schema": {"type": "object", "additionalProperties": False,
+                "properties": {"device_id": {"type": "string"}, "operation_id": {"type": "string"},
+                               "since_ns": {"type": "integer", "minimum": 0}, "until_ns": {"type": "integer", "minimum": 0},
+                               "retain": {"type": "boolean", "default": False}}}}}},
+            "responses": {"202": {"description": "Job with status_url and download_url"},
+                          "429": {"description": "Export concurrency or disk budget exhausted"}}}},
+        "/v2/exports": {"get": {"summary": "List retained export jobs, progress and failures"}},
+        "/v2/exports/{job_id}": {"get": {"summary": "Export progress, checksum, expiry and failure reason"},
+                                 "delete": {"summary": "Delete a terminal export and its archive"}},
+        "/v2/exports/{job_id}/cancel": {"post": {"summary": "Cancel an active export and reclaim temporary files"}},
+        "/v2/exports/{job_id}/download": {"get": {"summary": "Stream completed ZIP with X-Checksum-SHA256; retry until expiry"}},
         "/v2/project": {"get": {"summary": "Local project session, discovery and shared ownership; project Gateways only"}},
         "/v2/project/clients": {"post": {"summary": "Register an idempotent project client lease; requires current session_id"}},
         "/v2/project/clients/{client_id}/renew": {"post": {"summary": "Renew a client lease using its private lease_token and session_id"}},

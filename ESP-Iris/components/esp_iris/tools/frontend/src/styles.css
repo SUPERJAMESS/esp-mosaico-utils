@@ -320,3 +320,14 @@ td small, td code { margin-top: 4px; color: var(--faint); font-size: 10px; }
 .console-input button { white-space: nowrap; }
 .console-input .console-note { margin: 0; padding: 0 14px 10px; overflow-wrap: anywhere; }
 .console-input .console-form small { white-space: nowrap; }
+
+.export-form { padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.export-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.export-form input { min-width: 0; padding: 8px; border: 1px solid var(--line-strong); }
+.export-form .export-retain { flex-direction: row; align-items: center; }
+.export-job { border-top: 1px solid var(--line); padding: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.export-job > div:first-child { min-width: 0; flex: 1 1 240px; }
+.export-job small { display: block; margin-top: 6px; color: var(--faint); }
+.export-job code { display: block; margin-top: 6px; overflow-wrap: anywhere; font-size: 10px; }
+.export-job .settings-actions { padding: 0; align-self: center; flex-wrap: wrap; }
+@media (max-width: 600px) { .export-form { grid-template-columns: 1fr; } }
