@@ -17,7 +17,7 @@ def test_renderer_resource_lifetime_and_repeated_input(tmp_path):
         str(tmp_path),
         "-DCMAKE_BUILD_TYPE=Debug",
         "-DPython3_EXECUTABLE=" + sys.executable,
-        "-DVUI_TEST_MAIN=" + str(ROOT / "tests/host_vui/runtime.c"),
+        "-DVUI_TEST_MAIN=" + (ROOT / "tests/host_vui/runtime.c").as_posix(),
     ]
     if os.name == "nt":
         configure += ["-G", "MinGW Makefiles"]

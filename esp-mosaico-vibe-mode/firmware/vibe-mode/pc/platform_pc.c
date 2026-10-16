@@ -26,15 +26,28 @@ static bool bridge_active;
 static bool connecting, installing;
 static bool renewed_code;
 static void *trace_timer;
+static char scenario_name[64], state_path[1024], control_path[1024];
+static void read_environment(const char *name, char *buffer, size_t size)
+{
+#ifdef _WIN32
+    /* Python and a MinGW DLL can have different CRT environment caches.
+     * Read the process environment that the Python launcher updates. */
+    DWORD length = GetEnvironmentVariableA(name, buffer, (DWORD)size);
+    if (!length || length >= size) buffer[0] = 0;
+#else
+    const char *value = getenv(name);
+    if (snprintf(buffer, size, "%s", value ? value : "") >= (int)size)
+        buffer[0] = 0;
+#endif
+}
 static bool scenario(const char *name) {
-    const char *selected = getenv("VIBE_SIM_SCENARIO");
-    return selected && !strcmp(selected, name);
+    return !strcmp(scenario_name, name);
 }
 static void trace_state(vui_handle_t ui, void *ctx)
 {
     (void)ctx;
-    const char *control = getenv("VIBE_SIM_CONTROL_FILE");
-    FILE *request = control ? fopen(control, "r") : NULL;
+    const char *control = control_path;
+    FILE *request = control[0] ? fopen(control, "r") : NULL;
     if (request) {
         char command[256] = {0};
         if (!fgets(command, sizeof(command), request)) command[0] = 0;
@@ -167,8 +180,8 @@ static void trace_state(vui_handle_t ui, void *ctx)
             vibe_ui_poll(state);
         }
     }
-    const char *path = getenv("VIBE_SIM_STATE_FILE");
-    if (!path || !path[0])
+    const char *path = state_path;
+    if (!path[0])
         return;
     char temporary[1024];
     if (snprintf(temporary, sizeof(temporary), "%s.tmp", path) >= (int)sizeof(temporary))
@@ -544,6 +557,9 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
 static unsigned key(void *ctx) { (void)ctx; unsigned k = next_key; next_key = 0; return k; }
 vui_err_t vibe_pc_init(vui_handle_t ui)
 {
+    read_environment("VIBE_SIM_SCENARIO", scenario_name, sizeof(scenario_name));
+    read_environment("VIBE_SIM_STATE_FILE", state_path, sizeof(state_path));
+    read_environment("VIBE_SIM_CONTROL_FILE", control_path, sizeof(control_path));
     model.settings = (vibe_settings_snapshot_t){.language = 1,
         .brightness = 80, .screen_off_seconds = 180, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
     model.device.battery_valid = true;
@@ -603,7 +619,7 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
     }
     const vibe_services_t services = {.snapshot = snapshot, .command = command, .preview = preview, .setting = setting, .key = key};
     vui_err_t err = vibe_ui_create(ui, &services, &state);
-    if (err == VUI_OK && getenv("VIBE_SIM_STATE_FILE"))
+    if (err == VUI_OK && state_path[0])
         trace_timer = vui_timer_create(ui, 50, trace_state, NULL);
     return err;
 }

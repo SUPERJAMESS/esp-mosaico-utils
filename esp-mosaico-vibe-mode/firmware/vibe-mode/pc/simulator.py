@@ -120,6 +120,12 @@ class RPC(socketserver.StreamRequestHandler):
                 method = req["method"]
                 if method == "feed_pointer":
                     self.server.ui.pointer(**params)
+                elif method == "feed_pointers":
+                    # Replay samples at one UI clock instant. Rapid-input
+                    # tests must not depend on host rendering/RPC latency.
+                    with self.server.ui.lock:
+                        for sample in params["samples"]:
+                            self.server.ui.pointer(**sample)
                 elif method == "wait":
                     time.sleep(min(10, params.get("frames", 1) * 0.01))
                 elif method == "screenshot":
