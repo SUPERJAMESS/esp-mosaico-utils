@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import os
 import pathlib
 import sqlite3
 import time
@@ -79,13 +80,59 @@ def registry_snapshot(state_root: pathlib.Path) -> dict[str, Any]:
 class LocalProject:
     """Stable project locator and launch coordination for an Iris host client."""
 
-    def __init__(self, state_root: pathlib.Path, workspace: pathlib.Path, project: pathlib.Path) -> None:
+    def __init__(self, state_root: pathlib.Path, workspace: pathlib.Path, project: pathlib.Path,
+                 *, data_dir: pathlib.Path | None = None) -> None:
         self.root = state_root.resolve()
         self.workspace, self.project = workspace.resolve(), project.resolve()
         self.project_id = hashlib.sha256((str(self.workspace) + "\0" + str(self.project)).encode()).hexdigest()
         self.directory = self.root / "project-sessions" / self.project_id
         self.connection_file = self.directory / "connection.json"
-        self.log_file = self.directory / "gateway.log"
+        self._data_override = data_dir
+        self.data_directory = self.project / ".gateway"
+        self.location_file = self.directory / "data-location.json"
+        if data_dir is not None:
+            self.data_directory = data_dir.expanduser().resolve()
+        elif self.location_file.exists():
+            saved = json.loads(self.location_file.read_text(encoding="utf-8"))
+            if saved.get("project_id") != self.project_id:
+                raise LocalStateError("Gateway data locator belongs to another project")
+            self.data_directory = pathlib.Path(saved["data_directory"]).expanduser().resolve()
+        self.state_directory = self.data_directory / "state"
+        legacy = self.directory / "state"
+        self.credentials_directory = legacy if (legacy / "gateway.sqlite3").exists() else self.directory / "credentials"
+        self.log_file = self.data_directory / "gateway.log"
+
+    def prepare_storage(self) -> None:
+        """Prepare project diagnostics without copying host identities or locks."""
+        lock = EndpointLock("gateway-state:" + os.path.normcase(str(self.state_directory)))
+        try:
+            lock.acquire()
+            self._prepare_storage()
+        finally:
+            lock.close()
+
+    def _prepare_storage(self) -> None:
+        legacy = self.directory / "state"
+        if (legacy / "gateway.sqlite3").exists() and not (self.state_directory / "gateway.sqlite3").exists():
+            raise LocalStateError(
+                "Existing Gateway history needs an offline move. Stop its Gateway, then run "
+                f"esp_iris.py storage --state-dir {str(legacy)!r} --migrate-to {str(self.state_directory)!r}. "
+                "The source is retained for rollback; credentials stay on this host.")
+        self.data_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        marker = self.data_directory / "project.json"
+        if (self.data_directory != self.project / ".gateway" and marker.exists()
+                and json.loads(marker.read_text(encoding="utf-8")).get("project_id") != self.project_id):
+            raise LocalStateError("Gateway data directory is already assigned to another project")
+        marker.write_text(json.dumps({"project_id": self.project_id, "project": str(self.project)}) + "\n", encoding="utf-8")
+        ignore = self.data_directory / ".gitignore"
+        if not ignore.exists():
+            ignore.write_text("*\n", encoding="utf-8")
+        if self._data_override is not None:
+            self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+            temporary = self.location_file.with_suffix(".tmp")
+            temporary.write_text(json.dumps({"project_id": self.project_id,
+                                             "data_directory": str(self.data_directory)}), encoding="utf-8")
+            temporary.replace(self.location_file)
 
     @contextlib.contextmanager
     def starting(self):
@@ -113,7 +160,8 @@ class LocalProject:
 
     def launch_arguments(self, session_id: str) -> list[str]:
         """Arguments for the pinned esp_iris.py web entrypoint."""
-        return ["--state-dir", str(self.directory / "state"),
+        return ["--state-dir", str(self.state_directory),
+                "--credentials-dir", str(self.credentials_directory),
                 "--process-log", str(self.log_file),
                 "--project-session-id", session_id, "--project-id", self.project_id,
                 "--project-path", str(self.project), "--project-connection-file", str(self.connection_file),
@@ -131,7 +179,7 @@ class LocalProject:
 
         if record.get("project_id") != self.project_id or not record.get("created_ns"):
             return None
-        if not self.directory.exists():
+        if not self.state_directory.exists():
             return None
         lock = EndpointLock("project:" + self.project_id, root=self.root / "ownership" / "locks")
         deadline = time.monotonic() + 2
@@ -144,7 +192,7 @@ class LocalProject:
                     if time.monotonic() >= deadline:
                         return None
                     time.sleep(0.05)
-            database = self.directory / "state" / "gateway.sqlite3"
+            database = self.state_directory / "gateway.sqlite3"
             with contextlib.closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as db:
                 db.row_factory = sqlite3.Row
                 if db.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:

@@ -197,7 +197,7 @@ def test_follower_reads_committed_result_after_owner_exits(tmp_path, monkeypatch
             session = follower.gateway(context, Path(sys.executable), script, "test-revision")
             from iris_gateway.store import GatewayStore
 
-            store = GatewayStore(owner.processes[0][2].parent / "state")
+            store = GatewayStore(next(iter(owner.local_projects.values())).state_directory)
             try:
                 accepted, _ = store.create_operation({
                     "operation_id": "finished-install", "device_id": "test-device",
@@ -247,7 +247,7 @@ def test_finished_operation_requires_this_session_and_terminal_evidence(
     follower.sessions[local.project_id] = session
     follower.records[local.project_id] = {"project_id": local.project_id, "created_ns": 10}
     follower.local_projects[local.project_id] = local
-    store = GatewayStore(local.directory / "state")
+    store = GatewayStore(local.state_directory)
     try:
         store.create_operation({"operation_id": "op", "device_id": "device", "actor_type": "local",
                                 "actor_name": "test", "action": "firmware.ota", "status": status,

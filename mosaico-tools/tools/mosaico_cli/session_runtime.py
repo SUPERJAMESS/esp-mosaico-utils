@@ -151,7 +151,8 @@ class SessionScope:
         args = self.arguments
         project = resolve_project(context.workspace, getattr(args, "project", None), Path.cwd())
         api = host_api(context.workspace)
-        local = api.LocalProject((state_root("esp-mosaico") / "0.2"), context.workspace.root, project)
+        local = api.LocalProject((state_root("esp-mosaico") / "0.2"), context.workspace.root, project,
+                                 data_dir=getattr(args, "gateway_data_dir", None))
         expected_source = (api.source_identity(context.workspace.esp_iris_path)
                            if context.workspace.gateway_source_policy == "exact" else None)
         project_key = local.project_id
@@ -182,6 +183,10 @@ class SessionScope:
             except (OSError, ValueError, KeyError, DeviceError):
                 pass
             if existing:
+                actual_data = (health.get("storage_paths") or {}).get("data")
+                if start and actual_data != str(local.state_directory):
+                    raise EnvironmentError("This project's Gateway uses a different data directory; "
+                                           "stop it before changing the data location.")
                 if start and LIFECYCLE_CAPABILITY not in health.get("capabilities", []):
                     raise EnvironmentError("Existing Gateway uses the legacy owner lifetime; end its original session before using shared clients.")
                 if start and (health.get("lifecycle") or {}).get("state") == "draining":
@@ -213,6 +218,7 @@ class SessionScope:
                     environment["ESP_IRIS_IDF_PYTHON"] = str(prepared.python)
                 except (EnvironmentError, HostEnvironmentError):
                     pass
+                local.prepare_storage()
                 log = local.log_file.open("a", encoding="utf-8")
                 try:
                     process = subprocess.Popen([
@@ -232,7 +238,7 @@ class SessionScope:
                     deadline = time.monotonic() + 20
                     while time.monotonic() < deadline:
                         if process.poll() is not None:
-                            raise EnvironmentError(f"Project Gateway exited; inspect {directory / 'gateway.log'}")
+                            raise EnvironmentError(f"Project Gateway exited; inspect {local.log_file}")
                         try:
                             record = local.connection()
                             if record["session_id"] == session_id:
@@ -277,6 +283,7 @@ class SessionScope:
         if start:
             action = "created shared" if started else "reusing shared"
             context.status(f"gateway: project={project} {action} Gateway at {record['url']}")
+            context.status(f"gateway data: {local.data_directory}")
         if select and start:
             self._admit(project_key, record["url"], context)
         return result

@@ -75,6 +75,7 @@ from .recovery_transition import (
 )
 from .security import Actor, AuthManager
 from .source_identity import running_source
+from .state_store import StateStore
 from .storage_health import StorageUnavailable
 from .store import GatewayStore
 from .system_update import (
@@ -110,6 +111,7 @@ class GatewayService:
         frontend_dist: pathlib.Path | None = None,
         system_update_trust_key: bytes | None = None,
         ota_health_timeout: float | None = None,
+        credentials_store: StateStore | None = None,
     ) -> None:
         self.store = store
         self.source_identity = running_source()
@@ -121,7 +123,8 @@ class GatewayService:
         if ota_health_timeout is not None:
             health_timeout({}, ota_health_timeout)
         self.ota_health_timeout = ota_health_timeout
-        self.auth = AuthManager(store)
+        self.credentials = credentials_store if credentials_store is not None else store
+        self.auth = AuthManager(self.credentials)
         self.hub: GatewayHub | None = None
         self.metrics = MetricsRegistry()
         # Runtime mode is intentionally not resumed. Every gateway process
@@ -133,8 +136,8 @@ class GatewayService:
         self._memory_requests: dict[str, asyncio.Task[dict[str, Any]]] = {}
         self._crash_archives_in_progress: set[str] = set()
         self.operations = OperationManager(store, self.on_device_event, self.metrics)
-        self.host_id = str(store.get_setting("host_id") or uuid.uuid4())
-        store.set_setting("host_id", self.host_id)
+        self.host_id = str(self.credentials.get_setting("host_id") or uuid.uuid4())
+        self.credentials.set_setting("host_id", self.host_id)
         self.host_operations = HostOperations(self)
         self.rpc_catalog = self._load_rpc_catalog()
         self.project: Any = None
@@ -742,6 +745,7 @@ def create_app(service: GatewayService) -> web.Application:
                 "status": "ok",
                 "storage": service.store.storage_health(),
                 "storage_maintenance": service.maintenance_state,
+                "storage_paths": {"data": str(service.store.root), "credentials": str(service.credentials.root)},
                 "instance_id": service.instance_id,
                 "host_id": service.host_id,
                 "gateway_api": GATEWAY_API,

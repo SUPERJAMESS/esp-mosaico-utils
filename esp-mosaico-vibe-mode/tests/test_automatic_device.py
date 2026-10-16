@@ -59,7 +59,8 @@ def test_device_commands_auto_acquire_and_pin_the_returned_identity(tmp_path, mo
 
     def request(url, path, body=None, **kwargs):
         if path == "/v2/health":
-            return {"project_session": record, "capabilities": [LIFECYCLE_CAPABILITY]}
+            return {"project_session": record, "capabilities": [LIFECYCLE_CAPABILITY],
+                    "storage_paths": {"data": str(project / ".gateway/state")}}
         assert path == "/v2/project/acquire"
         assert body["auto"] is True
         assert body["allow_none"] == (command == "recover")
@@ -91,7 +92,8 @@ def test_queries_and_explicit_rom_mac_do_not_auto_acquire(tmp_path, monkeypatch,
     (directory / "connection.json").write_text(json.dumps(record))
     scope = SessionScope()
     scope.arguments = build_parser().parse_args([*argv, "--project", str(project)])
-    with patch("mosaico_cli.session_runtime.request", return_value={"project_session": record, "capabilities": [LIFECYCLE_CAPABILITY]}) as http, \
+    with patch("mosaico_cli.session_runtime.request", return_value={"project_session": record, "capabilities": [LIFECYCLE_CAPABILITY],
+               "storage_paths": {"data": str(project / ".gateway/state")}}) as http, \
             patch("mosaico_cli.gateway._require_compatible_gateway"), \
             patch("mosaico_cli.session_runtime.ClientLease"):
         scope.gateway(RunContext(work, "test", json_output=True), Path(sys.executable),

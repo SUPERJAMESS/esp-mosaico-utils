@@ -28,9 +28,9 @@ from .commands import (
 from .doctor import diagnose_host, print_diagnosis
 from .errors import MosaicoError, SelectionError
 from .platform_client import DEFAULT_SERVER
+from .project_setup import print_setup
 from .runtime import RunContext
 from .scaffold import initialize_project
-from .project_setup import print_setup
 from .workspace import load_workspace
 
 TOOL_ROOT = Path(__file__).resolve().parents[2]
@@ -552,6 +552,8 @@ def build_parser() -> argparse.ArgumentParser:
             continue
         if "--project" not in child._option_string_actions:
             child.add_argument("--project", help="Project whose development session to use")
+        child.add_argument("--gateway-data-dir", type=Path,
+                           help="Local Gateway data directory for this project (saved on this host)")
         if child in device_parsers:
             continue
         if child is not recover_parser and "--device-id" in child._option_string_actions and "--endpoint" not in child._option_string_actions:
@@ -724,8 +726,8 @@ def _main(
             return error.exit_code
 
     if arguments.command in {"project-upload", "project-package", "project-validate"}:
-        from .platform_upload import project_upload
         from .ideas_archive import project_package, project_validate
+        from .platform_upload import project_upload
         try:
             handler = {"project-upload": project_upload, "project-package": project_package, "project-validate": project_validate}[arguments.command]
             result = handler(arguments, RunContext(workspace, arguments.command, arguments.verbose, arguments.json))
