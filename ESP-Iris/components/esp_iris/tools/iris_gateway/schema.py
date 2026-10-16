@@ -3,7 +3,16 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 200
+SCHEMA_VERSION = 201
+
+_EVIDENCE_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS operation_evidence (
+        operation_id TEXT NOT NULL REFERENCES operations(operation_id),
+        kind TEXT NOT NULL, boot_id TEXT NOT NULL, host_receive_ns INTEGER NOT NULL,
+        payload_json TEXT NOT NULL,
+        PRIMARY KEY(operation_id, kind, boot_id)
+    );
+"""
 
 _SCHEMA = r"""
         CREATE TABLE IF NOT EXISTS settings (
@@ -84,10 +93,15 @@ def initialize_schema(db: sqlite3.Connection) -> int:
     if current == SCHEMA_VERSION:
         return current
     tables = db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    if current == 200 and {"operations", "events", "settings"} <= {row[0] for row in tables}:
+        # Additive upgrade within Iris 0.2; no 0.1 state is read or converted.
+        db.executescript("BEGIN IMMEDIATE;" + _EVIDENCE_SCHEMA +
+                         f"PRAGMA user_version={SCHEMA_VERSION}; COMMIT;")
+        return SCHEMA_VERSION
     if current != 0 or tables:
         raise RuntimeError(
             f"unsupported Gateway database schema {current}; Iris 0.2 requires a fresh state directory. "
             "Archive the old state and follow the documented migration guide.")
-    db.executescript("BEGIN IMMEDIATE;" + _SCHEMA +
+    db.executescript("BEGIN IMMEDIATE;" + _SCHEMA + _EVIDENCE_SCHEMA +
                      f"PRAGMA user_version={SCHEMA_VERSION}; COMMIT;")
     return SCHEMA_VERSION

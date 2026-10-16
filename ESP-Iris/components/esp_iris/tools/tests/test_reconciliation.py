@@ -40,6 +40,11 @@ def test_readonly_reconciliation_keeps_history(tmp_path, healthy, sha, boot, out
         original = store.operation("op")
         if healthy:
             store.append_event("device", {"event_name": "healthy", "boot_id": boot}, "a")
+        # Ordinary history may be rotated independently of operation evidence.
+        with store.db:
+            store.db.execute("DELETE FROM events")
+        store.close()
+        store = GatewayStore(tmp_path)
 
         async def status(device_id):
             assert device_id == "a"

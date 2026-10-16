@@ -18,7 +18,7 @@ def test_fresh_store_initializes_02_schema_and_reopens(tmp_path):
     store.close()
 
 
-@pytest.mark.parametrize("version", [0, 1, 4, 7, 201])
+@pytest.mark.parametrize("version", [0, 1, 4, 7, 202])
 def test_foreign_state_is_rejected_without_modification(tmp_path, version):
     path = tmp_path / "gateway.sqlite3"
     db = sqlite3.connect(path)
@@ -31,3 +31,18 @@ def test_foreign_state_is_rejected_without_modification(tmp_path, version):
     with pytest.raises(RuntimeError, match="fresh state directory"):
         GatewayStore(tmp_path)
     assert path.read_bytes() == before
+
+
+def test_upgrade_200_keeps_existing_state(tmp_path):
+    from iris_gateway.schema import _SCHEMA
+
+    db = sqlite3.connect(tmp_path / "gateway.sqlite3")
+    db.executescript(_SCHEMA + "PRAGMA user_version=200;")
+    db.execute("INSERT INTO settings VALUES ('sentinel', '42', 1)")
+    db.commit()
+    db.close()
+    store = GatewayStore(tmp_path)
+    assert store.schema_version == SCHEMA_VERSION
+    assert store.get_setting("sentinel") == 42
+    assert store.healthy_evidence("missing", 1) is None
+    store.close()
