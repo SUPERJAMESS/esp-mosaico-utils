@@ -47,6 +47,7 @@ from .link import EndpointLock
 from .ownership import OwnershipRegistry
 from .project_gateway import ProjectGateway
 from .recovery_transition import recovery_preconditions
+from .resource_limits import GatewayLimits
 from .retention import RetentionPolicy, disk_usage, maintain, prune_events
 from .security import DEFAULT_DEVELOPER_PASSWORD
 from .state_store import StateStore
@@ -143,6 +144,9 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
     if getattr(args, "retention_policy", None):
         policy = RetentionPolicy(**json.loads(pathlib.Path(args.retention_policy).read_text(encoding="utf-8")))
         store.set_setting("storage.retention", dataclasses.asdict(policy))
+    if getattr(args, "resource_policy", None):
+        limits = GatewayLimits(**json.loads(pathlib.Path(args.resource_policy).read_text(encoding="utf-8")))
+        store.set_setting("resources.limits", dataclasses.asdict(limits))
     _recover_interrupted(store)
     system_update_trust_key = None
     if args.system_update_trust_key:
@@ -202,7 +206,8 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
     if args.demo:
         hub: Any = DemoHub(service.on_device_event)
     else:
-        hub = IrisHub(instance_id=args.instance_id, event_sink=service.on_device_event, ownership=registry)
+        hub = IrisHub(instance_id=args.instance_id, event_sink=service.on_device_event, ownership=registry,
+                      limits=service.limits)
     service.attach_hub(hub)
     if registry is not None:
         service.project = ProjectGateway(registry, service, hub, stop, pairing_token=args.pairing_token, shared=shared)
@@ -934,6 +939,7 @@ def build_parser() -> argparse.ArgumentParser:
     web_parser.add_argument("--state-dir")
     web_parser.add_argument("--credentials-dir", help="host-local authentication and TLS directory")
     web_parser.add_argument("--retention-policy", help="JSON retention policy, saved in this Gateway's state")
+    web_parser.add_argument("--resource-policy", help="JSON resource limits, saved in this Gateway's state")
     web_parser.add_argument("--process-log", help="rotate process stdout/stderr at this path")
     web_parser.add_argument("--process-log-bytes", type=int, default=8 * 1024 * 1024)
     web_parser.add_argument("--project-session-id")

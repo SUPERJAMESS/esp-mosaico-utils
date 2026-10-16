@@ -499,6 +499,18 @@ disk space: inspect it with `storage` before explicitly pruning or archiving it.
 
 ### Diagnostic retention and storage failures
 
+Gateway resource admission is configured with `web --resource-policy limits.json`
+and persisted per Gateway. Defaults allow 32 event subscribers (8 per actor),
+1 MiB per subscriber, 64 outstanding operations (8 per device, 32 per actor),
+128 MiB of operation payloads, 32 HTTP requests and 2 large transfers. JSON bodies
+are limited to 1 MiB and uploads to 128 MiB, including chunked transfers. Device
+history, media queues, authentication sessions and background crash work also
+have finite limits. `/v2/health` exposes the configured limits and current usage.
+Admission failures return HTTP 429 with `resource_limit` and `Retry-After: 1`;
+oversized bodies return 413. Cancelled and completed work releases its capacity.
+History responses are capped at 8 MiB; clients continue using the last event ID.
+Slow observers receive `history_gap` records when their byte or item budget fills.
+
 Ordinary events default to 7 days, 200,000 rows and a 512 MiB budget. New events
 are stored once in SQLite segments, rotating at 8 MiB or one hour, with at most
 64 retained segments. Closed segments are retired as whole files, so a row

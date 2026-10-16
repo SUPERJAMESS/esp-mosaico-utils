@@ -127,6 +127,7 @@ class EventSegments:
             if descending:
                 sources.reverse()
             remaining = max(1, min(limit, 5000))
+            remaining_bytes = 8 * 1024 * 1024
             items: list[dict[str, Any]] = []
             missing = False
             category_values = list(categories or ())
@@ -156,10 +157,19 @@ class EventSegments:
                         clauses.append("e.category IN (" + ",".join("?" for _ in category_values) + ")")
                         values.extend(category_values)
                     order = "DESC" if descending else "ASC"
-                    rows = db.execute("SELECT e.*, " + resolved + " AS resolved_device FROM events e WHERE " +
+                    rows = db.execute("SELECT e.event_id,e.category,e.host_receive_ns, "
+                                      "CASE WHEN length(CAST(e.payload_json AS BLOB))<=8388096 THEN e.payload_json ELSE NULL END AS payload_json, "
+                                      + resolved + " AS resolved_device FROM events e WHERE " +
                                       " AND ".join(clauses) + f" ORDER BY event_id {order} LIMIT ?", [*values, remaining])
                     for row in rows:
-                        item = decode_json(row["payload_json"], {})
+                        payload = row["payload_json"]
+                        amount = len(payload.encode()) + 256 if payload is not None else 256
+                        if items and amount > remaining_bytes:
+                            remaining = 0
+                            break
+                        item = decode_json(payload, {"kind": "history_gap", "reason": "legacy event exceeds query byte budget",
+                                                     "dropped_events": 1})
+                        remaining_bytes -= min(amount, remaining_bytes)
                         if row["resolved_device"] is not None:
                             item["device_id"] = row["resolved_device"]
                         item.update(event_id=row["event_id"], category=row["category"], host_receive_ns=row["host_receive_ns"])
