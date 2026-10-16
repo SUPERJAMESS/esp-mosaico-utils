@@ -133,4 +133,3 @@ class EventStore:
             if not (self.root / row["path"]).is_file():
                 self.db.execute("DELETE FROM log_index WHERE id=?", (row["id"],))
         self.db.commit()
-
