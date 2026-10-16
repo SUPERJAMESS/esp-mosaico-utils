@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import gzip
-import json
 import struct
 
 import pytest
@@ -80,11 +78,10 @@ def test_slow_application_keeps_one_reader_and_boot_bytes(tmp_path):
             assert first_raw["boot_id"] is None
             assert first_raw["device_id"] == (b"d" * 16).hex()
             assert opens == 1 and not link.closed
-            paths = list((tmp_path / "logs" / ("capture-" + binding["capture_id"])).glob("*.jsonl.gz"))
+            paths = list((tmp_path / "events").glob("segment-*.sqlite3"))
             assert len(paths) == 1
-            with gzip.open(paths[0], "rt") as handle:
-                archive = [json.loads(line) for line in handle]
-            assert base64.b64decode(archive[0]["data_base64"]) == boot
+            assert not list((tmp_path / "logs").rglob("*.jsonl.gz"))
+            assert base64.b64decode(first_raw["data_base64"]) == boot
         finally:
             await hub.close()
             store.close()

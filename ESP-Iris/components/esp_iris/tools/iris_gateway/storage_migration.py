@@ -29,7 +29,7 @@ def migrate_project_data(source: pathlib.Path, target: pathlib.Path) -> dict[str
             raise FileExistsError("migration target already exists; no history will be overwritten")
         with contextlib.closing(sqlite3.connect((source / "gateway.sqlite3").as_uri() + "?mode=ro", uri=True)) as old:
             version = old.execute("PRAGMA user_version").fetchone()[0]
-            if version not in {200, SCHEMA_VERSION}:
+            if version not in {200, 201, SCHEMA_VERSION}:
                 raise ValueError("only supported Iris 0.2 state can be relocated")
             if stage.exists():
                 saved = json.loads((stage / "migration-source.json").read_text(encoding="utf-8"))

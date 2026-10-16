@@ -1137,6 +1137,8 @@ def _storage(args: argparse.Namespace) -> int:
     if not args.apply:
         with contextlib.closing(sqlite3.connect((root / "gateway.sqlite3").as_uri() + "?mode=ro", uri=True)) as db:
             count = db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+            if db.execute("SELECT 1 FROM sqlite_master WHERE name='event_segments'").fetchone():
+                count += db.execute("SELECT COALESCE(SUM(row_count),0) FROM event_segments WHERE status!='deleting'").fetchone()[0]
             reclaimable = db.execute("PRAGMA freelist_count").fetchone()[0] * db.execute("PRAGMA page_size").fetchone()[0]
             row = db.execute("SELECT value FROM settings WHERE key='storage.retention'").fetchone()
         print(json.dumps({"state_dir": str(root), "event_rows": count, "reusable_bytes": reclaimable,
@@ -1152,6 +1154,11 @@ def _storage(args: argparse.Namespace) -> int:
             removed = 0
             while True:
                 count = prune_events(store, policy)
+                removed += count
+                if not count:
+                    break
+            while True:
+                count = store.events.segments.prune(policy)
                 removed += count
                 if not count:
                     break

@@ -18,7 +18,7 @@ def test_fresh_store_initializes_02_schema_and_reopens(tmp_path):
     store.close()
 
 
-@pytest.mark.parametrize("version", [0, 1, 4, 7, 202])
+@pytest.mark.parametrize("version", [0, 1, 4, 7, 203])
 def test_foreign_state_is_rejected_without_modification(tmp_path, version):
     path = tmp_path / "gateway.sqlite3"
     db = sqlite3.connect(path)
