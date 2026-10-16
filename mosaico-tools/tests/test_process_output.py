@@ -61,3 +61,11 @@ def test_sensitive_stream_is_not_spooled_or_sent_to_progress(tmp_path):
     assert result.stdout == "private-token\n" and result.stdout_path is None
     assert lines == [] and not list(context.directory.glob("stdout-*.log"))
     assert "private-token" not in context.log_path.read_text()
+
+
+def test_structured_nonstreaming_output_remains_complete(tmp_path):
+    import json
+
+    context = RunContext(SimpleNamespace(root=tmp_path, run_dir=tmp_path / "runs"), "test", json_output=True)
+    result = context.run([sys.executable, "-c", f"import json; print(json.dumps({{'payload': 'x' * {TAIL_BYTES * 2}}}))"])
+    assert json.loads(result.stdout) == {"payload": "x" * (TAIL_BYTES * 2)}
