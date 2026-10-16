@@ -153,14 +153,14 @@ class IrisHub:
         self._mdns_data_services: dict[str, str] = {}
         self._mdns_devices: dict[str, str] = {}
         self._closing = False
-        self._subscribers: dict[str, set[asyncio.Queue[dict[str, Any]]]] = (
+        self._subscribers: dict[str, set[ByteBudgetQueue]] = (
             collections.defaultdict(set)
         )
         self._history: dict[str, ByteBudgetQueue] = (
             collections.defaultdict(lambda: ByteBudgetQueue(100, self.limits.device_history_bytes))
         )
         self._media_subscribers: dict[
-            tuple[str, int], set[asyncio.Queue[dict[str, Any]]]
+            tuple[str, int], set[ByteBudgetQueue]
         ] = collections.defaultdict(set)
         self._media_locks: dict[tuple[str, int], asyncio.Lock] = (
             collections.defaultdict(asyncio.Lock)

@@ -55,7 +55,7 @@ class EventWriter:
     def submit(self, category: str, item: dict[str, Any], device: dict[str, Any] | None,
                *, critical: bool = False) -> tuple[bool, Any]:
         size = len(encode_json(item).encode()) + (len(encode_json(device).encode()) if device else 0)
-        future = concurrent.futures.Future() if critical else None
+        future: concurrent.futures.Future[bool] | None = concurrent.futures.Future() if critical else None
         with self.condition:
             # Reserve a small amount of space for evidence acknowledgements.
             extra_items, extra_bytes = (16, self.BATCH_BYTES) if critical else (0, 0)
@@ -92,7 +92,8 @@ class EventWriter:
                 self.condition.wait(timeout=0.05)
             if not self.items:
                 return []
-            batch, size = [], 0
+            batch: list[Any] = []
+            size = 0
             while self.items and len(batch) < self.BATCH_ITEMS:
                 item = self.items[0]
                 special = item[2].get("kind") == "console_binding" or item[4] is not None

@@ -141,7 +141,8 @@ class EventSegments:
                     if not legacy:
                         db.execute("ATTACH DATABASE ? AS state", ((self.state.root / "gateway.sqlite3").as_uri() + "?mode=ro",))
                     resolved = f"COALESCE(e.device_id,(SELECT device_id FROM {schema}.console_captures c WHERE c.capture_id=e.capture_id))"
-                    clauses, values = ["e.event_id> ?"], [cursor]
+                    clauses = ["e.event_id> ?"]
+                    values: list[int | str] = [cursor]
                     if unresolved:
                         clauses.append(resolved + " IS NULL")
                     if device_id:

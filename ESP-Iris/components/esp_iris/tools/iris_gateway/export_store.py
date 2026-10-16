@@ -154,6 +154,8 @@ class ExportStore:
         central_bytes = 0
         firmware_ids: set[str] = set()
         with zipfile.ZipFile(target, "x", zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+            archive_file = archive.fp
+            assert archive_file is not None
             def write(name: str, chunks: Iterable[bytes]) -> None:
                 nonlocal central_bytes
                 central_bytes += len(name.encode()) + 128
@@ -164,7 +166,7 @@ class ExportStore:
                 with archive.open(name, "w", force_zip64=True) as output:
                     for chunk in chunks:
                         budget.check(extra=len(chunk))
-                        if budget.snapshot_bytes + archive.fp.tell() + len(chunk) + central_bytes + CHUNK > budget.maximum:
+                        if budget.snapshot_bytes + archive_file.tell() + len(chunk) + central_bytes + CHUNK > budget.maximum:
                             raise OSError("export temporary disk budget exceeded; narrow the scope")
                         output.write(chunk)
                         digest.update(chunk)
