@@ -31,7 +31,7 @@ from .crashes import register_routes as register_crash_routes
 from .device_state import describe as describe_device
 from .discovery import discover_iris_usb_devices, usb_endpoint
 from .event_writer import EventWriter
-from .export_jobs import register_exports
+from .export_jobs import ExportJobs, register_exports
 from .file_routes import register_file_routes
 from .files import FileServiceError, file_error_http_status
 from .firmware import inspect_firmware_image
@@ -111,6 +111,9 @@ GATEWAY_CAPABILITIES = [
 
 
 class GatewayService:
+    # Installed by register_exports before the HTTP application is started.
+    exports: ExportJobs
+
     def __init__(
         self,
         store: GatewayStore,
@@ -296,7 +299,7 @@ class GatewayService:
         self.metrics.gauge("events.subscribers", len(self._subscribers))
         return queue
 
-    def unsubscribe(self, queue: asyncio.Queue[dict[str, Any]]) -> None:
+    def unsubscribe(self, queue: ByteBudgetQueue) -> None:
         self._subscribers.discard(queue)
         self._subscriber_owners.pop(queue, None)
         self.metrics.gauge("events.subscribers", len(self._subscribers))

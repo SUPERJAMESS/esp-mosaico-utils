@@ -149,8 +149,8 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
         limits = GatewayLimits(**json.loads(pathlib.Path(args.resource_policy).read_text(encoding="utf-8")))
         store.set_setting("resources.limits", dataclasses.asdict(limits))
     if getattr(args, "export_policy", None):
-        policy = ExportPolicy(**json.loads(pathlib.Path(args.export_policy).read_text(encoding="utf-8")))
-        store.set_setting("exports.policy", dataclasses.asdict(policy))
+        export_policy = ExportPolicy(**json.loads(pathlib.Path(args.export_policy).read_text(encoding="utf-8")))
+        store.set_setting("exports.policy", dataclasses.asdict(export_policy))
     _recover_interrupted(store)
     system_update_trust_key = None
     if args.system_update_trust_key:
