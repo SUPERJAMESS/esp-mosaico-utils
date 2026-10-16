@@ -1,4 +1,5 @@
 """Bounded build output remains complete on disk, including long lines."""
+import os
 import subprocess
 import sys
 import time
@@ -24,7 +25,7 @@ def test_large_output_and_slow_progress_keep_complete_disk_copy(tmp_path):
     assert result.returncode == 0 and result.stdout_truncated and result.progress_dropped > 0
     assert len(result.stdout) <= TAIL_BYTES and result.stdout.endswith("end\n")
     assert max(lengths) <= CHUNK_BYTES
-    assert path.read_bytes() == b"line\n" * count + b"x" * (TAIL_BYTES * 20) + b"end\n"
+    assert path.read_bytes() == b"line\n" * count + b"x" * (TAIL_BYTES * 20) + b"end" + os.linesep.encode()
     assert result.stdout_path == str(path)
 
 

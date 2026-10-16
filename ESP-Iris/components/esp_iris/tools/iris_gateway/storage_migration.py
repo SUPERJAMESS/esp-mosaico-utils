@@ -63,7 +63,8 @@ def migrate_project_data(source: pathlib.Path, target: pathlib.Path) -> dict[str
                 (stage / "migration.json").write_text(json.dumps(report) + "\n", encoding="utf-8")
                 for path in stage.rglob("*"):
                     if path.is_file():
-                        with path.open("rb") as handle:
+                        # Windows _commit requires a writable descriptor.
+                        with path.open("rb+") as handle:
                             os.fsync(handle.fileno())
                 stage.replace(target)
                 return report
