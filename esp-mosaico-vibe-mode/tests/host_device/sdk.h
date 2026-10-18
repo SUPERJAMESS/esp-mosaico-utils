@@ -7,6 +7,7 @@
 #define ESP_LOGI(...) ((void)0)
 #define ESP_LOGW(...) ((void)0)
 typedef int esp_err_t;
+typedef void (*shutdown_handler_t)(void);
 #define ESP_OK 0
 #define ESP_FAIL -1
 #define ESP_ERR_INVALID_ARG 0x102
@@ -48,6 +49,7 @@ int64_t esp_timer_get_time(void);
 esp_err_t esp_timer_create(const esp_timer_create_args_t *, esp_timer_handle_t *);
 esp_err_t esp_timer_start_once(esp_timer_handle_t, uint64_t);
 esp_err_t esp_timer_stop(esp_timer_handle_t);
+esp_err_t esp_register_shutdown_handler(shutdown_handler_t);
 esp_err_t vibe_settings_snapshot(vibe_settings_snapshot_t *);
 esp_err_t factory_network_suspend(bool);
 bool tud_mounted(void);

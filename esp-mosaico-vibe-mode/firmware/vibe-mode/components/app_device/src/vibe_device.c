@@ -6,6 +6,7 @@
 #include "driver/gpio.h"
 #include "esp_attr.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -22,6 +23,7 @@ static bool s_asleep, s_rotate_allowed = true;
 static unsigned s_pattern;
 static esp_timer_handle_t s_motor_timer;
 static SemaphoreHandle_t s_motor_lock;
+static bool s_motor_shutdown; /* Protected by s_motor_lock, including timer callbacks. */
 /* Publish each peripheral only after its driver and handles are usable. */
 static unsigned s_ready;
 enum { READY_HAPTICS = 1, READY_IMU = 2, READY_BATTERY = 4 };
@@ -38,10 +40,23 @@ static const unsigned s_patterns[][3] = {
     {16, 0, 0}, {16, 45, 16}, {48, 0, 0}, {28, 70, 44}, {80, 60, 80},
 };
 static unsigned s_motor_pattern, s_motor_step;
+static void motor_shutdown(void)
+{
+    /* App launches, OTA and explicit restarts all pass through esp_restart().
+     * A stopped timer may already have a callback waiting on this lock, and
+     * the UI worker can still hold a queued pulse. Neither may re-enable PWM. */
+    xSemaphoreTake(s_motor_lock, portMAX_DELAY);
+    s_motor_shutdown = true;
+    if (s_motor_timer) (void)esp_timer_stop(s_motor_timer);
+    const esp_err_t err = bsp_motor_set(false);
+    if (err != ESP_OK) ESP_LOGW("vibe_device", "Motor shutdown failed: %s", esp_err_to_name(err));
+    xSemaphoreGive(s_motor_lock);
+}
 static void motor_step(void *ctx)
 {
     (void)ctx;
     xSemaphoreTake(s_motor_lock, portMAX_DELAY);
+    if (s_motor_shutdown) { xSemaphoreGive(s_motor_lock); return; }
     unsigned step = ++s_motor_step;
     unsigned duration = step < 3 ? s_patterns[s_motor_pattern][step] : 0;
     (void)bsp_motor_set(duration && !(step & 1));
@@ -51,6 +66,7 @@ static void motor_step(void *ctx)
 static void motor_play(unsigned pattern)
 {
     xSemaphoreTake(s_motor_lock, portMAX_DELAY);
+    if (s_motor_shutdown) { xSemaphoreGive(s_motor_lock); return; }
     (void)esp_timer_stop(s_motor_timer);
     s_motor_pattern = pattern >= 1 && pattern <= 5 ? pattern - 1 : 0;
     s_motor_step = 0;
@@ -91,9 +107,16 @@ static void peripheral_task(void *unused)
     (void)unused;
     s_motor_lock = xSemaphoreCreateMutex();
     const esp_timer_create_args_t motor_timer = {.callback = motor_step, .name = "vibe_haptic"};
-    if (s_motor_lock && bsp_motor_init() == ESP_OK &&
-        esp_timer_create(&motor_timer, &s_motor_timer) == ESP_OK)
-        peripheral_ready(READY_HAPTICS);
+    if (s_motor_lock && bsp_motor_init() == ESP_OK) {
+        xSemaphoreTake(s_motor_lock, portMAX_DELAY);
+        /* Publish haptics only once restart cleanup is guaranteed. The lock
+         * also lets shutdown safely race timer creation during startup. */
+        esp_err_t err = esp_register_shutdown_handler(motor_shutdown);
+        if (err == ESP_OK) err = esp_timer_create(&motor_timer, &s_motor_timer);
+        if (err == ESP_OK) peripheral_ready(READY_HAPTICS);
+        else ESP_LOGW("vibe_device", "Haptics unavailable: %s", esp_err_to_name(err));
+        xSemaphoreGive(s_motor_lock);
+    }
     const bsp_imu_config_t imu_config = BSP_IMU_CONFIG_DEFAULT();
     if (bsp_imu_init() == ESP_OK && bsp_imu_start(&imu_config) == ESP_OK)
         peripheral_ready(READY_IMU);
