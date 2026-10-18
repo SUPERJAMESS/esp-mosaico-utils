@@ -30,7 +30,7 @@ def workspace():
     with TemporaryDirectory(prefix=".project-quality-test-", dir=TOOLS.parent) as temporary:
         root = Path(temporary).resolve()
         (root / "templates").mkdir()
-        (root / "templates/entry.txt").write_text("Application\n", encoding="utf-8")
+        (root / "templates/entry.txt").write_bytes(b"Application\n")
         (root / "templates/template.json").write_text(
             json.dumps(
                 {

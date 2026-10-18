@@ -13,6 +13,7 @@ permissions:
 env:
   ESP_IDF_REVISION: 7b9cc1ac79f865983f59bb8ff3ff43eb74ff1dbe
   IRIS_REQUIRE_HOST_CC: "1"
+  PYTHONUTF8: "1"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -35,25 +36,55 @@ jobs:
   host:
     name: Host / ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       CJSON_COMPONENT_DIR: ${{ github.workspace }}/.host-deps/cjson
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15-intel, windows-2022]
+        # Ideas text shaping requires libraqm >= 0.9 (Jammy ships 0.7).
+        os: [ubuntu-24.04, macos-15-intel, windows-2022]
         python: ["3.8", "3.12"]
     steps:
+      - name: Preserve reviewed resource bytes on Windows
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - name: Make MinGW compiler available
+      - name: Install Windows native test dependencies
+        if: runner.os == 'Windows'
+        id: msys
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc mingw-w64-x86_64-make
+            mingw-w64-x86_64-openssl mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-libraqm
+      - name: Configure Windows native dependencies and temporary paths
         if: runner.os == 'Windows'
         shell: pwsh
-        run: '"C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
+        env:
+          NATIVE_PREFIX: ${{ steps.msys.outputs.msys2-location }}/mingw64
+        run: |
+          "$env:NATIVE_PREFIX/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # MSYS2's dependencies also install Python; keep the selected matrix
+          # interpreter ahead of it when invoking pip and pytest.
+          "$env:pythonLocation/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "$env:pythonLocation" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "CMAKE_PREFIX_PATH=$env:NATIVE_PREFIX" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # ctypes.find_library searches for raqm.dll, while MSYS2 versions its DLL.
+          Copy-Item "$env:NATIVE_PREFIX/bin/libraqm-0.dll" "$env:NATIVE_PREFIX/bin/raqm.dll"
+          # Generated project references require the checkout and fixtures on one drive.
+          $testTemp = Join-Path $env:GITHUB_WORKSPACE '.host-tmp'
+          New-Item -ItemType Directory -Force $testTemp | Out-Null
+          "TEMP=$testTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TMP=$testTemp" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Install host dependencies
         run: >-
           python -m pip install --disable-pip-version-check
@@ -63,7 +94,10 @@ jobs:
           -r mosaico-tools/requirements-ideas.txt
       - name: Install Recovery C test dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev libraqm0
+      - name: Install macOS text shaping dependency
+        if: runner.os == 'macOS'
+        run: brew install libraqm
       - uses: actions/checkout@v7
         with:
           repository: DaveGamble/cJSON
@@ -71,12 +105,18 @@ jobs:
           path: .host-deps/cjson
           persist-credentials: false
       - name: Test ESP-Iris
+        id: iris-tests
+        continue-on-error: true
         run: python -m pytest -q --ignore=tests/e2e --junitxml=iris-results.xml
         working-directory: ESP-Iris/components/esp_iris/tools
       - name: Test ESP-Mosaico Tools
+        id: tools-tests
+        continue-on-error: true
         if: runner.os != 'Windows'
         run: python -m pytest -q shared mosaico-tools/tests esp-mosaico-vibe-mode/tests --junitxml=tools-results.xml
       - name: Test ESP-Mosaico Tools on Windows
+        id: windows-tests
+        continue-on-error: true
         if: runner.os == 'Windows'
         run: >-
           python -m pytest -q shared mosaico-tools/tests esp-mosaico-vibe-mode/tests
@@ -86,6 +126,8 @@ jobs:
           --deselect=esp-mosaico-vibe-mode/tests/test_cli.py::RecoveryCommandTests::test_idf_wrapper_reports_bounded_cmake_diagnostic
           --junitxml=tools-results.xml
       - name: Validate generated project hooks
+        id: hooks-tests
+        continue-on-error: true
         env:
           MOSAICO_TEST_PRE_COMMIT: "1"
         run: |
@@ -100,6 +142,16 @@ jobs:
             tools-results.xml
           if-no-files-found: error
           retention-days: 14
+
+      - name: Require every host suite to pass
+        if: always()
+        # Collect all suite failures in one run without relaxing the job gate.
+        run: >-
+          python -c "import sys;
+          results = ['${{ steps.iris-tests.outcome }}', '${{ steps.hooks-tests.outcome }}',
+          '${{ steps.tools-tests.outcome }}', '${{ steps.windows-tests.outcome }}'];
+          print('Host suite outcomes:', results);
+          sys.exit(0 if results[:2] == ['success', 'success'] and sorted(results[2:]) == ['skipped', 'success'] else 1)"
 
   quality:
     runs-on: ubuntu-22.04
@@ -129,7 +181,7 @@ jobs:
           ESP-Iris/components/esp_iris/tools/iris_gateway
 
   sanitizers:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       IRIS_HOST_SANITIZERS: "1"
@@ -142,10 +194,13 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: python -m pip install --disable-pip-version-check -r ESP-Iris/components/esp_iris/tools/requirements-test.txt
+      - run: >-
+          python -m pip install --disable-pip-version-check
+          -r ESP-Iris/components/esp_iris/tools/requirements-test.txt
+          -r mosaico-tools/requirements-ideas.txt
       - name: Install Recovery C test dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev zlib1g-dev libraqm0
       - uses: actions/checkout@v7
         if: runner.os == 'Linux'
         with:

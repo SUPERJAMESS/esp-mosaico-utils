@@ -174,7 +174,8 @@ class Simulator:
 def native_build(tmp_path_factory):
     build = tmp_path_factory.mktemp("vibe-native-build")
     generator = ["-G", "MinGW Makefiles"] if os.name == "nt" else []
-    for command in (["cmake", "-S", str(RECOVERY / "pc"), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release"] + generator,
+    for command in (["cmake", "-S", str(RECOVERY / "pc"), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release",
+                     "-DPython3_EXECUTABLE=" + sys.executable] + generator,
                     ["cmake", "--build", str(build), "--config", "Release", "-j4"]):
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
         assert result.returncode == 0, result.stdout + result.stderr
@@ -369,8 +370,11 @@ def test_six_digit_code_download_never_installs_or_pairs(sim):
     sim.wait(page=4, idea_code="042731", cancel_calls=1, download_calls=0)
     sim.tap_ui("button_download_code")
     sim.wait(page=9, idea_ready=True, prepare_calls=2, download_calls=0)
-    sim.tap(350, 436)
-    sim.tap(350, 436)  # Repeated input cannot start another download.
+    # Deliver duplicate clicks before advancing the UI clock; a delayed
+    # second click would intentionally activate the download's Cancel button.
+    sim.rpc("feed_pointers", samples=[
+        dict(x=350, y=436, pressed=pressed) for pressed in (True, False, True, False)
+    ])
     sim.wait(download_calls=1, last_code="042731", install_calls=0)
     sim.wait(timeout=45, page=8, progress=1000, boot_first=False, restart_calls=0)
     sim.wait(bridge_open_calls=0, bridge_prefetch_calls=0, bridge_running=False)
@@ -885,7 +889,7 @@ def test_factory_reset_requires_hold_and_preserves_nand(sim, language):
         sim.tap(38, 36); sim.wait(page=11)
         sim.tap(38, 36); sim.wait(page=0)
     sim.tap(390, 360); sim.wait(page=11)
-    sim.swipe(240, 410, 240, 180)
+    sim.swipe(240, 410, 240, 100)  # Reach the end without relying on inertia.
     sim.wait(settings_offset=264)
     sim.tap_ui("button_settings_bottom_reset"); sim.wait(page=17)
     sim.capture("factory-reset")
@@ -949,7 +953,7 @@ def test_status_bar_title_centered_and_version_updates(sim, language):
 def test_reset_hold_cancels_on_navigation_and_runs_once(sim):
     def enter_reset():
         sim.tap(390, 360); sim.wait(page=11)
-        sim.swipe(240, 410, 240, 180); sim.wait(settings_offset=264)
+        sim.swipe(240, 410, 240, 100); sim.wait(settings_offset=264)
         sim.tap_ui("button_settings_bottom_reset"); sim.wait(page=17)
 
     enter_reset()

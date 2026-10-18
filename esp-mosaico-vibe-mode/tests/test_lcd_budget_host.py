@@ -88,8 +88,16 @@ int main(void) {
 }
 ''')
     executable = tmp_path / "lcd-budget"
-    subprocess.run([shutil.which("cc"), "-std=c11", "-Wall", "-Wextra", "-Werror",
-                    "-I" + str(tmp_path), str(source), str(tmp_path / "driver.c"),
-                    str(tmp_path / "main.c"), "-Wl,--wrap=spi_bus_initialize",
-                    "-Wl,--wrap=esp_lcd_new_panel_io_spi", "-o", str(executable)], check=True)
+    compiler = [shutil.which("cc"), "-std=c11", "-Wall", "-Wextra", "-Werror", "-I" + str(tmp_path)]
+    symbols = ("spi_bus_initialize", "esp_lcd_new_panel_io_spi")
+    objects = []
+    # Bind the same wrapper/real boundary explicitly: Darwin's linker has no
+    # GNU --wrap option. Production firmware still uses its IDF linker flags.
+    for name, unit, prefix in (("budget", source, ""), ("driver", tmp_path / "driver.c", "__real_"),
+                               ("main", tmp_path / "main.c", "__wrap_")):
+        obj = tmp_path / (name + ".o")
+        defines = [f"-D{symbol}={prefix}{symbol}" for symbol in symbols] if prefix else []
+        subprocess.run([*compiler, *defines, "-c", str(unit), "-o", str(obj)], check=True)
+        objects.append(str(obj))
+    subprocess.run([*compiler, *objects, "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True, timeout=10)

@@ -13,6 +13,10 @@ from ideas_release import descriptor, encoded, ref
 
 import pytest
 
+# The host storage implementation exercises POSIX directory fsync and
+# O_NOFOLLOW/lstat semantics; MinGW does not provide those contracts.
+pytestmark = pytest.mark.skipif(os.name == "nt", reason="requires POSIX filesystem durability and link semantics")
+
 RECOVERY = Path(__file__).resolve().parents[1] / "firmware/vibe-mode"
 
 
