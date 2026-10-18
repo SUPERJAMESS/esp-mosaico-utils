@@ -371,5 +371,34 @@
         }
       }
     ]
+  },
+  "merge_validation": {
+    "date": "2026-10-16",
+    "feature_commit": "4c95430",
+    "integrated_main_commit": "5566ccdca8104c8f1650b4746223a479b788c638",
+    "scope": "Host and frontend regression after integrating main. Hardware records above describe the earlier feature worktree and installed fixtures; physical tests were not repeated after this merge.",
+    "python_3_12": {
+      "passed": 732,
+      "seconds": 91.59
+    },
+    "python_3_8": {
+      "passed": 732,
+      "seconds": 92.86
+    },
+    "frontend": {
+      "unit_passed": 9,
+      "build": "passed",
+      "e2e_passed": 21,
+      "e2e_skipped": 4
+    },
+    "ruff": "passed",
+    "mypy": "passed",
+    "source_line_budgets": "passed",
+    "test_environment": "Separate TMPDIR per Python suite prevents shared fake-endpoint lock collisions observed in the first concurrent run.",
+    "product_integration": {
+      "passed": 890,
+      "skipped": 24,
+      "seconds": 464.51
+    }
   }
 }
