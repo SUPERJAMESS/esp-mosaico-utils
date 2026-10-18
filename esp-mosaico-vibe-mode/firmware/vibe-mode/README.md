@@ -268,6 +268,11 @@ panic/watchdog 跳过正常 shutdown 的路径；Iris 在正常软件重启前�
 可能与新应用代码重叠。Vibe Mode 的 panic 处理器放入内部 RAM，以保留
 Flash/cache 故障的诊断能力。USB Serial/JTAG 控制器不受此处理影响。
 
+振动服务在启用前注册统一的软件重启清理回调，覆盖打开应用、OTA 和显式重启。
+回调同步停止振动定时器、关闭电机，并锁住后续脉冲；已排队的 UI 请求或定时器回调
+不能在退出期间重新开启电机，避免软件重启保留 PWM 输出而持续振动。
+清理回调注册失败时保持振动不可用，其他外设与维护功能继续运行。
+
 构建使用锁定 ESP-IDF 和 Vibe 自有轻量 UI，不再需要 GSP/GSPC。`recovery-current-bundle`
 仅生成未评审候选；完成设备身份、各启动入口、更新、回退及原生工具实测前，
 不得运行 `update-recovery-prebuilt` 发布候选。产品原生应用 flash 不写维护镜像；
