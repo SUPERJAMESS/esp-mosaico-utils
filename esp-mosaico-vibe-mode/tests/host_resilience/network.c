@@ -118,6 +118,8 @@ int main(void)
     assert(factory_network_start() == ESP_ERR_NO_MEM);
     mock_alloc_fail_after = -1;
     assert(factory_network_start() == ESP_OK);
+    assert(scans == 0); /* Startup does not launch AP discovery. */
+    assert(factory_network_request_scan() == ESP_OK && scans == 1);
     reset();
     for (int failure = 1; failure <= 10; ++failure) {
         fail_step = failure;
@@ -141,7 +143,9 @@ int main(void)
         reset();
     }
     saved_credentials = saved_connect_fails = true;
+    unsigned scans_before = scans;
     assert(factory_network_start() == ESP_OK);
+    assert(scans == scans_before);
     assert(s_network.snapshot.started && s_network.snapshot.state == FACTORY_NETWORK_FAILED);
     saved_connect_fails = false;
     assert(factory_network_connect("replacement-ap", "password") == ESP_OK);

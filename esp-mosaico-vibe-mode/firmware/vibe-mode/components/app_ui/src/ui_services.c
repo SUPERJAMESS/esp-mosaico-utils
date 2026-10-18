@@ -72,6 +72,8 @@ static int service_command(void *ctx, vibe_command_t cmd, const char *a, const c
     case VIBE_STOP_BRIDGE:
         iris_bridge_stop();
         return ESP_OK;
+    case VIBE_STORAGE_INFO:
+        return factory_ideas_request(IDEAS_STORAGE_INFO, NULL);
     case VIBE_SCAN_NAND:
         return factory_ideas_request(IDEAS_SCAN, NULL);
     case VIBE_INSTALL_NAND:
@@ -227,6 +229,10 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     if (ota_changed && ota.job_id && !ota.active) ctx->rescan_due = true;
     if (ctx->rescan_due && !ctx->ideas.busy && factory_ideas_request(IDEAS_SCAN, NULL) == ESP_OK)
         ctx->rescan_due = false;
+    /* Before first library discovery there are no cached localized rows.
+     * Choosing the welcome language must not start a boot-time NAND scan. */
+    if (ctx->locale_refresh_due && !ctx->ideas.busy && !ctx->ideas.generation)
+        ctx->locale_refresh_due = false;
     if (ctx->locale_refresh_due && !ctx->ideas.busy && !ctx->ideas.preview_ready &&
         factory_ideas_request(IDEAS_RELOCALIZE, NULL) == ESP_OK)
         ctx->locale_refresh_due = false;

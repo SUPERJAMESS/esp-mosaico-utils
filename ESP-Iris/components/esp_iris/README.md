@@ -337,3 +337,16 @@ of the published component archive.
 This source tree targets `0.2.0`; use this checkout until that release is published.
 Device protocol and host API 0.2 require matching firmware and Gateway versions.
 ESP-Iris is licensed under [Apache-2.0](LICENSE).
+
+### Deferred file-volume mounting
+
+Register always-mounted filesystems with `esp_iris_file_volume_register()`.
+For slow or optional media, use `esp_iris_file_volume_register_deferred(config,
+status, user_ctx)` before starting Iris. It publishes the volume descriptor
+without filesystem I/O. The nonblocking, thread-safe status callback returns
+`ESP_ERR_INVALID_STATE` while mounting, `ESP_OK` once the root directory is
+ready, or a media error after failure. File path requests map these to the
+existing BUSY/OK/IO statuses; OTA and other services remain available. Keep
+mounted storage and callback context alive until Iris stops and closes its
+handles. Applications own mount scheduling and retries; Iris never mounts or
+formats media in a request handler.

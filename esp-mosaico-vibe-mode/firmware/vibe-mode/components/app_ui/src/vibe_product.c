@@ -460,9 +460,17 @@ void vibe_product_poll(vibe_ui_t *s)
         TEXT(s, SETTINGS_TOP_LANGUAGE_SUB, v->settings.language == 2 ? "简体中文" : "English");
         FORMAT(s, SETTINGS_TOP_SHARED_SUB, "%u entries", (unsigned)v->settings.shared_count);
     }
+    const bool discover_library = (s->page == VIBE_NAND || s->page == VIBE_GRID) &&
+                                  !v->nand_generation && !v->idea_busy && !v->nand_error;
+    if (discover_library)
+        (void)vibe_command(s, VIBE_SCAN_NAND, NULL, NULL);
+    if (!discover_library && (s->page == VIBE_NAND || s->page == VIBE_ABOUT) &&
+        !v->storage_total && !v->idea_busy && !v->nand_error)
+        (void)vibe_command(s, VIBE_STORAGE_INFO, NULL, NULL);
     if (s->page == VIBE_NAND) {
         if (v->nand_scanning) TEXT(s, NAND_SCAN, "Scanning NAND...");
         else if (v->nand_error) FORMAT(s, NAND_SCAN, "NAND unavailable: 0x%x", (unsigned)v->nand_error);
+        else if (!v->storage_total) TEXT(s, NAND_SCAN, "Scanning NAND...");
         else FORMAT(s, NAND_SCAN, "%u Ideas · %llu.%u of %llu MB used", (unsigned)vibe_bundle_count(s),
                (unsigned long long)(v->storage_used / 1000000), (unsigned)(v->storage_used / 100000 % 10),
                (unsigned long long)(v->storage_total / 1000000));
@@ -536,7 +544,8 @@ void vibe_product_poll(vibe_ui_t *s)
             s->firmware_check == CHECK_OFFLINE ? "Connect Wi-Fi first" : "Check updates");
         FORMAT(s, ABOUT_VERSION, "%s", v->firmware_version);
         FORMAT(s, ABOUT_MAC, "%s", v->mac);
-        FORMAT(s, ABOUT_STORAGE, "%llu / %llu MiB", (unsigned long long)(v->storage_used / 1048576), (unsigned long long)(v->storage_total / 1048576));
+        if (!v->storage_total || v->nand_error) TEXT(s, ABOUT_STORAGE, "Unknown");
+        else FORMAT(s, ABOUT_STORAGE, "%llu / %llu MiB", (unsigned long long)(v->storage_used / 1048576), (unsigned long long)(v->storage_total / 1048576));
     } else if (s->page == VIBE_SHARED) {
         const uint16_t rows[] = {VUI_VIBE_BIND_SHARED_ROW_0_LABEL, VUI_VIBE_BIND_SHARED_ROW_1_LABEL, VUI_VIBE_BIND_SHARED_ROW_2_LABEL, VUI_VIBE_BIND_SHARED_ROW_3_LABEL};
         for (size_t r = 0; r < 4; ++r) {
@@ -638,8 +647,8 @@ void vibe_product_tick(vibe_ui_t *s)
             if (key == 1) {
                 if (s->page == VIBE_SLEEP) wake(s);
                 else if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE) vibe_show(s, s->return_page);
-                else if (s->page == VIBE_HOME || s->page == VIBE_GRID) sleep_now(s);
-                else if (!s->snapshot.updating && !s->snapshot.idea_busy && !s->preview_active) vibe_show(s, VIBE_HOME);
+                else if (s->page != VIBE_HOME && s->page != VIBE_GRID &&
+                         !s->snapshot.updating && !s->snapshot.idea_busy && !s->preview_active) vibe_show(s, VIBE_HOME);
             } else if (key == 3 && !s->snapshot.updating) {
                 if (s->page == VIBE_SLEEP) wake(s);
                 else { s->wake_page = s->page; vibe_show(s, VIBE_BOOT_TIP); }

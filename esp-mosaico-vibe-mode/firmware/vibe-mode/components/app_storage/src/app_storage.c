@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "app_storage.h"
 #include "sdkconfig.h"
+#include <stdatomic.h>
 #if CONFIG_ESP_IRIS_SYSTEM_UPDATE && CONFIG_IRIS_FACTORY_SYSTEM_UPDATE_BACKEND &&                  \
     CONFIG_IRIS_FACTORY_NAND_SYSTEM_UPDATE
 
@@ -11,6 +12,7 @@
 #include "esp_check.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "spi_nand_flash.h"
 #include "storage_metrics.h"
 #include "storage_blockdev.h"
@@ -27,6 +29,7 @@ typedef struct {
 } app_storage_context_t;
 static app_storage_context_t s_storage = {.lock = portMUX_INITIALIZER_UNLOCKED};
 static const char *TAG = "app_storage";
+static atomic_int s_mount_status = ESP_ERR_INVALID_STATE;
 #define APP_STORAGE_TRANSFER_BYTES 4096U
 #define NAND_UPDATE_MOUNT_PATH APP_STORAGE_MOUNT_PATH
 
@@ -104,11 +107,13 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
         .flags = SPI_DEVICE_HALFDUPLEX,
     };
     storage_metrics_bind(ctx->spi, 0);
+    const int64_t driver_started = esp_timer_get_time();
     err = spi_nand_flash_init_with_layers(&nand_config, &ctx->blockdev);
     if (err != ESP_OK) {
         nand_cleanup_partial(ctx);
         return err;
     }
+    ESP_LOGI("boot_perf", "nand_driver_us=%lld", (long long)(esp_timer_get_time() - driver_started));
     storage_metrics_bind(ctx->spi, ctx->blockdev->geometry.read_size);
     esp_blockdev_handle_t cached = NULL;
     err = storage_blockdev_wrap(ctx->blockdev, CONFIG_IRIS_FACTORY_NAND_READ_CACHE_KIB * 1024U, &cached);
@@ -126,7 +131,10 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
         .dont_mount = false,
         .grow_on_mount = false,
     };
+    const int64_t mount_started = esp_timer_get_time();
     err = esp_vfs_littlefs_register(&mount_config);
+    ESP_LOGI("boot_perf", "nand_mount_us=%lld result=%d",
+             (long long)(esp_timer_get_time() - mount_started), (int)err);
     if (err != ESP_OK) {
         /* LittleFS consumes and releases the block device on mount failure. */
         ctx->blockdev = NULL;
@@ -135,18 +143,22 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
     }
     ctx->mounted = true;
 
-    size_t total = 0;
-    size_t used = 0;
-    if (esp_littlefs_blockdev_info(ctx->blockdev, &total, &used) == ESP_OK) {
-        ESP_LOGI(TAG, "NAND LittleFS mounted read-write: total=%u used=%u", (unsigned)total,
-                 (unsigned)used);
-    }
+    ESP_LOGI(TAG, "NAND LittleFS mounted read-write");
     return ESP_OK;
 }
 
 esp_err_t app_storage_mount(void)
 {
-    return ensure_mounted(&s_storage);
+    if (atomic_load(&s_mount_status) == ESP_OK) return ESP_OK;
+    atomic_store(&s_mount_status, ESP_ERR_INVALID_STATE);
+    esp_err_t err = ensure_mounted(&s_storage);
+    /* INVALID_STATE is reserved for pending readiness, not a failed mount. */
+    atomic_store(&s_mount_status, err == ESP_ERR_INVALID_STATE ? ESP_FAIL : err);
+    return err;
+}
+esp_err_t app_storage_status(void)
+{
+    return atomic_load(&s_mount_status);
 }
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
 {
@@ -188,6 +200,7 @@ esp_err_t app_storage_acquire(void)
     return err;
 }
 #else
+esp_err_t app_storage_status(void) { return ESP_ERR_NOT_SUPPORTED; }
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
 {
     (void)total; (void)used;

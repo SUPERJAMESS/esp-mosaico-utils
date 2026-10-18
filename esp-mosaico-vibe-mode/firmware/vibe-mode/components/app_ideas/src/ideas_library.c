@@ -320,15 +320,11 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development) {
     ctx->state->count = count;
     ctx->state->invalid = invalid;
     ctx->state->scan_error = ESP_OK;
+    /* Capacity requires a whole-filesystem traversal. Invalidate the UI cache;
+     * only an explicit storage-info job refreshes it, never library discovery. */
+    ctx->state->storage_total = ctx->state->storage_used = 0;
     ++ctx->state->generation;
     xSemaphoreGive(ctx->lock);
-    uint64_t total = 0, used = 0;
-    if (app_storage_info(&total, &used) == ESP_OK) {
-        xSemaphoreTake(ctx->lock, portMAX_DELAY);
-        ctx->state->storage_total = total;
-        ctx->state->storage_used = used;
-        xSemaphoreGive(ctx->lock);
-    }
     if (refresh_development) ideas_development_status(ctx);
     free(items);
     free(p);
@@ -337,6 +333,24 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development) {
 }
 
 esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
+    if (job->startup) {
+        /* Mount is already complete. Discover only the NOR app description;
+         * NAND packages (including interrupted transactions) are inspected
+         * when the library is opened. Cloud preview need not wait for them. */
+        ideas_development_status(ctx);
+        return ESP_OK;
+    }
+    if (job->command == IDEAS_STORAGE_INFO) {
+        uint64_t total = 0, used = 0;
+        esp_err_t err = app_storage_info(&total, &used);
+        if (err == ESP_OK) {
+            xSemaphoreTake(ctx->lock, portMAX_DELAY);
+            ctx->state->storage_total = total;
+            ctx->state->storage_used = used;
+            xSemaphoreGive(ctx->lock);
+        }
+        return err;
+    }
     if (job->command == IDEAS_ROW)
         return ideas_prepare_row(ctx, job);
     if (job->command == IDEAS_SCAN || job->command == IDEAS_RELOCALIZE)

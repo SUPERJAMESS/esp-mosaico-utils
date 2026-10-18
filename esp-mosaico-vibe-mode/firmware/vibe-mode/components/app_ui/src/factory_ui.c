@@ -19,6 +19,9 @@ static const char *TAG = "vibe_ui";
 static portMUX_TYPE s_input_lock = portMUX_INITIALIZER_UNLOCKED;
 static vibe_input_queue_t s_input;
 static bool s_input_down[2]; /* USB, physical touch */
+static SemaphoreHandle_t s_display_ready;
+static esp_display_present_target_config_t s_display;
+static esp_err_t s_display_error;
 static struct {
     vui_handle_t ui;
     esp_display_presenter_t *presenter;
@@ -27,6 +30,32 @@ static struct {
     TaskHandle_t task;
     uint16_t *frame;
 } s_device;
+
+static void display_prepare_task(void *unused)
+{
+    (void)unused;
+    const int64_t started = esp_timer_get_time();
+    s_display_error = board_display_init(&s_display);
+    ESP_LOGI("boot_perf", "display_init_us=%lld result=%d stack_free=%u",
+             (long long)(esp_timer_get_time() - started), (int)s_display_error,
+             (unsigned)uxTaskGetStackHighWaterMark(NULL));
+    xSemaphoreGive(s_display_ready);
+    vTaskDelete(NULL);
+}
+
+esp_err_t factory_ui_prepare(void)
+{
+    if (s_device.ui) return ESP_ERR_INVALID_STATE;
+    if (s_display_ready) return ESP_OK;
+    s_display_ready = xSemaphoreCreateBinary();
+    if (!s_display_ready) return ESP_ERR_NO_MEM;
+    if (xTaskCreate(display_prepare_task, "vibe_display", 6144, NULL, 5, NULL) != pdPASS) {
+        vSemaphoreDelete(s_display_ready);
+        s_display_ready = NULL;
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
 
 static bool enqueue_input(int16_t x, int16_t y, bool pressed, unsigned source)
 {
@@ -191,6 +220,12 @@ static void render_task(void *unused)
         vui_area_t changed;
         if (vui_render_changed(s_device.ui, s_device.frame, &changed)) {
             esp_err_t err = present_frame(&changed);
+            static bool first_frame;
+            if (err == ESP_OK && !first_frame) {
+                first_frame = true;
+                ESP_LOGI("boot_perf", "first_frame_submitted_at_us=%lld",
+                         (long long)esp_timer_get_time());
+            }
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "display frame: %s", esp_err_to_name(err));
                 vui_invalidate(s_device.ui);
@@ -209,8 +244,16 @@ esp_err_t factory_ui_start(void)
         heap_caps_aligned_alloc(64, 480 * 480 * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!s_device.lock || !s_device.frame)
         return ESP_ERR_NO_MEM;
-    esp_display_present_target_config_t display;
-    ESP_RETURN_ON_ERROR(board_display_init(&display), TAG, "display");
+    ESP_RETURN_ON_ERROR(factory_ui_prepare(), TAG, "prepare display");
+    /* Inflate UI assets while the panel is still settling. No renderer or
+     * screen/input provider can access the UI until the handoff below. */
+    const int64_t assets_started = esp_timer_get_time();
+    ESP_RETURN_ON_ERROR(vui_create(&s_device.ui), TAG, "UI assets");
+    ESP_LOGI("boot_perf", "ui_assets_us=%lld", (long long)(esp_timer_get_time() - assets_started));
+    if (xSemaphoreTake(s_display_ready, pdMS_TO_TICKS(5000)) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+    /* The worker no longer touches panel state after signalling. */
+    ESP_RETURN_ON_ERROR(s_display_error, TAG, "display");
     ESP_RETURN_ON_ERROR(board_touch_init(&s_device.touch), TAG, "touch");
     ESP_RETURN_ON_ERROR(iris_screen_mirror_init(), TAG, "screen backend");
     esp_display_presenter_config_t config = {.width = 480,
@@ -218,10 +261,9 @@ esp_err_t factory_ui_start(void)
                                              .pixel_format =
                                                  ESP_DISPLAY_PRESENT_PIXEL_FORMAT_RGB565,
                                              .max_damage_areas = 1,
-                                             .target = display};
+                                             .target = s_display};
     ESP_RETURN_ON_ERROR(esp_display_presenter_create(&config, &s_device.presenter), TAG,
                         "presenter");
-    ESP_RETURN_ON_ERROR(vui_create(&s_device.ui), TAG, "UI assets");
     ESP_RETURN_ON_ERROR(iris_screen_mirror_attach(s_device.ui), TAG, "screen attach");
     /* Initialize before task handoff; all later controller and renderer calls
      * run serially on the render task, including queued Iris requests. */

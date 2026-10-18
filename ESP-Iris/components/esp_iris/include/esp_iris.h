@@ -251,6 +251,16 @@ bool esp_iris_media_is_streaming(esp_iris_channel_t channel);
  * write data is hashed and staged in a same-directory temporary file. */
 esp_err_t esp_iris_file_volume_register(
     const esp_iris_file_volume_config_t *config);
+/* Register an asynchronously mounted volume without touching its filesystem.
+ * status must be nonblocking and thread-safe: ESP_ERR_INVALID_STATE means
+ * mounting (wire BUSY), ESP_OK means mounted, other errors mean unavailable
+ * (wire IO). The descriptor is advertised immediately. Before returning OK,
+ * the owner must publish a real, non-symlink directory at base_path and keep
+ * it mounted until Iris stops and all file handles have been closed.
+ * Registration still happens before esp_iris_start(); no reconnect is needed. */
+esp_err_t esp_iris_file_volume_register_deferred(
+    const esp_iris_file_volume_config_t *config,
+    esp_err_t (*status)(void *user_ctx), void *user_ctx);
 esp_err_t esp_iris_file_volume_unregister(const char *id);
 
 /* M10: only supported when TCP pairing is enabled. The token is 64 lowercase

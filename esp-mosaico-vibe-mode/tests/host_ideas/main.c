@@ -153,6 +153,8 @@ int main(int argc, char **argv) {
     assert(factory_ideas_init() == ESP_OK);
     mock_run_worker();
     assert(snapshot().count == 0 && snapshot().scan_error == ESP_OK && env->writes == 0);
+    assert(!env->directory_reads && !env->storage_info_calls && !snapshot().generation);
+    assert(!snapshot().busy); /* Cloud admission is independent of library discovery. */
 
     if (!strcmp(scenario, "init-retry") || !strcmp(scenario, "worker-reuse")) {
         env->deny_new_tasks = true;
@@ -283,10 +285,16 @@ int main(int argc, char **argv) {
             assert(!strcmp(s.items[i].version, "2.0") && !s.items[i].queued && !s.items[i].update_available);
         assert(!env->installs && !env->restarts);
     } else if (!strcmp(scenario, "scan-metadata-only")) {
+        assert(!env->storage_info_calls); /* Initial scan never traverses capacity. */
+        assert(!snapshot().storage_total);
+        assert(factory_ideas_request(IDEAS_STORAGE_INFO, NULL) == ESP_OK);
+        mock_run_worker();
+        assert(env->storage_info_calls == 1 && snapshot().storage_total);
         mock_development();
         uint64_t before = env->flash_read_bytes;
         run(IDEAS_SCAN);
         assert(snapshot().development_available && !snapshot().failed && !env->read_lease);
+        assert(env->storage_info_calls == 1 && !snapshot().storage_total);
         assert(env->flash_read_bytes - before == sizeof(esp_app_desc_t));
         assert(!env->writes);
         mock_change_resource();

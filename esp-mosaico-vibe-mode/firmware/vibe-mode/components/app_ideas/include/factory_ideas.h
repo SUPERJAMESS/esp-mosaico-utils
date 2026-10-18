@@ -24,7 +24,8 @@ typedef enum {
     IDEAS_SAVE_DEVELOPMENT,
     IDEAS_UPDATE_ALL,
     IDEAS_RUN_DEVELOPMENT,
-    IDEAS_REFRESH_UPDATES
+    IDEAS_REFRESH_UPDATES,
+    IDEAS_STORAGE_INFO
 } factory_ideas_command_t;
 /* Local UI state; never serialized into the Iris protocol. */
 typedef enum {
@@ -64,7 +65,8 @@ typedef struct {
     factory_idea_t preview;
 } factory_ideas_snapshot_t;
 
-/* Reserve one 16 KiB HP SRAM worker stack and queue the initial scan.
+/* Reserve one 16 KiB HP SRAM worker stack and queue background NAND mount
+ * and NOR app-description discovery. Library scans are requested on demand.
  * Call during serialized startup, after network initialization. Idempotent;
  * failure releases partial resources and permits retry. No RTC/PSRAM fallback. */
 esp_err_t factory_ideas_init(void);

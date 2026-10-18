@@ -8,6 +8,7 @@
 #include "factory_ideas.h"
 #include "esp_iris.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "factory_network.h"
 #include "iris_bridge.h"
 #include "factory_recovery_control.h"
@@ -28,6 +29,7 @@ static const char *TAG = "factory";
 
 void app_main(void)
 {
+    const int64_t started = esp_timer_get_time();
     ESP_ERROR_CHECK(app_system_mute_audio());
 
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_iris_boot_probe());
@@ -57,6 +59,21 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(factory_recovery_control_register(&ui_commands));
     recovery_ota_support_start();
+    const int64_t iris_ready = esp_timer_get_time() - started;
+    ESP_LOGI("boot_perf", "iris_ready_us=%lld", (long long)iris_ready);
+
+    /* Panel reset/sleep-out waits can overlap Wi-Fi initialization. Complete
+     * network startup before exposing UI commands that can also start it. */
+    const esp_err_t prepare_err = factory_ui_prepare();
+    if (prepare_err != ESP_OK)
+        ESP_LOGW(TAG, "Display preparation failed: %s", esp_err_to_name(prepare_err));
+    const esp_err_t network_err = factory_network_start();
+    if (network_err != ESP_OK) {
+        ESP_LOGE(TAG, "Factory network unavailable; USB recovery remains active: %s",
+                 esp_err_to_name(network_err));
+    }
+    const int64_t network_ready = esp_timer_get_time() - started;
+    ESP_LOGI("boot_perf", "network_started_us=%lld", (long long)network_ready);
 
     esp_err_t ui_err = factory_ui_start();
     if (ui_err != ESP_OK) {
@@ -68,6 +85,8 @@ void app_main(void)
     }
     ESP_LOGI(TAG, "UI initialization stack headroom: %u bytes",
              (unsigned)uxTaskGetStackHighWaterMark(NULL));
+    const int64_t ui_ready = esp_timer_get_time() - started;
+    ESP_LOGI("boot_perf", "ui_started_us=%lld", (long long)ui_ready);
     ESP_ERROR_CHECK_WITHOUT_ABORT(vibe_device_start(factory_ui_rotate, factory_ui_set_brightness));
     const esp_err_t input_err = app_iris_input_register(&ui_commands);
     if (input_err != ESP_OK) {
@@ -76,13 +95,8 @@ void app_main(void)
         return;
     }
 
-    /* Initialize the Wi-Fi driver first, then reserve the lifetime Ideas HP
-     * SRAM stack and queue its scan. Later UI jobs reuse this allocation. */
-    const esp_err_t network_err = factory_network_start();
-    if (network_err != ESP_OK) {
-        ESP_LOGE(TAG, "Factory network unavailable; USB recovery remains active: %s",
-                 esp_err_to_name(network_err));
-    }
+    /* Wi-Fi already owns its memory; reserve the lifetime Ideas HP SRAM
+     * stack and queue its NAND mount. Library discovery is on demand. */
     const esp_err_t ideas_err = factory_ideas_init();
     if (ideas_err != ESP_OK) {
         ESP_LOGE(TAG, "Ideas initialization failed: %s; USB maintenance remains active",
@@ -105,5 +119,9 @@ void app_main(void)
      * USB session connects after this point. */
     app_system_log_boot_selection(requested, intent_err);
     ESP_ERROR_CHECK(esp_iris_mark_healthy());
+    /* Repeat early milestones after UI startup: USB console enumeration can
+     * otherwise miss the log produced before the host opens its port. */
+    ESP_LOGI("boot_perf", "startup_summary iris_ready_us=%lld network_ready_us=%lld ui_ready_us=%lld",
+             (long long)iris_ready, (long long)network_ready, (long long)ui_ready);
     ESP_LOGI(TAG, "ESP-Mosaico Vibe Mode firmware is ready");
 }

@@ -455,7 +455,8 @@ static esp_err_t start_network(factory_network_context_t *ctx)
     /* A bad saved connection does not invalidate the initialized driver:
      * provisioning a different network must remain possible. */
     memset(password, 0, sizeof(password));
-    (void)request_scan_started(ctx);
+    /* Connect saved credentials immediately; AP discovery is requested by
+     * the Wi-Fi page, avoiding an extra scan during boot/association. */
     return ESP_OK;
 fail:
     cleanup_failed_start(ctx);

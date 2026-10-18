@@ -366,6 +366,12 @@ protocol value, not a platform `errno`: `OK=0`, `INVALID_ARGUMENT=1`,
 `NO_MEMORY=7`, `IO=8`, `NOT_SUPPORTED=9`, `CONFLICT=10`, `EXISTS=11`,
 `NOT_EMPTY=12`, `NO_SPACE=13`, and `HASH_MISMATCH=14`.
 
+An application may register a volume before its backing filesystem is mounted.
+Its descriptor and capabilities remain visible in `VOLUMES`. Path operations
+return `BUSY` while the mount is pending, or `IO` after a mount failure. Once
+mounted, requests succeed on the same session without reconnecting. Existing
+status values and packet layouts are unchanged.
+
 Implemented FILE types are:
 
 | Type | Value | Request / response payload after status |

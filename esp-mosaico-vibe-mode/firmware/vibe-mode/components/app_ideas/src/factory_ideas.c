@@ -80,8 +80,8 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     ideas_context_t *ctx = &s_ideas;
     if (!atomic_load(&ctx->initialized))
         return ESP_ERR_INVALID_STATE;
-    bool no_code = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL || command == IDEAS_RUN_DEVELOPMENT || command == IDEAS_REFRESH_UPDATES;
-    if (command < IDEAS_SCAN || command > IDEAS_REFRESH_UPDATES || command == IDEAS_DOWNLOAD ||
+    bool no_code = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL || command == IDEAS_RUN_DEVELOPMENT || command == IDEAS_REFRESH_UPDATES || command == IDEAS_STORAGE_INFO;
+    if (command < IDEAS_SCAN || command > IDEAS_STORAGE_INFO || command == IDEAS_DOWNLOAD ||
         command == IDEAS_DISMISS || command == IDEAS_ROW || (!no_code && !ideas_local_code_valid(code)) ||
         ((command == IDEAS_CHECK || command == IDEAS_RESOLVE) && !ideas_code_valid(code)))
         return ESP_ERR_INVALID_ARG;
@@ -125,7 +125,7 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
             ctx->state->has_icon = false;
         memset(&ctx->state->preview, 0, sizeof(ctx->state->preview));
     }
-    if (command != IDEAS_SCAN && command != IDEAS_RELOCALIZE) {
+    if (command != IDEAS_SCAN && command != IDEAS_RELOCALIZE && command != IDEAS_STORAGE_INFO) {
         ctx->state->terminal = ctx->state->failed = false;
         ctx->state->cancelled = false;
         ctx->state->total = ctx->state->received = 0;

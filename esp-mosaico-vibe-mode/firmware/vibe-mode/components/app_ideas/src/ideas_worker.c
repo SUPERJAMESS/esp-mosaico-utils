@@ -72,7 +72,8 @@ static void run_job(job_t *job) {
         ctx->state->resolving = false;
     if (job->command == IDEAS_REFRESH_UPDATES) {
         ctx->state->terminal = false;
-    } else if (job->command == IDEAS_SCAN || job->command == IDEAS_RELOCALIZE)
+    } else if (job->command == IDEAS_SCAN || job->command == IDEAS_RELOCALIZE ||
+               job->command == IDEAS_STORAGE_INFO)
         ctx->state->scan_error = err;
     else if (!stale && !ready && job->command != IDEAS_DISMISS && job->command != IDEAS_ROW &&
              (job->command != IDEAS_PREVIEW || err != ESP_OK)) {
@@ -144,6 +145,7 @@ esp_err_t ideas_worker_init(ideas_context_t *ctx) {
         goto fail;
     initial->owner = ctx;
     initial->command = IDEAS_SCAN;
+    initial->startup = true;
     if (xQueueSend(ctx->jobs, &initial, 0) != pdTRUE)
         goto fail;
     ctx->state->busy = ctx->state->scanning = true;

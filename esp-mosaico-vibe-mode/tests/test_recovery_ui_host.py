@@ -851,7 +851,7 @@ def test_delete_requires_hold_and_supports_undo(sim):
     sim.wait(page=0, pending_delete=False, delete_calls=1, bundle_count=1)
 
 
-def test_language_display_and_wake_controls(sim):
+def test_language_display_and_ai_does_not_sleep(sim):
     sim.tap(390, 360); sim.wait(page=11)
     sim.tap_ui("button_settings_top_display"); sim.wait(page=12)
     sim.tap(145, 155); sim.wait(brightness=40)
@@ -867,8 +867,13 @@ def test_language_display_and_wake_controls(sim):
     sim.tap(38, 36); sim.wait(page=11)
     sim.capture("chinese-settings")
     sim.tap(38, 36); sim.wait(page=0)
-    sim.control("ai"); sim.wait(page=21, asleep=True)
-    sim.control("motion"); sim.wait(page=0, asleep=False)
+    sim.control("ai")
+    time.sleep(.3)  # Let the queued hardware key reach the UI tick.
+    sim.wait(page=0, asleep=False)
+    sim.swipe(400, 230, 80, 230); sim.wait(page=19)
+    sim.control("ai")
+    time.sleep(.3)
+    sim.wait(page=19, asleep=False)
 
 
 @pytest.mark.parametrize("sim", ["first-run"], indirect=True)

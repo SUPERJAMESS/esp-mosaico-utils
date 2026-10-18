@@ -8,8 +8,11 @@
 extern "C" {
 #endif
 
-/* Start board display, screenshot adapter and render-owned controller.
- * Call once after Ideas/Iris initialization; returns startup/timeout errors. */
+/* Boot task only: begin panel initialization while other services start.
+ * Idempotent until factory_ui_start(); does not expose a partial UI. */
+esp_err_t factory_ui_prepare(void);
+/* Join panel initialization, then start screenshot, touch and UI services.
+ * Call once after Iris/network initialization; may prepare synchronously. */
 esp_err_t factory_ui_start(void);
 /* Device-service task only; drains rendering before changing panel and touch. */
 esp_err_t factory_ui_rotate(unsigned degrees);

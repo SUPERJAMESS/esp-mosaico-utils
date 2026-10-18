@@ -49,6 +49,8 @@ typedef struct {
     char id[ESP_IRIS_FILE_VOLUME_ID_MAX + 1U];
     char base_path[ESP_IRIS_FILE_PATH_MAX + 1U];
     uint32_t capabilities;
+    esp_err_t (*status)(void *user_ctx);
+    void *user_ctx;
 } iris_file_volume_t;
 
 typedef enum {
@@ -403,6 +405,22 @@ static esp_iris_file_status_t resolve_existing_path(
     const iris_file_volume_t *volume, const char *relative,
     char out[IRIS_FILE_FULL_PATH_SIZE], struct stat *out_metadata)
 {
+    if (volume->status != NULL) {
+        const esp_err_t ready = volume->status(volume->user_ctx);
+        if (ready != ESP_OK) {
+            return ready == ESP_ERR_INVALID_STATE ? ESP_IRIS_FILE_STATUS_BUSY
+                                                  : ESP_IRIS_FILE_STATUS_IO;
+        }
+        /* Deferred registration cannot validate the root until mount completes.
+         * Check it for every new path, including paths below the root. */
+        struct stat root;
+        if (file_stat(volume->base_path, &root) != 0) {
+            return status_from_errno(errno);
+        }
+        if (!S_ISDIR(root.st_mode) || S_ISLNK(root.st_mode)) {
+            return ESP_IRIS_FILE_STATUS_NOT_SUPPORTED;
+        }
+    }
     const size_t base_size = strlen(volume->base_path);
     const size_t relative_size = strlen(relative);
     if (base_size + (relative_size > 0 ? 1U : 0U) + relative_size + 1U >
@@ -1461,8 +1479,8 @@ static void file_task(void *argument)
     vTaskDelete(NULL);
 }
 
-esp_err_t esp_iris_file_volume_register(
-    const esp_iris_file_volume_config_t *config)
+static esp_err_t register_volume(const esp_iris_file_volume_config_t *config,
+                                  esp_err_t (*status)(void *), void *user_ctx)
 {
     const uint32_t allowed = ESP_IRIS_FILE_VOLUME_READ |
         ESP_IRIS_FILE_VOLUME_LIST | ESP_IRIS_FILE_VOLUME_MTIME |
@@ -1488,8 +1506,8 @@ esp_err_t esp_iris_file_volume_register(
         return ESP_ERR_INVALID_ARG;
     }
     struct stat metadata;
-    if (file_stat(config->base_path, &metadata) != 0 ||
-        !S_ISDIR(metadata.st_mode) || S_ISLNK(metadata.st_mode)) {
+    if (status == NULL && (file_stat(config->base_path, &metadata) != 0 ||
+        !S_ISDIR(metadata.st_mode) || S_ISLNK(metadata.st_mode))) {
         return ESP_ERR_NOT_FOUND;
     }
     taskENTER_CRITICAL(&s_volume_lock);
@@ -1510,10 +1528,25 @@ esp_err_t esp_iris_file_volume_register(
         slot->capabilities = config->capabilities |
             ((config->capabilities & ESP_IRIS_FILE_VOLUME_WRITE) != 0
                  ? ESP_IRIS_FILE_VOLUME_HASH : 0);
+        slot->status = status;
+        slot->user_ctx = user_ctx;
         slot->used = true;
     }
     taskEXIT_CRITICAL(&s_volume_lock);
     return slot == NULL ? ESP_ERR_NO_MEM : ESP_OK;
+}
+
+esp_err_t esp_iris_file_volume_register(const esp_iris_file_volume_config_t *config)
+{
+    return register_volume(config, NULL, NULL);
+}
+
+esp_err_t esp_iris_file_volume_register_deferred(
+    const esp_iris_file_volume_config_t *config,
+    esp_err_t (*status)(void *), void *user_ctx)
+{
+    if (status == NULL) return ESP_ERR_INVALID_ARG;
+    return register_volume(config, status, user_ctx);
 }
 
 esp_err_t esp_iris_file_volume_unregister(const char *id)

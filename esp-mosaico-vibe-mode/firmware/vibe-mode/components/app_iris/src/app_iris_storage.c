@@ -32,24 +32,25 @@ static esp_err_t nand_update_rpc(const esp_iris_rpc_request_t *request, uint8_t 
     return ESP_OK;
 }
 
+static esp_err_t nand_status(void *ctx)
+{
+    (void)ctx;
+    return app_storage_status();
+}
+
 esp_err_t app_iris_storage_register(void)
 {
-    /* Mount and publish the volume before esp_iris_start(), which snapshots
-     * the registered file volumes into the device capability handshake. NAND
-     * remains optional for Recovery availability: a media/mount failure must
-     * not take down the USB maintenance path. */
-    esp_err_t file_err = app_storage_mount();
-    if (file_err == ESP_OK) {
-        const esp_iris_file_volume_config_t volume = {
-            .id = APP_STORAGE_VOLUME_ID,
-            .base_path = APP_STORAGE_MOUNT_PATH,
-            .capabilities = ESP_IRIS_FILE_VOLUME_READ | ESP_IRIS_FILE_VOLUME_LIST |
-                            ESP_IRIS_FILE_VOLUME_MTIME | ESP_IRIS_FILE_VOLUME_WRITE |
-                            ESP_IRIS_FILE_VOLUME_DELETE | ESP_IRIS_FILE_VOLUME_MKDIR |
-                            ESP_IRIS_FILE_VOLUME_RENAME | ESP_IRIS_FILE_VOLUME_ATOMIC_REPLACE,
-        };
-        file_err = esp_iris_file_volume_register(&volume);
-    }
+    /* Advertise the descriptor now; the Ideas worker mounts NAND after USB
+     * and UI startup. File requests return BUSY until that mount completes. */
+    const esp_iris_file_volume_config_t volume = {
+        .id = APP_STORAGE_VOLUME_ID,
+        .base_path = APP_STORAGE_MOUNT_PATH,
+        .capabilities = ESP_IRIS_FILE_VOLUME_READ | ESP_IRIS_FILE_VOLUME_LIST |
+                        ESP_IRIS_FILE_VOLUME_MTIME | ESP_IRIS_FILE_VOLUME_WRITE |
+                        ESP_IRIS_FILE_VOLUME_DELETE | ESP_IRIS_FILE_VOLUME_MKDIR |
+                        ESP_IRIS_FILE_VOLUME_RENAME | ESP_IRIS_FILE_VOLUME_ATOMIC_REPLACE,
+    };
+    esp_err_t file_err = esp_iris_file_volume_register_deferred(&volume, nand_status, NULL);
     if (file_err == ESP_OK) {
         ESP_LOGI(TAG, "registered writable ESP-Iris volume id=%s base=%s", APP_STORAGE_VOLUME_ID,
                  APP_STORAGE_MOUNT_PATH);

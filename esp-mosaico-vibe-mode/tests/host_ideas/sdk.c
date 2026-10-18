@@ -266,6 +266,7 @@ int __wrap_open(const char *path, int flags, ...) {
     return __real_open(mapped(path, out), flags);
 }
 DIR *__wrap_opendir(const char *path) {
+    ++env.directory_reads;
     char out[4096];
     return __real_opendir(mapped(path, out));
 }
@@ -590,7 +591,7 @@ bool factory_system_update_recovery_supports(const char *minimum) {
 }
 
 uint32_t esp_random(void) { return 123; }
-esp_err_t app_storage_info(uint64_t *total, uint64_t *used) { assert(env.lease); *total = 512ULL * 1048576; *used = env.no_space ? *total : 1048576; return ESP_OK; }
+esp_err_t app_storage_info(uint64_t *total, uint64_t *used) { assert(env.lease); ++env.storage_info_calls; *total = 512ULL * 1048576; *used = env.no_space ? *total : 1048576; return ESP_OK; }
 esp_err_t factory_system_update_read_acquire(void) { if (env.read_lease || env.ota_busy) return ESP_ERR_INVALID_STATE; env.read_lease = true; return ESP_OK; }
 void factory_system_update_read_release(void) { assert(env.read_lease); env.read_lease = false; }
 esp_err_t esp_iris_ota_get_status(esp_iris_ota_status_t *status) { memset(status, 0, sizeof(*status)); status->active = env.ota_busy; return env.ota_missing ? ESP_ERR_NOT_FOUND : ESP_OK; }

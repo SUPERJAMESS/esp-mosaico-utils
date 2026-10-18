@@ -160,6 +160,16 @@ esp_err_t esp_iris_file_volume_register(
     return ESP_ERR_NOT_SUPPORTED;
 }
 
+esp_err_t esp_iris_file_volume_register_deferred(
+    const esp_iris_file_volume_config_t *config,
+    esp_err_t (*status)(void *), void *user_ctx)
+{
+    (void)config;
+    (void)status;
+    (void)user_ctx;
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
 esp_err_t esp_iris_file_volume_unregister(const char *id)
 {
     (void)id;

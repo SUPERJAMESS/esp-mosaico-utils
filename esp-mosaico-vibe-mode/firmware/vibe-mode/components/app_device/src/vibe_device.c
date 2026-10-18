@@ -5,6 +5,7 @@
 #include "bsp/esp_mosaico.h"
 #include "driver/gpio.h"
 #include "esp_attr.h"
+#include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -21,6 +22,16 @@ static bool s_asleep, s_rotate_allowed = true;
 static unsigned s_pattern;
 static esp_timer_handle_t s_motor_timer;
 static SemaphoreHandle_t s_motor_lock;
+/* Publish each peripheral only after its driver and handles are usable. */
+static unsigned s_ready;
+enum { READY_HAPTICS = 1, READY_IMU = 2, READY_BATTERY = 4 };
+
+static void peripheral_ready(unsigned mask)
+{
+    taskENTER_CRITICAL(&s_lock);
+    s_ready |= mask;
+    taskEXIT_CRITICAL(&s_lock);
+}
 /* BSP already drives the motor at 100%; strengthen feedback by doubling
  * the on-time of each pulse while preserving the inter-pulse pauses. */
 static const unsigned s_patterns[][3] = {
@@ -75,17 +86,29 @@ unsigned vibe_device_poll_key(void)
     if (s_keys) (void)xQueueReceive(s_keys, &key, 0);
     return key;
 }
+static void peripheral_task(void *unused)
+{
+    (void)unused;
+    s_motor_lock = xSemaphoreCreateMutex();
+    const esp_timer_create_args_t motor_timer = {.callback = motor_step, .name = "vibe_haptic"};
+    if (s_motor_lock && bsp_motor_init() == ESP_OK &&
+        esp_timer_create(&motor_timer, &s_motor_timer) == ESP_OK)
+        peripheral_ready(READY_HAPTICS);
+    const bsp_imu_config_t imu_config = BSP_IMU_CONFIG_DEFAULT();
+    if (bsp_imu_init() == ESP_OK && bsp_imu_start(&imu_config) == ESP_OK)
+        peripheral_ready(READY_IMU);
+    /* Battery profile verification and sealing may take seconds. Neither
+     * physical keys nor display preferences depend on this work. */
+    if (bsp_battery_init() == ESP_OK)
+        peripheral_ready(READY_BATTERY);
+    ESP_LOGI("boot_perf", "peripherals_ready_at_us=%lld", (long long)esp_timer_get_time());
+    vTaskDelete(NULL);
+}
+
 static void sample_task(void *unused)
 {
     (void)unused;
     vibe_device_snapshot_t snapshot = {0};
-    bool battery = bsp_battery_init() == ESP_OK;
-    s_motor_lock = xSemaphoreCreateMutex();
-    const esp_timer_create_args_t motor_timer = {.callback = motor_step, .name = "vibe_haptic"};
-    snapshot.haptics_available = s_motor_lock && bsp_motor_init() == ESP_OK &&
-                                esp_timer_create(&motor_timer, &s_motor_timer) == ESP_OK;
-    const bsp_imu_config_t imu_config = BSP_IMU_CONFIG_DEFAULT();
-    snapshot.imu_available = bsp_imu_init() == ESP_OK && bsp_imu_start(&imu_config) == ESP_OK;
     const gpio_num_t pins[] = {BSP_BUTTON_AI_GPIO, BSP_BUTTON_BOOT_GPIO};
     bool pressed[2] = {false, false};
     bool sampled[2] = {false, false};
@@ -95,6 +118,9 @@ static void sample_task(void *unused)
                              .pull_up_en = GPIO_PULLUP_ENABLE};
         (void)gpio_config(&cfg);
     }
+    ESP_LOGI("boot_perf", "keys_ready_at_us=%lld", (long long)esp_timer_get_time());
+    if (xTaskCreate(peripheral_task, "vibe_peripherals", 6144, NULL, 1, NULL) != pdPASS)
+        ESP_LOGW("vibe_device", "Optional peripheral initialization unavailable");
     int64_t next_battery = 0, candidate_since = 0;
     unsigned candidate = 0, brightness = 0;
     bool sleeping = false;
@@ -104,6 +130,7 @@ static void sample_task(void *unused)
         (void)vibe_settings_snapshot(&s_preferences);
         taskENTER_CRITICAL(&s_lock);
         bool asleep = s_asleep, allowed = s_rotate_allowed;
+        unsigned ready = s_ready;
         unsigned pattern = s_pattern;
         s_pattern = 0;
         taskEXIT_CRITICAL(&s_lock);
@@ -112,9 +139,15 @@ static void sample_task(void *unused)
             sleeping = asleep;
         }
         unsigned level = asleep ? 10 : s_preferences.brightness ? s_preferences.brightness : 80;
-        if (level != brightness && s_brightness && s_brightness(level) == ESP_OK) brightness = level;
+        if (level != brightness && s_brightness && s_brightness(level) == ESP_OK) {
+            if (!brightness)
+                ESP_LOGI("boot_perf", "brightness_ready_at_us=%lld", (long long)esp_timer_get_time());
+            brightness = level;
+        }
         snapshot.usb_connected = tud_mounted();
-        if (battery && now >= next_battery) {
+        snapshot.haptics_available = (ready & READY_HAPTICS) != 0;
+        snapshot.imu_available = (ready & READY_IMU) != 0;
+        if ((ready & READY_BATTERY) && now >= next_battery) {
             bsp_battery_status_t status;
             snapshot.battery_valid = bsp_battery_read(&status) == ESP_OK;
             if (snapshot.battery_valid) {

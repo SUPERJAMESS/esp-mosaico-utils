@@ -57,7 +57,7 @@ typedef struct {
     char code[7];
     uint32_t request_id;
     pending_t *pending;
-    bool up_to_date, metadata_only;
+    bool up_to_date, metadata_only, startup;
     ideas_context_t *owner;
 } job_t;
 typedef struct {

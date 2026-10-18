@@ -14,9 +14,10 @@
 
 #include "../../../src/esp_iris_files.c"
 
+static bool started;
 bool esp_iris_is_started(void)
 {
-    return false;
+    return started;
 }
 
 typedef struct {
@@ -207,8 +208,76 @@ static void assert_released(size_t baseline)
     assert(free_internal == baseline);
 }
 
+static esp_err_t mount_status(void *ctx)
+{
+    return *(esp_err_t *)ctx;
+}
+
+static void test_deferred_volume(void)
+{
+    esp_err_t ready = ESP_ERR_INVALID_STATE;
+    const esp_iris_file_volume_config_t missing = {
+        .id = "missing", .base_path = "/iris-unmounted-volume-75843",
+        .capabilities = ESP_IRIS_FILE_VOLUME_READ,
+    };
+    assert(esp_iris_file_volume_register(&missing) == ESP_ERR_NOT_FOUND);
+    assert(esp_iris_file_volume_register_deferred(&missing, NULL, NULL) == ESP_ERR_INVALID_ARG);
+    assert(esp_iris_file_volume_register_deferred(&missing, mount_status, &ready) == ESP_OK);
+    char resolved[IRIS_FILE_FULL_PATH_SIZE];
+    struct stat metadata;
+    iris_file_volume_t *volume = find_volume((const uint8_t *)"missing", 7);
+    assert(volume);
+    /* No filesystem access while mounting: absent root must yield BUSY, not NOT_FOUND. */
+    assert(resolve_existing_path(volume, "", resolved, &metadata) == ESP_IRIS_FILE_STATUS_BUSY);
+    char parent[IRIS_FILE_FULL_PATH_SIZE];
+    assert(resolve_parent_path(volume, "new", parent, resolved) == ESP_IRIS_FILE_STATUS_BUSY);
+    ready = ESP_FAIL;
+    assert(resolve_existing_path(volume, "", resolved, &metadata) == ESP_IRIS_FILE_STATUS_IO);
+    assert(esp_iris_file_volume_unregister("missing") == ESP_OK);
+
+    /* /.'s real directory is also available under the Windows C runtime. */
+    esp_iris_file_volume_config_t config = {
+        .id = "lazy", .base_path = "/.",
+        .capabilities = ESP_IRIS_FILE_VOLUME_READ | ESP_IRIS_FILE_VOLUME_LIST,
+    };
+    ready = ESP_ERR_INVALID_STATE;
+    assert(esp_iris_file_volume_register_deferred(&config, mount_status, &ready) == ESP_OK);
+    volume = find_volume((const uint8_t *)"lazy", 4);
+    started = true;
+    assert(esp_iris_file_volume_register_deferred(&config, mount_status, &ready) == ESP_ERR_INVALID_STATE);
+    iris_file_work_t work = {0};
+    iris_file_completion_t completion = {0};
+    handle_volumes(&work, &completion);
+    assert(iris_get_le16(completion.payload) == ESP_IRIS_FILE_STATUS_OK);
+    assert(iris_files_capabilities() != 0);
+    assert(resolve_existing_path(volume, "", resolved, &metadata) == ESP_IRIS_FILE_STATUS_BUSY);
+    ready = ESP_OK;
+    /* Same registration and running session; no reconnect/restart required. */
+    assert(resolve_existing_path(volume, "", resolved, &metadata) == ESP_IRIS_FILE_STATUS_OK);
+    assert(S_ISDIR(metadata.st_mode));
+#ifndef _WIN32
+    char directory[] = "/tmp/iris-deferred-XXXXXX";
+    assert(mkdtemp(directory));
+    char link[256];
+    snprintf(link, sizeof(link), "%s/root", directory);
+    FILE *file = fopen(link, "wb");
+    assert(file && fclose(file) == 0);
+    started = false;
+    assert(esp_iris_file_volume_unregister("lazy") == ESP_OK);
+    config.base_path = link;
+    assert(esp_iris_file_volume_register_deferred(&config, mount_status, &ready) == ESP_OK);
+    volume = find_volume((const uint8_t *)"lazy", 4);
+    assert(resolve_existing_path(volume, "child", resolved, &metadata) == ESP_IRIS_FILE_STATUS_NOT_SUPPORTED);
+    assert(unlink(link) == 0);
+    assert(rmdir(directory) == 0);
+#endif
+    started = false;
+    assert(esp_iris_file_volume_unregister("lazy") == ESP_OK);
+}
+
 int main(void)
 {
+    test_deferred_volume();
     const size_t baseline = free_internal;
     iris_runtime_t runtime = {.session_id = 42};
     uint8_t payload[IRIS_FILE_WORK_PAYLOAD_SIZE + 1U] = {0};

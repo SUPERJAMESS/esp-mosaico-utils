@@ -1,8 +1,8 @@
 """Exercise the production cache against a failing, mutable block device."""
-from pathlib import Path
 import os
 import shutil
 import subprocess
+from pathlib import Path
 
 SANITIZERS = [] if os.name == "nt" else ["-fsanitize=address,undefined"]
 
@@ -23,9 +23,9 @@ def test_storage_cache(tmp_path):
         "-Werror", *SANITIZERS, "-g", "-pthread",
         "-I" + str(tmp_path), "-I" + str(fixture), "-I" + str(component / "private"),
         str(component / "src/storage_blockdev.c"), str(fixture / "cache.c"), "-o", str(exe),
-    ], text=True, capture_output=True)
+    ], check=False, text=True, capture_output=True)
     assert result.returncode == 0, result.stdout + result.stderr
-    result = subprocess.run([str(exe)], text=True, capture_output=True, timeout=30)
+    result = subprocess.run([str(exe)], check=False, text=True, capture_output=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -49,7 +49,31 @@ def test_storage_spi_routing(tmp_path):
             f'-DSTORAGE_METRICS_SOURCE="{(component / "src/storage_metrics.c").as_posix()}"',
             "-I" + str(tmp_path), "-I" + str(fixture), "-I" + str(component / "private"),
             str(fixture / "spi.c"), "-o", str(exe),
-        ], text=True, capture_output=True)
+        ], check=False, text=True, capture_output=True)
         assert result.returncode == 0, result.stdout + result.stderr
-        result = subprocess.run([str(exe)], text=True, capture_output=True, timeout=30)
+        result = subprocess.run([str(exe)], check=False, text=True, capture_output=True, timeout=30)
         assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_deferred_storage_mount(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    component = root / "firmware/vibe-mode/components/app_storage"
+    fixture = root / "tests/host_storage"
+    for name in ("sdkconfig.h", "esp_err.h", "bsp/esp_mosaico.h", "driver/gpio.h",
+                 "driver/spi_master.h", "esp_blockdev.h", "esp_check.h", "esp_littlefs.h",
+                 "esp_log.h", "esp_timer.h", "spi_nand_flash.h", "freertos/FreeRTOS.h",
+                 "freertos/task.h"):
+        header = tmp_path / name
+        header.parent.mkdir(parents=True, exist_ok=True)
+        header.write_text('#include "sdk.h"\n')
+    exe = tmp_path / "mount"
+    result = subprocess.run([
+        shutil.which("cc"), "-std=gnu11", "-Wall", "-Wextra", "-Wno-unused-parameter",
+        "-Wno-unused-function", "-Wno-unused-variable", "-Werror", *SANITIZERS, "-g", "-pthread",
+        f'-DSTORAGE_SOURCE="{(component / "src/app_storage.c").as_posix()}"',
+        "-I" + str(tmp_path), "-I" + str(fixture), "-I" + str(component / "private"),
+        "-I" + str(component / "include"), str(fixture / "mount.c"), "-o", str(exe),
+    ], check=False, text=True, capture_output=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    result = subprocess.run([str(exe)], check=False, text=True, capture_output=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
