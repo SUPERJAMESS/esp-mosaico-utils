@@ -11,6 +11,8 @@
 #define IDEAS_TITLE_HEIGHT 84U
 #define IDEAS_DESCRIPTION_WIDTH 416U
 #define IDEAS_DESCRIPTION_HEIGHT 176U
+#define IDEAS_TITLE_PIXELS (IDEAS_TITLE_WIDTH * IDEAS_TITLE_HEIGHT)
+#define IDEAS_TITLE_LINE_MAX_WIDTH 4096U
 
 typedef struct {
     const char *name;
@@ -48,3 +50,12 @@ bool ideas_presentation_parse(const void *json, size_t size, const ideas_display
 bool ideas_presentation_render(const ideas_presentation_t *display, unsigned block,
                                uint16_t foreground, uint16_t background, uint16_t *pixels,
                                size_t count);
+/* Local single-line title cache. Preserve shaped glyphs and their proportions;
+ * join published lines without changing display/1 or its source resources.
+ * The caller supplies IDEAS_TITLE_PIXELS pixels; only width*height are used. */
+bool ideas_presentation_title(const ideas_presentation_t *display, uint16_t foreground,
+                              uint16_t background, uint16_t *pixels, size_t capacity,
+                              unsigned *width, unsigned *height);
+
+/* Encode a bounded, malloc-owned local title cache; caller frees the result. */
+void *ideas_title_qoi(const uint16_t *pixels, unsigned width, unsigned height, size_t *size);

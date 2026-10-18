@@ -151,12 +151,12 @@ def generate():
     boot = page("boot_tip", "ROM Download Mode")
     label(boot, "boot_note", "Hold Boot and double-press Power.\nThe chip will enter ROM Download Mode.\nVibe Mode does not run in that mode.", y=120, h=160)
 
-    from vibe_design import apply
+    from vibe_design import FONT, apply
     apply(scene)
 
     # Conditional controls share visibility gates between device and simulator.
     gates = ["button_toggle_open_confirm", "button_cancel_download", "button_result_open",
-             "button_undo_delete", "button_start_idea", "button_check_idea", "button_update_idea", "button_accept_idea", "button_shared_reveal", "button_shared_delete"]
+             "button_undo_delete", "button_local_delete", "button_start_idea", "button_check_idea", "button_update_idea", "button_accept_idea", "button_shared_reveal", "button_shared_delete"]
     gates += ["cell_icon_" + str(i) for i in range(6)]
     gates += ["button_cell_" + str(i) for i in range(6)]
     for name in gates:
@@ -178,7 +178,8 @@ def generate():
     installing = add("layer", -1, 0, 0, 480, 480, name="firmware_progress", bind="firmware_progress_visible", bind_target="visible", hidden=True)
     label(installing, "firmware_progress_title", "Updating firmware", y=36, size=24, align="center")
     label(installing, "firmware_phase", "", y=132, align="center")
-    label(installing, "firmware_percent", "", y=196, size=32, align="center")
+    percent = label(installing, "firmware_percent", "", y=196, size=32, align="center")
+    objects[percent]["font"] = FONT["doto"]
     label(installing, "firmware_power_warning", "Do not unplug or power off.", y=268, color=COLORS["red"], align="center")
     failed = add("layer", installing, 0, 0, 480, 480, name="firmware_failed", bind="firmware_failed_visible", bind_target="visible", hidden=True)
     button(failed, "firmware_failure_back", "Back", 96, 380, 288, action="home")
@@ -201,12 +202,14 @@ def generate():
             value = obj.get("text", "")
             obj["font_charset"] = latin + value + translations.get(value, "")
             obj["font_charset"] += dynamic_chars.get(obj.get("bind"), "")
-            if obj.get("name", "").startswith("code_digit_") or obj.get("name") == "update_percent":
+            if obj.get("name", "").startswith("code_digit_") or obj.get("name") in ("update_percent", "firmware_percent"):
                 obj["font_charset"] = "0123456789% -"
+            if obj.get("name") == "home_ideas_count":
+                obj["font_charset"] = "0123456789-"
             if obj.get("font") == "fonts/NotoSansSC-Bold.otf":
                 obj["font_charset"] = value
-            if obj.get("font") == "fonts/VibeInter.otf" and obj.get("font_size") == 20:
-                obj["font_size"] = 18
+            if obj.get("font") == "fonts/ArchivoExtended-Black.ttf" or obj.get("name") == "home_headline":
+                obj["font_charset"] = value
             if obj.get("hidden"):
                 obj["font_size"] = 16
                 obj["font"] = "fonts/VibeInter.otf"

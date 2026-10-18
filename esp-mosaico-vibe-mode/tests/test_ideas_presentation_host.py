@@ -65,7 +65,7 @@ def decoder(tmp_path_factory):
     lib.decoded_free.argtypes = [ctypes.c_void_p]
     lib.vui_title_qoi.argtypes = lib.vui_png.argtypes
     lib.vui_title_qoi.restype = ctypes.c_void_p
-    lib.ideas_title_qoi.argtypes = [ctypes.POINTER(ctypes.c_uint16), ctypes.POINTER(ctypes.c_size_t)]
+    lib.ideas_title_qoi.argtypes = [ctypes.POINTER(ctypes.c_uint16), ctypes.c_uint, ctypes.c_uint, ctypes.POINTER(ctypes.c_size_t)]
     lib.ideas_title_qoi.restype = ctypes.c_void_p
 
     def decode(data, title=False):
@@ -79,9 +79,9 @@ def decoder(tmp_path_factory):
         finally:
             lib.decoded_free(p)
 
-    def encode_title(pixels):
+    def encode_title(pixels, width=328, height=84):
         size = ctypes.c_size_t()
-        p = lib.ideas_title_qoi(pixels, ctypes.byref(size))
+        p = lib.ideas_title_qoi(pixels, width, height, ctypes.byref(size))
         assert p
         try: return ctypes.string_at(p, size.value)
         finally: lib.decoded_free(p)
@@ -294,3 +294,14 @@ def test_local_title_cache_preserves_glyphs_and_rejects_malformed_data(decoder):
     assert decoder(raw[:14] + b"\xfd" * 445 + raw[-8:], title=True) is None
     bad = bytearray(raw); bad[14] = 0xff
     assert decoder(bytes(bad), title=True) is None
+
+
+def test_wide_title_cache_keeps_native_dimensions_and_rejects_unbounded_sizes(decoder):
+    pixels = (ctypes.c_uint16 * (640 * 28))(*([0xffff] * (640 * 28)))
+    raw = decoder.encode_title(pixels, 640, 28)
+    w, h, data = decoder(raw, title=True)
+    assert (w, h) == (640, 28) and len(data) == 640 * 28 * 3
+    for w, h in [(0,28), (4097,1), (328,85), (4096,84)]:
+        invalid = bytearray(raw)
+        struct.pack_into(">II", invalid, 4, w, h)
+        assert decoder(bytes(invalid), title=True) is None

@@ -48,8 +48,8 @@ def test_embedded_assets_match_sources_and_have_bounded_records():
             text,
         ) = node
         assert -1 <= parent < count and parent != i
-        assert w >= 0 and h >= 0 and kind < 9 and font < font_count
-        if kind == 8:  # Procedural dots have no bitmap frames.
+        assert w >= 0 and h >= 0 and kind < 10 and font < font_count
+        if kind in (8, 9):  # Procedural dots/matrices have no bitmap frames.
             assert image == 0
         assert image <= image_count and template <= count and text < size
         assert b"\0" in raw[text:]
@@ -75,6 +75,7 @@ def test_embedded_assets_match_sources_and_have_bounded_records():
         data, w, h, frames, duration = struct.unpack_from("<I4H", raw, images + i * 12)
         assert w > 0 and h > 0 and frames > 0 and duration > 0
         assert data + w * h * frames * 3 <= size
-    # Include bilingual firmware-update pages; the full image still has its fixed slot check.
-    assert len(packed) < 256 * 1024
-    assert len(raw) < 1152 * 1024
+    # f0b53c0 typography/icons plus bilingual firmware pages. The complete S31
+    # binary is separately checked against the unchanged 0x1c0000-byte slot.
+    assert len(packed) < 384 * 1024
+    assert len(raw) < 1664 * 1024

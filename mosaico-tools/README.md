@@ -85,6 +85,8 @@ reported separately. `--all` and `--project` are mutually exclusive.
 For live device evidence, use `iris device-status --json`; it verifies Device ID,
 Boot ID and `stale=false` through the selected project's Gateway. Unlike host
 `iris status`, this command can acquire the project's device and query it live.
+Add `--inventory` to include live bootloader and partition-table hashes; the
+command rejects evidence if the device reboots during the read.
 Use `iris screenshot device.png --json` to save the device image directly, with
 image metadata, operation ID and the verified device/boot identity. A reboot during
 capture fails verification. Inspect the saved image itself rather than a screenshot

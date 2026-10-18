@@ -78,15 +78,24 @@ esp_err_t ideas_prepare_assets(ideas_context_t *ctx, const job_t *job, pending_t
     const icon_t *json = &pending->assets[ideas_asset_index(p, p->presentation)];
     err = ideas_presentation_parse(json->data, json->size, &sources, display) ? ESP_OK
                                                                               : ESP_ERR_INVALID_ARG;
-    for (unsigned i = 0; err == ESP_OK && i < 2; ++i) {
-        size_t count = i ? IDEAS_DESCRIPTION_WIDTH * IDEAS_DESCRIPTION_HEIGHT
-                         : IDEAS_TITLE_WIDTH * IDEAS_TITLE_HEIGHT;
-        pending->pixels[i].data = heap_caps_malloc(count * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        pending->pixels[i].size = count * 2;
-        if (!pending->pixels[i].data)
-            err = ESP_ERR_NO_MEM;
-        else if (!ideas_presentation_render(display, i, i ? 0xbdf8 : 0xffff, 0,
-                                            pending->pixels[i].data, count))
+    if (err == ESP_OK) {
+        uint16_t *title = heap_caps_malloc(IDEAS_TITLE_PIXELS * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        unsigned width = 0, height = 0;
+        if (!title) err = ESP_ERR_NO_MEM;
+        else if (!ideas_presentation_title(display, 0xffff, 0, title, IDEAS_TITLE_PIXELS, &width, &height))
+            err = ESP_ERR_INVALID_ARG;
+        else {
+            pending->pixels[0].data = ideas_title_qoi(title, width, height, &pending->pixels[0].size);
+            if (!pending->pixels[0].data) err = ESP_ERR_NO_MEM;
+        }
+        free(title);
+    }
+    if (err == ESP_OK) {
+        size_t count = IDEAS_DESCRIPTION_WIDTH * IDEAS_DESCRIPTION_HEIGHT;
+        pending->pixels[1].data = heap_caps_malloc(count * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        pending->pixels[1].size = count * 2;
+        if (!pending->pixels[1].data) err = ESP_ERR_NO_MEM;
+        else if (!ideas_presentation_render(display, 1, 0xbdf8, 0, pending->pixels[1].data, count))
             err = ESP_ERR_INVALID_ARG;
     }
     free(display);

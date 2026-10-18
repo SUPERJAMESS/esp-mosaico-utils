@@ -96,7 +96,7 @@ static void clear_secret(char *text, size_t size) {
 }
 static void clear_preview(vibe_ui_t *s)
 {
-    (void)vui_canvas_stop(s->ui, VUI_VIBE_BIND_IDEA_TITLE_PIXELS);
+    (void)vui_set_image_owned(s->ui, VUI_VIBE_BIND_IDEA_TITLE_PIXELS, NULL, 0);
     (void)vui_canvas_stop(s->ui, VUI_VIBE_BIND_IDEA_BODY_PIXELS);
     (void)vui_component_set_visible(s->ui, VUI_VIBE_OBJ_KEY_IDEA_TITLE_PIXELS, false);
     (void)vui_component_set_visible(s->ui, VUI_VIBE_OBJ_KEY_IDEA_BODY_PIXELS, false);
@@ -116,18 +116,16 @@ static int render_preview(vibe_ui_t *s) {
         void *data = s->services.preview(s->services.ctx, v->idea_request, i, &size);
         if (!data)
             return VUI_ERR_NO_MEM;
-        int err;
-        if (i < 2) {
-            size_t width = i ? IDEAS_DESCRIPTION_WIDTH : IDEAS_TITLE_WIDTH;
-            size_t height = i ? IDEAS_DESCRIPTION_HEIGHT : IDEAS_TITLE_HEIGHT;
+        int err = 0;
+        if (i == 1) {
+            size_t width = IDEAS_DESCRIPTION_WIDTH, height = IDEAS_DESCRIPTION_HEIGHT;
             err = size == width * height * 2
-                      ? vui_canvas_push(s->ui,
-                                            i ? VUI_VIBE_BIND_IDEA_BODY_PIXELS
-                                              : VUI_VIBE_BIND_IDEA_TITLE_PIXELS,
-                                            data, width * 2, free, data)
+                      ? vui_canvas_push(s->ui, VUI_VIBE_BIND_IDEA_BODY_PIXELS,
+                                        data, width * 2, free, data)
                       : VUI_ERR_INVALID_ARG;
         } else
-            err = vui_set_image_owned(s->ui, VUI_VIBE_BIND_IDEA_ICON, data, size);
+            err = vui_set_image_owned(s->ui, i ? VUI_VIBE_BIND_IDEA_ICON : VUI_VIBE_BIND_IDEA_TITLE_PIXELS,
+                                      data, size);
         if (err) {
             free(data);
             clear_preview(s);
@@ -156,9 +154,14 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         VUI_VIBE_BIND_BOOT_TIP_VISIBLE, VUI_VIBE_BIND_DELETE_CONFIRM_VISIBLE,
         VUI_VIBE_BIND_HELP_VISIBLE, VUI_VIBE_BIND_GUIDE_VISIBLE,
         VUI_VIBE_BIND_FIRMWARE_NOTICE_VISIBLE, VUI_VIBE_BIND_FIRMWARE_PROGRESS_VISIBLE,
+        VUI_VIBE_BIND_LICENSES_VISIBLE, VUI_VIBE_BIND_SHARED_HELP_VISIBLE, VUI_VIBE_BIND_SHARED_DETAIL_VISIBLE,
     };
     if (!vibe_product_leave(s, page)) return;
     const vibe_page_t previous = s->page;
+    if (previous == VIBE_HOME && page != VIBE_HOME) {
+        vibe_home_motion_input(&s->home_motion, 0, 0, false, true);
+        s->home_capture = false;
+    }
     if (previous == VIBE_IDEA_INFO && page != VIBE_IDEA_INFO)
         clear_preview(s);
     if (previous == VIBE_PASSWORD && page != VIBE_PASSWORD) {
@@ -177,10 +180,14 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
     if (previous != page)
         (void)vui_set_visible(s->ui, visibility[previous], false);
     (void)vui_set_visible(s->ui, visibility[page], true);
+    if (page == VIBE_RESULT) {
+        bool success = !s->result_failed && !s->result_cancelled;
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_HERO_VISIBLE, success);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_FAILURE_VISIBLE, !success);
+    }
     if (page == VIBE_HOME && (previous != page || !s->home_timer)) {
         vibe_home_motion_enter(&s->home_motion, vui_now_ms(s->ui));
-        (void)vui_set_dots(s->ui, VUI_VIBE_OBJ_KEY_HOME_HERO,
-                           s->home_motion.dots, VIBE_HOME_DOT_COUNT);
+        (void)vui_set_matrix(s->ui, VUI_VIBE_OBJ_KEY_HOME_HERO, &s->home_motion.frame);
     }
     if (page == VIBE_WIFI) {
         TEXT(s, WIFI_NOTE,
@@ -196,6 +203,7 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
 }
 static void error_result(vibe_ui_t *s, const char *title, int error) {
     s->result_cancelled = false;
+    s->result_failed = true;
     TEXT(s, RESULT_TITLE, title);
     FORMAT(s, RESULT_DETAIL, T(s, "Error 0x%08x\nReturn home and retry"), (unsigned)error);
     show(s, VIBE_RESULT);
@@ -315,6 +323,7 @@ static void prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code) {
     }
     s->preview_return = s->page;
     s->preview_active = true;
+    (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_IDEA_DESCRIPTION_VIEWPORT, 0);
     show(s, VIBE_IDEA_INFO);
     vibe_ui_poll(s);
 }
@@ -332,7 +341,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
 #endif
     if (s->snapshot.updating && !s->snapshot.batch)
         return;
-    int err;
+    int err = 0;
     switch (e->action_id) {
     case VUI_VIBE_ACT_ID_DOWNLOAD:
         if (s->snapshot.credentials_saved || s->snapshot.network == VIBE_NET_CONNECTED) {
@@ -402,6 +411,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         (void)vui_component_set_visible(ui, VUI_VIBE_OBJ_KEY_PASSWORD_KEYBOARD_LOWER, true);
         (void)vui_component_set_visible(ui, VUI_VIBE_OBJ_KEY_PASSWORD_KEYBOARD_UPPER, false);
         (void)vui_component_set_visible(ui, VUI_VIBE_OBJ_KEY_PASSWORD_KEYBOARD_SYM, false);
+        (void)vui_component_set_visible(ui, VUI_VIBE_OBJ_KEY_PASSWORD_KEYBOARD_SYM2, false);
         break;
     case VUI_VIBE_ACT_ID_PASSWORD_KEYBOARD_KEY:
         if (s->page != VIBE_PASSWORD)
@@ -457,7 +467,14 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         (void)vui_set_visible(ui, VUI_VIBE_BIND_BUTTON_START_IDEA_VISIBLE,
                                             !s->selected_bundle.boot);
         (void)vui_set_visible(ui, VUI_VIBE_BIND_BUTTON_CHECK_IDEA_VISIBLE, s->selected_bundle.code[0] != 'd');
-        (void)vui_set_visible(ui, VUI_VIBE_BIND_BUTTON_UPDATE_IDEA_VISIBLE, false);
+        (void)vui_set_visible(ui, VUI_VIBE_BIND_BUTTON_LOCAL_DELETE_VISIBLE, !s->selected_bundle.boot);
+        (void)vui_set_visible(ui, VUI_VIBE_BIND_LOCAL_UPDATE_FOOTER_VISIBLE, s->selected_bundle.update_available);
+        (void)vui_set_visible(ui, VUI_VIBE_BIND_LOCAL_NORMAL_FOOTER_VISIBLE, !s->selected_bundle.update_available);
+        (void)vui_set_visible(ui, VUI_VIBE_BIND_BUTTON_UPDATE_IDEA_VISIBLE, s->selected_bundle.update_available);
+        TEXT(s, LOCAL_STATUS, s->selected_bundle.boot ? "Current Idea" : s->selected_bundle.update_available ? "Update available" : "On this device");
+        size_t icon_size = 0;
+        void *icon = s->services.icon ? s->services.icon(s->services.ctx, s->selected_bundle.code, &icon_size) : NULL;
+        if (vui_set_image_owned(ui, VUI_VIBE_BIND_LOCAL_ICON, icon, icon_size) != VUI_OK) free(icon);
         show(s, VIBE_CONFIRM);
         break;
     case VUI_VIBE_ACT_ID_INSTALL:
@@ -599,6 +616,7 @@ void vibe_ui_poll(vibe_ui_t *s) {
     } else if (!v->updating && v->update_terminal && v->update_revision != s->acknowledged_update) {
         s->acknowledged_update = v->update_revision;
         s->result_cancelled = v->update_cancelled;
+        s->result_failed = v->update_failed;
         TEXT(s, RESULT_TITLE, T(s, v->update_title));
         if (v->update_failed && v->transfer.total)
             FORMAT(s, RESULT_DETAIL, T(s, (v->transfer.phase == VIBE_TRANSFER_VERIFY_FILES ||
@@ -705,11 +723,14 @@ void vibe_ui_poll(vibe_ui_t *s) {
                                                    : T(s, "Fetching details from the cloud"))
              : v->idea_custom ? ""
                               : v->idea.description);
-        if (v->idea_ready)
-            FORMAT(s, IDEA_SUMMARY, "%s | %.32s | %lu KiB", v->idea.code, v->idea.version,
+        if (v->idea_ready) {
+            FORMAT(s, IDEA_VERSION, "v%.32s | %lu KiB", v->idea.version,
                    (unsigned long)((v->idea.bytes + 1023) / 1024));
-        else
+            FORMAT(s, IDEA_SUMMARY, "ID %s", v->idea.code);
+        } else {
+            TEXT(s, IDEA_VERSION, "");
             TEXT(s, IDEA_SUMMARY, "");
+        }
         TEXT(s, IDEA_STATUS,
              !v->idea_ready       ? "Please wait"
              : v->idea_view_only  ? "Saved in My Ideas"
@@ -727,10 +748,22 @@ void vibe_ui_poll(vibe_ui_t *s) {
 static void home_tick(vui_handle_t ui, void *ctx)
 {
     vibe_ui_t *s = ctx;
+    if (s->page == VIBE_DEVELOP) {
+        float white[225] = {0}, accent[225] = {0};
+        vui_matrix_t frame = {0};
+        vibe_motion_usb(white, accent, !s->snapshot.device.usb_connected ? VIBE_USB_UNPLUGGED :
+            s->snapshot.usb_owner ? VIBE_USB_READY : VIBE_USB_WAITING, (uint32_t)vui_now_ms(ui), false);
+        for (unsigned y = 0; y < 11; ++y) for (unsigned x = 0; x < 11; ++x) {
+            unsigned source = y * 11 + x, target = (y + 2) * 15 + x + 2;
+            frame.white[target] = (uint8_t)(white[source] * 255);
+            frame.accent[target] = (uint8_t)(accent[source] * 255);
+        }
+        (void)vui_set_matrix(ui, VUI_VIBE_OBJ_KEY_DEVELOP_SIGNAL, &frame);
+        return;
+    }
     if (s->page != VIBE_HOME) return;
     vibe_home_motion_sample(&s->home_motion, vui_now_ms(ui));
-    (void)vui_set_dots(ui, VUI_VIBE_OBJ_KEY_HOME_HERO,
-                       s->home_motion.dots, VIBE_HOME_DOT_COUNT);
+    (void)vui_set_matrix(ui, VUI_VIBE_OBJ_KEY_HOME_HERO, &s->home_motion.frame);
 }
 static void tick(vui_handle_t ui, void *ctx)
 {
@@ -765,8 +798,7 @@ vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *services, vibe_
     if (err != VUI_OK)
         return err;
     vibe_home_motion_enter(&s->home_motion, vui_now_ms(ui));
-    err = vui_set_dots(ui, VUI_VIBE_OBJ_KEY_HOME_HERO,
-                       s->home_motion.dots, VIBE_HOME_DOT_COUNT);
+    err = vui_set_matrix(ui, VUI_VIBE_OBJ_KEY_HOME_HERO, &s->home_motion.frame);
     if (err != VUI_OK)
         return err;
     s->services.snapshot(s->services.ctx, &s->snapshot);
@@ -790,7 +822,7 @@ void vibe_ui_deinit(vibe_ui_t *s) {
         (void)vui_timer_delete(s->ui, s->timer);
     if (s->home_timer)
         (void)vui_timer_delete(s->ui, s->home_timer);
-    (void)vui_set_dots(s->ui, VUI_VIBE_OBJ_KEY_HOME_HERO, NULL, 0);
+    (void)vui_set_matrix(s->ui, VUI_VIBE_OBJ_KEY_HOME_HERO, NULL);
     (void)vui_on_event(s->ui, NULL, NULL);
     (void)vui_set_pointer_observer(s->ui, NULL, NULL);
     clear_secret(s->snapshot.token, sizeof(s->snapshot.token));
