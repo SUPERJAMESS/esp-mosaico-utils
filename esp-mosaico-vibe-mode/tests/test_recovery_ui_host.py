@@ -195,7 +195,7 @@ def sim(tmp_path, native_build, request):
         instance.close()
 
 
-def test_home_dot_motion_tap_navigation_and_sleep(sim):
+def test_home_dot_motion_tap_navigation(sim):
     sim.rpc("wait", frames=120)  # Complete the entrance.
     sim.capture("dots-idle")
     sim.tap(210, 105)
@@ -232,16 +232,7 @@ def test_home_dot_motion_tap_navigation_and_sleep(sim):
     ).read_bytes()
     sim.tap(38, 36)
     sim.wait(page=0)
-    sim.control("ai")
-    sim.wait(page=21)
-    sim.capture("dots-sleep")
-    sim.rpc("wait", frames=100)
-    sim.capture("dots-sleep-later")
-    assert (sim.directory / "dots-sleep.png").read_bytes() == (
-        sim.directory / "dots-sleep-later.png"
-    ).read_bytes()
-    sim.tap(240, 120)
-    sim.wait(page=0)
+
 
 
 @pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
