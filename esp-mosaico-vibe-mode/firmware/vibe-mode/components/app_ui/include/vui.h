@@ -40,6 +40,9 @@ typedef struct {
 } vui_dot_t;
 #define VUI_MAX_DOTS 64
 vui_err_t vui_set_dots(vui_handle_t ui, uint16_t id, const vui_dot_t *dots, size_t count);
+/* A copied 15x15 LED frame. Integer cells remain crisp at both product sizes. */
+typedef struct { uint8_t white[225], accent[225]; } vui_matrix_t;
+vui_err_t vui_set_matrix(vui_handle_t ui, uint16_t id, const vui_matrix_t *frame);
 /* pixels is a retained 480x480 RGB565 surface. A new surface receives a full
  * repaint; subsequent calls preserve pixels outside the returned damage. */
 typedef struct { int x, y, w, h; } vui_area_t;

@@ -78,11 +78,11 @@ bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
         s->hold_consumed = true;
         (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, 0);
     }
-    if (s->page == VIBE_SHARED_EDITOR && next != s->page) {
+    if ((s->page == VIBE_SHARED_EDITOR || s->page == VIBE_SHARED_DETAIL || s->page == VIBE_SHARED_HELP) && next != s->page) {
         (void)vui_set_text(s->ui, VUI_VIBE_BIND_SHARED_VALUE, "");
         s->shared_reveal = false;
         /* Delete confirmation may be cancelled back to the editor. */
-        if (next != VIBE_DELETE_CONFIRM) memset(s->shared_value, 0, sizeof(s->shared_value));
+        if (next != VIBE_DELETE_CONFIRM && next != VIBE_SHARED_DETAIL && next != VIBE_SHARED_EDITOR && next != VIBE_SHARED_HELP) memset(s->shared_value, 0, sizeof(s->shared_value));
     }
     if (next != s->page && (s->page == VIBE_NAND || s->page == VIBE_SHARED))
         return commit_delete(s);
@@ -95,8 +95,8 @@ static void project_open_confirm(vibe_ui_t *s)
     bool low = s->snapshot.device.battery_valid && s->snapshot.device.battery_percent <= 20 &&
                !s->snapshot.device.usb_connected && !s->snapshot.device.charging;
     TEXT(s, OPEN_WARNING, s->open_waiting ? (s->snapshot.nand_scanning ? "Scanning NAND..." : "Finishing previous request...")
-                                         : low ? "Charge above 20% or connect USB." : s->open_unsaved ? "Unsaved development will be replaced." : "The device will restart.");
-    TEXT(s, OPEN_ACCEPT_LABEL, s->open_waiting ? "Please wait" : s->open_unsaved ? "Discard and open" : "Open");
+                                         : low ? "Charge above 20% or connect USB." : s->open_unsaved ? "Unsaved development will be replaced." : "");
+    TEXT(s, OPEN_ACCEPT_LABEL, s->open_waiting ? "Please wait" : "Open");
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_TOGGLE_OPEN_CONFIRM_VISIBLE, !s->open_waiting && !s->open_unsaved);
 }
 static void accept_open(vibe_ui_t *s)
@@ -153,6 +153,9 @@ static void project_shared(vibe_ui_t *s)
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_SHARED_REVEAL_VISIBLE, s->shared_edit_value && secret(s->shared_key));
     TEXT(s, SHARED_REVEAL_LABEL, s->shared_reveal ? "Hide" : "Show");
     TEXT(s, SHARED_SUBMIT_LABEL, s->shared_edit_value ? "Save" : "Next");
+    const uint16_t spaces[] = {VUI_VIBE_OBJ_KEY_SHARED_KEYBOARD_SPACE_0, VUI_VIBE_OBJ_KEY_SHARED_KEYBOARD_SPACE_1,
+        VUI_VIBE_OBJ_KEY_SHARED_KEYBOARD_SPACE_2, VUI_VIBE_OBJ_KEY_SHARED_KEYBOARD_SPACE_3};
+    for (unsigned i = 0; i < 4; ++i) vui_set_text(s->ui, spaces[i], s->shared_edit_value ? "space" : "_");
 }
 static void shared_submit(vibe_ui_t *s)
 {
@@ -176,6 +179,31 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     unsigned action = e->action_id;
     if (s->snapshot.updating && !s->snapshot.batch && action != VUI_VIBE_ACT_ID_CANCEL_DOWNLOAD) return true;
     switch (action) {
+    case VUI_VIBE_ACT_ID_HOME_IDEAS:
+        s->grid_page = 0; vibe_show(s, VIBE_GRID); break;
+    case VUI_VIBE_ACT_ID_HOME_WIFI:
+        if (s->snapshot.network != VIBE_NET_CONNECTED) { s->wifi_return = VIBE_HOME; vibe_show(s, VIBE_WIFI); }
+        break;
+    case VUI_VIBE_ACT_ID_LICENSES:
+        (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_LICENSES_VIEWPORT, 0);
+        vibe_show(s, VIBE_LICENSES); break;
+    case VUI_VIBE_ACT_ID_SHARED_HELP:
+        s->return_page = s->page; vibe_show(s, VIBE_SHARED_HELP); break;
+    case VUI_VIBE_ACT_ID_SHARED_EDIT:
+        vibe_show(s, VIBE_SHARED_EDITOR); project_shared(s); break;
+    case VUI_VIBE_ACT_ID_DOWNLOAD_HELP:
+        s->return_page = s->page; vibe_show(s, VIBE_GUIDE); break;
+    case VUI_VIBE_ACT_ID_SAVE_DEVELOPMENT:
+        if (s->page != VIBE_DEVELOP) break;
+        if (!s->snapshot.development_available) TEXT(s, DEVELOP_FEEDBACK, "No development build to save");
+        else if (s->snapshot.development_saved) TEXT(s, DEVELOP_FEEDBACK, "Already saved in My Ideas");
+        else if (s->snapshot.idea_busy) TEXT(s, DEVELOP_FEEDBACK, "Finishing previous request...");
+        else {
+            int err = vibe_command(s, VIBE_SAVE_DEVELOPMENT, NULL, NULL);
+            if (err) vibe_error(s, "Operation failed", err);
+            else vibe_show(s, VIBE_UPDATE);
+        }
+        break;
     case VUI_VIBE_ACT_ID_FIRMWARE_CHECK:
         if (s->page != VIBE_ABOUT || s->firmware_check == CHECK_PENDING) break;
         if (s->snapshot.network != VIBE_NET_CONNECTED) {
@@ -204,7 +232,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
             (void)vibe_command(s, VIBE_SCAN_NAND, NULL, NULL);
         break;
     case VUI_VIBE_ACT_ID_NAV_SETTINGS: (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT, 0); vibe_show(s, VIBE_SETTINGS); break;
-    case VUI_VIBE_ACT_ID_NAV_WIFI: vibe_show(s, VIBE_WIFI); break;
+    case VUI_VIBE_ACT_ID_NAV_WIFI: s->wifi_return = VIBE_SETTINGS; vibe_show(s, VIBE_WIFI); break;
     case VUI_VIBE_ACT_ID_NAV_DISPLAY: (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT, 0); vibe_show(s, VIBE_DISPLAY); break;
     case VUI_VIBE_ACT_ID_NAV_HELP: vibe_show(s, VIBE_HELP); break;
     case VUI_VIBE_ACT_ID_SHOW_GUIDE: s->return_page = s->page; vibe_show(s, VIBE_GUIDE); break;
@@ -212,6 +240,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     case VUI_VIBE_ACT_ID_NAV_LANGUAGE: vibe_show(s, VIBE_LANGUAGE); break;
     case VUI_VIBE_ACT_ID_NAV_SHARED: vibe_show(s, VIBE_SHARED); break;
     case VUI_VIBE_ACT_ID_NAV_ABOUT:
+        (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_ABOUT_VIEWPORT, 0);
         s->firmware_check = CHECK_IDLE;
         vibe_show(s, VIBE_ABOUT);
         break;
@@ -220,9 +249,11 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_PRODUCT_BACK:
         if (s->page == VIBE_WELCOME) break;
-        if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE) vibe_show(s, s->return_page);
+        if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE || s->page == VIBE_SHARED_HELP) vibe_show(s, s->return_page);
+        else if (s->page == VIBE_LICENSES) vibe_show(s, VIBE_ABOUT);
+        else if (s->page == VIBE_SHARED_DETAIL) vibe_show(s, VIBE_SHARED);
         else if (s->page == VIBE_DELETE_CONFIRM) {
-            vibe_show(s, s->delete_code[0] ? VIBE_CONFIRM : VIBE_SHARED_EDITOR);
+            vibe_show(s, s->delete_code[0] ? VIBE_CONFIRM : s->return_page);
             if (s->page == VIBE_SHARED_EDITOR) project_shared(s);
         }
         else if (s->page == VIBE_SHARED_EDITOR) {
@@ -234,7 +265,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_BACK_WIFI:
         if (s->first_run) { s->first_run = false; vibe_show(s, VIBE_HOME); }
-        else vibe_show(s, VIBE_SETTINGS);
+        else vibe_show(s, s->wifi_return);
         break;
     case VUI_VIBE_ACT_ID_SET_LANGUAGE: number_setting(s, VIBE_SETTINGS_LANGUAGE, e->arg); break;
     case VUI_VIBE_ACT_ID_BRIGHTNESS: number_setting(s, VIBE_SETTINGS_BRIGHTNESS, e->arg); break;
@@ -245,7 +276,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         if (s->page == VIBE_CONFIRM) open_confirm(s);
         break;
     case VUI_VIBE_ACT_ID_RESULT_OPEN:
-        if (s->page == VIBE_RESULT && !s->snapshot.update_failed && !s->result_cancelled) open_confirm(s);
+        if (s->page == VIBE_RESULT && !s->result_failed && !s->result_cancelled) open_confirm(s);
         break;
     case VUI_VIBE_ACT_ID_RESULT_DONE:
         if (s->page == VIBE_RESULT)
@@ -324,14 +355,15 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         snprintf(s->shared_key, sizeof(s->shared_key), "%s", entry->key);
         snprintf(s->shared_value, sizeof(s->shared_value), "%s", entry->value);
         s->shared_edit_value = true; s->shared_reveal = s->shared_wait = false;
-        vibe_show(s, VIBE_SHARED_EDITOR); project_shared(s); break;
+        vibe_show(s, VIBE_SHARED_DETAIL); break;
     }
     case VUI_VIBE_ACT_ID_SHARED_REVEAL: s->shared_reveal = !s->shared_reveal; project_shared(s); break;
     case VUI_VIBE_ACT_ID_SHARED_SUBMIT: if (s->page == VIBE_SHARED_EDITOR) shared_submit(s); break;
     case VUI_VIBE_ACT_ID_SHARED_DELETE:
-        if (s->page == VIBE_SHARED_EDITOR && s->shared_key[0] && commit_delete(s)) {
+        if ((s->page == VIBE_SHARED_EDITOR || s->page == VIBE_SHARED_DETAIL) && s->shared_key[0] && commit_delete(s)) {
             snprintf(s->undo_key, sizeof(s->undo_key), "%s", s->shared_key);
             s->delete_code[0] = 0;
+            s->return_page = s->page;
             TEXT(s, DELETE_CONFIRM_TITLE, "Shared information");
             vibe_show(s, VIBE_DELETE_CONFIRM);
         }
@@ -342,7 +374,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         char *value = s->shared_edit_value ? s->shared_value : s->shared_key;
         size_t n = strlen(value), cap = s->shared_edit_value ? sizeof(s->shared_value) : sizeof(s->shared_key);
         if (e->arg == 8 && n) value[--n] = 0;
-        else if (e->arg >= 32 && e->arg <= 126 && n + 1 < cap) { value[n] = (char)e->arg; value[n + 1] = 0; }
+        else if (e->arg >= 32 && e->arg <= 126 && n + 1 < cap) { value[n] = !s->shared_edit_value && e->arg == 32 ? '_' : (char)e->arg; value[n + 1] = 0; }
         project_shared(s); break;
     }
     case VUI_VIBE_ACT_ID_NONE: break;
@@ -371,6 +403,8 @@ static void render_pager(vibe_ui_t *s)
 }
 static void render_grid(vibe_ui_t *s)
 {
+    static const uint16_t updates[] = {VUI_VIBE_BIND_CELL_UPDATE_0_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_1_VISIBLE,
+        VUI_VIBE_BIND_CELL_UPDATE_2_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_3_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_4_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_5_VISIBLE};
     static const uint16_t icons[] = {VUI_VIBE_BIND_CELL_ICON_0, VUI_VIBE_BIND_CELL_ICON_1, VUI_VIBE_BIND_CELL_ICON_2, VUI_VIBE_BIND_CELL_ICON_3, VUI_VIBE_BIND_CELL_ICON_4, VUI_VIBE_BIND_CELL_ICON_5};
     static const uint16_t names[] = {VUI_VIBE_BIND_CELL_NAME_0, VUI_VIBE_BIND_CELL_NAME_1, VUI_VIBE_BIND_CELL_NAME_2, VUI_VIBE_BIND_CELL_NAME_3, VUI_VIBE_BIND_CELL_NAME_4, VUI_VIBE_BIND_CELL_NAME_5};
     static const uint16_t icon_objects[] = {VUI_VIBE_BIND_CELL_ICON_0_VISIBLE, VUI_VIBE_BIND_CELL_ICON_1_VISIBLE, VUI_VIBE_BIND_CELL_ICON_2_VISIBLE, VUI_VIBE_BIND_CELL_ICON_3_VISIBLE, VUI_VIBE_BIND_CELL_ICON_4_VISIBLE, VUI_VIBE_BIND_CELL_ICON_5_VISIBLE};
@@ -392,7 +426,7 @@ static void render_grid(vibe_ui_t *s)
         if (idea) {
             bool ascii = strspn(idea->release, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_.,!?()") == strlen(idea->release);
             const char *title = ascii ? idea->release : idea->code;
-            snprintf(name, sizeof(name), "%.8s%s", title, strlen(title) > 8 ? "..." : idea->update_available ? " ↑" : "");
+            snprintf(name, sizeof(name), "%.60s", title);
         }
         (void)vui_set_text(s->ui, names[cell], name);
         size_t size = 0;
@@ -402,6 +436,7 @@ static void render_grid(vibe_ui_t *s)
         (void)vui_set_visible(s->ui, icon_objects[cell], has_icon);
         (void)vui_set_visible(s->ui, defaults[cell], present && !has_icon);
         (void)vui_set_visible(s->ui, current[cell], idea && idea->boot);
+        (void)vui_set_visible(s->ui, updates[cell], idea && idea->update_available);
         (void)vui_set_visible(s->ui, cards[cell], visible ? present || add_cell : cell == 1);
         (void)vui_set_visible(s->ui, add[cell], add_cell);
     }
@@ -441,7 +476,7 @@ void vibe_product_poll(vibe_ui_t *s)
         s->first_run = false; vibe_show(s, VIBE_HOME);
     }
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_CANCEL_DOWNLOAD_VISIBLE, v->cancellable);
-    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_OPEN_VISIBLE, !v->update_failed && !s->result_cancelled && s->selected_bundle.code[0]);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_OPEN_VISIBLE, !s->result_failed && !s->result_cancelled && s->selected_bundle.code[0]);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_UNDO_DELETE_VISIBLE, s->undo_until != 0);
     if (s->undo_until) FORMAT(s, UNDO_MESSAGE, "Deleted · %u s to undo", (s->undo_until > s->tick ? s->undo_until - s->tick : 0) / 20 + 1);
     else TEXT(s, UNDO_MESSAGE, "");
@@ -490,6 +525,9 @@ void vibe_product_poll(vibe_ui_t *s)
         }
     }
     if (s->page == VIBE_HOME || s->page == VIBE_GRID) {
+        TEXT(s, HOME_CAPTION, v->network == VIBE_NET_CONNECTED ? "Stitch ideas, run now." : "Wi-Fi not connected >");
+        if (v->nand_generation) FORMAT(s, HOME_IDEAS_COUNT, "%u", (unsigned)vibe_bundle_count(s));
+        else TEXT(s, HOME_IDEAS_COUNT, "--");
         FORMAT(s, HOME_VERSION, "%s", v->firmware_version);
         FORMAT(s, GRID_VERSION, "%s", v->firmware_version);
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HOME_HEADING_EN_VISIBLE, v->settings.language != 2);
@@ -513,7 +551,9 @@ void vibe_product_poll(vibe_ui_t *s)
     if (s->page == VIBE_GRID) {
         if (s->grid_generation != v->nand_generation + 1) render_grid(s);
     } else if (s->page == VIBE_DEVELOP) {
-        TEXT(s, DEVELOP_USB, !v->device.usb_connected ? "USB not connected" : v->usb_owner ? "USB connected · Agent ready" : "USB connected · waiting for Agent");
+        TEXT(s, DEVELOP_USB, v->device.usb_connected ? "Device connected" : "USB not connected");
+        TEXT(s, DEVELOP_AGENT, !v->device.usb_connected ? "Connect USB to develop" : v->usb_owner ? "Agent ready" : "Waiting for Agent");
+        TEXT(s, DEVELOP_SAVE_DETAIL, !v->development_available ? "No development build" : v->development_saved ? "Already saved" : v->development_name);
     } else if (s->page == VIBE_DISPLAY) {
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_ROTATE_0_0_VISIBLE, !v->settings.auto_rotate);
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_ROTATE_0_1_VISIBLE, v->settings.auto_rotate);
@@ -548,15 +588,29 @@ void vibe_product_poll(vibe_ui_t *s)
         else FORMAT(s, ABOUT_STORAGE, "%llu / %llu MiB", (unsigned long long)(v->storage_used / 1048576), (unsigned long long)(v->storage_total / 1048576));
     } else if (s->page == VIBE_SHARED) {
         const uint16_t rows[] = {VUI_VIBE_BIND_SHARED_ROW_0_LABEL, VUI_VIBE_BIND_SHARED_ROW_1_LABEL, VUI_VIBE_BIND_SHARED_ROW_2_LABEL, VUI_VIBE_BIND_SHARED_ROW_3_LABEL};
+        const uint16_t keys[] = {VUI_VIBE_BIND_SHARED_KEY_0, VUI_VIBE_BIND_SHARED_KEY_1, VUI_VIBE_BIND_SHARED_KEY_2, VUI_VIBE_BIND_SHARED_KEY_3};
+        const uint16_t values[] = {VUI_VIBE_BIND_SHARED_ENTRY_VALUE_0, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_1, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_2, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_3};
+        const uint16_t buttons[] = {VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_0, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_1, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_2, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_3};
         for (size_t r = 0; r < 4; ++r) {
             size_t i = s->shared_page * 4 + r;
+            (void)vui_set_text(s->ui, rows[r], "");
+            (void)vui_set_visible(s->ui, buttons[r], i < v->settings.shared_count);
             if (i < v->settings.shared_count) {
                 const vibe_shared_entry_t *entry = &v->settings.shared[i];
+                (void)vui_set_text(s->ui, keys[r], entry->key);
                 if (s->undo_until && s->undo_shared && !strcmp(s->undo_key, entry->key))
-                    format(s, rows[r], "Undo · %u s", (s->undo_until > s->tick ? s->undo_until - s->tick : 0) / 20 + 1);
-                else format(s, rows[r], "%s: %.24s", entry->key, secret(entry->key) ? "********" : entry->value);
+                    format(s, values[r], "Undo · %u s", (s->undo_until > s->tick ? s->undo_until - s->tick : 0) / 20 + 1);
+                else (void)vui_set_text(s->ui, values[r], secret(entry->key) ? "********" : entry->value);
             } else (void)vui_set_text(s->ui, rows[r], "");
         }
+    } else if (s->page == VIBE_SHARED_DETAIL) {
+        /* Reproject after wake or an external settings refresh; editor drafts
+         * remain local until the existing save operation completes. */
+        for (size_t i = 0; i < v->settings.shared_count; ++i)
+            if (!strcmp(v->settings.shared[i].key, s->shared_key))
+                snprintf(s->shared_value, sizeof(s->shared_value), "%s", v->settings.shared[i].value);
+        TEXT(s, SHARED_DETAIL_KEY, s->shared_key);
+        TEXT(s, SHARED_DETAIL_VALUE, secret(s->shared_key) ? "********" : s->shared_value);
     }
     if (s->page == VIBE_HOME || s->page == VIBE_GRID) render_pager(s);
 }
@@ -580,14 +634,17 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
     if (s->page == VIBE_SLEEP && pressed) { wake(s); s->pointer_down = pressed; return; }
     if (pressed && !s->pointer_down) { s->gesture_consumed = false; s->hold_consumed = false; s->pointer_page = s->page; s->pointer_page_ready = s->tick - s->page_enter_tick >= 3; s->pointer_x = x; s->pointer_y = y; haptic(s, 1); }
     if (pressed && s->pointer_down && (abs(x - s->pointer_x) > 24 || abs(y - s->pointer_y) > 24)) s->gesture_consumed = true;
-    if (!pressed && s->pointer_down && s->page == VIBE_HOME &&
-        s->pointer_page == VIBE_HOME && s->pointer_page_ready &&
-        s->tick >= s->suppress_until && !s->gesture_consumed &&
-        abs(x - s->pointer_x) <= 24 && abs(y - s->pointer_y) <= 24 &&
-        s->pointer_x >= VIBE_HOME_DOTS_X && s->pointer_x < VIBE_HOME_DOTS_X + VIBE_HOME_DOTS_SIZE &&
-        s->pointer_y >= VIBE_HOME_DOTS_Y && s->pointer_y < VIBE_HOME_DOTS_Y + VIBE_HOME_DOTS_SIZE) {
-        vibe_home_motion_tap(&s->home_motion, vui_now_ms(ui),
-                             x - VIBE_HOME_DOTS_X, y - VIBE_HOME_DOTS_Y);
+    if (pressed && !s->pointer_down) {
+        s->home_capture = s->page == VIBE_HOME && s->pointer_page_ready && s->tick >= s->suppress_until &&
+            x >= VIBE_HOME_DOTS_X && x < VIBE_HOME_DOTS_X + VIBE_HOME_DOTS_SIZE &&
+            y >= VIBE_HOME_DOTS_Y && y < VIBE_HOME_DOTS_Y + VIBE_HOME_DOTS_SIZE;
+    }
+    if (s->home_capture) {
+        vibe_home_motion_input(&s->home_motion, x - VIBE_HOME_DOTS_X, y - VIBE_HOME_DOTS_Y, pressed, false);
+        s->gesture_consumed = true;
+        s->pointer_down = pressed;
+        if (!pressed) s->home_capture = false;
+        return;
     }
     if (s->page == VIBE_RESET || s->page == VIBE_DELETE_CONFIRM) {
         bool inside = x >= 24 && x < 456 && y >= 348 && y < 444;
@@ -668,6 +725,7 @@ void vibe_product_tick(vibe_ui_t *s)
 }
 void vibe_product_init(vibe_ui_t *s)
 {
+    s->wifi_return = VIBE_SETTINGS;
     (void)vui_set_pointer_observer(s->ui, pointer, s);
     s->first_run = s->snapshot.settings.language == 0;
     if (s->first_run) vibe_show(s, VIBE_WELCOME);

@@ -29,13 +29,15 @@ typedef struct {
     char *text;
     uint8_t *image;
     vui_dot_t *dots;
+    vui_matrix_t *matrix;
     size_t dot_count, dot_capacity;
     void *canvas, *release_ctx;
     void (*release)(void *);
     size_t stride;
     uint16_t width, height, color, value;
-    int scroll;
-    bool hidden, has_color, indeterminate;
+    int scroll, marquee_extent, marquee_offset;
+    uint64_t marquee_start;
+    bool hidden, has_color, indeterminate, marquee_active;
 } value_t;
 typedef struct {
     uint16_t id;
@@ -83,7 +85,7 @@ struct vui {
     uint64_t now;
     uint32_t animation;
     bool dirty, pressed, moved;
-    int start_x, start_y, last_y;
+    int start_x, start_y, last_y, pointer_x, pointer_y;
     uint16_t drag_node, fling_node;
     int velocity, scroll_fraction;
     uint64_t last_move;
@@ -160,6 +162,7 @@ static void release_value(value_t *v)
     }
     free(v->image);
     free(v->dots);
+    free(v->matrix);
     if (v->release)
         v->release(v->release_ctx);
     memset(v, 0, sizeof(*v));
@@ -180,6 +183,7 @@ static int text_value(value_t *v, const char *text, bool *changed)
         free(v->text);
     }
     v->text = copy;
+    v->marquee_active = false;
     *changed = true;
     return VUI_OK;
 }
@@ -314,6 +318,7 @@ static int image_value(value_t *v, void *png, size_t size, bool *changed)
         *changed = v->image != NULL;
         free(v->image);
         v->image = NULL;
+        v->marquee_active = false;
         return VUI_OK;
     }
     unsigned w, h;
@@ -323,6 +328,7 @@ static int image_value(value_t *v, void *png, size_t size, bool *changed)
         return VUI_ERR_INVALID_ARG;
     free(v->image);
     v->image = p;
+    v->marquee_active = false;
     v->width = w;
     v->height = h;
     free(png);
@@ -362,6 +368,24 @@ vui_err_t vui_canvas_push(vui_handle_t u, uint16_t id, void *pixels, size_t stri
     v->stride = stride;
     v->release = release;
     v->release_ctx = ctx;
+    damage_node(u, id);
+    return VUI_OK;
+}
+vui_err_t vui_set_matrix(vui_handle_t u, uint16_t id, const vui_matrix_t *frame)
+{
+    if (!valid(u, id) || u->nodes[id - 1].kind != VUI_MATRIX)
+        return VUI_ERR_INVALID_ARG;
+    value_t *v = &u->values[id - 1];
+    if (!frame) {
+        if (v->matrix) { free(v->matrix); v->matrix = NULL; damage_node(u, id); }
+        return VUI_OK;
+    }
+    if (v->matrix && !memcmp(v->matrix, frame, sizeof(*frame))) return VUI_OK;
+    if (!v->matrix) {
+        v->matrix = vui_alloc(sizeof(*frame));
+        if (!v->matrix) return VUI_ERR_NO_MEM;
+    }
+    memcpy(v->matrix, frame, sizeof(*frame));
     damage_node(u, id);
     return VUI_OK;
 }
@@ -555,6 +579,32 @@ uint64_t vui_now_ms(vui_handle_t u)
 {
     return u ? u->now : 0;
 }
+/* Native title movement: 28 px/s, with a 1.2 s reading pause at both ends.
+ * Only an overflowing, visible title damages the retained framebuffer. */
+static int marquee_offset(const value_t *v, uint64_t now)
+{
+    if (!v->marquee_active || v->marquee_extent <= 0) return 0;
+    uint64_t travel = ((uint64_t)v->marquee_extent * 1000 + 27) / 28;
+    uint64_t t = (now - v->marquee_start) % (2 * (1200 + travel));
+    if (t < 1200) return 0;
+    t -= 1200;
+    if (t < travel) return (int)(t * v->marquee_extent / travel);
+    t -= travel;
+    if (t < 1200) return v->marquee_extent;
+    t -= 1200;
+    return v->marquee_extent - (int)(t * v->marquee_extent / travel);
+}
+static int marquee_layout(vui_handle_t u, value_t *v, int content, int viewport)
+{
+    int extent = max(0, content - viewport);
+    if (!v->marquee_active || v->marquee_extent != extent) {
+        v->marquee_start = u->now;
+        v->marquee_offset = 0;
+        v->marquee_extent = extent;
+        v->marquee_active = true;
+    }
+    return v->marquee_offset;
+}
 void vui_tick(vui_handle_t u, uint32_t elapsed)
 {
     if (!u)
@@ -582,7 +632,37 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
         u->velocity = u->velocity * (1000 - (int)step * 6) / 1000;
         if (!next || next == limit || abs(u->velocity) < 20) u->fling_node = 0;
     }
+    for (unsigned l = 0; l < LISTS; ++l) {
+        list_t *list = &u->lists[l];
+        bool shown = list->id && visible(u, list->id - 1);
+        for (unsigned r = 0; r < list->total; ++r) {
+            int y = r * u->nodes[list->id - 1].item_height - list->scroll;
+            bool on_screen = shown && y + u->nodes[list->id - 1].item_height > 0 &&
+                             y < u->nodes[list->id - 1].h;
+            for (unsigned f = 0; f < ROW_FIELDS; ++f) {
+                row_field_t *field = &list->rows[r].fields[f];
+                if (!valid(u, field->id) || !(u->nodes[field->id - 1].flags & VUI_MARQUEE)) continue;
+                value_t *v = &field->value;
+                if (!on_screen) v->marquee_active = false;
+                int offset = marquee_offset(v, u->now);
+                if (offset != v->marquee_offset) {
+                    v->marquee_offset = offset;
+                    if (on_screen) damage_node(u, list->id);
+                }
+            }
+        }
+    }
     for (unsigned i = 0; i < u->header->node_count; i++) {
+        if (u->nodes[i].flags & VUI_MARQUEE) {
+            value_t *v = &u->values[i];
+            bool shown = visible(u, i);
+            if (!shown) v->marquee_active = false;
+            int offset = marquee_offset(v, u->now);
+            if (offset != v->marquee_offset) {
+                v->marquee_offset = offset;
+                if (shown) damage_node(u, i + 1);
+            }
+        }
         if (u->values[i].indeterminate && previous / 50 != u->now / 50)
             damage_node(u, i + 1);
         if (u->nodes[i].image) {
@@ -797,8 +877,35 @@ static void text(vui_handle_t u, const vui_node_t *n, rect_t r, rect_t clip, con
         }
     }
 }
+static void marquee_text(vui_handle_t u, const vui_node_t *n, value_t *v,
+                          rect_t r, rect_t clip, const char *s, uint16_t color)
+{
+    if (!s || !*s) return;
+    const vui_font_t *f = &u->fonts[n->font];
+    int width = 0;
+    for (const char *p = s; *p;) {
+        unsigned code = utf8(&p);
+        const vui_glyph_t *g = glyph(u, f, code == '\n' ? ' ' : code);
+        if (g) width += g->advance;
+    }
+    int offset = marquee_layout(u, v, (width + 63) / 64, r.w);
+    int pen = (r.x - offset) * 64, baseline = r.y + max(0, (r.h - f->height) / 2) + f->ascent;
+    for (const char *p = s; *p;) {
+        unsigned code = utf8(&p);
+        const vui_glyph_t *g = glyph(u, f, code == '\n' ? ' ' : code);
+        if (!g) continue;
+        rect_t gr = {pen / 64 + g->x, baseline + g->y, g->w, g->h}, b = intersect(gr, clip);
+        const uint8_t *bits = u->assets + g->data;
+        for (int y = b.y; y < b.y + b.h; ++y)
+            for (int x = b.x; x < b.x + b.w; ++x) {
+                unsigned alpha = bits[(y - gr.y) * g->w + x - gr.x];
+                if (alpha) pixel(u, x, y, color, alpha);
+            }
+        pen += g->advance;
+    }
+}
 static void bitmap(vui_handle_t u, rect_t r, rect_t clip, const uint8_t *data, unsigned w,
-                   unsigned h, bool rgb, size_t stride)
+                   unsigned h, bool rgb, size_t stride, unsigned radius)
 {
     if (!w || !h)
         return;
@@ -807,7 +914,7 @@ static void bitmap(vui_handle_t u, rect_t r, rect_t clip, const uint8_t *data, u
     for (int y = b.y; y < b.y + b.h; y++) {
         unsigned sy = native ? (unsigned)(y - r.y) : (y - r.y) * h / r.h;
         const uint8_t *row = data + sy * stride;
-        if (native && rgb) {
+        if (native && rgb && !radius) {
             memcpy(u->pixels + y * WIDTH + b.x, row + (b.x - r.x) * 2, (size_t)b.w * 2);
             continue;
         }
@@ -815,6 +922,7 @@ static void bitmap(vui_handle_t u, rect_t r, rect_t clip, const uint8_t *data, u
             unsigned sx = native ? (unsigned)(x - r.x) : (x - r.x) * w / r.w;
             const uint8_t *p = row + sx * (rgb ? 2 : 3);
             unsigned a = rgb ? 255 : p[2];
+            if (radius) a = a * coverage(r, radius, x, y) / 255;
             if (a) pixel(u, x, y, p[0] | (p[1] << 8), a);
         }
     }
@@ -854,6 +962,36 @@ static void hit(vui_handle_t u, rect_t r, rect_t clip, unsigned node, vui_event_
     if (r.w > 0 && r.h > 0 && u->hit_count < HITS)
         u->hits[u->hit_count++] = (hit_t){r, node, event};
 }
+static void draw_matrix(vui_handle_t u, rect_t r, rect_t clip, const value_t *v)
+{
+    box(u, r, clip, r.w / 7, 0x1082);
+    outline(u, r, clip, r.w / 7, 1, 0x2945);
+    int pitch = (r.w - 20) / 15, cell = max(1, pitch - 2);
+    int ox = r.x + (r.w - (15 * pitch - 2)) / 2;
+    int oy = r.y + (r.h - (15 * pitch - 2)) / 2;
+    for (int y = 0; y < 15; ++y) for (int x = 0; x < 15; ++x) {
+        int edge_x = min(x, 14-x), edge_y = min(y, 14-y);
+        if (edge_x + edge_y < 2) continue;
+        int i = y * 15 + x;
+        unsigned w = v->matrix ? v->matrix->white[i] : 0;
+        unsigned a = v->matrix ? v->matrix->accent[i] : 0;
+        unsigned level = max(w, a);
+        unsigned red = (25 * (255-level) + 243 * w + 255 * a) / 255;
+        unsigned green = (27 * (255-level) + 244 * w + 100 * a) / 255;
+        unsigned blue = (29 * (255-level) + 242 * w + 57 * a) / 255;
+        uint16_t color = ((min(255,red) >> 3) << 11) | ((min(255,green) >> 2) << 5) | (min(255,blue) >> 3);
+        box(u, (rect_t){ox+x*pitch,oy+y*pitch,cell,cell}, clip, 0, color);
+    }
+}
+static rect_t key_preview(vui_handle_t u)
+{
+    rect_t r = u->down.rect;
+    if (!valid(u, u->down.node) || u->down.event.arg < 33 || u->down.event.arg > 126)
+        return (rect_t){0};
+    int parent = u->nodes[u->down.node - 1].parent;
+    if (parent < 0 || !(u->nodes[parent].flags & VUI_KEY_MODE)) return (rect_t){0};
+    return (rect_t){max(4, min(414, r.x + r.w/2 - 31)), r.y - 78, 62, 72};
+}
 static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row, unsigned depth)
 {
     if (depth > 32 || u->values[i].hidden)
@@ -875,6 +1013,8 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
             outline(u, r, paint, n->radius, n->border_width, n->border);
         if (n->kind == VUI_DOTS)
             draw_dots(u, r, paint, v);
+        if (n->kind == VUI_MATRIX)
+            draw_matrix(u, r, paint, v);
         if (n->kind == VUI_PROGRESS) {
             rect_t bar = {r.x, r.y, r.w * v->value / 100, r.h};
             if (v->indeterminate) {
@@ -886,18 +1026,31 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
         }
         if (n->kind == VUI_IMAGE) {
             if (v->canvas)
-                bitmap(u, r, paint, v->canvas, n->w, n->h, true, v->stride);
-            else if (v->image)
-                bitmap(u, r, paint, v->image, v->width, v->height, false, v->width * 3);
+                bitmap(u, r, paint, v->canvas, n->w, n->h, true, v->stride, n->radius);
+            else if (v->image) {
+                rect_t image = r;
+                if (n->flags & VUI_MARQUEE) {
+                    /* Preserve aspect ratio. Never enlarge a short title to
+                     * fill its box; unusually tall fonts may shrink uniformly. */
+                    image.h = min(r.h, v->height);
+                    image.w = max(1, (int)v->width * image.h / v->height);
+                    image.y += (r.h - image.h) / 2;
+                    image.x -= marquee_layout(u, v, image.w, r.w);
+                }
+                bitmap(u, image, paint, v->image, v->width, v->height, false, v->width * 3, n->radius);
+            }
             else if (n->image) {
                 const vui_image_t *im = &u->images[n->image - 1];
                 bitmap(u, r, paint,
                        u->assets + im->data + (u->now / im->duration % im->frames) * im->w * im->h * 3,
-                       im->w, im->h, false, im->w * 3);
+                       im->w, im->h, false, im->w * 3, n->radius);
             }
         }
-        if (n->kind == VUI_LABEL || n->kind == VUI_BUTTON)
-            text(u, n, r, paint, v->text ? v->text : (const char *)u->assets + n->text, fg);
+        if (n->kind == VUI_LABEL || n->kind == VUI_BUTTON) {
+            const char *label = v->text ? v->text : (const char *)u->assets + n->text;
+            if (n->flags & VUI_MARQUEE) marquee_text(u, n, v, r, paint, label, fg);
+            else text(u, n, r, paint, label, fg);
+        }
     }
     if (n->kind == VUI_BUTTON)
         hit(u, r, clip, i + 1,
@@ -927,6 +1080,19 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
     int offset = (n->flags & VUI_SCROLL) ? v->scroll : 0;
     for (int c = u->child[i]; c >= 0; c = u->sibling[c])
         draw(u, c, r.x, r.y - offset, clip, row, depth + 1);
+    if (n->kind == VUI_BUTTON && u->pressed && !u->moved && u->down.node == i + 1 &&
+        contains(u->down.rect, u->pointer_x, u->pointer_y)) {
+        if (n->flags & VUI_PRESS_RING) {
+            /* Grid presses keep the icon in place and only light its ring. */
+            int diameter = r.w - 8;
+            outline(u, (rect_t){r.x + 4, r.y + 4, diameter, diameter}, paint, diameter / 2, 2, 0xf79e);
+        } else {
+            /* A light overlay preserves the card geometry and all child labels. */
+            for (int yy = paint.y; yy < paint.y + paint.h; ++yy)
+                for (int xx = paint.x; xx < paint.x + paint.w; ++xx)
+                    pixel(u, xx, yy, 0xffff, coverage(r, n->radius ? n->radius : 18, xx, yy) * 10 / 255);
+        }
+    }
     if ((n->flags & VUI_SCROLL) && n->content_height > n->h) {
         int track = r.h - 8, thumb = max(20, track * r.h / n->content_height);
         int y = r.y + 4 + offset * (track - thumb) / (n->content_height - n->h);
@@ -952,6 +1118,17 @@ bool vui_render_changed(vui_handle_t u, uint16_t *pixels, vui_area_t *changed)
     for (unsigned i = 0; i < u->header->node_count; i++)
         if (u->nodes[i].parent < 0 && !(u->nodes[i].flags & VUI_TEMPLATE))
             draw(u, i, 0, 0, (rect_t){0, 0, WIDTH, HEIGHT}, NULL, 0);
+    if (u->pressed && !u->moved && valid(u, u->down.node) && visible(u, u->down.node-1) &&
+        contains(u->down.rect, u->pointer_x, u->pointer_y)) {
+        rect_t bubble = key_preview(u), clip = intersect(bubble, u->paint_clip);
+        if (bubble.w && clip.w && clip.h) {
+            box(u, bubble, clip, 10, 0xf79e);
+            vui_node_t key = u->nodes[u->down.node-1];
+            key.align = 1;
+            char value[2] = {(char)u->down.event.arg, 0};
+            text(u, &key, bubble, clip, value, 0x0841);
+        }
+    }
     u->pixels = NULL;
     return true;
 }
@@ -967,6 +1144,8 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
 {
     if (!u)
         return;
+    if (u->pressed) { damage_node(u, u->down.node); damage_add(u, key_preview(u)); }
+    u->pointer_x = x; u->pointer_y = y;
     if (pressed && !u->pressed) {
         memset(&u->down, 0, sizeof(u->down));
         u->start_x = x;
@@ -1016,11 +1195,11 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
     if (u->observer)
         u->observer(u, x, y, pressed, u->observer_ctx);
     if (clicked && visible(u, u->down.node - 1)) {
-        if (u->down.event.arg >= 0x100 && u->down.event.arg <= 0x102) {
+        if (u->down.event.arg >= 0x100 && u->down.event.arg <= 0x103) {
             int layer = u->nodes[u->down.node - 1].parent, keyboard = u->nodes[layer].parent,
                 mode = u->down.event.arg == 0x100   ? 1
                        : u->down.event.arg == 0x101 ? 0
-                                                    : 2;
+                       : u->down.event.arg == 0x102 ? 2 : 3;
             for (int c = u->child[keyboard], m = 0; c >= 0; c = u->sibling[c])
                 if (u->nodes[c].flags & VUI_KEY_MODE)
                     vui_set_visible(u, c + 1, m++ == mode);
@@ -1028,4 +1207,5 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
             u->event(u, &u->down.event, u->event_ctx);
     }
     u->pressed = pressed;
+    if (pressed) { damage_node(u, u->down.node); damage_add(u, key_preview(u)); }
 }

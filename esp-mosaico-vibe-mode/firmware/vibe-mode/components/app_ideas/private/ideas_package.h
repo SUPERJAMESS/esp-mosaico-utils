@@ -60,7 +60,6 @@ typedef esp_err_t (*ideas_hash_progress_fn)(uint32_t checked, void *ctx);
 esp_err_t ideas_hash_file_progress(const char *path, uint32_t size, const char *expected,
                               ideas_hash_progress_fn progress, void *ctx);
 bool ideas_png_valid(const void *data, size_t size);
-void *ideas_title_qoi(const uint16_t *pixels, size_t *size);
 
 typedef esp_err_t (*ideas_fetch_fn)(const ideas_file_t *file, const char *destination, void *ctx);
 typedef esp_err_t (*ideas_verify_fn)(const ideas_file_t *file, const char *path, void *ctx);

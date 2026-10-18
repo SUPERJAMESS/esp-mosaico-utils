@@ -220,18 +220,19 @@ done:
 
 /* Local title cache emitted by ideas_title_qoi: RGB/RUN opcodes only.
  * The black title surface is transparent over cards. Crop empty vertical
- * padding so the original 84px display block fits a single row label. */
+ * padding. The cache contains a native single line, never a stretched block. */
 uint8_t *vui_title_qoi(const uint8_t *in, size_t size, unsigned *width, unsigned *height)
 {
     static const uint8_t end[8] = {0,0,0,0,0,0,0,1};
     if (!in || size < 23 || size > 14 + 328 * 84 * 4 + 8 || memcmp(in, "qoif", 4) ||
-        be32(in + 4) != 328 || be32(in + 8) != 84 || in[12] != 3 || in[13] ||
+        !be32(in + 4) || be32(in + 4) > 4096 || !be32(in + 8) || be32(in + 8) > 84 ||
+        (size_t)be32(in + 4) * be32(in + 8) > 328 * 84 || in[12] != 3 || in[13] ||
         memcmp(in + size - 8, end, 8)) return NULL;
-    const unsigned count = 328 * 84;
+    const unsigned w = be32(in + 4), h = be32(in + 8), count = w * h;
     uint8_t *out = vui_alloc(count * 3);
     if (!out) return NULL;
     size_t pos = 14;
-    unsigned used = 0, first = 84, last = 0;
+    unsigned used = 0, first = h, last = 0;
     uint16_t color = 0;
     while (pos < size - 8 && used < count) {
         unsigned tag = in[pos++], run = 1;
@@ -246,14 +247,14 @@ uint8_t *vui_title_qoi(const uint8_t *in, size_t size, unsigned *width, unsigned
             out[used*3] = color;
             out[used*3+1] = color >> 8;
             out[used*3+2] = color ? 255 : 0;
-            if (color) { if (first == 84) first = used / 328; last = used / 328; }
+            if (color) { if (first == h) first = used / w; last = used / w; }
             ++used;
         }
     }
     if (used != count || pos != size - 8) goto invalid;
-    if (first == 84) first = last = 0;
-    *width = 328; *height = last - first + 1;
-    memmove(out, out + first * 328 * 3, *height * 328 * 3);
+    if (first == h) first = last = 0;
+    *width = w; *height = last - first + 1;
+    memmove(out, out + first * w * 3, *height * w * 3);
     return out;
 invalid:
     free(out);

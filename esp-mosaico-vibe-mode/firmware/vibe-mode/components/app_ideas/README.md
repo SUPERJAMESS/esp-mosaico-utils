@@ -38,7 +38,9 @@ HTTP 仅使用 HTTPS，10 秒连接、30 秒清单/10 分钟文件总预算、60
 CONFIG_IRIS_FACTORY_IDEAS_SERVER_URL 选择源站。测试私有 CA 可通过
 CONFIG_IRIS_FACTORY_IDEAS_CA_FILE 嵌入；没有关闭证书或主机名验证的开关。
 系统语言由 app_system 的 factory_locale 管理；列表标题通过有界异步缓存渲染
-name 字形块，中文名称不依赖系统固定字体。详见仓库的文件发布协议和联调说明。
+name 字形块，中文名称不依赖系统固定字体。标题保留已排版字形，在设备侧重排为
+有界单行 QOI 缓存，供列表、本地详情和预览标题按原比例绘制及横向滚动；正文仍为
+固定 RGB565 块。display/1 与 MIFF/1 发布格式保持不变。详见仓库的文件发布协议和联调说明。
 
 离线展示只读取已提交根清单、固件清单和所需的展示资源，并逐项校验摘要；
 稳定目录的启动扫描、列表刷新、IDEAS_RELOCALIZE 不读取 NAND 应用二进制。

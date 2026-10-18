@@ -470,8 +470,9 @@ esp_err_t ideas_prepare_row(ideas_context_t *ctx, job_t *job) {
     esp_err_t err = ideas_store_metadata(ROOT, job->code, &pending->package);
     if (err == ESP_OK)
         err = ideas_prepare_assets(ctx, job, pending, true);
-    size_t size = 0;
-    void *image = err == ESP_OK ? ideas_title_qoi(pending->pixels[0].data, &size) : NULL;
+    size_t size = err == ESP_OK ? pending->pixels[0].size : 0;
+    void *image = err == ESP_OK ? pending->pixels[0].data : NULL;
+    if (err == ESP_OK) pending->pixels[0] = (icon_t){0};
     if (err == ESP_OK && !image)
         err = ESP_ERR_NO_MEM;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);

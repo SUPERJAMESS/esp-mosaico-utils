@@ -185,3 +185,83 @@ bool ideas_presentation_render(const ideas_presentation_t *display, unsigned blo
     }
     return true;
 }
+
+bool ideas_presentation_title(const ideas_presentation_t *display, uint16_t foreground,
+                              uint16_t background, uint16_t *pixels, size_t capacity,
+                              unsigned *width, unsigned *height)
+{
+    if (!display || !pixels || !width || !height) return false;
+    const ideas_text_t *text = &display->text[0];
+    if (!text->count || text->font >= IDEAS_DISPLAY_FONTS) return false;
+    const ideas_font_t *font = &display->fonts[text->font];
+    if (!font->line_height) return false;
+    /* display/1 keeps the publisher's shaped positions. Translate whole lines,
+     * preserving kerning, ligatures and combining-mark offsets within a line.
+     * Full-width glyphs need no word separator at a soft line break. */
+    typedef struct { int key, left, right, start, first_advance, last_advance; } line_t;
+    line_t lines[IDEAS_TITLE_HEIGHT + 1] = {0};
+    unsigned line_count = 0;
+    int baseline = text->glyphs[0].y, top = INT16_MAX, bottom = INT16_MIN;
+    for (unsigned i = 0; i < text->count; ++i) {
+        const ideas_glyph_position_t *p = &text->glyphs[i];
+        ideas_glyph_t g;
+        if (!ideas_font_glyph(font, p->glyph, &g)) return false;
+        int delta = p->y - baseline, step = font->line_height;
+        int key = delta >= 0 ? (delta + step / 2) / step : -((-delta + step / 2) / step);
+        unsigned l = 0;
+        while (l < line_count && lines[l].key != key) ++l;
+        if (l == line_count) {
+            if (line_count == IDEAS_TITLE_HEIGHT + 1) return false;
+            lines[l] = (line_t){.key=key, .left=INT16_MAX, .right=INT16_MIN,
+                                .first_advance=g.advance_q6};
+            ++line_count;
+        }
+        line_t *line = &lines[l];
+        int left = p->x + g.left, right = left + g.width;
+        int advance = p->x + (g.advance_q6 + 63) / 64;
+        if (advance > right) right = advance;
+        if (left < line->left) line->left = left;
+        if (right > line->right) line->right = right;
+        line->last_advance = g.advance_q6;
+        if (g.width && g.height) {
+            int y = p->y - key * step - g.top;
+            if (y < top) top = y;
+            if (y + g.height > bottom) bottom = y + g.height;
+        }
+    }
+    if (top == INT16_MAX) top = 0, bottom = 1;
+    unsigned w = 0, h = (unsigned)(bottom - top);
+    for (unsigned l = 0; l < line_count; ++l) {
+        if (l && (lines[l-1].last_advance < font->pixels * 58 ||
+                  lines[l].first_advance < font->pixels * 58))
+            w += font->pixels / 3;
+        lines[l].start = (int)w - lines[l].left;
+        if (lines[l].right < lines[l].left) return false;
+        w += (unsigned)(lines[l].right - lines[l].left);
+    }
+    if (!w) w = 1;
+    if (w > IDEAS_TITLE_LINE_MAX_WIDTH || !h || h > IDEAS_TITLE_HEIGHT ||
+        (size_t)w * h > capacity || (size_t)w * h > IDEAS_TITLE_PIXELS) return false;
+    for (size_t i = 0; i < (size_t)w * h; ++i) pixels[i] = background;
+    for (unsigned i = 0; i < text->count; ++i) {
+        const ideas_glyph_position_t *p = &text->glyphs[i];
+        ideas_glyph_t g;
+        if (!ideas_font_glyph(font, p->glyph, &g)) return false;
+        int delta = p->y - baseline, step = font->line_height;
+        int key = delta >= 0 ? (delta + step / 2) / step : -((-delta + step / 2) / step);
+        unsigned l = 0;
+        while (l < line_count && lines[l].key != key) ++l;
+        if (l == line_count) return false;
+        int x0 = p->x + g.left + lines[l].start;
+        int y0 = p->y - key * step - g.top - top;
+        if (g.width && g.height && (x0 < 0 || y0 < 0 || x0 + g.width > (int)w || y0 + g.height > (int)h))
+            return false;
+        for (unsigned y = 0; y < g.height; ++y)
+            for (unsigned x = 0; x < g.width; ++x) {
+                size_t at = (y0 + y) * w + x0 + x;
+                pixels[at] = blend(foreground, pixels[at], g.alpha[y * g.width + x]);
+            }
+    }
+    *width = w; *height = h;
+    return true;
+}

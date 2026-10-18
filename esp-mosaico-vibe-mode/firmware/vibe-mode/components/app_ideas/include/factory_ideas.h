@@ -92,7 +92,7 @@ void *factory_ideas_copy_icon(const char *code, size_t *size);
  * next generation refresh supplies QOI bytes rendered from the name block. */
 void *factory_ideas_copy_title(const char *code, size_t *size);
 
-/* Copy request_id preview slot (0 title RGB565, 1 body RGB565, 2 PNG).
+/* Copy request_id preview slot (0 single-line title QOI, 1 body RGB565, 2 PNG).
  * Sets required size; caller frees the result. May wait for the snapshot lock.
  */
 void *factory_ideas_copy_preview(uint32_t request_id, unsigned slot, size_t *size);

@@ -112,11 +112,9 @@ static void copy_preview(uint32_t id) {
         size_t size = 0;
         void *data = factory_ideas_copy_preview(id, slot, &size);
         assert(data && size);
-        if (slot < 2) {
-            assert(size == (slot ? 416U * 176 : 328U * 84) * 2);
-            if (!slot)
-                assert(((uint16_t *)data)[0] == 0xffff);
-        } else
+        if (!slot) assert(size > 22 && !memcmp(data, "qoif", 4));
+        else if (slot == 1) assert(size == 416U * 176 * 2);
+        else
             assert(!memcmp(data, "\x89PNG\r\n\x1a\n", 8));
         free(data);
     }

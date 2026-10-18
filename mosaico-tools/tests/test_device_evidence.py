@@ -32,6 +32,7 @@ def gateway(tmp_path, monkeypatch):
         statuses=[{"device_id": DEVICE_ID, "boot_id": 42, "stale": False, "firmware_mode": "normal"}],
         operation={"operation_id": OPERATION_ID, "status": "outcome_unknown"},
         capture_error=False,
+        inventory={"layout_version": 5, "partition_table_sha256": "ab" * 32},
     )
 
     class Handler(BaseHTTPRequestHandler):
@@ -55,6 +56,10 @@ def gateway(tmp_path, monkeypatch):
                 self.reply({"device": status})
             elif self.path == f"/v2/operations/{OPERATION_ID}":
                 self.reply({"operation": state.operation})
+            elif self.path == "/v2/health":
+                self.reply({"capabilities": ["system-inventory/v1"]})
+            elif self.path == f"/v2/devices/{DEVICE_ID}/system-inventory":
+                self.reply({"inventory": state.inventory})
             else:
                 self.reply({"error": "unexpected route"}, 404)
 
@@ -162,6 +167,30 @@ def test_device_status_reports_live_fields(gateway, capsys, json_output):
     assert result["device"]["stale"] is False
     assert result["device"]["firmware_mode"] == "normal"
     assert result["boot_id"] == 42
+
+
+def test_inventory_is_read_only_and_correlated_with_current_boot(gateway, capsys):
+    assert main(["iris", "device-status", "--inventory", "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["inventory"] == gateway.inventory
+    assert result["boot_id"] == 42
+    assert all(method == "GET" for method, _ in gateway.requests)
+
+
+def test_inventory_across_reboot_is_rejected(gateway, capsys):
+    gateway.statuses.append({**gateway.statuses[0], "boot_id": 43})
+    assert main(["iris", "device-status", "--inventory", "--json"]) == 4
+    error = json.loads(capsys.readouterr().err)
+    assert error["details"]["before"]["boot_id"] == 42
+    assert error["details"]["after"]["boot_id"] == 43
+    assert all(method == "GET" for method, _ in gateway.requests)
+
+
+def test_inventory_rejects_invalid_partition_digest(gateway, capsys):
+    gateway.inventory["partition_table_sha256"] = "invalid"
+    assert main(["iris", "device-status", "--inventory", "--json"]) == 4
+    assert json.loads(capsys.readouterr().err)["ok"] is False
+    assert all(method == "GET" for method, _ in gateway.requests)
 
 
 @pytest.mark.parametrize("status", ["running", "failed", "outcome_unknown", "succeeded"])

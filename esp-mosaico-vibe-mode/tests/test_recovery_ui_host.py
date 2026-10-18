@@ -195,44 +195,25 @@ def sim(tmp_path, native_build, request):
         instance.close()
 
 
-def test_home_dot_motion_tap_navigation(sim):
-    sim.rpc("wait", frames=120)  # Complete the entrance.
-    sim.capture("dots-idle")
-    sim.tap(210, 105)
-    sim.rpc("wait", frames=15)
-    sim.capture("dots-ripple")
-    with Image.open(sim.directory / "dots-idle.png") as a, Image.open(
-        sim.directory / "dots-ripple.png"
-    ) as b:
+def test_home_maker_animation_captures_gestures(sim):
+    sim.capture("maker-start")
+    sim.rpc("wait", frames=180)
+    sim.capture("maker-later")
+    with Image.open(sim.directory / "maker-start.png") as a, Image.open(sim.directory / "maker-later.png") as b:
         changed = ImageChops.difference(a.convert("RGB"), b.convert("RGB")).getbbox()
-        assert changed is not None
-        assert 180 <= changed[0] < changed[2] <= 300
-        assert 60 <= changed[1] < changed[3] <= 180
-        def orange_pixels(image):
-            return sum(
-                r > 80 and r > g * 1.5 and r > b * 2
-                for r, g, b in image.convert("RGB").crop((180, 60, 300, 180)).getdata()
-            )
-        # Breathing alone changes brightness too; require the touch wave's
-        # orange points beyond the idle core to verify actual input routing.
-        assert orange_pixels(b) > orange_pixels(a) + 50
-    # A gesture starting on the hero still navigates to the Ideas grid.
-    sim.swipe(260, 120, 90, 120)
+        assert changed and 280 <= changed[0] < changed[2] <= 452
+        assert 64 <= changed[1] < changed[3] <= 236
+    sim.swipe(400, 120, 90, 120)
+    sim.wait(page=0, install_calls=0)
+    sim.swipe(420, 250, 60, 250)
     sim.wait(page=19)
-    sim.swipe(90, 120, 300, 120)
+    sim.swipe(90, 250, 400, 250)
     sim.wait(page=0)
-    # Navigation remains available while the entrance is still running.
-    sim.tap(390, 360)
-    sim.wait(page=11)
-    sim.capture("dots-settings")
+    sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+    sim.capture("settings-still")
     sim.rpc("wait", frames=100)
-    sim.capture("dots-settings-later")
-    assert (sim.directory / "dots-settings.png").read_bytes() == (
-        sim.directory / "dots-settings-later.png"
-    ).read_bytes()
-    sim.tap(38, 36)
-    sim.wait(page=0)
-
+    sim.capture("settings-later")
+    assert (sim.directory / "settings-still.png").read_bytes() == (sim.directory / "settings-later.png").read_bytes()
 
 
 @pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
@@ -371,7 +352,7 @@ def test_six_digit_code_download_never_installs_or_pairs(sim):
     sim.wait(bridge_open_calls=0, bridge_prefetch_calls=0, bridge_running=False)
     sim.capture("download-result")
     with Image.open(sim.directory / "download-result.png") as screenshot:
-        for box in ((24, 178, 456, 220), (24, 380, 232, 464)):
+        for box in ((160, 88, 456, 176), (24, 380, 232, 464)):
             pixels = screenshot.convert("RGB").crop(box)
             assert sum(min(pixel) > 220 for pixel in pixels.getdata()) > 100, \
                 "result heading and return button must retain readable text"
@@ -397,12 +378,12 @@ def test_wifi_cards_and_labels_survive_navigation_and_rescan(sim):
         for box, minimum in [((88, 30, 220, 67), 140),  # Reference 28px header
                              ((20, 20, 50, 50), 5),    # Back
                              ((360, 102, 438, 145), 140),  # Forget
-                             ((363, 176, 450, 208), 140)]:  # Rescan
+                             ((420, 32, 452, 64), 140)]:  # Rescan
             assert sum(max(rgb) > 160 for rgb in region(*box)) > minimum, name
         # Three complete cards, separated from each other and the footer.
-        for y in (288, 368, 448):
-            assert all(max(rgb) == 0 for rgb in region(48, y, 430, y + 2)), name
-        for y in (280, 360, 440):
+        for y in (306, 394):
+            assert all(max(rgb) < 20 for rgb in region(48, y, 430, y + 2)), name
+        for y in (296, 384, 432):
             assert all(min(rgb) >= 15 for rgb in region(80, y, 380, y + 2)), name
 
     for cycle in range(3):
@@ -413,7 +394,7 @@ def test_wifi_cards_and_labels_survive_navigation_and_rescan(sim):
         sim.wait(page=2)
         sim.tap(38, 36)
         sim.wait(page=1)
-        sim.tap(410, 190)
+        sim.tap_ui("button_scan")
         sim.wait(page=1)
         check_frame("wifi-rescan-%d" % cycle)
         sim.wifi_back()
@@ -427,7 +408,7 @@ def test_nand_update_and_result_acknowledgement(sim):
     sim.tap(150, 170)
     sim.wait(page=6)
     sim.capture("confirm")
-    sim.tap_ui("button_install")
+    sim.tap_ui("button_local_open")
     sim.wait(page=20)
     sim.tap(350, 396)
     sim.wait(page=7)
@@ -467,7 +448,7 @@ def test_update_failure_returns_home_without_reopening(sim):
     sim.wait(page=5)
     sim.tap(150, 170)
     sim.wait(page=6)
-    sim.tap_ui("button_install")
+    sim.tap_ui("button_local_open")
     sim.wait(page=20)
     sim.tap(350, 396)
     sim.wait(page=8, progress=500)
@@ -603,14 +584,22 @@ def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
     sim.wait(page=9, idea_ready=True, download_calls=0)
     sim.capture("custom-offline")
     with Image.open(sim.directory / "custom-offline.png") as image:
-        r, g, b = image.convert("RGB").getpixel((150, 110))
+        r, g, b = image.convert("RGB").getpixel((100, 40))
         assert r > 200 and g < 20 and b < 20
-        r, g, b = image.convert("RGB").getpixel((40, 215))
+        r, g, b = image.convert("RGB").getpixel((40, 245))
         assert g > 200 and r < 20 and b < 20
+    sim.swipe(220, 345, 220, 250)
+    sim.wait(page=9, idea_description_offset=40, download_calls=0, install_calls=0)
+    sim.capture("custom-offline-scrolled")
+    with Image.open(sim.directory / "custom-offline.png") as before, Image.open(sim.directory / "custom-offline-scrolled.png") as after:
+        # Only the description moves; the native title pixels, metadata and
+        # action buttons retain their positions and remain unobscured.
+        for bounds in ((0, 0, 480, 228), (0, 380, 480, 480)):
+            assert before.crop(bounds).tobytes() == after.crop(bounds).tobytes()
     sim.tap(350, 436)  # no download from read-only view
     sim.wait(page=9, download_calls=0, install_calls=0)
     sim.tap(120, 436); sim.wait(page=6)
-    sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, check_calls=1)
+    sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, check_calls=1, idea_description_offset=0)
     sim.tap(350, 436)
     sim.wait(timeout=45, page=8, download_calls=1, install_calls=0)
 
@@ -678,6 +667,13 @@ def test_ideas_verification_failure_has_no_download_rate(sim):
     sim.control("ideas-fail")
     sim.wait(page=8, rate_valid=False)
     sim.capture("ideas-verification-failed")
+    with Image.open(sim.directory / "ideas-verification-failed.png") as frame:
+        pixels = frame.convert("RGB").crop((32, 76, 152, 196)).getdata()
+        assert sum(r > 100 and r > g * 1.4 for r, g, b in pixels) > 100
+    sim.control("library-refreshed")
+    sim.tap_ui("button_result_open")
+    sim.wait(page=8, restart_calls=0, install_calls=0)
+
 def test_manage_reuses_library_when_reentered(sim):
     for _ in range(3):
         sim.manage()
@@ -725,9 +721,9 @@ def test_home_grid_swipe_and_current_idea(sim):
     sim.wait(page=19, grid_page=0)
     sim.capture("idea-grid")
     with Image.open(sim.directory / "idea-grid.png") as frame:
-        assert max(frame.getpixel((22, 160))[:3]) == 0  # first Idea is not current
+        assert max(frame.getpixel((22, 160))[:3]) < 20  # first Idea is not current
         assert frame.getpixel((183, 126))[0] > 200  # only the second Idea has the current border
-        assert max(frame.getpixel((388, 320))[:3]) == 0  # no placeholder icon/card in empty cells
+        assert max(frame.getpixel((388, 320))[:3]) < 20  # no placeholder icon/card in empty cells
     sim.tap(390, 320)  # empty cell after the add tile has no action
     sim.wait(page=19)
     sim.tap(92, 150)
@@ -740,15 +736,15 @@ def test_home_grid_swipe_and_current_idea(sim):
 
 
 @pytest.mark.parametrize("sim", ["unsaved"], indirect=True)
-def test_unsaved_development_has_only_discard_open_or_cancel(sim):
+def test_unsaved_development_has_only_open_or_cancel(sim):
     sim.manage(); sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_install"); sim.wait(page=20)
+    sim.tap_ui("button_local_open"); sim.wait(page=20)
     sim.capture("unsaved-development")
-    with Image.open(sim.directory / "unsaved-development.png") as frame:
-        assert all(max(rgb[:3]) < 100 for rgb in frame.crop((56, 289, 424, 312)).getdata())  # no skip-confirmation preference
+    sim.tap_ui("button_toggle_open_confirm")  # Hidden preference cannot bypass the warning.
+    sim.wait(page=20, open_confirm=True, install_calls=0)
     sim.control("ai")  # hardware cancel preserves development and NAND
     sim.wait(page=6, install_calls=0, save_calls=0)
-    sim.tap_ui("button_install"); sim.wait(page=20)
+    sim.tap_ui("button_local_open"); sim.wait(page=20)
     sim.tap(350, 396)
     sim.wait(timeout=45, page=8, restart_calls=1, install_calls=1, save_calls=0)
 
@@ -777,7 +773,7 @@ def test_batch_update_survives_navigation_and_can_cancel(sim):
 @pytest.mark.parametrize("sim", ["low-battery"], indirect=True)
 def test_low_battery_blocks_install_then_allows_after_charging(sim):
     sim.manage(); sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_install"); sim.wait(page=20)
+    sim.tap_ui("button_local_open"); sim.wait(page=20)
     sim.tap(350, 396)
     sim.wait(page=20, install_calls=0, restart_calls=0)
     sim.capture("low-battery")
@@ -788,35 +784,29 @@ def test_low_battery_blocks_install_then_allows_after_charging(sim):
 
 @pytest.mark.parametrize("sim", ["development"], indirect=True)
 @pytest.mark.parametrize("language", [1, 2])
-def test_develop_opens_qr_with_live_usb_status(sim, language):
+def test_develop_cards_guide_and_save_use_live_services(sim, language):
     if language == 2:
-        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
         sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
         sim.tap_ui("button_language_zh"); sim.wait(language=2)
         sim.tap(38, 36); sim.wait(page=11)
         sim.tap(38, 36); sim.wait(page=0)
-    sim.tap(85, 360); sim.wait(page=10)
-    frames = []
-    for name, connected, owner in (("disconnected", 0, 0), ("waiting", 1, 0),
-                                    ("ready", 1, 1), ("unplugged", 0, 0)):
+    sim.tap_ui("button_nav_develop"); sim.wait(page=10)
+    cards = []
+    for name, connected, owner in (("disconnected", 0, 0), ("waiting", 1, 0), ("ready", 1, 1)):
         sim.control("usb %d %d" % (connected, owner))
         sim.wait(page=10, save_calls=0, restart_calls=0)
         sim.capture("develop-" + name)
-        with Image.open(sim.directory / ("develop-" + name + ".png")) as image:
-            frame = image.convert("RGB")
-        codes = zxingcpp.read_barcodes(frame)
-        assert [code.text for code in codes] == ["https://mosaico.espressif.com/guide/vibe-coding/"]
-        frames.append(frame)
-    # Only the bottom status changes as USB and the Agent connect/disconnect.
-    assert len({frame.crop((0, 96, 480, 408)).tobytes() for frame in frames}) == 1
-    assert len({frame.crop((0, 424, 480, 480)).tobytes() for frame in frames[:3]}) == 3
-    assert frames[0].tobytes() == frames[-1].tobytes()
-    # Old guide/install/save hit areas no longer navigate, write NAND or reboot,
-    # even when a development build is available.
-    for x, y in ((240, 136), (240, 248), (240, 360)):
-        sim.tap(x, y)
-        sim.wait(page=10, save_calls=0, restart_calls=0, development_saved=False)
-    sim.tap(38, 36); sim.wait(page=0)
+        with Image.open(sim.directory / ("develop-" + name + ".png")) as frame:
+            cards.append(frame.crop((24, 96, 456, 218)).tobytes())
+    assert len(set(cards)) == 3
+    sim.tap_ui("button_develop_guide"); sim.wait(page=25)
+    sim.capture("develop-guide")
+    with Image.open(sim.directory / "develop-guide.png") as frame:
+        assert [code.text for code in zxingcpp.read_barcodes(frame)] == ["https://mosaico.espressif.com/guide/vibe-coding/"]
+    sim.tap(38, 36); sim.wait(page=10)
+    sim.tap_ui("button_develop_save")
+    sim.wait(timeout=45, page=8, save_calls=1, development_saved=True, restart_calls=0)
 
 
 def hold(sim, x=240, y=396, **expected):
@@ -829,14 +819,14 @@ def hold(sim, x=240, y=396, **expected):
 
 def test_delete_requires_hold_and_supports_undo(sim):
     sim.manage(); sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_start_idea"); sim.wait(page=23)
+    sim.tap_ui("button_local_delete"); sim.wait(page=23)
     sim.tap(240, 396); sim.wait(page=23, delete_calls=0)
     hold(sim, page=5, pending_delete=True, delete_calls=0)
     sim.capture("undo-idea")
     sim.tap(390, 435)
     sim.wait(page=5, pending_delete=False, delete_calls=0, bundle_count=2)
     sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_start_idea"); sim.wait(page=23)
+    sim.tap_ui("button_local_delete"); sim.wait(page=23)
     hold(sim, page=5, pending_delete=True)
     sim.tap(38, 36)  # leaving commits the staged deletion
     sim.wait(page=0, pending_delete=False, delete_calls=1, bundle_count=1)
@@ -849,7 +839,7 @@ def test_language_display_and_ai_does_not_sleep(sim):
     sim.tap(420, 275); sim.wait(screen_off_seconds=0)
     sim.tap(125, 360); sim.wait(rotate=False)
     sim.swipe(240, 410, 240, 180)
-    sim.wait(display_offset=56)
+    sim.wait(display_offset=40)
     sim.tap_ui("button_display_0_haptics"); sim.wait(haptics=False)
     sim.tap(38, 36); sim.wait(page=11)
     sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
@@ -861,7 +851,7 @@ def test_language_display_and_ai_does_not_sleep(sim):
     sim.control("ai")
     time.sleep(.3)  # Let the queued hardware key reach the UI tick.
     sim.wait(page=0, asleep=False)
-    sim.swipe(400, 230, 80, 230); sim.wait(page=19)
+    sim.swipe(400, 250, 80, 250); sim.wait(page=19)
     sim.control("ai")
     time.sleep(.3)
     sim.wait(page=19, asleep=False)
@@ -886,19 +876,20 @@ def test_factory_reset_requires_hold_and_preserves_nand(sim, language):
         sim.tap(38, 36); sim.wait(page=0)
     sim.tap(390, 360); sim.wait(page=11)
     sim.swipe(240, 410, 240, 100)  # Reach the end without relying on inertia.
-    sim.wait(settings_offset=264)
+    sim.wait(settings_offset=280)
     sim.tap_ui("button_settings_bottom_reset"); sim.wait(page=17)
     sim.capture("factory-reset")
     with Image.open(sim.directory / "factory-reset.png") as frame:
         idle = frame.copy()
-        assert not idle.crop((24, 260, 456, 340)).getbbox()  # No separate hold/countdown label.
+        assert all(max(rgb[:3]) < 20 for rgb in idle.crop((24, 300, 456, 340)).getdata())  # No separate countdown.
     sim.tap(240, 396); sim.wait(page=17, reset_calls=0)
     sim.rpc("feed_pointer", x=240, y=396, pressed=True)
     time.sleep(1)
     sim.capture("factory-reset-holding")
     with Image.open(sim.directory / "factory-reset-holding.png") as frame:
         assert frame.getpixel((80, 370)) != idle.getpixel((80, 370))
-        assert frame.getpixel((430, 370)) == idle.getpixel((430, 370))
+        # The unfilled end receives only the 4% press highlight.
+        assert max(abs(a-b) for a, b in zip(frame.getpixel((430, 370)), idle.getpixel((430, 370)))) <= 12
         assert not ImageChops.difference(frame, idle).crop((0, 0, 480, 348)).getbbox()
     sim.rpc("feed_pointer", x=240, y=396, pressed=False)
     sim.wait(page=17, reset_calls=0)
@@ -917,7 +908,7 @@ def test_factory_reset_requires_hold_and_preserves_nand(sim, language):
 
 
 @pytest.mark.parametrize("language", [1, 2])
-def test_status_bar_title_centered_and_version_updates(sim, language):
+def test_status_bar_brand_and_version_updates(sim, language):
     if language == 2:
         sim.tap(390, 360); sim.wait(page=11)
         sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
@@ -928,28 +919,26 @@ def test_status_bar_title_centered_and_version_updates(sim, language):
     sim.capture("home-version")
     with Image.open(sim.directory / "home-version.png") as frame:
         header = frame.crop((0, 0, 480, 56))
-        bounds = frame.crop((192, 20, 288, 44)).getbbox()
-        assert bounds and abs(192 + (bounds[0] + bounds[2]) / 2 - 240) <= 2
         assert frame.crop((128, 20, 192, 44)).getbbox()  # Version follows the brand.
     sim.swipe(420, 250, 60, 250)
     sim.wait(page=19)
     sim.capture("grid-version")
     with Image.open(sim.directory / "grid-version.png") as frame:
-        assert not ImageChops.difference(header, frame.crop((0, 0, 480, 56))).crop((44, 20, 192, 44)).getbbox()
+        assert not ImageChops.difference(header, frame.crop((0, 0, 480, 56))).crop((30, 20, 238, 44)).getbbox()
         grid_header = frame.crop((0, 0, 480, 56))
     sim.control("firmware 0.2.7-12345678901234567890-dirty")
     sim.capture("grid-version-long")
     with Image.open(sim.directory / "grid-version-long.png") as frame:
         changed = ImageChops.difference(grid_header, frame.crop((0, 0, 480, 56)))
-        assert changed.crop((44, 20, 192, 44)).getbbox()
-        assert not changed.crop((44, 20, 156, 44)).getbbox()  # Brand and version prefix stay readable.
-        assert not changed.crop((192, 0, 480, 56)).getbbox()  # No overlap with title/status icons.
+        assert changed.crop((30, 20, 238, 44)).getbbox()
+        assert not changed.crop((30, 20, 156, 44)).getbbox()  # Brand and version prefix stay readable.
+        assert not changed.crop((238, 0, 480, 56)).getbbox()  # No overlap with title/status icons.
 
 
 def test_reset_hold_cancels_on_navigation_and_runs_once(sim):
     def enter_reset():
         sim.tap(390, 360); sim.wait(page=11)
-        sim.swipe(240, 410, 240, 100); sim.wait(settings_offset=264)
+        sim.swipe(240, 410, 240, 100); sim.wait(settings_offset=280)
         sim.tap_ui("button_settings_bottom_reset"); sim.wait(page=17)
 
     enter_reset()
@@ -988,13 +977,13 @@ def test_shared_values_save_and_delete_undo(sim):
     sim.tap(420, 430)  # Save
     sim.wait(page=14, shared_count=1)
     sim.capture("shared-values")
-    sim.tap(240, 122); sim.wait(page=15)
-    sim.tap_ui("button_shared_delete"); sim.wait(page=23)
+    sim.tap(240, 122); sim.wait(page=30)
+    sim.tap_ui("button_shared_detail_delete"); sim.wait(page=23)
     hold(sim, page=14, pending_delete=True, shared_count=1)
     sim.tap(240, 122)  # Undo is in the deleted row
     sim.wait(page=14, pending_delete=False, shared_count=1)
-    sim.tap(240, 122); sim.wait(page=15)
-    sim.tap_ui("button_shared_delete"); sim.wait(page=23)
+    sim.tap(240, 122); sim.wait(page=30)
+    sim.tap_ui("button_shared_detail_delete"); sim.wait(page=23)
     hold(sim, page=14, pending_delete=True)
     sim.tap(38, 36); sim.wait(page=11, pending_delete=False, shared_count=0)
 
@@ -1009,7 +998,7 @@ def assert_pager(sim, name, pages, active):
             pixels = frame.convert('RGB')
             runs = []
             for x in range(160, 320):
-                color = pixels.getpixel((x, 444))
+                color = pixels.getpixel((x, 455))
                 if max(color) > 20:
                     if not runs or runs[-1][-1][0] != x - 1:
                         runs.append([])
@@ -1040,7 +1029,7 @@ def test_pager_tracks_real_ideas_and_add_tile_remains_reachable(sim, count, page
         sim.capture('empty-add-idea')
         with Image.open(sim.directory / 'empty-add-idea.png') as frame:
             assert min(frame.getpixel((240, 146))[:3]) > 200  # large visible plus
-            assert all(max(rgb[:3]) == 0 for rgb in frame.crop((24, 72, 150, 180)).getdata())
+            assert all(max(rgb[:3]) < 20 for rgb in frame.crop((24, 72, 150, 180)).getdata())
         sim.tap_ui('button_cell_1')
     else:
         sim.tap_ui('button_cell_%d' % (count % 6))
@@ -1056,10 +1045,10 @@ def test_manage_reference_status_colors_badge_and_storage_bar(sim):
         pixels = frame.convert('RGB')
         assert sum(max(rgb) > 160 for rgb in pixels.crop((100, 94, 456, 120)).getdata()) > 100  # live capacity text
         for y in (192, 280, 368):  # Current and the two available updates.
-            assert sum(r > 200 and 30 < g < 130 and b < 30
+            assert sum(r > 200 and 30 < g < 130 and b < 90
                        for r, g, b in pixels.crop((100, y, 412, y + 24)).getdata()) > 30
         assert sum(min(pixels.getpixel((x, 131))) > 200 for x in range(24, 456)) > 200
-        assert sum(r > 200 and 30 < g < 130 and b < 30
+        assert sum(r > 200 and 30 < g < 130 and b < 90
                    for r, g, b in pixels.crop((360, 16, 384, 40)).getdata()) > 200
     sim.tap_ui('manage_update_all')
     sim.wait(page=5, batch=True, check_calls=1)
@@ -1084,7 +1073,7 @@ def test_update_tap_during_scan_keeps_library_visible(sim):
 def test_pager_shrinks_after_a_real_idea_is_deleted(sim):
     assert_pager(sim, 'before-delete', 3, 0)
     sim.manage(); sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui('button_start_idea'); sim.wait(page=23)
+    sim.tap_ui('button_local_delete'); sim.wait(page=23)
     hold(sim, page=5, pending_delete=True)
     sim.tap(38, 36)
     sim.wait(page=0, pending_delete=False, delete_calls=1, bundle_count=5)
@@ -1125,12 +1114,12 @@ def test_settings_scroll_coasts_and_keeps_header_fixed(sim):
     sim.rpc('feed_pointer', x=240, y=370, pressed=False)
     sim.rpc('wait', frames=20)
     offset = json.loads(sim.state_file.read_text())['settings_offset']
-    assert 40 < offset <= 264
+    assert 40 < offset <= 280
     sim.tap(44, 48)  # Back must act even while the content is still coasting.
     sim.wait(page=0)
     sim.capture('home-no-arrow')
     with Image.open(sim.directory / 'home-no-arrow.png') as frame:
-        assert all(max(rgb[:3]) == 0 for rgb in frame.crop((436, 204, 468, 222)).getdata())
+        assert min(frame.getpixel((16, 150))[:3]) > 200  # Home brand card rendered after the scroll.
 
 
 @pytest.mark.parametrize('sim', ['scan-open'], indirect=True)
@@ -1147,7 +1136,86 @@ def test_app_confirmation_is_immediate_during_scan_and_preserves_unsaved_warning
     sim.tap(92, 150); sim.wait(page=20, nand_scanning=True)
     sim.wait(timeout=30, page=20, nand_scanning=False, install_calls=0)
     sim.capture('open-after-scan-unsaved')
-    with Image.open(sim.directory / 'open-after-scan-unsaved.png') as frame:
-        assert all(max(rgb[:3]) < 100 for rgb in frame.crop((56, 289, 424, 312)).getdata())
+    sim.tap_ui('button_toggle_open_confirm')
+    sim.wait(page=20, open_confirm=True, install_calls=0)
     sim.tap_ui('button_open_accept')
     sim.wait(timeout=45, page=8, install_calls=1, restart_calls=1)
+
+
+def test_home_wifi_shortcut_and_develop_without_a_build(sim):
+    sim.tap_ui('home_wifi'); sim.wait(page=1, pending=False)
+    sim.tap(38, 36); sim.wait(page=0)
+    sim.tap_ui('button_nav_develop'); sim.wait(page=10)
+    sim.tap_ui('button_develop_save')
+    sim.wait(page=10, save_calls=0, restart_calls=0)
+    sim.tap_ui('button_develop_guide'); sim.wait(page=25)
+    sim.tap(38, 36); sim.wait(page=10)
+
+
+def test_shared_detail_help_and_key_space_use_existing_storage(sim):
+    sim.tap_ui('button_nav_settings'); sim.wait(page=11)
+    sim.tap_ui('button_settings_top_shared'); sim.wait(page=14, shared_count=0)
+    sim.tap_ui('shared_empty_add'); sim.wait(page=15)
+    sim.tap(35, 250); sim.tap(240, 430); sim.tap(35, 250)  # q_q, not a space in a key
+    sim.tap(430, 430)
+    sim.tap(35, 250); sim.tap(430, 430)
+    sim.wait(page=14, shared_count=1)
+    sim.tap_ui('button_shared_row_0'); sim.wait(page=30)
+    sim.tap_ui('button_shared_detail_delete'); sim.wait(page=23)
+    sim.tap(38, 36); sim.wait(page=30, pending_delete=False)
+    sim.tap_ui('button_shared_detail_key'); sim.wait(page=29)
+    sim.tap(38, 36); sim.wait(page=30)
+    sim.tap_ui('button_shared_detail_value'); sim.wait(page=15)
+    sim.tap(35, 250); sim.tap(430, 430)
+    sim.wait(page=14, shared_count=1)
+
+
+def test_about_licenses_scroll_and_return(sim):
+    sim.tap_ui('button_nav_settings'); sim.wait(page=11)
+    sim.swipe(240, 410, 240, 100); sim.wait(settings_offset=280)
+    sim.tap_ui('button_settings_bottom_about'); sim.wait(page=16)
+    sim.swipe(240, 420, 240, 240); sim.wait(about_offset=176)
+    sim.tap_ui('button_about_licenses'); sim.wait(page=28)
+    sim.swipe(240, 420, 240, 120); sim.wait(page=28)
+    assert sim.wait()['licenses_offset'] > 0
+    sim.tap(38, 36); sim.wait(page=16, about_offset=176)
+    sim.tap(38, 36); sim.wait(page=11)
+
+
+def test_keyboard_second_symbol_page_and_preview_cancel(sim):
+    sim.wifi(); sim.wait(page=1)
+    sim.tap(180, 250); sim.wait(page=2)
+    sim.tap(40, 430)  # 123
+    sim.tap(40, 370)  # #+=
+    sim.tap(148, 310)  # literal | on the second symbol page
+    sim.wait(password_length=1)
+    sim.rpc('feed_pointer', x=35, y=250, pressed=True)
+    sim.capture('symbol-preview')
+    sim.rpc('feed_pointer', x=180, y=250, pressed=True)
+    sim.rpc('feed_pointer', x=180, y=250, pressed=False)
+    sim.wait(password_length=1)  # sliding off a key cancels that key
+    sim.tap(38, 36); sim.wait(page=1, password_length=0)
+
+
+@pytest.mark.parametrize("sim", ["marquee-preview", "marquee-text"], indirect=True)
+def test_long_titles_scroll_in_library_details_and_preview_without_moving_controls(sim):
+    def moves(name, bounds):
+        sim.capture(name + "-start")
+        sim.rpc("wait", frames=220)
+        sim.capture(name + "-moving")
+        with Image.open(sim.directory / (name + "-start.png")) as a, Image.open(sim.directory / (name + "-moving.png")) as b:
+            assert a.crop(bounds).tobytes() != b.crop(bounds).tobytes()
+            # Metadata, buttons and all other rows remain stationary.
+            a.paste((0, 0, 0), bounds); b.paste((0, 0, 0), bounds)
+            assert a.tobytes() == b.tobytes()
+
+    sim.manage(); sim.wait(page=5)
+    moves("library-marquee", (100, 156, 412, 190))
+    sim.tap(150, 170); sim.wait(page=6)
+    moves("details-marquee", (88, 29, 456, 69))
+    sim.tap_ui("button_preview_idea"); sim.wait(page=9, idea_ready=True, download_calls=0)
+    moves("preview-marquee", (88, 29, 456, 69))
+    sim.tap_ui("button_cancel_idea"); sim.wait(page=6, download_calls=0, install_calls=0)
+    sim.capture("details-marquee-return")
+    with Image.open(sim.directory / "details-marquee-start.png") as a, Image.open(sim.directory / "details-marquee-return.png") as b:
+        assert a.crop((88, 29, 456, 69)).tobytes() == b.crop((88, 29, 456, 69)).tobytes()

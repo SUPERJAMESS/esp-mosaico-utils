@@ -211,11 +211,14 @@ static void trace_state(vui_handle_t ui, void *ctx)
             install_calls, check_calls, restart_calls, prepare_calls, cancel_calls,
             model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
             model.bundles[0].boot ? "true" : "false");
-    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,",
+    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,\"about_offset\":%d,\"licenses_offset\":%d,\"idea_description_offset\":%d,",
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT),
-            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT));
-    fprintf(file, "\"scan_calls\":%u,\"cancellable\":%s,\"cancelled\":%s,",
-            scan_calls, model.cancellable ? "true" : "false", model.update_cancelled ? "true" : "false");
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_ABOUT_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_LICENSES_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_IDEA_DESCRIPTION_VIEWPORT));
+    fprintf(file, "\"open_confirm\":%s,\"scan_calls\":%u,\"cancellable\":%s,\"cancelled\":%s,",
+            model.settings.open_confirm ? "true" : "false", scan_calls, model.cancellable ? "true" : "false", model.update_cancelled ? "true" : "false");
     fprintf(file, "\"grid_page\":%u,\"language\":%u,\"asleep\":%s,\"pending_delete\":%s,"
             "\"bundle_count\":%u,\"shared_count\":%u,\"save_calls\":%u,\"delete_calls\":%u,\"reset_calls\":%u,"
             "\"development_saved\":%s,\"brightness\":%u,\"screen_off_seconds\":%u,\"rotate\":%s,\"haptics\":%s,\"batch\":%s,\"nand_scanning\":%s}\n",
@@ -425,7 +428,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         snprintf(last_code, sizeof(last_code), "%s", a);
         model.idea_loading = model.idea_busy = true;
         model.idea_ready = false;
-        model.idea_custom = scenario("custom-preview") || scenario("custom-preview-fail");
+        model.idea_custom = scenario("custom-preview") || scenario("custom-preview-fail") || scenario("marquee-preview");
         model.idea_view_only = cmd == VIBE_PREVIEW_IDEA;
         model.idea_return_library = false;
         model.update_terminal = false;
@@ -499,19 +502,36 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
 }
 /* Synthetic pixels exercise the production adapter without font/UI coupling.
  * The portable font reader has separate byte-level publication roundtrips. */
+static void *title(void *ctx, const char *code, size_t *size) {
+    (void)ctx; (void)code;
+    if (!scenario("marquee-preview")) return NULL;
+    unsigned width = 640, height = 28;
+    uint16_t *pixels = calloc(width * height, 2);
+    if (!pixels) return NULL;
+    for (unsigned y = 0; y < height; ++y)
+        for (unsigned x = 0; x < width; ++x)
+            pixels[y * width + x] = x % 32 < 20 ? (x < 320 ? 0xf800 : 0x001f) : 0;
+    void *data = ideas_title_qoi(pixels, width, height, size);
+    free(pixels);
+    return data;
+}
 static void *preview(void *ctx, uint32_t request, unsigned slot, size_t *size) {
-    (void)ctx;
     *size = 0;
     if (request != model.idea_request || slot > 1 || scenario("custom-preview-fail"))
         return NULL;
-    size_t count = slot ? IDEAS_DESCRIPTION_WIDTH * IDEAS_DESCRIPTION_HEIGHT
-                        : IDEAS_TITLE_WIDTH * IDEAS_TITLE_HEIGHT;
+    if (!slot && scenario("marquee-preview")) return title(ctx, "", size);
+    unsigned width = slot ? IDEAS_DESCRIPTION_WIDTH : 328;
+    unsigned height = slot ? IDEAS_DESCRIPTION_HEIGHT : 28;
+    size_t count = width * height;
     uint16_t *pixels = malloc(count * 2);
-    if (pixels) {
-        for (size_t i = 0; i < count; ++i)
-            pixels[i] = slot ? 0x07e0 : 0xf800;
-        *size = count * 2;
+    if (!pixels) return NULL;
+    for (size_t i = 0; i < count; ++i) pixels[i] = slot ? 0x07e0 : 0xf800;
+    if (!slot) {
+        void *data = ideas_title_qoi(pixels, width, height, size);
+        free(pixels);
+        return data;
     }
+    *size = count * 2;
     return pixels;
 }
 static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, const char *value)
@@ -617,7 +637,12 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
         model.bundles[i].bytes = 1024 * 1024;
         model.bundles[i].components = 2;
     }
-    const vibe_services_t services = {.snapshot = snapshot, .command = command, .preview = preview, .setting = setting, .key = key};
+    if (scenario("marquee-preview"))
+        snprintf(model.bundles[0].release, sizeof(model.bundles[0].release), "长标题像素测试");
+    if (scenario("marquee-text"))
+        snprintf(model.bundles[0].release, sizeof(model.bundles[0].release),
+                 "A long Idea title that must scroll horizontally without shrinking its letters");
+    const vibe_services_t services = {.snapshot = snapshot, .command = command, .title = title, .preview = preview, .setting = setting, .key = key};
     vui_err_t err = vibe_ui_create(ui, &services, &state);
     if (err == VUI_OK && state_path[0])
         trace_timer = vui_timer_create(ui, 50, trace_state, NULL);
