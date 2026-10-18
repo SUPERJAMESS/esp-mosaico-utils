@@ -48,9 +48,12 @@ def core(tmp_path_factory):
     dependency = Path(os.environ.get("CJSON_COMPONENT_DIR", str(RECOVERY / "managed_components/espressif__cjson")))
     cjson = next(dependency.rglob("cJSON.c"))
     output = directory / "reader.so"
+    # cJSON explicitly exports its Windows API, disabling MinGW's default
+    # automatic exports for the readers linked into the same test library.
+    exports = ["-Wl,--export-all-symbols"] if os.name == "nt" else []
     subprocess.run([shutil.which("cc"), "-std=c11", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
         "-I" + str(cjson.parent), "-I" + str(RECOVERY / "components/app_ideas/include"), "-I" + str(RECOVERY / "components/app_ideas/private"), str(RECOVERY / "components/app_ideas/src/ideas_font.c"),
-        str(RECOVERY / "components/app_ideas/src/ideas_presentation.c"), str(cjson), "-o", str(output)], check=True)
+        str(RECOVERY / "components/app_ideas/src/ideas_presentation.c"), str(cjson), "-o", str(output)] + exports, check=True)
     lib = C.CDLL(str(output))
     lib.ideas_font_open.argtypes = [C.c_char_p, C.c_size_t, C.POINTER(Font)]
     lib.ideas_font_open.restype = C.c_bool

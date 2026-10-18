@@ -18,7 +18,7 @@ def test_firmware_install(tmp_path):
         header.write_text('#include "sdk.h"\n')
     executable = tmp_path / "install"
     command = ["cc", "-std=gnu11", "-g", "-Werror=implicit-function-declaration",
-               '-DFIRMWARE_SOURCE="{}"'.format(source), "-I" + str(tmp_path),
+               '-DFIRMWARE_SOURCE="{}"'.format(source.as_posix()), "-I" + str(tmp_path),
                "-I" + str(fixture), "-I" + str(component / "include"),
                str(fixture / "main.c"), "-lcrypto", "-o", str(executable)]
     if os.environ.get("IRIS_HOST_SANITIZERS") == "1":

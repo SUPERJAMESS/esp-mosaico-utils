@@ -1,7 +1,10 @@
 """Exercise the production cache against a failing, mutable block device."""
 from pathlib import Path
+import os
 import shutil
 import subprocess
+
+SANITIZERS = [] if os.name == "nt" else ["-fsanitize=address,undefined"]
 
 
 def test_storage_cache(tmp_path):
@@ -17,7 +20,7 @@ def test_storage_cache(tmp_path):
     exe = tmp_path / "cache"
     result = subprocess.run([
         shutil.which("cc"), "-std=gnu11", "-Wall", "-Wextra", "-Wno-unused-parameter",
-        "-Werror", "-fsanitize=address,undefined", "-g", "-pthread",
+        "-Werror", *SANITIZERS, "-g", "-pthread",
         "-I" + str(tmp_path), "-I" + str(fixture), "-I" + str(component / "private"),
         str(component / "src/storage_blockdev.c"), str(fixture / "cache.c"), "-o", str(exe),
     ], text=True, capture_output=True)
@@ -42,8 +45,8 @@ def test_storage_spi_routing(tmp_path):
         exe = tmp_path / f"spi-{polling}"
         result = subprocess.run([
             shutil.which("cc"), "-std=gnu11", "-Werror=implicit-function-declaration",
-            "-fsanitize=address,undefined", "-g", "-pthread",
-            f'-DSTORAGE_METRICS_SOURCE="{component / "src/storage_metrics.c"}"',
+            *SANITIZERS, "-g", "-pthread",
+            f'-DSTORAGE_METRICS_SOURCE="{(component / "src/storage_metrics.c").as_posix()}"',
             "-I" + str(tmp_path), "-I" + str(fixture), "-I" + str(component / "private"),
             str(fixture / "spi.c"), "-o", str(exe),
         ], text=True, capture_output=True)
