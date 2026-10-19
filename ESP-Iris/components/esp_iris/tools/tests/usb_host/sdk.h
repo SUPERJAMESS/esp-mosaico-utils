@@ -23,6 +23,13 @@
 #define TUD_CONFIG_DESCRIPTOR(...) 0
 #define TUD_CDC_DESCRIPTOR(...) 0
 #define TINYUSB_EVENT_DETACHED 1
+#define TINYUSB_EVENT_ATTACHED 0
+#define TINYUSB_EVENT_SUSPENDED 2
+#define TINYUSB_EVENT_RESUMED 3
+typedef int portMUX_TYPE;
+#define portMUX_INITIALIZER_UNLOCKED 0
+#define taskENTER_CRITICAL(lock) ((void)(lock))
+#define taskEXIT_CRITICAL(lock) ((void)(lock))
 #define ESP_OK 0
 #define ESP_FAIL 1
 #define ESP_ERR_INVALID_ARG 2
@@ -76,8 +83,19 @@ static void (*shutdown_handler)(void);
 static unsigned installs, uninstalls, registrations, removals, io_calls, stop_step;
 static bool fail_install, fail_register, fail_cdc, clock_enabled;
 static void iris_notify_worker(iris_runtime_t *runtime) { }
+static bool fake_suspended;
+static bool fake_mounted = true;
+static int install_events[3], install_event_count;
 static esp_err_t tinyusb_driver_install(const tinyusb_config_t *config)
-{ ++installs; clock_enabled = !fail_install; return fail_install ? ESP_FAIL : ESP_OK; }
+{
+    ++installs; clock_enabled = !fail_install;
+    if (fail_install) return ESP_FAIL;
+    for (int i = 0; i < install_event_count; ++i) {
+        tinyusb_event_t event = {.id = install_events[i]};
+        config->callback(&event, NULL);
+    }
+    return ESP_OK;
+}
 static esp_err_t tinyusb_driver_uninstall(void)
 { ++uninstalls; clock_enabled = false; return ESP_OK; }
 static esp_err_t esp_register_shutdown_handler(void (*handler)(void))
@@ -93,11 +111,19 @@ static esp_err_t esp_unregister_shutdown_handler(void (*handler)(void))
 static esp_err_t tinyusb_cdcacm_init(const tinyusb_config_cdcacm_t *config)
 { return fail_cdc ? ESP_FAIL : ESP_OK; }
 static esp_err_t tinyusb_cdcacm_deinit(unsigned itf) { return ESP_OK; }
-static bool tud_mounted(void) { return true; }
+static bool tud_mounted(void) { return fake_mounted; }
+static bool tud_suspended(void) { return fake_suspended; }
+static unsigned line_states[2], rx_clear[2], tx_clear[2];
+static unsigned rx_bytes[2], tx_bytes[2];
+static void (*io_hook)(void);
+static void (*flush_hook)(void);
+static unsigned tud_cdc_n_get_line_state(unsigned itf) { return line_states[itf]; }
+static void tud_cdc_n_read_flush(unsigned itf) { ++rx_clear[itf]; rx_bytes[itf] = 0; if (flush_hook) flush_hook(); }
+static bool tud_cdc_n_write_clear(unsigned itf) { ++tx_clear[itf]; tx_bytes[itf] = 0; return true; }
 static esp_err_t tinyusb_cdcacm_read(unsigned itf, uint8_t *data, size_t size, size_t *received)
-{ ++io_calls; *received = 0; return ESP_OK; }
+{ ++io_calls; *received = rx_bytes[itf] < size ? rx_bytes[itf] : size; rx_bytes[itf] -= *received; if (io_hook) io_hook(); return ESP_OK; }
 static size_t tinyusb_cdcacm_write_queue(unsigned itf, const uint8_t *data, size_t size)
-{ ++io_calls; return size; }
+{ ++io_calls; tx_bytes[itf] += size; if (io_hook) io_hook(); return size; }
 static esp_err_t tinyusb_cdcacm_write_flush(unsigned itf, unsigned timeout) { return ESP_OK; }
 static void dcd_int_disable(unsigned rhport)
 { assert(rhport == 0 && stop_step == 0); stop_step = 1; }
