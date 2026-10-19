@@ -542,6 +542,15 @@ def apply(scene):
     button(p,'button_update_all_cancel','Cancel',24,380,208,84,action='product_back')
     button(p,'button_update_all_accept','Update all',248,380,208,84,primary=True,action='update_all_accept')
 
+    button(59,'button_format_nand','Format NAND',24,380,432,84,danger=True,action='format_nand')
+    p=add('layer',-1,0,0,480,480,name='format_nand_confirm',bind='format_nand_confirm_visible',
+          bind_target='visible',hidden=True,bg_color=BG)
+    header(p,'NAND unavailable','button_back_format_nand',24,'medium')
+    text(p,'format_nand_question','Initialize NAND Flash?',24,112,432,64,24,'medium')
+    text(p,'format_nand_note','NAND initialization or reading failed. Formatting erases all files and saved Ideas on NAND.',24,188,432,144,22,color=MUTED)
+    button(p,'button_format_nand_cancel','Cancel',24,380,208,84,action='product_back')
+    button(p,'button_format_nand_accept','Format',248,380,208,84,danger=True,action='format_nand_accept')
+
     # Reset/delete preserve the accepted NAND policy and three-second hold.
     for name in ('reset','delete_confirm'):
         p=index[name]

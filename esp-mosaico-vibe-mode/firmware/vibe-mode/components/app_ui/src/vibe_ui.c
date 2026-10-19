@@ -179,7 +179,7 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         VUI_VIBE_BIND_HELP_VISIBLE, VUI_VIBE_BIND_GUIDE_VISIBLE,
         VUI_VIBE_BIND_FIRMWARE_NOTICE_VISIBLE, VUI_VIBE_BIND_FIRMWARE_PROGRESS_VISIBLE,
         VUI_VIBE_BIND_LICENSES_VISIBLE, VUI_VIBE_BIND_SHARED_HELP_VISIBLE, VUI_VIBE_BIND_SHARED_DETAIL_VISIBLE,
-        VUI_VIBE_BIND_UPDATE_CONFIRM_VISIBLE,
+        VUI_VIBE_BIND_UPDATE_CONFIRM_VISIBLE, VUI_VIBE_BIND_FORMAT_NAND_CONFIRM_VISIBLE,
     };
     if (!vibe_product_leave(s, page)) return;
     const vibe_page_t previous = s->page;
@@ -229,7 +229,7 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         if (previous != page)
             (void)command(s, VIBE_SCAN_WIFI, NULL, NULL);
     }
-    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, page == VIBE_NAND);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, page == VIBE_NAND && !s->snapshot.nand_needs_format);
     if (page == VIBE_NAND)
         (void)vui_list_refresh(s->ui, s->bundles);
 }
@@ -419,7 +419,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         show(s, VIBE_NAND);
         /* Startup and mutations refresh the library; navigation reuses it.
          * A failed scan can still be retried by entering Manage again. */
-        if (s->snapshot.nand_error && !s->snapshot.idea_busy)
+        if (s->snapshot.nand_error && !s->snapshot.nand_needs_format && !s->snapshot.idea_busy)
             err = command(s, VIBE_SCAN_NAND, NULL, NULL);
         if (err)
             FORMAT(s, NAND_SCAN, T(s, "Scan error 0x%x"), (unsigned)err);
@@ -627,7 +627,7 @@ void vibe_ui_poll(vibe_ui_t *s) {
          * in this render callback, preserving scroll position without painting
          * an intermediate hidden frame on the device. */
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, false);
-        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, s->page == VIBE_NAND);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, s->page == VIBE_NAND && !s->snapshot.nand_needs_format);
     }
     if (s->preview_active && !v->idea_loading && !v->idea_ready) {
         s->preview_active = false;

@@ -98,6 +98,14 @@ bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
         return commit_delete(s);
     return true;
 }
+static void confirm_nand_format(vibe_ui_t *s)
+{
+    if (!s->snapshot.nand_needs_format || s->snapshot.idea_busy || s->snapshot.idea_ready ||
+        s->snapshot.updating || s->snapshot.settings.busy) return;
+    s->nand_prompt_dismissed = true;
+    s->format_return = s->page;
+    vibe_show(s, VIBE_FORMAT_NAND_CONFIRM);
+}
 static void project_open_confirm(vibe_ui_t *s)
 {
     s->open_waiting = s->snapshot.idea_busy;
@@ -243,8 +251,9 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     case VUI_VIBE_ACT_ID_NAV_DEVELOP:
         vibe_show(s, VIBE_DEVELOP); break;
     case VUI_VIBE_ACT_ID_NAV_MANAGE:
+        s->nand_prompt_dismissed = false;
         vibe_show(s, VIBE_NAND);
-        if (s->snapshot.nand_error && !s->snapshot.idea_busy)
+        if (s->snapshot.nand_error && !s->snapshot.nand_needs_format && !s->snapshot.idea_busy)
             (void)vibe_command(s, VIBE_SCAN_NAND, NULL, NULL);
         break;
     case VUI_VIBE_ACT_ID_NAV_SETTINGS: (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT, 0); vibe_show(s, VIBE_SETTINGS); break;
@@ -265,7 +274,8 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_PRODUCT_BACK:
         if (s->page == VIBE_WELCOME) break;
-        if (s->page == VIBE_UPDATE_CONFIRM) vibe_show(s, VIBE_NAND);
+        if (s->page == VIBE_FORMAT_NAND_CONFIRM) vibe_show(s, s->format_return);
+        else if (s->page == VIBE_UPDATE_CONFIRM) vibe_show(s, VIBE_NAND);
         else if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE || s->page == VIBE_SHARED_HELP) vibe_show(s, s->return_page);
         else if (s->page == VIBE_LICENSES) vibe_show(s, VIBE_ABOUT);
         else if (s->page == VIBE_SHARED_DETAIL) vibe_show(s, VIBE_SHARED);
@@ -335,6 +345,21 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_UNDO_DELETE:
         s->undo_until = 0; refresh_library(s); break;
+    case VUI_VIBE_ACT_ID_FORMAT_NAND:
+        if (s->page == VIBE_NAND) confirm_nand_format(s);
+        break;
+    case VUI_VIBE_ACT_ID_FORMAT_NAND_ACCEPT: {
+        if (s->page != VIBE_FORMAT_NAND_CONFIRM) break;
+        s->services.snapshot(s->services.ctx, &s->snapshot);
+        if (!s->snapshot.nand_needs_format) { vibe_show(s, s->format_return); break; }
+        if (s->snapshot.idea_busy || s->snapshot.idea_ready || s->snapshot.updating ||
+            s->snapshot.settings.busy) break;
+        memset(&s->selected_bundle, 0, sizeof(s->selected_bundle));
+        int err = vibe_command(s, VIBE_FORMAT_NAND, NULL, NULL);
+        if (err) vibe_error(s, "Format failed", err);
+        else { vibe_show(s, VIBE_UPDATE); vibe_ui_poll(s); }
+        break;
+    }
     case VUI_VIBE_ACT_ID_UPDATE_ALL: {
         /* A scan owns the Ideas worker too; keep its progress visible instead
          * of turning an early tap into an operation-failed result. */
@@ -523,11 +548,11 @@ void vibe_product_poll(vibe_ui_t *s)
     else TEXT(s, UNDO_MESSAGE, "");
     const bool storage_error = v->nand_error != 0 && !v->nand_scanning;
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_LIBRARY_EMPTY_VISIBLE,
-        s->page == VIBE_NAND && !v->nand_scanning && (storage_error || !vibe_bundle_count(s)));
+        s->page == VIBE_NAND && !v->nand_needs_format && !v->nand_scanning && (storage_error || !vibe_bundle_count(s)));
     TEXT(s, LIBRARY_EMPTY_TITLE, storage_error ? "Unavailable" : "No Ideas yet");
     TEXT(s, LIBRARY_EMPTY_NOTE, storage_error ? "Your saved files are kept." : "Tap + to download your first Idea.");
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RETRY_STORAGE_VISIBLE,
-        storage_error && !v->idea_busy);
+        storage_error && !v->nand_needs_format && !v->idea_busy);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_MANAGE_UPDATE_ACTION_VISIBLE,
         !v->nand_error && vibe_bundle_count(s) != 0);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_SHARED_EMPTY_VISIBLE, s->page == VIBE_SHARED && !v->settings.shared_count);
@@ -544,6 +569,14 @@ void vibe_product_poll(vibe_ui_t *s)
         TEXT(s, SETTINGS_TOP_LANGUAGE_SUB, v->settings.language == 2 ? "简体中文" : "English");
         FORMAT(s, SETTINGS_TOP_SHARED_SUB, "%u entries", (unsigned)v->settings.shared_count);
     }
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_FORMAT_NAND_VISIBLE,
+                          s->page == VIBE_NAND && v->nand_needs_format && !v->idea_busy);
+    if (!v->nand_needs_format && !v->idea_busy && !v->updating)
+        s->nand_prompt_dismissed = false;
+    if (v->nand_needs_format && !s->nand_prompt_dismissed && !s->first_run &&
+        (s->page == VIBE_HOME || s->page == VIBE_NAND || s->page == VIBE_GRID ||
+         s->page == VIBE_BRIDGE || s->page == VIBE_RESULT))
+        confirm_nand_format(s);
     const bool discover_library = (s->page == VIBE_NAND || s->page == VIBE_GRID) &&
                                   !v->nand_generation && !v->idea_busy && !v->nand_error;
     if (discover_library)
@@ -775,6 +808,7 @@ void vibe_product_tick(vibe_ui_t *s)
             s->activity_ms = now;
             if (key == 1) {
                 if (s->page == VIBE_SLEEP) wake(s);
+                else if (s->page == VIBE_FORMAT_NAND_CONFIRM) vibe_show(s, s->format_return);
                 else if (s->page == VIBE_UPDATE_CONFIRM) vibe_show(s, VIBE_NAND);
                 else if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE) vibe_show(s, s->return_page);
                 else if (s->page != VIBE_HOME && s->page != VIBE_GRID &&
