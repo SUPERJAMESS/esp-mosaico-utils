@@ -19,10 +19,13 @@ def simulator(tmp_path, snapshots):
 
 
 def test_snapshot_replacement_retries_without_losing_expected_state(tmp_path):
-    sim = simulator(tmp_path, [PermissionError(), FileNotFoundError(), '{"page":8}'])
+    sim = simulator(tmp_path, [PermissionError(), FileNotFoundError(),
+                              '{"page":8,"ui_sample":10}',
+                              '{"page":8,"ui_sample":17}',
+                              '{"page":8,"ui_sample":18}'])
     with patch("test_recovery_ui_host.time.sleep"):
-        assert sim.wait(page=8) == {"page": 8}
-    assert sim.state_file.read_text.call_count == 3
+        assert sim.wait(page=8) == {"page": 8, "ui_sample": 10}
+    assert sim.state_file.read_text.call_count == 5
 
 
 def test_snapshot_permission_failure_remains_bounded(tmp_path):
@@ -34,7 +37,18 @@ def test_snapshot_permission_failure_remains_bounded(tmp_path):
 
 
 def test_update_can_complete_after_default_deadline(tmp_path):
-    sim = simulator(tmp_path, ['{"page":7,"progress":900}', '{"page":8,"progress":1000}'])
-    with patch("test_recovery_ui_host.time.monotonic", side_effect=[0, 16, 20]), \
+    sim = simulator(tmp_path, ['{"page":7,"progress":900,"ui_sample":0}',
+                              '{"page":8,"progress":1000,"ui_sample":1}',
+                              '{"page":8,"progress":1000,"ui_sample":9}'])
+    with patch("test_recovery_ui_host.time.monotonic", side_effect=[0, 16, 20, 21]), \
             patch("test_recovery_ui_host.time.sleep"):
         assert sim.wait(timeout=45, page=8, progress=1000)["progress"] == 1000
+
+
+def test_matching_snapshot_without_ui_progress_remains_bounded(tmp_path):
+    sim = simulator(tmp_path, ['{"page":8,"ui_sample":10}'] * 2)
+    with patch("test_recovery_ui_host.time.monotonic", side_effect=[0, 1, 2, 16]), \
+            patch("test_recovery_ui_host.time.sleep"), \
+            pytest.raises(pytest.fail.Exception, match="ui_sample"):
+        sim.wait(page=8)
+    assert sim.state_file.read_text.call_count == 2
