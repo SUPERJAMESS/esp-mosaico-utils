@@ -372,6 +372,8 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"Keys: a-z, 0-9 and _\nUp to 15 characters.\nValues: up to 256 bytes.\nSecret values are hidden by default.", "键名使用 a-z、0-9 和 _，\n最多 15 个字符。\n值最多 256 字节。\n密文默认隐藏。"},
     {"Tap Value to edit this entry.", "点击「值」编辑此条目。"},
     {"Current Idea", "当前 Idea"},
+    {"Update all saved Ideas?", "更新所有已保存的 Idea？"},
+    {"Download available updates to My Ideas.", "将可用更新下载到我的应用。"},
 };
 static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {
     {VUI_VIBE_BIND_PAIRING_ENDPOINT, "Connect Wi-Fi first"},
@@ -560,6 +562,12 @@ static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = 
     {VUI_VIBE_BIND_CANCEL_DOWNLOAD_LABEL, "Cancel"},
     {VUI_VIBE_BIND_RESULT_LIBRARY_LABEL, "Done"},
     {VUI_VIBE_BIND_RESULT_OPEN_LABEL, "Open"},
+    {VUI_VIBE_BIND_STATIC_831, "Done"},
+    {VUI_VIBE_BIND_HEADING_837, "Update all"},
+    {VUI_VIBE_BIND_UPDATE_CONFIRM_QUESTION, "Update all saved Ideas?"},
+    {VUI_VIBE_BIND_UPDATE_CONFIRM_NOTE, "Download available updates to My Ideas."},
+    {VUI_VIBE_BIND_STATIC_839, "Cancel"},
+    {VUI_VIBE_BIND_STATIC_840, "Update all"},
     {VUI_VIBE_BIND_RESET_NOTE, "Clear Wi-Fi, shared information\nand system preferences.\nNAND and all saved Ideas are kept."},
     {VUI_VIBE_BIND_RESET_HOLD_LABEL, "Hold to reset"},
     {VUI_VIBE_BIND_DELETE_NOTE, "Remove this saved Idea?\nYou can undo for 4 seconds."},

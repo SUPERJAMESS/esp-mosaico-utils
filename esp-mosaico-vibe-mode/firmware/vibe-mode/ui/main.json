@@ -5327,7 +5327,7 @@
     },
     {
       "type": "button",
-      "parent": 841,
+      "parent": 853,
       "x": 332,
       "y": 405,
       "w": 108,
@@ -6364,7 +6364,7 @@
     },
     {
       "type": "button",
-      "parent": 844,
+      "parent": 856,
       "x": 24,
       "y": 314,
       "w": 208,
@@ -6414,7 +6414,7 @@
     },
     {
       "type": "button",
-      "parent": 845,
+      "parent": 857,
       "x": 24,
       "y": 360,
       "w": 136,
@@ -6464,7 +6464,7 @@
     },
     {
       "type": "button",
-      "parent": 843,
+      "parent": 855,
       "x": 320,
       "y": 360,
       "w": 136,
@@ -6636,7 +6636,7 @@
     },
     {
       "type": "button",
-      "parent": 842,
+      "parent": 854,
       "x": 248,
       "y": 360,
       "w": 208,
@@ -6918,7 +6918,7 @@
     },
     {
       "type": "button",
-      "parent": 846,
+      "parent": 858,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -8913,7 +8913,7 @@
     },
     {
       "type": "button",
-      "parent": 847,
+      "parent": 859,
       "x": 388,
       "y": 108,
       "w": 64,
@@ -8938,7 +8938,7 @@
     },
     {
       "type": "button",
-      "parent": 848,
+      "parent": 860,
       "x": 352,
       "y": 28,
       "w": 104,
@@ -10234,7 +10234,7 @@
     },
     {
       "type": "button",
-      "parent": 838,
+      "parent": 848,
       "x": 48,
       "y": 286,
       "w": 384,
@@ -10409,7 +10409,7 @@
     },
     {
       "type": "button",
-      "parent": 855,
+      "parent": 867,
       "x": 30,
       "y": 69,
       "w": 124,
@@ -10450,7 +10450,7 @@
     },
     {
       "type": "image",
-      "parent": 849,
+      "parent": 861,
       "x": 38,
       "y": 77,
       "w": 108,
@@ -10578,7 +10578,7 @@
     },
     {
       "type": "button",
-      "parent": 856,
+      "parent": 868,
       "x": 178,
       "y": 69,
       "w": 124,
@@ -10619,7 +10619,7 @@
     },
     {
       "type": "image",
-      "parent": 850,
+      "parent": 862,
       "x": 186,
       "y": 77,
       "w": 108,
@@ -10747,7 +10747,7 @@
     },
     {
       "type": "button",
-      "parent": 857,
+      "parent": 869,
       "x": 326,
       "y": 69,
       "w": 124,
@@ -10788,7 +10788,7 @@
     },
     {
       "type": "image",
-      "parent": 851,
+      "parent": 863,
       "x": 334,
       "y": 77,
       "w": 108,
@@ -10916,7 +10916,7 @@
     },
     {
       "type": "button",
-      "parent": 858,
+      "parent": 870,
       "x": 30,
       "y": 253,
       "w": 124,
@@ -10957,7 +10957,7 @@
     },
     {
       "type": "image",
-      "parent": 852,
+      "parent": 864,
       "x": 38,
       "y": 261,
       "w": 108,
@@ -11085,7 +11085,7 @@
     },
     {
       "type": "button",
-      "parent": 859,
+      "parent": 871,
       "x": 178,
       "y": 253,
       "w": 124,
@@ -11126,7 +11126,7 @@
     },
     {
       "type": "image",
-      "parent": 853,
+      "parent": 865,
       "x": 186,
       "y": 261,
       "w": 108,
@@ -11254,7 +11254,7 @@
     },
     {
       "type": "button",
-      "parent": 860,
+      "parent": 872,
       "x": 326,
       "y": 253,
       "w": 124,
@@ -11295,7 +11295,7 @@
     },
     {
       "type": "image",
-      "parent": 854,
+      "parent": 866,
       "x": 334,
       "y": 261,
       "w": 108,
@@ -11918,7 +11918,7 @@
       "x": 148,
       "y": 50,
       "w": 308,
-      "h": 68,
+      "h": 56,
       "text": "",
       "font_size": 24,
       "fg_color": "#F3F4F2",
@@ -11933,9 +11933,9 @@
       "type": "label",
       "parent": 49,
       "x": 148,
-      "y": 120,
+      "y": 108,
       "w": 308,
-      "h": 48,
+      "h": 32,
       "text": "",
       "font_size": 20,
       "fg_color": "#B2B7BA",
@@ -11951,7 +11951,24 @@
       "type": "label",
       "parent": 49,
       "x": 24,
-      "y": 166,
+      "y": 172,
+      "w": 432,
+      "h": 24,
+      "text": "",
+      "font_size": 16,
+      "fg_color": "#B2B7BA",
+      "text_align": "center",
+      "name": "update_component",
+      "bind": "update_component",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文                 %%%%%%%%%%%%%%%%%%%%//////::ACFPaaaaccdddeeeeeeeeeeeefffgiiiiiiiiiiilllmmmnnnnnooooopppprrrsssttttuuuuuuuuuuuuuuuuvvvw||个件件件候像已已已应文校校校用稍组组请镜验验验：：",
+      "font": "fonts/VibeInter.otf",
+      "hidden": false
+    },
+    {
+      "type": "label",
+      "parent": 49,
+      "x": 24,
+      "y": 196,
       "w": 432,
       "h": 110,
       "text": "",
@@ -11968,7 +11985,7 @@
       "type": "progress",
       "parent": 49,
       "x": 40,
-      "y": 286,
+      "y": 316,
       "w": 400,
       "h": 12,
       "name": "progress",
@@ -11983,7 +12000,7 @@
       "type": "label",
       "parent": 49,
       "x": 24,
-      "y": 306,
+      "y": 336,
       "w": 432,
       "h": 32,
       "text": "",
@@ -12000,7 +12017,7 @@
       "type": "label",
       "parent": 49,
       "x": 24,
-      "y": 342,
+      "y": 372,
       "w": 432,
       "h": 24,
       "text": "",
@@ -12014,25 +12031,8 @@
       "hidden": false
     },
     {
-      "type": "label",
-      "parent": 49,
-      "x": 24,
-      "y": 368,
-      "w": 432,
-      "h": 24,
-      "text": "",
-      "font_size": 16,
-      "fg_color": "#B2B7BA",
-      "text_align": "center",
-      "name": "update_component",
-      "bind": "update_component",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文                  %%%%%%%%%%%%%%%%%%%%//////::ACFPTaaaaaccdddeeeeeeeeeeeeeefffffggiiiiiiiiiiiiillllmmmnnnnnnnooooopppprrrrrrsssssttttuuuuuuuuuuuuuuuuvvvw||个件件件件传候像在已已已应文文校校校正用稍组组请输镜验验验：：",
-      "font": "fonts/VibeInter.otf",
-      "hidden": false
-    },
-    {
       "type": "button",
-      "parent": 839,
+      "parent": 849,
       "x": 24,
       "y": 400,
       "w": 432,
@@ -12137,7 +12137,7 @@
     },
     {
       "type": "button",
-      "parent": 56,
+      "parent": 851,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -12162,7 +12162,7 @@
     },
     {
       "type": "button",
-      "parent": 840,
+      "parent": 850,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -12184,6 +12184,176 @@
       "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Open打开"
+    },
+    {
+      "type": "button",
+      "parent": 852,
+      "x": 24,
+      "y": 380,
+      "w": 432,
+      "h": 84,
+      "name": "button_result_done",
+      "text": "Done",
+      "font": "fonts/VibeMedium.otf",
+      "font_size": 24,
+      "fg_color": "#090A0B",
+      "bg_color": "#F3F4F2",
+      "radius": 20,
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "result_done"
+        }
+      ],
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Done完成",
+      "bind": "static_831"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "update_confirm",
+      "bind": "update_confirm_visible",
+      "bind_target": "visible",
+      "hidden": true,
+      "bg_color": "#090A0B"
+    },
+    {
+      "type": "container",
+      "parent": 832,
+      "x": 16,
+      "y": 20,
+      "w": 56,
+      "h": 56,
+      "bg_color": "#272A2D",
+      "radius": 28
+    },
+    {
+      "type": "image",
+      "parent": 832,
+      "x": 28,
+      "y": 32,
+      "w": 32,
+      "h": 32,
+      "image": "assets/icons/back-32-white.png"
+    },
+    {
+      "type": "button",
+      "parent": 832,
+      "x": 2,
+      "y": 6,
+      "w": 84,
+      "h": 84,
+      "name": "button_back_update_confirm",
+      "bg_color": "#00000001",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "product_back"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 832,
+      "x": 88,
+      "y": 29,
+      "w": 368,
+      "h": 40,
+      "name": "heading_837",
+      "bind": "heading_837",
+      "text": "Update all",
+      "font_size": 24,
+      "font": "fonts/VibeMedium.otf",
+      "fg_color": "#F3F4F2",
+      "text_align": "left",
+      "overflow": "ellipsis",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Update all全部更新"
+    },
+    {
+      "type": "label",
+      "parent": 832,
+      "x": 24,
+      "y": 132,
+      "w": 432,
+      "h": 64,
+      "name": "update_confirm_question",
+      "bind": "update_confirm_question",
+      "text": "Update all saved Ideas?",
+      "font_size": 24,
+      "font": "fonts/VibeMedium.otf",
+      "fg_color": "#F3F4F2",
+      "text_align": "left",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Update all saved Ideas?更新所有已保存的 Idea？"
+    },
+    {
+      "type": "label",
+      "parent": 832,
+      "x": 24,
+      "y": 216,
+      "w": 432,
+      "h": 96,
+      "name": "update_confirm_note",
+      "bind": "update_confirm_note",
+      "text": "Download available updates to My Ideas.",
+      "font_size": 22,
+      "font": "fonts/VibeInter.otf",
+      "fg_color": "#B2B7BA",
+      "text_align": "left",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Download available updates to My Ideas.将可用更新下载到我的应用。"
+    },
+    {
+      "type": "button",
+      "parent": 832,
+      "x": 24,
+      "y": 380,
+      "w": 208,
+      "h": 84,
+      "name": "button_update_all_cancel",
+      "text": "Cancel",
+      "font": "fonts/VibeMedium.otf",
+      "font_size": 24,
+      "fg_color": "#F3F4F2",
+      "bg_color": "#272A2D",
+      "radius": 20,
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "product_back"
+        }
+      ],
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Cancel取消",
+      "bind": "static_839"
+    },
+    {
+      "type": "button",
+      "parent": 832,
+      "x": 248,
+      "y": 380,
+      "w": 208,
+      "h": 84,
+      "name": "button_update_all_accept",
+      "text": "Update all",
+      "font": "fonts/VibeMedium.otf",
+      "font_size": 24,
+      "fg_color": "#090A0B",
+      "bg_color": "#F3F4F2",
+      "radius": 20,
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "update_all_accept"
+        }
+      ],
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Update all全部更新",
+      "bind": "static_840"
     },
     {
       "type": "label",
@@ -12340,6 +12510,28 @@
       "h": 480,
       "name": "button_result_open_gate",
       "bind": "button_result_open_visible",
+      "bind_target": "visible"
+    },
+    {
+      "type": "layer",
+      "parent": 56,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "button_result_library_gate",
+      "bind": "button_result_library_visible",
+      "bind_target": "visible"
+    },
+    {
+      "type": "layer",
+      "parent": 56,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "button_result_done_gate",
+      "bind": "button_result_done_visible",
       "bind_target": "visible"
     },
     {
@@ -12576,7 +12768,7 @@
     },
     {
       "type": "button",
-      "parent": 861,
+      "parent": 873,
       "x": 16,
       "y": 16,
       "w": 56,
@@ -12599,7 +12791,7 @@
     },
     {
       "type": "label",
-      "parent": 861,
+      "parent": 873,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -12614,7 +12806,7 @@
     },
     {
       "type": "label",
-      "parent": 861,
+      "parent": 873,
       "x": 24,
       "y": 100,
       "w": 432,
@@ -12629,7 +12821,7 @@
     },
     {
       "type": "label",
-      "parent": 861,
+      "parent": 873,
       "x": 24,
       "y": 152,
       "w": 432,
@@ -12644,7 +12836,7 @@
     },
     {
       "type": "label",
-      "parent": 861,
+      "parent": 873,
       "x": 24,
       "y": 212,
       "w": 432,
@@ -12659,7 +12851,7 @@
     },
     {
       "type": "label",
-      "parent": 861,
+      "parent": 873,
       "x": 24,
       "y": 270,
       "w": 432,
@@ -12674,7 +12866,7 @@
     },
     {
       "type": "button",
-      "parent": 861,
+      "parent": 873,
       "x": 24,
       "y": 360,
       "w": 204,
@@ -12697,7 +12889,7 @@
     },
     {
       "type": "button",
-      "parent": 861,
+      "parent": 873,
       "x": 252,
       "y": 360,
       "w": 204,
@@ -12732,7 +12924,7 @@
     },
     {
       "type": "label",
-      "parent": 870,
+      "parent": 882,
       "x": 24,
       "y": 36,
       "w": 432,
@@ -12747,7 +12939,7 @@
     },
     {
       "type": "label",
-      "parent": 870,
+      "parent": 882,
       "x": 24,
       "y": 132,
       "w": 432,
@@ -12762,7 +12954,7 @@
     },
     {
       "type": "label",
-      "parent": 870,
+      "parent": 882,
       "x": 24,
       "y": 196,
       "w": 432,
@@ -12778,7 +12970,7 @@
     },
     {
       "type": "label",
-      "parent": 870,
+      "parent": 882,
       "x": 24,
       "y": 268,
       "w": 432,
@@ -12793,7 +12985,7 @@
     },
     {
       "type": "layer",
-      "parent": 870,
+      "parent": 882,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -12805,7 +12997,7 @@
     },
     {
       "type": "button",
-      "parent": 875,
+      "parent": 887,
       "x": 96,
       "y": 380,
       "w": 288,

@@ -61,6 +61,35 @@ static void library(const char *version) {
     closedir(dir);
     assert(generations == 2);
 }
+static unsigned save_cancel_mode;
+static bool save_cancel_seen;
+static uint64_t save_copy_end;
+static void cancel_save(void) {
+    factory_ideas_snapshot_t s = snapshot();
+    if (save_cancel_seen || !s.busy || s.command != IDEAS_SAVE_DEVELOPMENT) return;
+    mock_environment_t *env = mock_environment();
+    if (save_cancel_mode == 1) {
+        if (!s.total || s.received != s.total) return;
+        if (!save_copy_end) save_copy_end = env->flash_read_bytes;
+        if (env->flash_read_bytes <= save_copy_end + 4096) return;
+    } else if (save_cancel_mode == 2) {
+        if (s.cancellable) return;
+    } else if (!s.received) return;
+    save_cancel_seen = true;
+    assert(factory_ideas_cancel() == (save_cancel_mode == 2 ? ESP_ERR_INVALID_STATE : ESP_OK));
+}
+static void assert_no_pending_save(void) {
+    DIR *dir = opendir("/nand/ideas");
+    assert(dir);
+    struct dirent *entry;
+    while ((entry = readdir(dir))) {
+        if (entry->d_name[0] == '.') continue;
+        char path[384]; struct stat info;
+        snprintf(path, sizeof(path), "/nand/ideas/%s/.incoming", entry->d_name);
+        assert(stat(path, &info) != 0);
+    }
+    closedir(dir);
+}
 static unsigned phases, last_phase, verify_samples;
 static uint64_t verify_bytes, verify_total, image_bytes;
 static unsigned image_samples;
@@ -299,6 +328,43 @@ int main(int argc, char **argv) {
         before = env->flash_read_bytes;
         run(IDEAS_SCAN);
         assert(env->flash_read_bytes - before == sizeof(esp_app_desc_t));
+    } else if (!strncmp(scenario, "save-cancel-", 12)) {
+        mock_development();
+        run(IDEAS_SCAN); run(IDEAS_SAVE_DEVELOPMENT);
+        factory_ideas_snapshot_t saved = snapshot();
+        assert(saved.count == 1 && saved.development_saved && saved.items[0].boot);
+        mock_change_resource();
+        run(IDEAS_SCAN);
+        bool previous_boot = snapshot().items[0].boot;
+        assert(factory_ideas_request(IDEAS_SAVE_DEVELOPMENT, NULL) == ESP_OK);
+        assert(snapshot().cancellable);
+        if (!strcmp(scenario, "save-cancel-queued")) assert(factory_ideas_cancel() == ESP_OK);
+        else if (!strcmp(scenario, "save-cancel-hash")) env->cancel_on_delay = true;
+        else {
+            save_cancel_mode = !strcmp(scenario, "save-cancel-gate") ? 1 :
+                               !strcmp(scenario, "save-cancel-committed") ? 2 : 0;
+            env->observe = cancel_save;
+        }
+        mock_run_worker();
+        if (env->observe) assert(save_cancel_seen);
+        env->observe = NULL;
+        factory_ideas_snapshot_t done = snapshot();
+        bool committed = save_cancel_mode == 2;
+        assert(done.terminal && !done.failed && done.cancelled == !committed && !done.cancellable);
+        assert(!env->read_lease && !env->storage_busy && !env->restarts && !env->installs);
+        assert_no_pending_save();
+        run(IDEAS_SCAN);
+        done = snapshot();
+        assert(done.count == (committed ? 2 : 1));
+        bool previous = false;
+        for (size_t i = 0; i < done.count; ++i)
+            previous |= !strcmp(done.items[i].release_id, saved.items[0].release_id);
+        assert(previous);
+        if (!committed) {
+            assert(done.items[0].boot == previous_boot);
+            run(IDEAS_SAVE_DEVELOPMENT); /* Cancellation released admission and storage leases. */
+            assert(!snapshot().failed && snapshot().count == 2 && snapshot().development_saved);
+        }
     } else if (!strncmp(scenario, "development", 11)) {
         mock_development();
         env->ota_missing = true; /* Offline boot before a lazy Iris OTA session exists. */

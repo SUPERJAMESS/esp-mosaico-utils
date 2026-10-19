@@ -75,7 +75,7 @@ static void transfer_text(vibe_ui_t *s)
         FORMAT(s, UPDATE_COMPONENT, T(s, "Files verified: %u/%u"),
                t->completed_components, t->component_count);
     else if (!strcmp(v->update_owner, "Cloud"))
-        TEXT(s, UPDATE_COMPONENT, T(s, "Transferring files"));
+        TEXT(s, UPDATE_COMPONENT, ""); /* The download status is below its title. */
     else if (t->component_count && t->component_id)
         FORMAT(s, UPDATE_COMPONENT, T(s, "Component %u: %u%% | %u/%u verified"), t->component_id,
                vibe_transfer_permille(t->component_received, t->component_size) / 10,
@@ -155,6 +155,7 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         VUI_VIBE_BIND_HELP_VISIBLE, VUI_VIBE_BIND_GUIDE_VISIBLE,
         VUI_VIBE_BIND_FIRMWARE_NOTICE_VISIBLE, VUI_VIBE_BIND_FIRMWARE_PROGRESS_VISIBLE,
         VUI_VIBE_BIND_LICENSES_VISIBLE, VUI_VIBE_BIND_SHARED_HELP_VISIBLE, VUI_VIBE_BIND_SHARED_DETAIL_VISIBLE,
+        VUI_VIBE_BIND_UPDATE_CONFIRM_VISIBLE,
     };
     if (!vibe_product_leave(s, page)) return;
     const vibe_page_t previous = s->page;

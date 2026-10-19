@@ -78,7 +78,7 @@ def apply(scene):
         if bind: objects[i]['bind']=bind
         return i
 
-    def header(parent,title,back):
+    def header(parent,title,back,size=30,role='title'):
         for o in objects:
             if o.get('parent')==parent and (o.get('text')=='‹' or o.get('name','').endswith('_title') or (o['type']=='label' and o.get('y',999)<=40)):
                 o['hidden']=True
@@ -86,7 +86,7 @@ def apply(scene):
         icon(parent,'back-32-white',28,32)
         action = named.get(back,{}).get('events',[{}])[0].get('target_name','product_back')
         click(parent,back,2,6,84,84,action)
-        text(parent,'heading_'+str(parent),title,88,29,368,40,30,'title',overflow='ellipsis')
+        text(parent,'heading_'+str(parent),title,88,29,368,40,size,role,overflow='ellipsis')
 
     def row(parent, name, title, subtitle, glyph, y, action, subtitle_name=None, danger=False):
         rect(parent,16,y,448,80)
@@ -505,13 +505,13 @@ def apply(scene):
         for o in objects:
             if o.get('parent')==p and o['type']=='label' and not o.get('bind'):o['hidden']=True
     add('image',80,32,52,96,96,image='assets/mosaic/hero_vibe-120.png')
-    text(80,'update_title','',148,50,308,68,24,'medium')
-    text(80,'update_detail','',148,120,308,48,20,color=MUTED,overflow='ellipsis')
-    text(80,'update_percent','',24,166,432,110,88,'doto',align='center')
-    move('progress',40,286,400,12,bg_color=TILE,fg_color=ORANGE)
-    text(80,'update_bytes','',24,306,432,32,22,align='center')
-    text(80,'update_rate','',24,342,432,24,16,color=MUTED,align='center')
-    text(80,'update_component','',24,368,432,24,16,color=MUTED,align='center')
+    text(80,'update_title','',148,50,308,56,24,'medium')
+    text(80,'update_detail','',148,108,308,32,20,color=MUTED,overflow='ellipsis')
+    text(80,'update_component','',24,172,432,24,16,color=MUTED,align='center')
+    text(80,'update_percent','',24,196,432,110,88,'doto',align='center')
+    move('progress',40,316,400,12,bg_color=TILE,fg_color=ORANGE)
+    text(80,'update_bytes','',24,336,432,32,22,align='center')
+    text(80,'update_rate','',24,372,432,24,16,color=MUTED,align='center')
     hide('update_owner');hide('update_verified')
     button(80,'button_cancel_download','Cancel',24,400,432,64)
     add('image',91,32,76,120,120,name='result_hero',bind='result_hero_visible',bind_target='visible',image='assets/mosaic/hero_saved-120.png')
@@ -521,7 +521,16 @@ def apply(scene):
     text(91,'result_detail','',52,256,396,96,22,color=MUTED)
     button(91,'button_result_library','Done',24,380,208,84)
     button(91,'button_result_open','Open',248,380,208,84,primary=True)
+    button(91,'button_result_done','Done',24,380,432,84,primary=True,action='result_done')
     hide('button_home')
+
+    p=add('layer',-1,0,0,480,480,name='update_confirm',bind='update_confirm_visible',
+          bind_target='visible',hidden=True,bg_color=BG)
+    header(p,'Update all','button_back_update_confirm',24,'medium')
+    text(p,'update_confirm_question','Update all saved Ideas?',24,132,432,64,24,'medium')
+    text(p,'update_confirm_note','Download available updates to My Ideas.',24,216,432,96,22,color=MUTED)
+    button(p,'button_update_all_cancel','Cancel',24,380,208,84,action='product_back')
+    button(p,'button_update_all_accept','Update all',248,380,208,84,primary=True,action='update_all_accept')
 
     # Reset/delete preserve the accepted NAND policy and three-second hold.
     for name in ('reset','delete_confirm'):

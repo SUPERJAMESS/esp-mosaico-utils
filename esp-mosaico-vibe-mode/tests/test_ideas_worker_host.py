@@ -31,6 +31,7 @@ SCENARIOS = [
     "offline", "install-corrupt", "install-commit-failure", "boot-identity",
     "interrupted-generation", "admission", "repair-current", "io-budget",
     "open", "open-progress", "open-current-progress", "open-cancel-block", "open-cancel-current", "open-cancel-queued", "open-cancel-gate",
+    "save-cancel-queued", "save-cancel-hash", "save-cancel-copy", "save-cancel-gate", "save-cancel-committed",
     "delete", "delete-current", "download-cancel", "batch", "development", "development-ota-busy", "scan-metadata-only", "refresh-updates", "open-cancel", "no-space",
 ] + ["reject-bad-multipart-" + kind for kind in BAD_MULTIPART]
 

@@ -111,7 +111,7 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     ctx->state->busy = true;
     ctx->state->command = command;
     ctx->cancel_requested = false;
-    ctx->state->cancellable = command == IDEAS_OPEN;
+    ctx->state->cancellable = command == IDEAS_OPEN || command == IDEAS_SAVE_DEVELOPMENT;
     ctx->state->batch = command == IDEAS_UPDATE_ALL;
     ctx->state->scanning = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE;
     if (command == IDEAS_RESOLVE || command == IDEAS_CHECK || command == IDEAS_PREVIEW) {
