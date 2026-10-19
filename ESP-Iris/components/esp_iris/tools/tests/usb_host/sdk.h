@@ -37,6 +37,12 @@ typedef int portMUX_TYPE;
 #define ESP_ERR_NOT_SUPPORTED 4
 #define ESP_LOGW(...) ((void)0)
 typedef int esp_err_t;
+typedef uint32_t TickType_t;
+#define pdMS_TO_TICKS(ms) ((TickType_t)(ms) * configTICK_RATE_HZ / 1000U)
+static TickType_t ticks;
+static void (*delay_hook)(void);
+static TickType_t xTaskGetTickCount(void) { return ticks; }
+static inline void vTaskDelay(TickType_t delay) { ticks += delay; if (delay_hook) delay_hook(); }
 typedef struct { bool data_link; uint8_t hardware_mac[6]; } iris_runtime_t;
 typedef struct {
     bool driver_started, link_up, reported_link_up;

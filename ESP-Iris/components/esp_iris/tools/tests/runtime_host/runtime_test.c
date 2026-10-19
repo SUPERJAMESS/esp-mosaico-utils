@@ -36,6 +36,10 @@ static void test_runtime_start_stop_preserves_state(void)
     const iris_runtime_t saved_control = g_iris, saved_data = g_iris_data;
     assert(!esp_iris_is_started());
     assert(esp_iris_stop() == ESP_OK);
+    /* Pre-app_main capture can be stopped before any transport was started. */
+    assert(iris_log_capture_start(&g_iris) == ESP_OK);
+    assert(esp_iris_stop() == ESP_OK);
+    assert(!g_iris.stdio_redirected && !g_iris.vfs_registered);
     assert(esp_iris_boot_probe() == ESP_OK);
     g_iris.boot_id = 0x12345678;
     g_iris.device_id[0] = 0x42;
@@ -51,10 +55,21 @@ static void test_runtime_start_stop_preserves_state(void)
     assert(g_iris.lifecycle == ESP_IRIS_LIFECYCLE_FAILED);
     fail_task_create = false;
     for (unsigned cycle = 0; cycle < 2; ++cycle) {
+#if CONFIG_ESP_IRIS_REDIRECT_STDIO
+        /* Starting Iris must adopt the early tap, not reset its queue. */
+        assert(iris_log_capture_start(&g_iris) == ESP_OK);
+#endif
+        const unsigned captures_before = log_capture_starts;
+        const unsigned waits_before = usb_console_waits;
         assert(esp_iris_start() == ESP_OK);
+        assert(log_capture_starts == captures_before);
+        assert(usb_console_waits == waits_before +
+            (unsigned)(CONFIG_ESP_IRIS_REDIRECT_STDIO &&
+                       g_iris.transport.usb.driver_started));
         assert(g_iris.stdio_redirected == (bool)CONFIG_ESP_IRIS_REDIRECT_STDIO);
         assert(g_iris.vfs_registered == (bool)CONFIG_ESP_IRIS_REDIRECT_STDIO);
         assert(esp_iris_start() == ESP_OK);
+        assert(log_capture_starts == captures_before);
         assert(esp_iris_get_status(&status) == ESP_OK);
         assert(status.started && status.lifecycle == ESP_IRIS_LIFECYCLE_RUNNING);
         assert(status.boot_id == 0x12345678 && status.device_id[0] == 0x42);
@@ -1239,6 +1254,45 @@ static void test_acknowledged_restart_survives_disconnect(void)
     g_iris.started = false;
 }
 
+static void test_pending_console_logs(void)
+{
+#if CONFIG_ESP_IRIS_TRANSPORT_USB
+    iris_runtime_t rt = {.running = true};
+    assert(iris_runtime_wire_init(&rt) == ESP_OK);
+    rt.transport.active_ops = &g_iris_usb_transport_ops;
+    rt.transport.active_state = &rt.transport.usb;
+    begin_session(&rt);
+    pending_test_logs = 2;
+    end_session(&rt);
+    assert(pending_test_logs == 2); /* USB reconnect must not drain the ring. */
+    begin_session(&rt);
+    rt.log_dropped_bytes = 37;
+    outgoing_size = 0;
+    write_limit = sizeof(outgoing);
+    queue_next_log(&rt);
+    assert(pending_test_logs == 2);
+    assert(flush_tx(&rt));
+    static const char notice[] = "\nESP-Iris: log buffer overflow; 37 bytes lost\n";
+    assert(outgoing_size == sizeof(notice) - 1);
+    assert(memcmp(outgoing, notice, outgoing_size) == 0);
+    for (unsigned i = 0; i < 2; ++i) {
+        queue_next_log(&rt);
+        assert(flush_tx(&rt));
+    }
+    assert(pending_test_logs == 0);
+    assert(outgoing_size == sizeof(notice) - 1 + 10);
+    assert(memcmp(outgoing + sizeof(notice) - 1, "boot\nboot\n", 10) == 0);
+    queue_next_log(&rt);
+    assert(rt.tx_wire_length == 0); /* No repeated warning without new loss. */
+    pending_test_logs = 1;
+    rt.running = false;
+    end_session(&rt);
+    assert(pending_test_logs == 0); /* Explicit stop still releases the queue. */
+    iris_runtime_wire_deinit(&rt);
+    outgoing_size = 0;
+#endif
+}
+
 int main(void) {
     test_runtime_start_stop_preserves_state();
     test_rpc_lengths(); test_coalesced_frames(); test_worker_scheduling(); test_replay_and_reopen();
@@ -1268,5 +1322,6 @@ int main(void) {
     test_console_snapshot_binding_crc_expiry();
     test_scheduled_restart_lifecycle();
     test_acknowledged_restart_survives_disconnect();
+    test_pending_console_logs();
     executor_work_free(s_executor.work); return 0;
 }
