@@ -80,8 +80,8 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     ideas_context_t *ctx = &s_ideas;
     if (!atomic_load(&ctx->initialized))
         return ESP_ERR_INVALID_STATE;
-    bool no_code = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL || command == IDEAS_RUN_DEVELOPMENT || command == IDEAS_REFRESH_UPDATES || command == IDEAS_STORAGE_INFO;
-    if (command < IDEAS_SCAN || command > IDEAS_STORAGE_INFO || command == IDEAS_DOWNLOAD ||
+    bool no_code = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL || command == IDEAS_RUN_DEVELOPMENT || command == IDEAS_REFRESH_UPDATES || command == IDEAS_STORAGE_INFO || command == IDEAS_FORMAT_NAND;
+    if (command < IDEAS_SCAN || command > IDEAS_FORMAT_NAND || command == IDEAS_DOWNLOAD ||
         command == IDEAS_DISMISS || command == IDEAS_ROW || (!no_code && !ideas_local_code_valid(code)) ||
         ((command == IDEAS_CHECK || command == IDEAS_RESOLVE) && !ideas_code_valid(code)))
         return ESP_ERR_INVALID_ARG;
@@ -132,6 +132,7 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
         ctx->state->phase = IDEAS_PHASE_NONE;
         ctx->state->files_verified = ctx->state->file_count = 0;
         snprintf(ctx->state->title, sizeof(ctx->state->title), "%s",
+                 command == IDEAS_FORMAT_NAND ? "Formatting NAND" :
                  command == IDEAS_INSTALL || command == IDEAS_OPEN ? "Setting boot application" : "Loading app information");
         snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Please wait");
         ++ctx->state->revision;
@@ -154,6 +155,7 @@ esp_err_t factory_ideas_snapshot(factory_ideas_snapshot_t *out) {
     if (xSemaphoreTake(ctx->lock, 0) != pdTRUE)
         return ESP_ERR_TIMEOUT;
     *out = (*ctx->state);
+    out->storage_error = app_storage_error();
     xSemaphoreGive(ctx->lock);
     return ESP_OK;
 }

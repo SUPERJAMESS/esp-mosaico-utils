@@ -155,7 +155,7 @@ def generate():
     apply(scene)
 
     # Conditional controls share visibility gates between device and simulator.
-    gates = ["button_toggle_open_confirm", "button_cancel_download", "button_result_open", "button_result_library", "button_result_done",
+    gates = ["button_format_nand", "button_toggle_open_confirm", "button_cancel_download", "button_result_open", "button_result_library", "button_result_done",
              "button_undo_delete", "button_local_delete", "button_start_idea", "button_check_idea", "button_update_idea", "button_accept_idea", "button_shared_reveal", "button_shared_delete"]
     gates += ["cell_icon_" + str(i) for i in range(6)]
     gates += ["button_cell_" + str(i) for i in range(6)]

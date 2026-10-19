@@ -372,5 +372,14 @@
   "Tap Value to edit this entry.": "点击「值」编辑此条目。",
   "Current Idea": "当前 Idea",
   "Update all saved Ideas?": "更新所有已保存的 Idea？",
-  "Download available updates to My Ideas.": "将可用更新下载到我的应用。"
+  "Download available updates to My Ideas.": "将可用更新下载到我的应用。",
+  "NAND unavailable": "NAND 不可用",
+  "Initialize NAND Flash?": "是否初始化 NAND Flash？",
+  "NAND initialization or reading failed. Formatting erases all files and saved Ideas on NAND.": "NAND 初始化或读取失败。格式化将清除 NAND 上的所有文件和已保存的 Ideas。",
+  "Format NAND": "格式化 NAND",
+  "Format": "格式化",
+  "Formatting NAND": "正在格式化 NAND",
+  "NAND formatted": "NAND 格式化完成",
+  "Format failed": "格式化失败",
+  "You can download Ideas again.": "现在可以重新下载 Ideas。"
 }

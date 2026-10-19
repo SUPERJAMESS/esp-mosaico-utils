@@ -21,6 +21,7 @@ COMPONENTS = ROOT / "firmware/vibe-mode/components"
 FIXTURE = ROOT / "tests/host_ideas"
 BAD_MULTIPART = ["missing", "duplicate", "path", "locale", "length", "oversize", "hash", "epilogue", "header", "media"]
 SCENARIOS = [
+    "format-nand", "format-failure", "format-admission",
     "download-stages", "retry-manifest", "retry-read", "retry-limit", "bilingual-offline",
     "preview", "preview-zh", "preview-single-byte", "cancel-queued", "cancel-resolve", "cancel-asset", "fixed-release",
     "queue-failure", "init-retry", "worker-reuse", "worker-handoff", "reject-bad-font", "reject-bad-display", "reject-bad-icon",

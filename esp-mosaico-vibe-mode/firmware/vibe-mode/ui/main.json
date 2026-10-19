@@ -5327,7 +5327,7 @@
     },
     {
       "type": "button",
-      "parent": 853,
+      "parent": 864,
       "x": 332,
       "y": 405,
       "w": 108,
@@ -6364,7 +6364,7 @@
     },
     {
       "type": "button",
-      "parent": 856,
+      "parent": 867,
       "x": 24,
       "y": 314,
       "w": 208,
@@ -6414,7 +6414,7 @@
     },
     {
       "type": "button",
-      "parent": 857,
+      "parent": 868,
       "x": 24,
       "y": 360,
       "w": 136,
@@ -6464,7 +6464,7 @@
     },
     {
       "type": "button",
-      "parent": 855,
+      "parent": 866,
       "x": 320,
       "y": 360,
       "w": 136,
@@ -6636,7 +6636,7 @@
     },
     {
       "type": "button",
-      "parent": 854,
+      "parent": 865,
       "x": 248,
       "y": 360,
       "w": 208,
@@ -6918,7 +6918,7 @@
     },
     {
       "type": "button",
-      "parent": 858,
+      "parent": 869,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -8913,7 +8913,7 @@
     },
     {
       "type": "button",
-      "parent": 859,
+      "parent": 870,
       "x": 388,
       "y": 108,
       "w": 64,
@@ -8938,7 +8938,7 @@
     },
     {
       "type": "button",
-      "parent": 860,
+      "parent": 871,
       "x": 352,
       "y": 28,
       "w": 104,
@@ -10234,7 +10234,7 @@
     },
     {
       "type": "button",
-      "parent": 848,
+      "parent": 859,
       "x": 48,
       "y": 286,
       "w": 384,
@@ -10409,7 +10409,7 @@
     },
     {
       "type": "button",
-      "parent": 867,
+      "parent": 878,
       "x": 30,
       "y": 69,
       "w": 124,
@@ -10450,7 +10450,7 @@
     },
     {
       "type": "image",
-      "parent": 861,
+      "parent": 872,
       "x": 38,
       "y": 77,
       "w": 108,
@@ -10578,7 +10578,7 @@
     },
     {
       "type": "button",
-      "parent": 868,
+      "parent": 879,
       "x": 178,
       "y": 69,
       "w": 124,
@@ -10619,7 +10619,7 @@
     },
     {
       "type": "image",
-      "parent": 862,
+      "parent": 873,
       "x": 186,
       "y": 77,
       "w": 108,
@@ -10747,7 +10747,7 @@
     },
     {
       "type": "button",
-      "parent": 869,
+      "parent": 880,
       "x": 326,
       "y": 69,
       "w": 124,
@@ -10788,7 +10788,7 @@
     },
     {
       "type": "image",
-      "parent": 863,
+      "parent": 874,
       "x": 334,
       "y": 77,
       "w": 108,
@@ -10916,7 +10916,7 @@
     },
     {
       "type": "button",
-      "parent": 870,
+      "parent": 881,
       "x": 30,
       "y": 253,
       "w": 124,
@@ -10957,7 +10957,7 @@
     },
     {
       "type": "image",
-      "parent": 864,
+      "parent": 875,
       "x": 38,
       "y": 261,
       "w": 108,
@@ -11085,7 +11085,7 @@
     },
     {
       "type": "button",
-      "parent": 871,
+      "parent": 882,
       "x": 178,
       "y": 253,
       "w": 124,
@@ -11126,7 +11126,7 @@
     },
     {
       "type": "image",
-      "parent": 865,
+      "parent": 876,
       "x": 186,
       "y": 261,
       "w": 108,
@@ -11254,7 +11254,7 @@
     },
     {
       "type": "button",
-      "parent": 872,
+      "parent": 883,
       "x": 326,
       "y": 253,
       "w": 124,
@@ -11295,7 +11295,7 @@
     },
     {
       "type": "image",
-      "parent": 866,
+      "parent": 877,
       "x": 334,
       "y": 261,
       "w": 108,
@@ -11925,7 +11925,7 @@
       "text_align": "left",
       "bind": "update_title",
       "name": "update_title",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n                                                                                           %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%...///////:::AAAAABCCCCCCCDDDDDDDDFFFIIIIIIIIIIIIIIIIIIIILLLNNNNNNOOORSSSSSUUUUUUVVaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffggggggggggggggggggghhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikklllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppqrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvwwwwwwwwyyyyyyy||··…下下下不个个交介件件件件件件件件低作保保保保信信储像像像准准切创创删到发发取取取取固固固在在在在在在在在在在在备备失失失失失失失失失失失失存存存存存安完完对就已已已已已已已已已已已已已已并应开开开开开息息意意成成打打打找换接提操文文新新新新新新新新新是是更更更更更更更最最有本本本查查校校校校校校校校校检检正正正正正正正正正正正求没消消版版版电的空系系系组组组绍经统统统绪装言语请读读败败败败败败败败败败败败足载载载这连量镜镜镜间除验验验验验验验验验：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n                                                                                                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%...///////:::AAAAAAAAABCCCCCCCDDDDDDDDDDDDFFFFFFIIIIIIIIIIIIIIIIIIIILLLNNNNNNNNNNNNNNOOORSSSSSUUUUUUVVaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffgggggggggggggggggggghhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppqrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvwwwwwwwwyyyyyyy||··…下下下不个个交介件件件件件件件件低作保保保保信信储像像像准准切创创删到化化化化发发取取取取固固固在在在在在在在在在在在在备备失失失失失失失失失失失失失存存存存存安完完完对就已已已已已已已已已已已已已已并应开开开开开式式式式息息意意成成成打打打找换接提操文文新新新新新新新新新是是更更更更更更更最最有本本本查查校校校校校校校校校格格格格检检正正正正正正正正正正正正求没消消版版版电的空系系系组组组绍经统统统绪装言语请读读败败败败败败败败败败败败败足载载载这连量镜镜镜间除验验验验验验验验验：：：",
       "font": "fonts/VibeMedium.otf",
       "hidden": false
     },
@@ -11942,7 +11942,7 @@
       "text_align": "left",
       "bind": "update_detail",
       "name": "update_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                              %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,-----------.....................//////00000002288::::>>AAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCDDDDDDDDDDDEFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNOOPPPPRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikklllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyy||··……。。。。。。。。。。。。。一上下下下下个个中主些交交从从以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保候像像像像充先入入入入入具内写写写写准准击击击创删删到到前动动包单单即即即原发发发取取取可可可可可后后后后后启启启启启启和回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备失始存存存存存存存存存存安完完容将就工已已已已已已已已已已已已已已已已已已已已已已已已已并并并应应应应应应应应开开开开开开开开开开待待待意成我我我我我或打打打打打打持持持接接接接接接接接接接接接接接接接接接接接接提提收收放整文文文文文文文新新新新是更更最有期未未未未本本本本本本本机机查查校校校校校校校校校校校校校校校校校检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正清清源点点点版版版版用用用用用用用用电电电电电界留留的的的的的的的的直稍空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设试试试误请请请请请请请请请请读读读败资载载载载输输运运运运返这进连连连连连连连连连连连连连连连连连连连释重重重重重重重重重错镜镜镜镜间间除除面验验验验验验验验验验验验验验验验验，，，，：：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,-----------......................//////00000002288::::>>AAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCDDDDDDDDDDDEFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNOOPPPPRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyy||··……。。。。。。。。。。。。。。一上下下下下下个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保候像像像像充先入入入入入具内写写写写准准击击击创删删到到前动动包单单即即即原发发发取取取可可可可可可后后后后后启启启启启启和回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备失始存存存存存存存存存存安完完容将就工已已已已已已已已已已已已已已已已已已已已已已已已已并并并应应应应应应应应开开开开开开开开开开待待待意成我我我我我或打打打打打打持持持接接接接接接接接接接接接接接接接接接接接接提提收收放整文文文文文文文新新新新新是更更最有期未未未未本本本本本本本机机查查校校校校校校校校校校校校校校校校校检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正清清源点点点版版版版现用用用用用用用用电电电电电界留留的的的的的的的的直稍空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设试试试误请请请请请请请请请请读读读败资载载载载载输输运运运运返这进连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重错镜镜镜镜间间除除面验验验验验验验验验验验验验验验验验，，，，：：：：",
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "overflow": "ellipsis"
@@ -12032,7 +12032,7 @@
     },
     {
       "type": "button",
-      "parent": 849,
+      "parent": 860,
       "x": 24,
       "y": 400,
       "w": 432,
@@ -12093,7 +12093,7 @@
       "text_align": "left",
       "bind": "result_title",
       "name": "result_title",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n                                                                                           %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%...///////:::AAAAABCCCCCCCDDDDDDDDFFFIIIIIIIIIIIIIIIIIIIILLLNNNNNNOOORSSSSSUUUUUUVVaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffggggggggggggggggggghhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikklllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppqrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvwwwwwwwwyyyyyyy||··…下下下不个个交介件件件件件件件件低作保保保保信信储像像像准准切创创删到发发取取取取固固固在在在在在在在在在在在备备失失失失失失失失失失失失存存存存存安完完对就已已已已已已已已已已已已已已并应开开开开开息息意意成成打打打找换接提操文文新新新新新新新新新是是更更更更更更更最最有本本本查查校校校校校校校校校检检正正正正正正正正正正正求没消消版版版电的空系系系组组组绍经统统统绪装言语请读读败败败败败败败败败败败败足载载载这连量镜镜镜间除验验验验验验验验验：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n                                                                                                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%...///////:::AAAAAAAAABCCCCCCCDDDDDDDDDDDDFFFFFFIIIIIIIIIIIIIIIIIIIILLLNNNNNNNNNNNNNNOOORSSSSSUUUUUUVVaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffgggggggggggggggggggghhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppqrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvwwwwwwwwyyyyyyy||··…下下下不个个交介件件件件件件件件低作保保保保信信储像像像准准切创创删到化化化化发发取取取取固固固在在在在在在在在在在在在备备失失失失失失失失失失失失失存存存存存安完完完对就已已已已已已已已已已已已已已并应开开开开开式式式式息息意意成成成打打打找换接提操文文新新新新新新新新新是是更更更更更更更最最有本本本查查校校校校校校校校校格格格格检检正正正正正正正正正正正正求没消消版版版电的空系系系组组组绍经统统统绪装言语请读读败败败败败败败败败败败败败足载载载这连量镜镜镜间除验验验验验验验验验：：：",
       "font": "fonts/VibeDisplay.otf",
       "hidden": false
     },
@@ -12130,14 +12130,14 @@
       "text_align": "left",
       "bind": "result_detail",
       "name": "result_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,-----------.....................//////00000000000228888::::>>AAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCDDDDDDDDDDDEEFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNOOPPPPRRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikklllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyy||··……。。。。。。。。。。。。。一上下下下下个个中主些交交从从以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保候像像像像充先入入入入入具内写写写写准准击击击创删删到到前动动包单单即即即原发发发取取取可可可可可后后后后后后启启启启启启和回回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备失始存存存存存存存存存存安完完容将就工已已已已已已已已已已已已已已已已已已已已已已已已已并并并应应应应应应应应开开开开开开开开开开待待待意成我我我我我或打打打打打打持持持接接接接接接接接接接接接接接接接接接接接接提提收收放整文文文文文文文新新新新是更更最有期未未未未本本本本本本本机机查查校校校校校校校校校校校校校校校校校检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正清清源点点点版版版版用用用用用用用用电电电电电界留留的的的的的的的的直稍空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设试试试试误误请请请请请请请请请请请读读读败资载载载载输输运运运运返返这进连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重错错镜镜镜镜间间除除面页首验验验验验验验验验验验验验验验验验，，，，：：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,-----------......................//////00000000000228888::::>>AAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCDDDDDDDDDDDEEFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNOOPPPPRRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyy||··……。。。。。。。。。。。。。。一上下下下下下个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保候像像像像充先入入入入入具内写写写写准准击击击创删删到到前动动包单单即即即原发发发取取取可可可可可可后后后后后后启启启启启启和回回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备失始存存存存存存存存存存安完完容将就工已已已已已已已已已已已已已已已已已已已已已已已已已并并并应应应应应应应应开开开开开开开开开开待待待意成我我我我我或打打打打打打持持持接接接接接接接接接接接接接接接接接接接接接提提收收放整文文文文文文文新新新新新是更更最有期未未未未本本本本本本本机机查查校校校校校校校校校校校校校校校校校检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正清清源点点点版版版版现用用用用用用用用电电电电电界留留的的的的的的的的直稍空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设试试试试误误请请请请请请请请请请请读读读败资载载载载载输输运运运运返返这进连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重错错镜镜镜镜间间除除面页首验验验验验验验验验验验验验验验验验，，，，：：：：",
       "overflow": "clip",
       "font": "fonts/VibeInter.otf",
       "hidden": false
     },
     {
       "type": "button",
-      "parent": 851,
+      "parent": 862,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -12162,7 +12162,7 @@
     },
     {
       "type": "button",
-      "parent": 850,
+      "parent": 861,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -12187,7 +12187,7 @@
     },
     {
       "type": "button",
-      "parent": 852,
+      "parent": 863,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -12356,6 +12356,176 @@
       "bind": "static_840"
     },
     {
+      "type": "button",
+      "parent": 858,
+      "x": 24,
+      "y": 380,
+      "w": 432,
+      "h": 84,
+      "name": "button_format_nand",
+      "text": "Format NAND",
+      "font": "fonts/VibeMedium.otf",
+      "font_size": 24,
+      "fg_color": "#FF8A85",
+      "bg_color": "#272A2D",
+      "radius": 20,
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "format_nand"
+        }
+      ],
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Format NAND格式化 NAND",
+      "bind": "static_841"
+    },
+    {
+      "type": "layer",
+      "parent": -1,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "format_nand_confirm",
+      "bind": "format_nand_confirm_visible",
+      "bind_target": "visible",
+      "hidden": true,
+      "bg_color": "#090A0B"
+    },
+    {
+      "type": "container",
+      "parent": 842,
+      "x": 16,
+      "y": 20,
+      "w": 56,
+      "h": 56,
+      "bg_color": "#272A2D",
+      "radius": 28
+    },
+    {
+      "type": "image",
+      "parent": 842,
+      "x": 28,
+      "y": 32,
+      "w": 32,
+      "h": 32,
+      "image": "assets/icons/back-32-white.png"
+    },
+    {
+      "type": "button",
+      "parent": 842,
+      "x": 2,
+      "y": 6,
+      "w": 84,
+      "h": 84,
+      "name": "button_back_format_nand",
+      "bg_color": "#00000001",
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "product_back"
+        }
+      ]
+    },
+    {
+      "type": "label",
+      "parent": 842,
+      "x": 88,
+      "y": 29,
+      "w": 368,
+      "h": 40,
+      "name": "heading_847",
+      "bind": "heading_847",
+      "text": "NAND unavailable",
+      "font_size": 24,
+      "font": "fonts/VibeMedium.otf",
+      "fg_color": "#F3F4F2",
+      "text_align": "left",
+      "overflow": "ellipsis",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文NAND unavailableNAND 不可用"
+    },
+    {
+      "type": "label",
+      "parent": 842,
+      "x": 24,
+      "y": 112,
+      "w": 432,
+      "h": 64,
+      "name": "format_nand_question",
+      "bind": "format_nand_question",
+      "text": "Initialize NAND Flash?",
+      "font_size": 24,
+      "font": "fonts/VibeMedium.otf",
+      "fg_color": "#F3F4F2",
+      "text_align": "left",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Initialize NAND Flash?是否初始化 NAND Flash？"
+    },
+    {
+      "type": "label",
+      "parent": 842,
+      "x": 24,
+      "y": 188,
+      "w": 432,
+      "h": 144,
+      "name": "format_nand_note",
+      "bind": "format_nand_note",
+      "text": "NAND initialization or reading failed. Formatting erases all files and saved Ideas on NAND.",
+      "font_size": 22,
+      "font": "fonts/VibeInter.otf",
+      "fg_color": "#B2B7BA",
+      "text_align": "left",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文NAND initialization or reading failed. Formatting erases all files and saved Ideas on NAND.NAND 初始化或读取失败。格式化将清除 NAND 上的所有文件和已保存的 Ideas。"
+    },
+    {
+      "type": "button",
+      "parent": 842,
+      "x": 24,
+      "y": 380,
+      "w": 208,
+      "h": 84,
+      "name": "button_format_nand_cancel",
+      "text": "Cancel",
+      "font": "fonts/VibeMedium.otf",
+      "font_size": 24,
+      "fg_color": "#F3F4F2",
+      "bg_color": "#272A2D",
+      "radius": 20,
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "product_back"
+        }
+      ],
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Cancel取消",
+      "bind": "static_849"
+    },
+    {
+      "type": "button",
+      "parent": 842,
+      "x": 248,
+      "y": 380,
+      "w": 208,
+      "h": 84,
+      "name": "button_format_nand_accept",
+      "text": "Format",
+      "font": "fonts/VibeMedium.otf",
+      "font_size": 24,
+      "fg_color": "#FF8A85",
+      "bg_color": "#272A2D",
+      "radius": 20,
+      "events": [
+        {
+          "event": "click",
+          "action": "call",
+          "target_name": "format_nand_accept"
+        }
+      ],
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Format格式化",
+      "bind": "static_850"
+    },
+    {
       "type": "label",
       "parent": 94,
       "x": 24,
@@ -12478,6 +12648,17 @@
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Touch or pick up to wake轻触或拿起以唤醒"
+    },
+    {
+      "type": "layer",
+      "parent": 39,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "button_format_nand_gate",
+      "bind": "button_format_nand_visible",
+      "bind_target": "visible"
     },
     {
       "type": "layer",
@@ -12768,7 +12949,7 @@
     },
     {
       "type": "button",
-      "parent": 873,
+      "parent": 884,
       "x": 16,
       "y": 16,
       "w": 56,
@@ -12791,7 +12972,7 @@
     },
     {
       "type": "label",
-      "parent": 873,
+      "parent": 884,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -12806,7 +12987,7 @@
     },
     {
       "type": "label",
-      "parent": 873,
+      "parent": 884,
       "x": 24,
       "y": 100,
       "w": 432,
@@ -12821,7 +13002,7 @@
     },
     {
       "type": "label",
-      "parent": 873,
+      "parent": 884,
       "x": 24,
       "y": 152,
       "w": 432,
@@ -12836,7 +13017,7 @@
     },
     {
       "type": "label",
-      "parent": 873,
+      "parent": 884,
       "x": 24,
       "y": 212,
       "w": 432,
@@ -12851,7 +13032,7 @@
     },
     {
       "type": "label",
-      "parent": 873,
+      "parent": 884,
       "x": 24,
       "y": 270,
       "w": 432,
@@ -12866,7 +13047,7 @@
     },
     {
       "type": "button",
-      "parent": 873,
+      "parent": 884,
       "x": 24,
       "y": 360,
       "w": 204,
@@ -12889,7 +13070,7 @@
     },
     {
       "type": "button",
-      "parent": 873,
+      "parent": 884,
       "x": 252,
       "y": 360,
       "w": 204,
@@ -12924,7 +13105,7 @@
     },
     {
       "type": "label",
-      "parent": 882,
+      "parent": 893,
       "x": 24,
       "y": 36,
       "w": 432,
@@ -12939,7 +13120,7 @@
     },
     {
       "type": "label",
-      "parent": 882,
+      "parent": 893,
       "x": 24,
       "y": 132,
       "w": 432,
@@ -12954,7 +13135,7 @@
     },
     {
       "type": "label",
-      "parent": 882,
+      "parent": 893,
       "x": 24,
       "y": 196,
       "w": 432,
@@ -12970,7 +13151,7 @@
     },
     {
       "type": "label",
-      "parent": 882,
+      "parent": 893,
       "x": 24,
       "y": 268,
       "w": 432,
@@ -12985,7 +13166,7 @@
     },
     {
       "type": "layer",
-      "parent": 882,
+      "parent": 893,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -12997,7 +13178,7 @@
     },
     {
       "type": "button",
-      "parent": 887,
+      "parent": 898,
       "x": 96,
       "y": 380,
       "w": 288,

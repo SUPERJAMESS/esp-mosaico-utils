@@ -13,7 +13,8 @@ struct vibe_ui {
     void *home_timer;
     vibe_home_motion_t home_motion;
     bool download_pending, password_visible, preview_active, batch_cancel_pending, result_cancelled, result_failed;
-    vibe_page_t preview_return;
+    vibe_page_t preview_return, format_return;
+    bool nand_prompt_dismissed;
     bool prefetch_attempted;
     bool rendered_release;
     char notified_firmware[32];

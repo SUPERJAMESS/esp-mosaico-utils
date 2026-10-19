@@ -75,7 +75,9 @@ def test_embedded_assets_match_sources_and_have_bounded_records():
         data, w, h, frames, duration = struct.unpack_from("<I4H", raw, images + i * 12)
         assert w > 0 and h > 0 and frames > 0 and duration > 0
         assert data + w * h * frames * 3 <= size
-    # f0b53c0 typography/icons plus bilingual firmware pages. The complete S31
+    # f0b53c0 typography/icons plus bilingual firmware and NAND recovery pages.
+    # Reserve another 16 KiB of decoded PSRAM assets for the recovery dialog.
+    # The complete S31
     # binary is separately checked against the unchanged 0x1c0000-byte slot.
     assert len(packed) < 384 * 1024
-    assert len(raw) < 1664 * 1024
+    assert len(raw) < 1680 * 1024

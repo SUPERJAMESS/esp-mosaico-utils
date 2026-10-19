@@ -6,8 +6,13 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+
+static atomic_int s_read_error;
+esp_err_t storage_blockdev_read_error(void) { return atomic_load(&s_read_error); }
+void storage_blockdev_clear_error(void) { atomic_store(&s_read_error, ESP_OK); }
 
 typedef struct { uint64_t address, age; } cache_entry_t;
 typedef struct {
@@ -57,6 +62,7 @@ static esp_err_t read_pages(esp_blockdev_handle_t dev, uint8_t *dst, size_t capa
         if (s->count) s->entries[victim].age = 0;
         err = s->source->ops->read(s->source, buffer, s->page_size, address + offset, s->page_size);
         if (err != ESP_OK) {
+            atomic_store(&s_read_error, err);
             storage_metrics_add(STORAGE_IO_ERRORS, 1);
             invalidate(s);
             break;

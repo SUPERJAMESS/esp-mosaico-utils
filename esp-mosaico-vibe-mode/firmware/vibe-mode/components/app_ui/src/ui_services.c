@@ -74,6 +74,8 @@ static int service_command(void *ctx, vibe_command_t cmd, const char *a, const c
         return ESP_OK;
     case VIBE_STORAGE_INFO:
         return factory_ideas_request(IDEAS_STORAGE_INFO, NULL);
+    case VIBE_FORMAT_NAND:
+        return factory_ideas_request(IDEAS_FORMAT_NAND, NULL);
     case VIBE_SCAN_NAND:
         return factory_ideas_request(IDEAS_SCAN, NULL);
     case VIBE_INSTALL_NAND:
@@ -188,7 +190,8 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     COPY(batch_code, ctx->ideas.batch_code);
     out->nand_generation = ctx->ideas.generation;
     out->nand_scanning = ctx->ideas.scanning;
-    out->nand_error = ctx->ideas.scan_error;
+    out->nand_error = ctx->ideas.storage_error ? ctx->ideas.storage_error : ctx->ideas.scan_error;
+    out->nand_needs_format = ctx->ideas.storage_error != ESP_OK;
     out->bundle_count = ctx->ideas.count < VIBE_BUNDLE_MAX ? ctx->ideas.count : VIBE_BUNDLE_MAX;
     out->invalid_bundles = ctx->ideas.invalid;
     out->idea_busy = ctx->ideas.busy;
@@ -274,7 +277,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     }
     if (ctx->ideas.busy &&
         (ctx->ideas.command == IDEAS_DOWNLOAD || ctx->ideas.command == IDEAS_INSTALL ||
-         ctx->ideas.command == IDEAS_OPEN || ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT ||
+         ctx->ideas.command == IDEAS_OPEN || ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT || ctx->ideas.command == IDEAS_FORMAT_NAND ||
          (ctx->ideas.command == IDEAS_UPDATE_ALL || ctx->ideas.command == IDEAS_RUN_DEVELOPMENT)))
         ctx->update_source = UPDATE_IDEAS;
     if (ota.active) ctx->update_source = UPDATE_OTA;
@@ -319,7 +322,7 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
         out->updating = ctx->ideas.busy && (ctx->ideas.command == IDEAS_DOWNLOAD ||
                                             ctx->ideas.command == IDEAS_INSTALL ||
                                             ctx->ideas.command == IDEAS_OPEN ||
-                                            ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT ||
+                                            ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT || ctx->ideas.command == IDEAS_FORMAT_NAND ||
                                             (ctx->ideas.command == IDEAS_UPDATE_ALL || ctx->ideas.command == IDEAS_RUN_DEVELOPMENT));
         out->update_terminal = ctx->ideas.terminal;
         if ((ctx->ideas.command == IDEAS_DELETE || ctx->ideas.command == IDEAS_REFRESH_UPDATES) && !ctx->ideas.failed) out->update_terminal = false;
@@ -327,15 +330,17 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
         out->update_cancelled = ctx->ideas.cancelled;
         COPY(update_title, ctx->ideas.title);
         COPY(update_detail, ctx->ideas.detail);
-        COPY(update_owner, ctx->ideas.command == IDEAS_INSTALL || ctx->ideas.command == IDEAS_OPEN
+        COPY(update_owner, ctx->ideas.command == IDEAS_FORMAT_NAND || ctx->ideas.command == IDEAS_INSTALL || ctx->ideas.command == IDEAS_OPEN
                                ? "NAND" : ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT ? "Device" : "Cloud");
-        COPY(update_verified, "SHA-256");
+        COPY(update_verified, ctx->ideas.command == IDEAS_FORMAT_NAND ? "" : "SHA-256");
         out->transfer.total = ctx->ideas.total;
         out->transfer.received = ctx->ideas.received;
         memcpy(out->transfer.job, &ctx->ideas.revision, sizeof(ctx->ideas.revision));
         out->progress = vibe_transfer_permille(ctx->ideas.received, ctx->ideas.total);
         out->transfer.receiving = out->updating && ctx->ideas.command == IDEAS_DOWNLOAD &&
                                   ctx->ideas.phase == IDEAS_PHASE_DOWNLOAD;
+        if (ctx->ideas.command == IDEAS_FORMAT_NAND)
+            out->transfer.phase = VIBE_TRANSFER_SAVE;
         if (ctx->ideas.command == IDEAS_DOWNLOAD) {
             if (ctx->ideas.phase == IDEAS_PHASE_VERIFY_FILES)
                 out->transfer.phase = VIBE_TRANSFER_VERIFY_FILES;

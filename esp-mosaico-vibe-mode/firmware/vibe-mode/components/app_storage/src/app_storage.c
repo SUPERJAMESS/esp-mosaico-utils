@@ -64,7 +64,7 @@ static void nand_cleanup_partial(app_storage_context_t *ctx)
     }
 }
 
-static esp_err_t ensure_mounted(app_storage_context_t *ctx)
+static esp_err_t ensure_mounted(app_storage_context_t *ctx, bool format)
 {
     if (ctx->mounted) {
         return ESP_OK;
@@ -123,6 +123,14 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
     }
     ctx->blockdev = cached;
 
+    if (format) {
+        err = esp_littlefs_format_blockdev(ctx->blockdev);
+        if (err != ESP_OK) {
+            nand_cleanup_partial(ctx);
+            return err;
+        }
+    }
+
     const esp_vfs_littlefs_conf_t mount_config = {
         .base_path = NAND_UPDATE_MOUNT_PATH,
         .blockdev = ctx->blockdev,
@@ -151,7 +159,7 @@ esp_err_t app_storage_mount(void)
 {
     if (atomic_load(&s_mount_status) == ESP_OK) return ESP_OK;
     atomic_store(&s_mount_status, ESP_ERR_INVALID_STATE);
-    esp_err_t err = ensure_mounted(&s_storage);
+    esp_err_t err = ensure_mounted(&s_storage, false);
     /* INVALID_STATE is reserved for pending readiness, not a failed mount. */
     atomic_store(&s_mount_status, err == ESP_ERR_INVALID_STATE ? ESP_FAIL : err);
     return err;
@@ -159,6 +167,32 @@ esp_err_t app_storage_mount(void)
 esp_err_t app_storage_status(void)
 {
     return atomic_load(&s_mount_status);
+}
+esp_err_t app_storage_error(void)
+{
+    esp_err_t status = app_storage_status();
+    if (status != ESP_OK && status != ESP_ERR_INVALID_STATE && status != ESP_ERR_NOT_SUPPORTED)
+        return status;
+    return storage_blockdev_read_error();
+}
+esp_err_t app_storage_format(void)
+{
+    /* Caller owns the local reservation and has drained external VFS users. */
+    app_storage_context_t *ctx = &s_storage;
+    atomic_store(&s_mount_status, ESP_ERR_INVALID_STATE);
+    esp_err_t err = ESP_OK;
+    if (ctx->mounted) {
+        err = esp_vfs_littlefs_unregister_blockdev(ctx->blockdev);
+        if (err == ESP_OK) {
+            ctx->mounted = false;
+            ctx->blockdev = NULL; /* Unregister consumes the handle. */
+            nand_cleanup_partial(ctx);
+        }
+    }
+    if (err == ESP_OK) err = ensure_mounted(ctx, true);
+    if (err == ESP_OK) storage_blockdev_clear_error();
+    atomic_store(&s_mount_status, err == ESP_ERR_INVALID_STATE ? ESP_FAIL : err);
+    return err;
 }
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
 {
@@ -201,6 +235,8 @@ esp_err_t app_storage_acquire(void)
 }
 #else
 esp_err_t app_storage_status(void) { return ESP_ERR_NOT_SUPPORTED; }
+esp_err_t app_storage_error(void) { return ESP_OK; }
+esp_err_t app_storage_format(void) { return ESP_ERR_NOT_SUPPORTED; }
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
 {
     (void)total; (void)used;

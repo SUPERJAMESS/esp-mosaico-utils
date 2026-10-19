@@ -39,7 +39,11 @@ typedef struct {
     bool format_if_mount_failed, read_only, dont_mount, grow_on_mount;
 } esp_vfs_littlefs_conf_t;
 static unsigned mounts, usage_calls, releases;
-static bool fail_mount = true;
+static bool fail_mount = true, fail_format, fail_driver;
+static unsigned formats, unmounts;
+static int read_error;
+esp_err_t storage_blockdev_read_error(void) { return read_error; }
+void storage_blockdev_clear_error(void) { read_error = ESP_OK; }
 static esp_err_t release_device(esp_blockdev_handle_t dev) { ++releases; return ESP_OK; }
 static const esp_blockdev_ops_t ops = {.release = release_device};
 static esp_blockdev_t device = {.ops = &ops, .geometry = {.read_size = 2048}};
@@ -50,7 +54,7 @@ static esp_err_t spi_bus_initialize(int bus, const spi_bus_config_t *c, int dma)
 static esp_err_t spi_bus_free(int bus) { return ESP_OK; }
 static esp_err_t spi_bus_add_device(int bus, const spi_device_interface_config_t *c, spi_device_handle_t *out) { *out = &device; return ESP_OK; }
 static esp_err_t spi_bus_remove_device(spi_device_handle_t dev) { return ESP_OK; }
-static esp_err_t spi_nand_flash_init_with_layers(spi_nand_flash_config_t *c, esp_blockdev_handle_t *out) { *out = &device; return ESP_OK; }
+static esp_err_t spi_nand_flash_init_with_layers(spi_nand_flash_config_t *c, esp_blockdev_handle_t *out) { if (fail_driver) return ESP_FAIL; *out = &device; return ESP_OK; }
 static esp_err_t esp_vfs_littlefs_register(const esp_vfs_littlefs_conf_t *c) {
     ++mounts;
     assert(!strcmp(c->base_path, "/nand") && !c->format_if_mount_failed && !c->grow_on_mount);
@@ -62,6 +66,18 @@ static esp_err_t esp_vfs_littlefs_register(const esp_vfs_littlefs_conf_t *c) {
 static esp_err_t esp_littlefs_blockdev_info(esp_blockdev_handle_t dev, size_t *total, size_t *used) {
     ++usage_calls; *total = 1024; *used = 512; return ESP_OK;
 }
+static esp_err_t esp_littlefs_format_blockdev(esp_blockdev_handle_t dev) {
+    assert(app_storage_reserve() == ESP_ERR_INVALID_STATE);
+    assert(app_storage_status() == ESP_ERR_INVALID_STATE);
+    ++formats;
+    if (fail_format) return ESP_FAIL;
+    fail_mount = false;
+    return ESP_OK;
+}
+static esp_err_t esp_vfs_littlefs_unregister_blockdev(esp_blockdev_handle_t dev) {
+    ++unmounts;
+    return dev->ops->release(dev);
+}
 esp_err_t storage_blockdev_wrap(esp_blockdev_handle_t dev, size_t bytes, esp_blockdev_handle_t *out) { *out = dev; return ESP_OK; }
 void storage_metrics_bind(spi_device_handle_t dev, size_t size) {}
 void storage_metrics_begin(void) {}
@@ -72,7 +88,11 @@ int main(void) {
     assert(app_storage_acquire() == ESP_ERR_INVALID_STATE);
     assert(app_storage_status() == ESP_FAIL && mounts == 1 && releases == 1);
     assert(!usage_calls); /* Failed mount never formats or traverses capacity. */
-    fail_mount = false;
+    assert(app_storage_error() == ESP_FAIL && !formats);
+    assert(app_storage_reserve() == ESP_OK);
+    assert(app_storage_format() == ESP_OK); /* Explicit recovery of unmountable FS. */
+    assert(formats == 1 && mounts == 2 && !unmounts && !app_storage_error());
+    app_storage_release();
     assert(app_storage_acquire() == ESP_OK); /* Failure released the reservation. */
     assert(app_storage_status() == ESP_OK && mounts == 2 && !usage_calls);
     app_storage_release();
@@ -80,6 +100,23 @@ int main(void) {
     uint64_t total = 0, used = 0;
     assert(app_storage_info(&total, &used) == ESP_OK && total == 1024 && used == 512);
     assert(usage_calls == 1);
+    app_storage_release();
+    read_error = ESP_FAIL; /* A later physical read fails on a mounted volume. */
+    assert(app_storage_error() == ESP_FAIL);
+    assert(app_storage_reserve() == ESP_OK);
+    fail_format = true;
+    assert(app_storage_format() == ESP_FAIL);
+    assert(formats == 2 && unmounts == 1 && releases == 3);
+    assert(app_storage_status() == ESP_FAIL && app_storage_error() == ESP_FAIL);
+    app_storage_release();
+    assert(app_storage_reserve() == ESP_OK);
+    fail_driver = true;
+    assert(app_storage_format() == ESP_FAIL && formats == 2); /* No usable chip. */
+    fail_driver = fail_format = false;
+    assert(app_storage_format() == ESP_OK && formats == 3);
+    assert(!app_storage_error() && app_storage_status() == ESP_OK);
+    app_storage_release();
+    assert(app_storage_acquire() == ESP_OK);
     app_storage_release();
     return 0;
 }

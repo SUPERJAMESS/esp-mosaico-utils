@@ -19,7 +19,7 @@ static unsigned bridge_prefetch_calls;
 static unsigned prepare_calls, cancel_calls, preview_ticks;
 static unsigned download_calls, install_calls, check_calls, restart_calls;
 static unsigned save_calls, delete_calls, reset_calls, next_key, scan_calls, cancel_ticks;
-static unsigned scan_ticks;
+static unsigned scan_ticks, format_calls;
 static vibe_command_t current_job;
 static char last_code[7];
 static bool bridge_active;
@@ -59,6 +59,29 @@ static void trace_state(vui_handle_t ui, void *ctx)
             (void)sscanf(command, "release-available %31s", model.release_version);
         }
         if (!strcmp(command, "ideas-refresh-busy")) model.idea_busy = true;
+        if (!strcmp(command, "nand-error")) {
+            model.nand_error = -1;
+            model.nand_needs_format = true;
+        }
+        if (!strcmp(command, "nand-idle")) model.idea_busy = false;
+        if (!strcmp(command, "nand-recovered")) {
+            model.nand_error = 0;
+            model.nand_needs_format = false;
+        }
+        if (!strcmp(command, "nand-format-complete") || !strcmp(command, "nand-format-fail")) {
+            bool failed = !strcmp(command, "nand-format-fail");
+            model.updating = model.idea_busy = false;
+            model.update_terminal = true;
+            model.update_failed = model.nand_needs_format = failed;
+            model.nand_error = failed ? -1 : 0;
+            model.bundle_count = 0;
+            model.storage_total = 512ULL * 1024 * 1024;
+            model.storage_used = 0;
+            ++model.nand_generation;
+            ++model.update_revision;
+            snprintf(model.update_title, sizeof(model.update_title), "%s", failed ? "Format failed" : "NAND formatted");
+            snprintf(model.update_detail, sizeof(model.update_detail), "%s", failed ? "Please retry" : "You can download Ideas again.");
+        }
         if (!strcmp(command, "firmware-fail")) {
             model.updating = false;
             model.update_terminal = model.update_failed = true;
@@ -211,6 +234,7 @@ static void trace_state(vui_handle_t ui, void *ctx)
             install_calls, check_calls, restart_calls, prepare_calls, cancel_calls,
             model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
             model.bundles[0].boot ? "true" : "false");
+    fprintf(file, "\"format_calls\":%u,", format_calls);
     fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,\"about_offset\":%d,\"licenses_offset\":%d,\"idea_description_offset\":%d,",
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT),
@@ -385,6 +409,21 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
             ++model.nand_generation;
             break;
         }
+        break;
+    case VIBE_FORMAT_NAND:
+        if (model.idea_busy || model.updating) return 0x103;
+        ++format_calls;
+        model.nand_error = 0;
+        model.nand_needs_format = false; /* Pending status during reinitialization. */
+        model.updating = model.idea_busy = true;
+        model.update_terminal = model.update_failed = model.update_cancelled = false;
+        model.cancellable = false;
+        memset(&model.transfer, 0, sizeof(model.transfer));
+        model.transfer.phase = VIBE_TRANSFER_SAVE;
+        ++model.update_revision;
+        snprintf(model.update_title, sizeof(model.update_title), "Formatting NAND");
+        snprintf(model.update_detail, sizeof(model.update_detail), "Please wait");
+        snprintf(model.update_owner, sizeof(model.update_owner), "NAND");
         break;
     case VIBE_SCAN_NAND:
         ++scan_calls;
