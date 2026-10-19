@@ -200,6 +200,49 @@ int main(int argc, char **argv) {
     assert(!env->directory_reads && !env->storage_info_calls && !snapshot().generation);
     assert(!snapshot().busy); /* Cloud admission is independent of library discovery. */
 
+    if (!strncmp(scenario, "format-", 7)) {
+        preview();
+        assert(factory_ideas_request(IDEAS_FORMAT_NAND, NULL) == ESP_ERR_INVALID_STATE);
+        assert(!env->formats); /* A retained preview must be dismissed first. */
+        confirm(snapshot().preview_id);
+        library("1.0");
+        env->storage_error = ESP_FAIL;
+        if (!strcmp(scenario, "format-admission")) {
+            env->storage_busy = true;
+            assert(factory_ideas_request(IDEAS_FORMAT_NAND, NULL) == ESP_OK);
+            mock_run_worker();
+            assert(snapshot().failed && !env->formats && !env->iris_stops);
+            env->storage_busy = false;
+            env->ota_busy = true;
+            assert(factory_ideas_request(IDEAS_FORMAT_NAND, NULL) == ESP_OK);
+            mock_run_worker();
+            assert(snapshot().failed && !env->formats && !env->iris_stops && !env->lease);
+            env->ota_busy = false;
+            env->fail_stop = true;
+            assert(factory_ideas_request(IDEAS_FORMAT_NAND, NULL) == ESP_OK);
+            mock_run_worker();
+            assert(snapshot().failed && !env->formats && !env->lease && !env->read_lease);
+            assert(snapshot().count == 1); /* Admission failure preserves cached Ideas. */
+            env->fail_stop = false;
+            assert(factory_ideas_request(IDEAS_FORMAT_NAND, NULL) == ESP_OK);
+            mock_run_worker();
+            assert(!snapshot().failed && env->formats == 1 && env->iris_stops == 2 && env->iris_starts == 1);
+            return 0;
+        }
+        env->fail_format = !strcmp(scenario, "format-failure");
+        assert(factory_ideas_request(IDEAS_FORMAT_NAND, NULL) == ESP_OK);
+        assert(snapshot().busy && !snapshot().cancellable);
+        assert(factory_ideas_request(IDEAS_FORMAT_NAND, NULL) == ESP_ERR_INVALID_STATE);
+        assert(factory_ideas_cancel() == ESP_ERR_INVALID_STATE);
+        mock_run_worker();
+        assert(env->formats == 1 && env->iris_stops == 1 && env->iris_starts == 1);
+        assert(!env->lease && !env->read_lease && !env->iris_stopped);
+        assert(snapshot().terminal && snapshot().failed == env->fail_format);
+        assert(!snapshot().count && !env->restarts && !env->installs);
+        assert((snapshot().storage_error != ESP_OK) == env->fail_format);
+        if (!env->fail_format) { confirm(preview()); library("1.0"); }
+        return 0;
+    }
     if (!strcmp(scenario, "seed-full-library")) {
         char selected[7];
         for (unsigned i = 0; i < FACTORY_IDEAS_MAX_ITEMS; ++i) {

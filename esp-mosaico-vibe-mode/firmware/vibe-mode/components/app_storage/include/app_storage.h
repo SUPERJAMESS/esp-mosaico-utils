@@ -10,7 +10,7 @@
  * Returns a media error without erasing data. */
 esp_err_t app_storage_mount(void);
 /* Nonblocking mount status: INVALID_STATE while pending, OK once mounted,
- * otherwise a mount failure. Mounted media remains available for life. */
+ * otherwise a mount failure. Formatting temporarily returns pending. */
 esp_err_t app_storage_status(void);
 /* Readiness check for new external file requests. INVALID_STATE while a local
  * reservation is held; this does not acquire a lease or arbitrate open streams. */
@@ -25,3 +25,11 @@ esp_err_t app_storage_acquire(void);
 void app_storage_release(void);
 /* Read filesystem usage while holding a storage reservation. */
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used);
+
+/* Initialization/physical read failure requiring user attention; OK while pending.
+ * Missing files, package validation and network failures are not media failures. */
+esp_err_t app_storage_error(void);
+/* Destructive recovery, ONLY after explicit user confirmation. Caller must own
+ * a reservation and drain external VFS users (including Iris) first. Recreates
+ * LittleFS and mounts it, including after a failed initial mount. Blocking IO. */
+esp_err_t app_storage_format(void);

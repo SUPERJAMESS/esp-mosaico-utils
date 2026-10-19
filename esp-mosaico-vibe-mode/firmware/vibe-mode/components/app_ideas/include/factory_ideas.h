@@ -26,7 +26,8 @@ typedef enum {
     IDEAS_UPDATE_ALL,
     IDEAS_RUN_DEVELOPMENT,
     IDEAS_REFRESH_UPDATES,
-    IDEAS_STORAGE_INFO
+    IDEAS_STORAGE_INFO,
+    IDEAS_FORMAT_NAND
 } factory_ideas_command_t;
 /* Local UI state; never serialized into the Iris protocol. */
 typedef enum {
@@ -50,7 +51,7 @@ typedef struct {
     factory_ideas_command_t command;
     /* Owns terminal/title/detail/revision even when background work changes command. */
     factory_ideas_command_t terminal_command;
-    esp_err_t error, scan_error;
+    esp_err_t error, scan_error, storage_error;
     char title[48], detail[160];
     uint64_t total, received;
     factory_ideas_phase_t phase;
@@ -75,7 +76,8 @@ typedef struct {
  * failure releases partial resources and permits retry. No RTC/PSRAM fallback. */
 esp_err_t factory_ideas_init(void);
 /* Queue command, copying the six-digit code when the command needs one.
- * Scan/relocalize accept NULL; preview/check/install require code. Returns busy or error.
+ * FORMAT_NAND destroys all NAND files and requires explicit user confirmation.
+ * Scan/relocalize/format accept NULL; preview/check/install require code. Returns busy or error.
  */
 esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *code);
 /* Confirm or dismiss the current immutable preview identified by request_id.

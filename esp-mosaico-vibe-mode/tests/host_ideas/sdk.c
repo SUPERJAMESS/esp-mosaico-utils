@@ -3,6 +3,7 @@
 #include "app_storage.h"
 #include "cJSON.h"
 #include "factory_ideas.h"
+#include "ideas_package.h"
 #include "factory_nand_update.h"
 #include "factory_network.h"
 #include "factory_system_update.h"
@@ -199,12 +200,20 @@ void esp_restart(void) {
     env.recovery_restarts += env.recovery_requested;
     env.busy_restarts += env.ota_busy;
 }
-esp_err_t app_storage_acquire(void) {
-    if (env.storage_failure) return ESP_FAIL;
+esp_err_t app_storage_reserve(void) {
     if (env.storage_busy || env.lease)
         return ESP_ERR_INVALID_STATE;
     env.lease = true;
     return ESP_OK;
+}
+esp_err_t app_storage_acquire(void) {
+    if (env.storage_failure) return ESP_FAIL;
+    esp_err_t err = app_storage_reserve();
+    if (err == ESP_OK && env.storage_error) {
+        env.lease = false;
+        return env.storage_error;
+    }
+    return err;
 }
 void app_storage_release(void) {
     assert(env.lease);
@@ -675,3 +684,27 @@ void mock_change_resource(void) { flash[0x310000] ^= 0x55; }
 esp_err_t mosaico_boot_select(uint32_t address) { assert(env.read_lease && address == 0x210000); boot.address = address; return ESP_OK; }
 
 unsigned vibe_settings_language(void) { return 1; }
+
+esp_err_t app_storage_error(void) { return env.storage_error; }
+bool esp_iris_is_started(void) { return !env.iris_stopped; }
+esp_err_t esp_iris_stop(void) {
+    assert(env.lease && env.read_lease);
+    ++env.iris_stops;
+    if (env.fail_stop) { env.iris_stopped = true; return ESP_ERR_TIMEOUT; }
+    env.iris_stopped = true;
+    return ESP_OK;
+}
+esp_err_t esp_iris_start(void) {
+    assert(env.iris_stopped);
+    ++env.iris_starts;
+    env.iris_stopped = false;
+    return ESP_OK;
+}
+esp_err_t app_storage_format(void) {
+    assert(env.lease && env.read_lease && env.iris_stopped);
+    ++env.formats;
+    if (env.fail_format) return ESP_FAIL;
+    assert(ideas_store_delete("/nand/ideas", "042731") == ESP_OK);
+    env.storage_error = ESP_OK;
+    return ESP_OK;
+}

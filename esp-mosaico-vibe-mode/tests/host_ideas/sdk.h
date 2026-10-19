@@ -152,7 +152,9 @@ typedef struct {
     bool identity_unavailable;
     const char *device_id;
     uint64_t flash_read_bytes;
-    unsigned storage_info_calls, directory_reads;
+    unsigned storage_info_calls, directory_reads, formats, iris_stops, iris_starts;
+    bool iris_stopped, fail_stop, fail_format;
+    int storage_error;
     char flash_version;
     void (*observe)(void);
 } mock_environment_t;

@@ -1407,3 +1407,62 @@ def test_deleted_idea_result_has_only_a_wide_done_button(sim):
     sim.wait(timeout=10, page=8, pending_delete=False, delete_calls=1, bundle_count=1)
     assert_wide_done(sim, "deleted-idea-wide-done")
     sim.wait(page=5, install_calls=0, restart_calls=0)
+
+
+@pytest.mark.parametrize("language", [1, 2])
+def test_nand_failure_requires_consent_and_recovers_downloads(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
+    sim.control("nand-error")
+    sim.wait(page=32, format_calls=0)
+    sim.capture(f"nand-confirm-{language}")
+    sim.tap_ui("button_format_nand_cancel")
+    sim.wait(page=0, format_calls=0)
+    sim.rpc("wait", frames=40)
+    sim.wait(page=0, format_calls=0)  # A dismissed fault does not loop.
+    sim.tap_ui("button_nav_manage")
+    sim.wait(page=32, format_calls=0)
+    sim.tap_ui("button_format_nand_cancel")
+    sim.wait(page=5, format_calls=0)
+    sim.tap_ui("button_format_nand")
+    sim.wait(page=32, format_calls=0)
+    sim.tap_ui("button_format_nand_accept")
+    sim.wait(page=7, format_calls=1)
+    sim.capture(f"nand-formatting-{language}")
+    sim.tap_ui("button_format_nand_accept")
+    sim.wait(page=7, format_calls=1)
+    sim.control("nand-format-complete")
+    sim.wait(page=8, format_calls=1, install_calls=0, restart_calls=0)
+    sim.capture(f"nand-formatted-{language}")
+    sim.tap_ui("button_result_done")
+    sim.wait(page=5)
+    sim.tap_ui("manage_download")
+    sim.wait(page=1)  # Normal Wi-Fi setup is usable again.
+
+
+def test_nand_format_failure_can_retry_and_busy_work_defers_prompt(sim):
+    sim.control("ideas-refresh-busy")
+    sim.control("nand-error")
+    sim.wait(page=0, format_calls=0)
+    sim.control("nand-idle")
+    sim.wait(page=32)
+    sim.tap_ui("button_format_nand_accept")
+    sim.wait(page=7, format_calls=1)
+    sim.control("nand-format-fail")
+    sim.wait(page=8, format_calls=1)
+    sim.tap_ui("button_result_done")
+    sim.wait(page=5)
+    sim.tap_ui("button_format_nand")
+    sim.wait(page=32)
+    sim.control("nand-recovered")
+    sim.tap_ui("button_format_nand_accept")
+    sim.wait(page=5, format_calls=1)  # Revalidate the fault before erasing.
+
+
+def test_unrelated_failure_does_not_offer_nand_format(sim):
+    sim.control("ideas-fail")
+    sim.wait(page=8, format_calls=0)

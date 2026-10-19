@@ -514,7 +514,12 @@ ESP-Mosaico 的板载 NAND 与 `esp-mosaico-claw` 一致，使用 SPI NAND、wea
 block device 和 LittleFS，挂载点为 `/nand`。Vibe Mode 读写挂载已有文件系统，并将
 整个挂载点注册为 ESP-Iris 文件卷 `nand`；可通过 Gateway 列目录、读取、写入、删除、
 建目录和重命名。写入先落到同目录临时文件，校验 SHA-256 后再原子替换目标文件。
-挂载失败时不会格式化 NAND，也不会阻止 Vibe Mode USB 维护服务启动。将解包后的
+挂载失败时不会自动格式化 NAND，也不会阻止 Vibe Mode USB 维护服务启动。NAND 初始化
+或底层读取失败后，界面会询问是否初始化，并明确说明格式化会清除 NAND 上全部文件和
+已保存的 Ideas。取消不修改 NAND；Manage 页仍可重新打开格式化确认。确认后后台执行
+格式化与重新挂载，期间暂停 Iris 文件访问，结束后恢复服务并显示成功或失败结果。
+成功后可以重新下载 Ideas；失败可以重试。NOR 应用、身份、Wi-Fi 和设置不受影响。
+将解包后的
 bundle 放到同一目录，例如：
 
 ```text
