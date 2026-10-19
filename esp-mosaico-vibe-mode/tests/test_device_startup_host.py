@@ -10,7 +10,8 @@ SANITIZERS = [] if os.name == "nt" else ["-fsanitize=address,undefined"]
 
 @pytest.mark.parametrize("scenario", ["blocked", "sensor-failure", "task-failure", "retry",
                                       "shutdown-active", "shutdown-paused",
-                                      "shutdown-registration-failure", "motor-timer-failure"])
+                                      "shutdown-registration-failure", "motor-timer-failure",
+                                      "wifi-sleep-retry", "wifi-wake-retry"])
 def test_device_startup(tmp_path, scenario):
     root = Path(__file__).resolve().parents[1]
     component = root / "firmware/vibe-mode/components/app_device"

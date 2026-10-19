@@ -42,6 +42,7 @@ typedef struct {
     bool pending_credentials;
     bool mdns_started;
     bool wifi_initialized;
+    bool wifi_running;
     bool suspended;
     atomic_flag starting;
 } factory_network_context_t;
@@ -389,6 +390,7 @@ static void cleanup_failed_start(factory_network_context_t *ctx)
         (void)esp_wifi_stop();
         (void)esp_wifi_deinit();
         ctx->wifi_initialized = false;
+        ctx->wifi_running = false;
     }
     if (ctx->netif) {
         esp_netif_destroy_default_wifi(ctx->netif);
@@ -434,6 +436,7 @@ static esp_err_t start_network(factory_network_context_t *ctx)
     ESP_GOTO_ON_ERROR(esp_wifi_set_ps(WIFI_PS_NONE), fail, TAG, "disable Wi-Fi modem sleep");
     ESP_GOTO_ON_ERROR(esp_wifi_start(), fail, TAG, "start Wi-Fi");
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    ctx->wifi_running = true;
     ctx->snapshot.started = true;
     ctx->snapshot.state = FACTORY_NETWORK_NO_CREDENTIALS;
     ctx->snapshot.last_error = ESP_OK;
@@ -485,6 +488,10 @@ static esp_err_t request_scan_started(factory_network_context_t *ctx)
 {
     ESP_RETURN_ON_FALSE(ctx->lock, ESP_ERR_INVALID_STATE, TAG, "factory network is not started");
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    if (ctx->suspended || !ctx->wifi_running) {
+        xSemaphoreGive(ctx->lock);
+        return ESP_ERR_INVALID_STATE;
+    }
     if (ctx->snapshot.scanning) {
         xSemaphoreGive(ctx->lock);
         return ESP_OK;
@@ -512,27 +519,17 @@ esp_err_t factory_network_connect(const char *ssid, const char *password)
 {
     factory_network_context_t *ctx = &s_network;
     ESP_RETURN_ON_FALSE(ssid && password, ESP_ERR_INVALID_ARG, TAG, "invalid connection request");
-    const size_t ssid_size = strnlen(ssid, FACTORY_NETWORK_SSID_BYTES);
-    const size_t password_size = strnlen(password, FACTORY_NETWORK_PASSWORD_BYTES);
-    bool password_valid = password_size == 0 || (password_size >= 8 && password_size <= 63);
-    if (password_size == 64) {
-        password_valid = true;
-        for (size_t i = 0; i < password_size; ++i) {
-            const char character = password[i];
-            if (!((character >= '0' && character <= '9') ||
-                  (character >= 'a' && character <= 'f') ||
-                  (character >= 'A' && character <= 'F'))) {
-                password_valid = false;
-                break;
-            }
-        }
-    }
-    ESP_RETURN_ON_FALSE(ssid_size > 0 && ssid_size < FACTORY_NETWORK_SSID_BYTES,
+    ESP_RETURN_ON_FALSE(factory_network_ssid_valid(ssid),
                         ESP_ERR_INVALID_SIZE, TAG, "invalid SSID length");
-    ESP_RETURN_ON_FALSE(password_valid, ESP_ERR_INVALID_SIZE, TAG, "invalid password length");
+    ESP_RETURN_ON_FALSE(factory_network_password_valid(password),
+                        ESP_ERR_INVALID_SIZE, TAG, "invalid password length");
 
     ESP_RETURN_ON_ERROR(factory_network_start(), TAG, "start network for provisioning");
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    if (ctx->suspended || !ctx->wifi_running) {
+        xSemaphoreGive(ctx->lock);
+        return ESP_ERR_INVALID_STATE;
+    }
     strlcpy(ctx->pending_ssid, ssid, sizeof(ctx->pending_ssid));
     strlcpy(ctx->pending_password, password, sizeof(ctx->pending_password));
     ctx->pending_credentials = true;
@@ -568,24 +565,67 @@ esp_err_t factory_network_suspend(bool suspended)
     factory_network_context_t *ctx = &s_network;
     if (!ctx->lock || !ctx->wifi_initialized)
         return suspended ? ESP_OK : factory_network_start();
+    if (atomic_flag_test_and_set(&ctx->starting)) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     bool changed = ctx->suspended != suspended;
+    bool running = ctx->wifi_running;
     ctx->suspended = suspended;
     if (suspended) {
         ctx->snapshot.state = FACTORY_NETWORK_STOPPED;
         ctx->snapshot.ip[0] = 0;
         ctx->snapshot.scanning = false;
+        /* Wake reloads saved credentials. An unconfirmed provisioning request
+         * must never be persisted when that different saved AP obtains IP. */
+        ctx->pending_credentials = false;
+        memset(ctx->pending_ssid, 0, sizeof(ctx->pending_ssid));
+        memset(ctx->pending_password, 0, sizeof(ctx->pending_password));
     }
     xSemaphoreGive(ctx->lock);
-    if (!changed) return ESP_OK;
-    if (suspended) return esp_wifi_stop();
-    esp_err_t err = esp_wifi_start();
-    if (err != ESP_OK) return err;
+    esp_err_t err = ESP_OK;
+    if (suspended) {
+        if (running) err = esp_wifi_stop();
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        if (err == ESP_OK) ctx->wifi_running = false;
+        else ctx->snapshot.state = FACTORY_NETWORK_FAILED;
+        ctx->snapshot.last_error = err;
+        xSemaphoreGive(ctx->lock);
+        atomic_flag_clear(&ctx->starting);
+        return err;
+    }
+    if (!changed && running) {
+        atomic_flag_clear(&ctx->starting);
+        return ESP_OK;
+    }
+    if (!running) err = esp_wifi_start();
+    if (err != ESP_OK) {
+        snapshot_set_error(ctx, err, FACTORY_NETWORK_FAILED);
+        atomic_flag_clear(&ctx->starting);
+        return err;
+    }
+    xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    ctx->wifi_running = true;
+    xSemaphoreGive(ctx->lock);
     char ssid[FACTORY_NETWORK_SSID_BYTES] = {0};
     char password[FACTORY_NETWORK_PASSWORD_BYTES] = {0};
-    if (credentials_load(ssid, password) == ESP_OK)
-        err = apply_station_config(ctx, ssid, password);
+    err = credentials_load(ssid, password);
+    xSemaphoreTake(ctx->lock, portMAX_DELAY);
+    ctx->snapshot.credentials_saved = err == ESP_OK;
+    ctx->snapshot.ssid[0] = ctx->snapshot.ip[0] = 0;
+    ctx->snapshot.state = FACTORY_NETWORK_NO_CREDENTIALS;
+    ctx->snapshot.last_error = ESP_OK;
+    xSemaphoreGive(ctx->lock);
+    if (err == ESP_OK) err = apply_station_config(ctx, ssid, password);
+    else if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
+    if (err != ESP_OK) {
+        /* A running driver alone does not complete resume. Keep events gated
+         * and retry saved credentials/configuration on the next wake attempt. */
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        ctx->suspended = true;
+        xSemaphoreGive(ctx->lock);
+        snapshot_set_error(ctx, err, FACTORY_NETWORK_FAILED);
+    }
     memset(password, 0, sizeof(password));
+    atomic_flag_clear(&ctx->starting);
     return err;
 }
 

@@ -2,9 +2,11 @@
 #include SOURCE
 
 static int fail_step, step;
-static unsigned netifs, wifi, handlers, starts, scans, connects, nvs_erases, update_requests;
+static unsigned netifs, wifi, handlers, starts, stops, scans, connects, nvs_erases, update_requests;
 static bool saved_credentials, saved_connect_fails;
 static bool fail_shared_commit;
+static bool fail_wifi_stop;
+static bool fail_saved_read, fail_station_config;
 static struct { char ssid[33], password[65]; bool has_ssid, has_password; } shared, staged;
 static wifi_config_t configured;
 static esp_netif_t netif;
@@ -28,7 +30,7 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *c)
     assert(!wifi); ++wifi; return ESP_OK;
 }
 esp_err_t esp_wifi_start(void) { if (next()) return ESP_FAIL; ++starts; return ESP_OK; }
-esp_err_t esp_wifi_stop(void) { return ESP_OK; }
+esp_err_t esp_wifi_stop(void) { ++stops; return fail_wifi_stop ? ESP_FAIL : ESP_OK; }
 esp_err_t esp_wifi_deinit(void) { assert(wifi == 1); --wifi; return ESP_OK; }
 esp_err_t esp_wifi_set_storage(int mode) { assert(mode == WIFI_STORAGE_RAM); return next(); }
 esp_err_t esp_wifi_set_mode(int mode) { return next(); }
@@ -44,7 +46,11 @@ esp_err_t esp_event_handler_instance_unregister(esp_event_base_t b, int32_t id,
 {
     assert(handle == (void *)(uintptr_t)b && handlers); --handlers; return ESP_OK;
 }
-esp_err_t esp_wifi_set_config(int i, const wifi_config_t *c) { configured = *c; return ESP_OK; }
+esp_err_t esp_wifi_set_config(int i, const wifi_config_t *c)
+{
+    if (fail_station_config) return ESP_FAIL;
+    configured = *c; return ESP_OK;
+}
 esp_err_t esp_wifi_connect(void) { ++connects; return saved_connect_fails ? ESP_FAIL : ESP_OK; }
 esp_err_t esp_wifi_disconnect(void) { return ESP_OK; }
 esp_err_t esp_wifi_scan_start(const void *p, bool block) { assert(wifi == 1); ++scans; return ESP_OK; }
@@ -69,6 +75,7 @@ esp_err_t nvs_open_from_partition(const char *part, const char *ns, int mode, nv
 }
 esp_err_t nvs_get_str(nvs_handle_t h, const char *key, char *out, size_t *size)
 {
+    if (fail_saved_read) return ESP_FAIL;
     const char *value;
     if (h == 1) {
         if (!saved_credentials) return ESP_ERR_NVS_NOT_FOUND;
@@ -111,9 +118,64 @@ static void reset(void)
     step = fail_step = 0; saved_credentials = saved_connect_fails = false;
     assert(!netifs && !wifi && !handlers && !mock_allocations);
     memset(&shared, 0, sizeof(shared)); fail_shared_commit = false; nvs_erases = 0;
+    fail_wifi_stop = false;
+    fail_saved_read = fail_station_config = false;
 }
-int main(void)
+int main(int argc, char **argv)
 {
+    if (argc > 1) {
+        assert(argc == 2);
+        const char *scenario = argv[1];
+        bool pending = !strcmp(scenario, "pending"), missing = !strcmp(scenario, "missing"),
+             start_failure = !strcmp(scenario, "start-failure"), stop_failure = !strcmp(scenario, "stop-failure"),
+             read_failure = !strcmp(scenario, "read-failure"), config_failure = !strcmp(scenario, "config-failure"),
+             connect_failure = !strcmp(scenario, "connect-failure");
+        bool resume_failure = read_failure || config_failure || connect_failure;
+        assert(pending || missing || start_failure || stop_failure || resume_failure);
+        saved_credentials = pending || resume_failure;
+        assert(factory_network_start() == ESP_OK);
+        if (pending) assert(factory_network_connect("unconfirmed-ap", "new-password") == ESP_OK);
+        if (stop_failure) {
+            unsigned previous_stops = stops;
+            fail_wifi_stop = true;
+            assert(factory_network_suspend(true) == ESP_FAIL);
+            fail_wifi_stop = false;
+            assert(factory_network_suspend(true) == ESP_OK && stops == previous_stops + 2);
+        } else assert(factory_network_suspend(true) == ESP_OK);
+        assert(factory_network_connect("late-ap", "password") == ESP_ERR_INVALID_STATE);
+        assert(factory_network_request_scan() == ESP_ERR_INVALID_STATE);
+        if (start_failure) {
+            fail_step = step + 1;
+            assert(factory_network_suspend(false) == ESP_FAIL);
+            fail_step = 0;
+        }
+        if (resume_failure) {
+            fail_saved_read = read_failure;
+            fail_station_config = config_failure;
+            saved_connect_fails = connect_failure;
+            assert(factory_network_suspend(false) == ESP_FAIL);
+            assert(s_network.snapshot.state == FACTORY_NETWORK_FAILED);
+            fail_saved_read = fail_station_config = saved_connect_fails = false;
+        }
+        unsigned previous_starts = starts, previous_connects = connects;
+        assert(factory_network_suspend(false) == ESP_OK && starts == previous_starts + !resume_failure);
+        if (resume_failure) assert(connects == previous_connects + 1);
+        factory_network_snapshot_t snapshot;
+        assert(factory_network_get_snapshot(&snapshot) == ESP_OK);
+        if (pending || resume_failure) {
+            assert(!memcmp(configured.sta.ssid, "saved-ap", 8));
+            assert(snapshot.state == FACTORY_NETWORK_CONNECTING && snapshot.last_error == ESP_OK);
+            ip_event_got_ip_t ip = {0};
+            network_event(&s_network, IP_EVENT, IP_EVENT_STA_GOT_IP, &ip);
+            fprintf(stderr, "resumed SSID=%s; persisted SSID=%s\n", snapshot.ssid, shared.ssid);
+            assert(!strcmp(shared.ssid, "saved-ap") && !strcmp(shared.password, "password"));
+        } else {
+            fprintf(stderr, "resumed state=%u; suspended=%u\n", snapshot.state, s_network.suspended);
+            assert(snapshot.state == FACTORY_NETWORK_NO_CREDENTIALS && !snapshot.credentials_saved);
+            assert(!snapshot.ssid[0] && !snapshot.ip[0] && snapshot.last_error == ESP_OK);
+        }
+        reset(); puts(scenario); return 0;
+    }
     mock_alloc_fail_after = 0;
     assert(factory_network_start() == ESP_ERR_NO_MEM);
     mock_alloc_fail_after = -1;
@@ -186,4 +248,5 @@ int main(void)
     assert(saved_credentials && !shared.has_ssid && !nvs_erases);
     reset();
     puts("Wi-Fi partial startup rollback, provisioning retries and credentials passed");
+    return 0;
 }

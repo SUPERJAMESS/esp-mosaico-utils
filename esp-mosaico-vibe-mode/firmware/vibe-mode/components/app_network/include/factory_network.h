@@ -5,13 +5,12 @@
 #include <stdint.h>
 
 #include "esp_err.h"
+#include "factory_network_credentials.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define FACTORY_NETWORK_SSID_BYTES 33U
-#define FACTORY_NETWORK_PASSWORD_BYTES 65U
 #define FACTORY_NETWORK_IP_BYTES 16U
 #define FACTORY_NETWORK_HOSTNAME_BYTES 48U
 #define FACTORY_NETWORK_MAX_RESULTS 16U
@@ -57,7 +56,9 @@ esp_err_t factory_network_connect(const char *ssid, const char *password);
  * Affects only the Wi-Fi namespace; returns the storage/disconnect result. */
 esp_err_t factory_network_forget(void);
 /* Task-context suspend/resume, preserving credentials. Suspended event handlers
- * cannot reconnect or persist a late connection. Used by sleep and reset. */
+ * cannot reconnect or persist a late connection. Suspend discards unconfirmed
+ * provisioning; wake reloads saved credentials. Failed driver transitions may
+ * be retried. Used by sleep and reset. */
 esp_err_t factory_network_suspend(bool suspended);
 /* Copy a lock-consistent status and scan results into required snapshot.
  * May wait for the short snapshot mutex; performs no network or filesystem IO. */

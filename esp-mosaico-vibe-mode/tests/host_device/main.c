@@ -16,6 +16,8 @@ static unsigned thread_count;
 static atomic_bool stopping, release_battery, battery_entered, battery_initialized;
 static atomic_int key_level = 1;
 static atomic_uint brightness;
+static atomic_uint network_calls;
+static atomic_bool network_fail, network_sleeping;
 static bool sensor_failure, task_failure, sample_failure, registration_failure, timer_failure;
 static atomic_bool motor_on, timer_active;
 static atomic_uint motor_on_count, timer_start_count;
@@ -69,7 +71,11 @@ esp_err_t esp_timer_stop(esp_timer_handle_t h) {
     assert(h == &motor_lock); atomic_store(&timer_active, false); return ESP_OK;
 }
 esp_err_t vibe_settings_snapshot(vibe_settings_snapshot_t *s) { *s = (vibe_settings_snapshot_t){.brightness = 37, .haptics = true}; return 0; }
-esp_err_t factory_network_suspend(bool s) { return 0; }
+esp_err_t factory_network_suspend(bool s) {
+    atomic_fetch_add(&network_calls, 1);
+    if (atomic_exchange(&network_fail, false)) return ESP_FAIL;
+    atomic_store(&network_sleeping, s); return ESP_OK;
+}
 bool tud_mounted(void) { return true; }
 esp_err_t bsp_motor_init(void) { return sensor_failure ? ESP_FAIL : ESP_OK; }
 esp_err_t bsp_motor_set(bool on) {
@@ -123,9 +129,26 @@ int main(int argc, char **argv) {
     assert(atomic_load(&brightness) == 37);
     vibe_device_snapshot_t s; vibe_device_snapshot(&s);
     assert(s.usb_connected && !s.battery_valid);
+    bool sleep_retry = !strcmp(argv[1], "wifi-sleep-retry"),
+         wake_retry = !strcmp(argv[1], "wifi-wake-retry");
+    atomic_store(&network_fail, sleep_retry);
     vibe_device_policy(true, false);
     for (int i = 0; i < 200 && atomic_load(&brightness) != 10; ++i) usleep(1000);
     assert(atomic_load(&brightness) == 10);
+    if (sleep_retry || wake_retry) {
+        for (int i = 0; i < 1600 && !atomic_load(&network_sleeping); ++i) usleep(1000);
+        assert(atomic_load(&network_sleeping));
+        unsigned calls = atomic_load(&network_calls);
+        assert(calls == (sleep_retry ? 2U : 1U));
+        if (wake_retry) {
+            atomic_store(&network_fail, true);
+            vibe_device_policy(false, false);
+            for (int i = 0; i < 2500 && atomic_load(&network_sleeping); ++i) usleep(1000);
+            assert(!atomic_load(&network_sleeping) && atomic_load(&network_calls) == calls + 2);
+        }
+        atomic_store(&key_level, 0); expect_key(1);
+        atomic_store(&key_level, 1); expect_key(2);
+    }
     atomic_store(&release_battery, true);
     if (!task_failure) pthread_join(threads[1], NULL);
     for (int i = 0; i < 200; ++i) {
