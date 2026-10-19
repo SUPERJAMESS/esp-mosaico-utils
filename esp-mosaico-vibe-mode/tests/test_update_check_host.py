@@ -8,10 +8,11 @@ import subprocess
 def test_update_check(tmp_path):
     root = Path(__file__).resolve().parents[1]
     source = root / "firmware/vibe-mode/components/app_update_check/src/factory_update_check.c"
+    http_client = root / "firmware/vibe-mode/components/app_http_client"
     cjson = Path(os.environ.get("CJSON_COMPONENT_DIR", str(root / "firmware/vibe-mode/managed_components/espressif__cjson")))
     header = next(cjson.rglob("cJSON.h"))
-    for name in re.findall(r'#include "([^"]+)"', source.read_text()):
-        if name in {"factory_update_check.h", "cJSON.h"}:
+    for name in re.findall(r'#include "([^"]+)"', source.read_text()) + ["esp_iris.h"]:
+        if name in {"factory_update_check.h", "factory_http_client.h", "cJSON.h"}:
             continue
         stub = tmp_path / name
         stub.parent.mkdir(parents=True, exist_ok=True)
@@ -30,6 +31,7 @@ typedef int esp_err_t;
 #define ESP_ERR_NO_MEM 3
 #define ESP_ERR_NOT_SUPPORTED 4
 #define ESP_ERR_INVALID_ARG 5
+#define ESP_ERR_NOT_FOUND 6
 #define CONFIG_IRIS_FACTORY_UPDATE_PRODUCT "esp-mosaico-vibe-mode"
 #define CONFIG_IRIS_FACTORY_UPDATE_MANIFEST_URL "https://example.com/vibe.json"
 typedef int portMUX_TYPE;
@@ -63,15 +65,40 @@ typedef struct {
     int timeout_ms, buffer_size, buffer_size_tx;
     bool disable_auto_redirect;
 } esp_http_client_config_t;
-static void *esp_http_client_init(const esp_http_client_config_t *config) { return NULL; }
-static void esp_http_client_set_header(void *c, const char *k, const char *v) {}
-static int esp_http_client_perform(void *c) { return ESP_OK; }
+static bool http_available, identity_unavailable, device_header;
+static int performs, header_error;
+static esp_http_client_config_t http_config;
+static void *esp_http_client_init(const esp_http_client_config_t *config)
+{ http_config = *config; device_header = false; return http_available ? &http_config : NULL; }
+static int esp_iris_format_device_id(char out[33])
+{ strcpy(out, "4553502d495249530100001122334455"); return identity_unavailable ? ESP_ERR_NOT_SUPPORTED : ESP_OK; }
+static int esp_http_client_set_header(void *c, const char *k, const char *v)
+{
+    if (!strcmp(k, "X-Device-ID")) {
+        assert(!strcmp(v, "4553502d495249530100001122334455"));
+        if (header_error) return header_error;
+        device_header = true;
+    }
+    return ESP_OK;
+}
+static int esp_http_client_delete_header(void *c, const char *key)
+{ assert(!strcmp(key, "X-Device-ID")); device_header = false; return ESP_ERR_NOT_FOUND; }
+static int esp_http_client_perform(void *c)
+{
+    assert(device_header == !identity_unavailable);
+    ++performs;
+    char body[] = "{\"schema_version\":1,\"product\":\"esp-mosaico-vibe-mode\",\"latest_version\":\"0.2.1\"}";
+    esp_http_client_event_t event = {.event_id=HTTP_EVENT_ON_DATA, .data_len=sizeof(body)-1,
+        .data=body, .user_data=http_config.user_data};
+    return http_config.event_handler(&event);
+}
 static int esp_http_client_get_status_code(void *c) { return 200; }
 static bool esp_http_client_is_complete_data_received(void *c) { return true; }
 static void esp_http_client_cleanup(void *c) {}
 ''')
     (tmp_path / "test.c").write_text(r'''
 #include <assert.h>
+#include "factory_http_client.c"
 #include "factory_update_check.c"
 static void check(const char *json, int expected, bool available)
 {
@@ -144,11 +171,22 @@ int main(void)
     factory_update_check_request(true);
     factory_update_check_snapshot(&snapshot);
     assert(!snapshot.checking && snapshot.error == ESP_ERR_NO_MEM && snapshot.generation == generation + 2);
+    http_available = true;
+    check_task(NULL);
+    assert(performs == 1 && s_snapshot.available && s_snapshot.error == ESP_OK);
+    identity_unavailable = true;
+    check_task(NULL);
+    assert(performs == 2 && s_snapshot.error == ESP_OK);
+    identity_unavailable = false;
+    header_error = ESP_ERR_NO_MEM;
+    check_task(NULL);
+    assert(performs == 2 && s_snapshot.error == ESP_ERR_NO_MEM);
     return 0;
 }
 ''')
     executable = tmp_path / "test"
     subprocess.run(["cc", "-std=gnu11", "-Werror=implicit-function-declaration",
                     "-I" + str(tmp_path), "-I" + str(source.parent), "-I" + str(source.parent.parent / "include"), "-I" + str(header.parent),
+                    "-I" + str(http_client / "include"), "-I" + str(http_client / "src"),
                     str(tmp_path / "test.c"), str(header.with_name("cJSON.c")), "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True)

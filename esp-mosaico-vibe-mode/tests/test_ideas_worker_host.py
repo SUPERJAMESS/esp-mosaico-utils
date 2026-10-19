@@ -21,6 +21,7 @@ COMPONENTS = ROOT / "firmware/vibe-mode/components"
 FIXTURE = ROOT / "tests/host_ideas"
 BAD_MULTIPART = ["missing", "duplicate", "path", "locale", "length", "oversize", "hash", "epilogue", "header", "media"]
 SCENARIOS = [
+    "device-identity", "identity-unavailable", "no-compatible-en", "no-compatible-zh", "file-conflict",
     "download-stages", "retry-manifest", "retry-read", "retry-limit", "bilingual-offline",
     "preview", "preview-zh", "preview-single-byte", "cancel-queued", "cancel-resolve", "cancel-asset", "fixed-release",
     "queue-failure", "init-retry", "worker-reuse", "worker-handoff", "reject-bad-font", "reject-bad-display", "reject-bad-icon",
@@ -110,9 +111,11 @@ def worker(tmp_path_factory):
                "-I" + str(ROOT / "include"),
                "-I" + str(ROOT.parent / "ESP-Iris/components/esp_iris/include"),
                *["-I" + str(COMPONENTS / name / "include") for name in (
-                   "app_ideas", "app_settings", "app_storage", "app_nand_update", "app_network", "app_system", "app_system_update")],
+                   "app_ideas", "app_settings", "app_storage", "app_nand_update", "app_network",
+                   "app_http_client", "app_system", "app_system_update")],
                "-I" + str(COMPONENTS / "app_ideas/private"),
                *map(str, sorted((COMPONENTS / "app_ideas/src").glob("*.c"))),
+               str(COMPONENTS / "app_http_client/src/factory_http_client.c"),
                str(FIXTURE / "sdk.c"), str(FIXTURE / "main.c"), str(cjson_source),
                *["-Wl,--wrap=" + name for name in ("calloc", "fopen", "stat", "lstat", "open", "opendir", "mkdir", "unlink", "rmdir", "rename")],
                "-lcrypto", "-lz", "-pthread", "-o", str(executable)]

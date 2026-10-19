@@ -17,7 +17,7 @@ idf_component_register(
         "src/ideas_worker.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "private"
-    PRIV_REQUIRES app_settings app_network app_storage app_nand_update app_system app_system_update esp_iris esp_http_client esp-tls esp_timer spi_flash app_update bootloader_support esp_app_format esp_mosaico_boot nvs_flash espressif__cjson mbedtls
+    PRIV_REQUIRES app_settings app_network app_http_client app_storage app_nand_update app_system app_system_update esp_iris esp_http_client esp-tls esp_timer spi_flash app_update bootloader_support esp_app_format esp_mosaico_boot nvs_flash espressif__cjson mbedtls
 )
 
 if(CONFIG_IRIS_FACTORY_IDEAS_CA_FILE)

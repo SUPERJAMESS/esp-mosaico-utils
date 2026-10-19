@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "esp_random.h"
+#include "esp_iris.h"
+#include "factory_http_client.h"
 #include "ideas_internal.h"
 #include "ideas_multipart.h"
 #include <time.h>
@@ -105,7 +107,14 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
     if (strncmp(origin, "https://", 8) || !*host || strpbrk(host, "/?#@\r\n"))
         return ESP_ERR_INVALID_STATE;
     char url[512];
-    int n = snprintf(url, sizeof(url), "%s%s", origin, path);
+    /* Optional device_id belongs on content-addressed file GETs only. Negotiation
+     * manifest URLs keep a strict query contract and must not add device_id. */
+    char device_id[33] = {0};
+    static const char file_prefix[] = "/api/v1/ideas/files/";
+    bool file_get = !strncmp(path, file_prefix, sizeof(file_prefix) - 1);
+    bool identity = file_get && esp_iris_format_device_id(device_id) == ESP_OK;
+    int n = snprintf(url, sizeof(url), "%s%s%s%s", origin, path,
+                     identity ? "?device_id=" : "", identity ? device_id : "");
     if (n < 0 || n >= sizeof(url))
         return ESP_ERR_INVALID_SIZE;
     factory_io_metrics_t metrics = {.started = factory_io_now()};
@@ -148,9 +157,12 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
         esp_http_client_set_header(client, "Accept-Encoding", "identity");
         if (preview)
             esp_http_client_set_header(client, "Accept", "multipart/related");
-        err = esp_http_client_open(client, 0);
-        if (err != ESP_OK)
-            retry = true;
+        err = factory_http_client_set_common_headers(client);
+        if (err == ESP_OK) {
+            err = esp_http_client_open(client, 0);
+            if (err != ESP_OK)
+                retry = true;
+        }
         if (err == ESP_OK) {
             esp_http_client_set_timeout_ms(client, timeout_ms(deadline, 60000));
             if (esp_http_client_fetch_headers(client) < 0) {
@@ -161,7 +173,10 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
         if (err == ESP_OK) {
             int status = esp_http_client_get_status_code(client);
             if (status != 200) {
-                err = status == 404 ? ESP_ERR_NOT_FOUND : ESP_FAIL;
+                /* The latest-manifest contract reserves 409 for
+                 * NO_COMPATIBLE_RELEASE. File conflicts are unrelated. */
+                err = preview && status == 409 ? FACTORY_IDEAS_ERR_NO_COMPATIBLE_RELEASE
+                      : status == 404 ? ESP_ERR_NOT_FOUND : ESP_FAIL;
                 retry = status == 429 || status == 502 || status == 503 || status == 504;
             } else if (headers.invalid || headers.encoded ||
                        (root && (headers.media_count != 1 || strlen(headers.etag) != 66 ||

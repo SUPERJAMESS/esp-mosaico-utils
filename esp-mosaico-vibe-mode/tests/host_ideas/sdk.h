@@ -87,6 +87,7 @@ esp_err_t esp_crt_bundle_attach(void *config);
 esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *config);
 esp_err_t esp_http_client_set_header(esp_http_client_handle_t client, const char *key,
                                      const char *value);
+esp_err_t esp_http_client_delete_header(esp_http_client_handle_t client, const char *key);
 esp_err_t esp_http_client_set_timeout_ms(esp_http_client_handle_t client, int timeout);
 esp_err_t esp_http_client_open(esp_http_client_handle_t client, int length);
 int esp_http_client_write(esp_http_client_handle_t client, const char *data, int size);
@@ -135,12 +136,15 @@ typedef struct {
         MOCK_READ_ERROR,
         MOCK_WRONG_LENGTH,
         MOCK_SERVICE_UNAVAILABLE,
+        MOCK_CONFLICT,
         MOCK_ETAG
     } fault;
     bool network, lease, storage_busy, fail_send, fail_commit, deny_new_tasks, read_lease, ota_busy, ota_missing, development, cancel_on_delay, no_space;
     unsigned fail_init_step, tasks_created, tasks_entered, jobs_finished, mutex_live, queue_live;
     unsigned writes, resolves, assets, firmware, http_live, installs, commits, restarts;
     unsigned cancels, requests_with_identity, fault_limit, fault_hits, firmware_reads, read_chunk;
+    bool identity_unavailable;
+    const char *device_id;
     uint64_t flash_read_bytes;
     unsigned storage_info_calls, directory_reads;
     char flash_version;

@@ -594,11 +594,13 @@ Ideas/UI/输入 → 自动更新及网络 → HEALTHY”的顺序组装组件。
 | --- | --- | --- |
 | [app_system](components/app_system/README.md) | 启动安全与保留元数据 | 无 |
 | [app_storage](components/app_storage/README.md) | NAND 文件系统与访问控制 | 无 |
-| [app_network](components/app_network/README.md) | Wi-Fi 与发现 | app_system |
+| [app_http_client](components/app_http_client/README.md) | 业务 HTTP 公共部分 | 无 |
+| [app_network](components/app_network/README.md) | Wi-Fi 与发现 | app_system、app_update_check |
 | [app_system_update](components/app_system_update/README.md) | 系统更新策略与事务 | app_system |
 | [app_nand_update](components/app_nand_update/README.md) | 离线系统更新来源 | app_storage、app_system_update、app_system |
 | [app_ideas](components/app_ideas/README.md) | Ideas 库与展示资源 | app_network、app_storage、app_nand_update、app_system |
 | [app_bridge](components/app_bridge/README.md) | HTTPS 维护 Bridge | app_network、app_system_update、app_system |
+| [app_update_check](components/app_update_check/README.md) | 在线版本检查与固件安装 | app_system_update |
 | [app_ui](components/app_ui/README.md) | 显示、输入与可移植控制器 | app_network、app_ideas、app_nand_update、app_system_update、app_bridge |
 | [app_iris](components/app_iris/README.md) | Iris 产品服务适配 | app_system、app_storage、app_network、app_system_update、app_nand_update、app_bridge |
 

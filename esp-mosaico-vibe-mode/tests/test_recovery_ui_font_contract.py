@@ -66,6 +66,15 @@ def test_all_compiled_glyphs_have_pixels_and_dynamic_translation_coverage():
         if obj.get('bind') in dynamic:
             required = set(''.join(translations[s] for s in dynamic[obj['bind']])) - set('\r\n')
             assert required <= chars, (obj['bind'], required - chars)
+        # These service errors are already localized before reaching the UI.
+        localized = {
+            'result_title': 'No compatible version没有兼容版本',
+            'result_detail': ('This Idea has no release compatible with this device.'
+                              '此 Idea 暂无与当前设备兼容的发布版本。'),
+        }
+        if obj.get('bind') in localized:
+            required = set(localized[obj['bind']])
+            assert required <= chars, (obj['bind'], required - chars)
 
 
 def test_online_firmware_status_fonts_cover_translations():

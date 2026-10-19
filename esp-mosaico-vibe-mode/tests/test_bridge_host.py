@@ -28,6 +28,8 @@ def test_bridge_worker_and_transaction_gates(tmp_path, kind):
     sources = ([component / "src/factory_recovery_control.c"] if kind == "control" else
                sorted(path for path in (component / "src").glob("*.c")
                       if path.name not in {"factory_bridge.c", "system_plan.c"}))
+    if kind == "worker":
+        sources.append(COMPONENTS / "app_http_client/src/factory_http_client.c")
     source = tmp_path / "implementation.c"
     source.write_text("".join('#include "{}"\n'.format(path) for path in sources))
     owned_headers = list(COMPONENTS.glob("*/include/*.h")) + list((component / "private").glob("*.h"))

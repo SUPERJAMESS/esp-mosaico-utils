@@ -1,5 +1,6 @@
 #include <assert.h>
 #include "sdk.h"
+#include HTTP_SOURCE
 #include FIRMWARE_SOURCE
 
 static factory_update_check_snapshot_t setup(void)

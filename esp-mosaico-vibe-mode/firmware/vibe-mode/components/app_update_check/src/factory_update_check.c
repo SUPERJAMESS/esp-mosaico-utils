@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "factory_update_check.h"
+#include "factory_http_client.h"
 #include "cJSON.h"
 #include "esp_app_desc.h"
 #include "esp_crt_bundle.h"
@@ -139,7 +140,8 @@ static void check_task(void *arg)
         if (client) {
             esp_http_client_set_header(client, "Accept", "application/json");
             esp_http_client_set_header(client, "Cache-Control", "no-cache");
-            err = esp_http_client_perform(client);
+            err = factory_http_client_set_common_headers(client);
+            if (err == ESP_OK) err = esp_http_client_perform(client);
             status = esp_http_client_get_status_code(client);
             if (err == ESP_OK) err = response->error;
             if (err == ESP_OK && (status != 200 || !esp_http_client_is_complete_data_received(client))) err = ESP_ERR_INVALID_RESPONSE;
