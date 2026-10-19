@@ -2,6 +2,7 @@
 #include "vui.h"
 #include "vui_format.h"
 #include "vui_memory.h"
+#include "vui_input.h"
 #include <string.h>
 #include <limits.h>
 
@@ -24,6 +25,9 @@ _Static_assert(sizeof(vui_node_t) == 44 && sizeof(vui_glyph_t) == 20 && sizeof(v
 #define TIMERS 8
 #define HITS 128
 #define MAX_TEXT 1024
+enum { TAP_SLOP = 12, MOTION_SAMPLES = 12, VELOCITY_WINDOW_MS = 100,
+       RELEASE_GRACE_MS = 120, MIN_FLING_SPEED = 160, MAX_FLING_SPEED = 3000,
+       SCROLL_SUBPIXEL = 256, SCROLL_DECAY_MS = 167 };
 
 typedef struct {
     char *text;
@@ -85,11 +89,13 @@ struct vui {
     void *observer_ctx;
     uint64_t now;
     uint32_t animation;
-    bool dirty, pressed, moved;
+    bool dirty, pressed, moved, scrolling;
     int start_x, start_y, last_y, pointer_x, pointer_y;
     uint16_t drag_node, fling_node;
-    int velocity, scroll_fraction;
-    uint64_t last_move;
+    int velocity_q8, scroll_fraction;
+    int motion_y[MOTION_SAMPLES];
+    uint64_t motion_ms[MOTION_SAMPLES];
+    unsigned motion_count;
     uint16_t *pixels, *retained;
     rect_t damage, paint_clip;
 };
@@ -682,12 +688,16 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
         int limit;
         int *position = scroll_position(u, u->fling_node, &limit);
         if (!position || !visible(u, u->fling_node - 1)) { u->fling_node = 0; break; }
-        u->scroll_fraction += u->velocity * (int)step;
-        int next = max(0, min(*position + u->scroll_fraction / 1000, limit));
-        u->scroll_fraction %= 1000;
+        /* Fixed-point velocity avoids cadence-dependent integer truncation.
+         * Padé decay and trapezoidal integration retain the existing damping. */
+        int next_velocity = u->velocity_q8 * (2 * SCROLL_DECAY_MS - (int)step) /
+                            (2 * SCROLL_DECAY_MS + (int)step);
+        u->scroll_fraction += (u->velocity_q8 + next_velocity) * (int)step / 2;
+        int next = max(0, min(*position + u->scroll_fraction / (1000 * SCROLL_SUBPIXEL), limit));
+        u->scroll_fraction %= 1000 * SCROLL_SUBPIXEL;
         if (next != *position) { *position = next; damage_node(u, u->fling_node); }
-        u->velocity = u->velocity * (1000 - (int)step * 6) / 1000;
-        if (!next || next == limit || abs(u->velocity) < 20) u->fling_node = 0;
+        u->velocity_q8 = next_velocity;
+        if (!next || next == limit || abs(u->velocity_q8) < 20 * SCROLL_SUBPIXEL) u->fling_node = 0;
     }
     for (unsigned l = 0; l < LISTS; ++l) {
         list_t *list = &u->lists[l];
@@ -1196,6 +1206,52 @@ bool vui_render(vui_handle_t u, uint16_t *pixels)
 {
     return vui_render_changed(u, pixels, NULL);
 }
+static void motion_sample(vui_handle_t u, int y, uint64_t time_ms)
+{
+    if (u->motion_count) {
+        unsigned last = u->motion_count - 1;
+        if (time_ms <= u->motion_ms[last]) {
+            if (u->motion_count > 1) u->motion_y[last] = y;
+            return;
+        }
+        if (u->motion_y[last] == y) return;
+    }
+    if (u->motion_count == MOTION_SAMPLES) {
+        memmove(u->motion_y, u->motion_y + 1, (MOTION_SAMPLES - 1) * sizeof(*u->motion_y));
+        memmove(u->motion_ms, u->motion_ms + 1, (MOTION_SAMPLES - 1) * sizeof(*u->motion_ms));
+        --u->motion_count;
+    }
+    unsigned next = u->motion_count++;
+    u->motion_y[next] = y;
+    u->motion_ms[next] = time_ms;
+}
+static int release_velocity(vui_handle_t u, uint64_t time_ms)
+{
+    if (u->motion_count < 2) return 0;
+    unsigned latest = u->motion_count - 1;
+    if (time_ms < u->motion_ms[latest] || time_ms - u->motion_ms[latest] >= RELEASE_GRACE_MS) return 0;
+    unsigned oldest = latest - 1;
+    while (oldest && u->motion_ms[latest] - u->motion_ms[oldest - 1] <= VELOCITY_WINDOW_MS) --oldest;
+    int64_t distance = 0;
+    uint64_t elapsed = 0;
+    for (unsigned i = oldest + 1; i <= latest; ++i) {
+        uint64_t dt = u->motion_ms[i] - u->motion_ms[i - 1];
+        if (dt > 1000) return 0; /* A stale pair must not manufacture a fling. */
+        unsigned weight = i - oldest;
+        distance += ((int64_t)u->motion_y[i - 1] - u->motion_y[i]) * weight;
+        elapsed += dt * weight;
+    }
+    int64_t velocity = elapsed ? distance * 1000 / (int64_t)elapsed : 0;
+    if (velocity > MAX_FLING_SPEED) velocity = MAX_FLING_SPEED;
+    if (velocity < -MAX_FLING_SPEED) velocity = -MAX_FLING_SPEED;
+    return velocity > MIN_FLING_SPEED || velocity < -MIN_FLING_SPEED ? (int)velocity : 0;
+}
+bool vui_pointer_target(vui_handle_t u, vui_event_t *event)
+{
+    if (!u || !event || !u->down.node) return false;
+    *event = u->down.event;
+    return true;
+}
 void vui_pointer(vui_handle_t u, int x, int y, bool pressed)
 {
     if (u) vui_pointer_at(u, x, y, pressed, u->now);
@@ -1213,9 +1269,11 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
         u->last_y = y;
         uint16_t coasting = u->fling_node;
         u->moved = false;
+        u->scrolling = false;
         u->fling_node = 0;
-        u->velocity = u->scroll_fraction = 0;
-        u->last_move = time_ms;
+        u->velocity_q8 = u->scroll_fraction = 0;
+        u->motion_count = 0;
+        motion_sample(u, y, time_ms);
         u->drag_node = 0;
         for (int i = (int)u->hit_count - 1; i >= 0; i--)
             if (contains(u->hits[i].rect, x, y)) {
@@ -1232,26 +1290,31 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
         u->moved = coasting && coasting == u->drag_node;
     }
     if (u->pressed) {
-        if (abs(x - u->start_x) > 12 || abs(y - u->start_y) > 12)
+        int dx = x - u->start_x, dy = y - u->start_y;
+        if (abs(dx) > TAP_SLOP || abs(dy) > TAP_SLOP)
             u->moved = true;
+        motion_sample(u, y, time_ms);
         int limit;
         int *position = scroll_position(u, u->drag_node, &limit);
+        if (position && !u->scrolling && abs(dy) > TAP_SLOP && abs(dy) > abs(dx)) {
+            u->scrolling = true;
+            /* The tap tolerance is not visible content movement. Velocity
+             * still uses the complete, timestamped finger trajectory. */
+            u->last_y = u->start_y + (dy > 0 ? TAP_SLOP : -TAP_SLOP);
+        }
         int delta = u->last_y - y;
-        if (position && u->moved && delta) {
+        if (position && u->scrolling && delta) {
             int next = max(0, min(*position + delta, limit));
-            uint64_t elapsed_move = time_ms >= u->last_move ? time_ms - u->last_move : 0;
-            int dt = elapsed_move > 200 ? 200 : max(1, (int)elapsed_move);
-            u->velocity = max(-3000, min(3000, (next - *position) * 1000 / dt));
-            u->last_move = time_ms;
             if (next != *position) { *position = next; damage_node(u, u->drag_node); }
         }
         u->last_y = y;
     }
     bool clicked =
         !pressed && u->pressed && !u->moved && u->down.node && contains(u->down.rect, x, y);
-    if (!pressed && u->pressed && u->drag_node && u->moved &&
-        time_ms >= u->last_move && time_ms - u->last_move < 120 && abs(u->velocity) >= 20)
-        u->fling_node = u->drag_node;
+    if (!pressed && u->pressed && u->scrolling) {
+        u->velocity_q8 = release_velocity(u, time_ms) * SCROLL_SUBPIXEL;
+        if (u->velocity_q8) u->fling_node = u->drag_node;
+    }
     if (u->observer)
         u->observer(u, x, y, pressed, u->observer_ctx);
     if (clicked && visible(u, u->down.node - 1)) {

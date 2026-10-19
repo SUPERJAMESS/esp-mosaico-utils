@@ -1133,10 +1133,10 @@ def test_settings_scroll_follows_finger_and_hit_regions(sim):
     sim.capture('settings-scroll-top')
     sim.rpc('feed_pointer', x=240, y=410, pressed=True)
     sim.rpc('feed_pointer', x=240, y=360, pressed=True)
-    sim.wait(page=11, settings_offset=50)
+    sim.wait(page=11, settings_offset=38)
     sim.capture('settings-scroll-mid')
     sim.rpc('feed_pointer', x=240, y=310, pressed=True)
-    sim.wait(page=11, settings_offset=100)
+    sim.wait(page=11, settings_offset=88)
     sim.capture('settings-scroll-held')
     with Image.open(sim.directory / 'settings-scroll-top.png') as top, \
          Image.open(sim.directory / 'settings-scroll-mid.png') as mid, \
@@ -1145,8 +1145,8 @@ def test_settings_scroll_follows_finger_and_hit_regions(sim):
         assert top.crop((16, 96, 464, 448)).tobytes() != mid.crop((16, 96, 464, 448)).tobytes()
         assert mid.crop((16, 96, 464, 448)).tobytes() != held.crop((16, 96, 464, 448)).tobytes()
     sim.rpc('feed_pointer', x=240, y=310, pressed=False)
-    sim.wait(page=11, settings_offset=100)
-    sim.tap(240, 208)  # Language moved here; this used to activate Display.
+    sim.wait(page=11, settings_offset=88)
+    sim.tap(240, 220)  # Language follows the visible offset past the tap tolerance.
     sim.wait(page=13)
 
 
