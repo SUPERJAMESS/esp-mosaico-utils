@@ -17,6 +17,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
 static mock_environment_t env = {.network = true, .release = "v1"};
 struct mock_queue {
@@ -193,7 +194,11 @@ const char *esp_err_to_name(esp_err_t err) {
     (void)err;
     return "injected/test error";
 }
-void esp_restart(void) { env.restarts++; }
+void esp_restart(void) {
+    env.restarts++;
+    env.recovery_restarts += env.recovery_requested;
+    env.busy_restarts += env.ota_busy;
+}
 esp_err_t app_storage_acquire(void) {
     if (env.storage_busy || env.lease)
         return ESP_ERR_INVALID_STATE;
@@ -231,6 +236,9 @@ int __real_rmdir(const char *);
 int __real_rename(const char *, const char *);
 FILE *__wrap_fopen(const char *path, const char *mode) {
     char out[4096];
+    if (env.fail_file && env.fail_file_remaining && !strcmp(mode, "rb") && strstr(path, env.fail_file)) {
+        --env.fail_file_remaining; errno = EIO; return NULL;
+    }
     if (!strncmp(path, "/nand/", 6) && strpbrk(mode, "wa+"))
         env.writes++;
     if (!strncmp(path, "/nand/", 6) && strstr(path, "/firmware/app.bin") && !strcmp(mode, "rb")) {
@@ -311,11 +319,12 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
     assert(client);
     client->event_handler = config->event_handler;
     assert(config->method == HTTP_METHOD_GET);
-    if (strstr(config->url, "/042731/manifest.json?") || strstr(config->url, "/042732/manifest.json?")) {
+    if (strstr(config->url, "/manifest.json?")) {
         assert(strstr(config->url, "profile=esp-mosaico%2Fv2&chip_id=32&flash_size="
                                    "16777216&recovery_version=0.2.0"));
         assert(!env.lease);
-        strcpy(client->code, strstr(config->url, "/042732/") ? "042732" : "042731");
+        memcpy(client->code, config->url + strlen("https://ideas.test/api/v1/ideas/"), 6);
+        client->code[6] = 0;
         strcpy(client->file, "resolve");
         strcpy(client->alias, "resolve");
         env.resolves++;
@@ -412,8 +421,10 @@ int esp_http_client_write(esp_http_client_handle_t c, const char *data, int size
 }
 int64_t esp_http_client_fetch_headers(esp_http_client_handle_t c) {
     char path[4096];
+    char suffix[8] = "";
+    if (strcmp(c->code, "042731")) snprintf(suffix, sizeof(suffix), "-%s", c->code);
     if (!strcmp(c->file, "resolve"))
-        snprintf(path, sizeof(path), "%s/%s%s-%s.multipart", env.fixture_dir, env.release, !strcmp(c->code, "042732") ? "-042732" : "", c->locale);
+        snprintf(path, sizeof(path), "%s/%s%s-%s.multipart", env.fixture_dir, env.release, suffix, c->locale);
     else
         snprintf(path, sizeof(path), "%s/%s", env.fixture_dir, c->file);
     FILE *f = fopen(path, "rb");
@@ -439,7 +450,7 @@ int64_t esp_http_client_fetch_headers(esp_http_client_handle_t c) {
     event.header_key = "Content-Type";
     char media[192] = "application/octet-stream";
     if (!strcmp(c->file, "resolve")) {
-        snprintf(path, sizeof(path), "%s/%s%s-%s.media", env.fixture_dir, env.release, !strcmp(c->code, "042732") ? "-042732" : "", c->locale);
+        snprintf(path, sizeof(path), "%s/%s%s-%s.media", env.fixture_dir, env.release, suffix, c->locale);
         f = fopen(path, "rb");
         assert(f);
         size_t n = fread(media, 1, sizeof(media)-1, f);
@@ -531,6 +542,7 @@ esp_err_t esp_flash_read(void *chip, void *out, uint32_t offset, size_t size) {
     (void)chip;
     assert((uint64_t)offset + size <= sizeof(flash));
     env.flash_read_bytes += size;
+    if (env.fail_flash_read) return ESP_FAIL;
     memcpy(out, flash + offset, size);
     return ESP_OK;
 }
@@ -544,8 +556,9 @@ esp_err_t nvs_open_from_partition(const char *partition, const char *ns, int mod
 }
 esp_err_t nvs_get_blob(nvs_handle_t handle, const char *key, void *out, size_t *size) {
     assert(handle == NVS_READONLY + 1 && !strcmp(key, "boot"));
+    if (env.fail_boot_read) return ESP_FAIL;
     if (!blob_size)
-        return ESP_ERR_NOT_FOUND;
+        return ESP_ERR_NVS_NOT_FOUND;
     assert(*size >= blob_size);
     *size = blob_size;
     memcpy(out, blob, blob_size);
@@ -574,6 +587,7 @@ esp_err_t factory_nand_install_idea(const char *manifest_path, const char *manif
                                     esp_err_t (*before_commit)(void *), void *ctx) {
     assert(env.lease && before_commit && ctx);
     env.installs++;
+    env.recovery_requested = true;
     cJSON *json = cJSON_Parse(manifest);
     assert(json);
     cJSON *component;
@@ -599,11 +613,19 @@ esp_err_t factory_nand_install_idea(const char *manifest_path, const char *manif
     }
     cJSON_Delete(json);
     esp_err_t err = before_commit(ctx);
+    if (err == ESP_OK) err = mosaico_boot_consume_request();
     if (err == ESP_OK) {
         boot.address = 0x210000;
         env.flash_version = flash[boot.address + 48];
     }
     return err;
+}
+
+esp_err_t mosaico_boot_consume_request(void) {
+    ++env.consume_requests;
+    if (env.fail_consume) return ESP_FAIL;
+    env.recovery_requested = false;
+    return ESP_OK;
 }
 
 esp_err_t esp_http_client_set_timeout_ms(esp_http_client_handle_t client, int timeout) {

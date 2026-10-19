@@ -31,8 +31,13 @@ SCENARIOS = [
     "offline", "install-corrupt", "install-commit-failure", "boot-identity",
     "interrupted-generation", "admission", "repair-current", "io-budget",
     "open", "open-progress", "open-current-progress", "open-cancel-block", "open-cancel-current", "open-cancel-queued", "open-cancel-gate",
+    "open-current-lease", "open-current-intent", "open-current-intent-failure",
+    "open-current-read-error",
+    "delete-current-read-error", "delete-current-nvs-error", "delete-during-update", "delete-stale-record",
+    "scan-read-error",
+    "scan-overflow",
     "save-cancel-queued", "save-cancel-hash", "save-cancel-copy", "save-cancel-gate", "save-cancel-committed",
-    "delete", "delete-current", "download-cancel", "batch", "development", "development-ota-busy", "scan-metadata-only", "refresh-updates", "open-cancel", "no-space",
+    "delete", "delete-current", "download-cancel", "batch", "batch-cancel-queued", "batch-cancel-commit", "development", "development-ota-busy", "scan-metadata-only", "refresh-updates", "open-cancel", "no-space",
 ] + ["reject-bad-multipart-" + kind for kind in BAD_MULTIPART]
 
 
@@ -89,9 +94,7 @@ def write_release(directory, release, version="1.0"):
 
 
 
-@pytest.fixture(scope="module")
-def worker(tmp_path_factory):
-    build = tmp_path_factory.mktemp("ideas-worker")
+def build_worker(build, *, main=None, includes=(), link=(), extra_codes=(42732,)):
     cc = shutil.which("cc")
     assert cc, "Host C compiler is required"
     cjson = Path(os.environ.get("CJSON_COMPONENT_DIR", str(
@@ -115,11 +118,12 @@ def worker(tmp_path_factory):
                    "app_ideas", "app_settings", "app_storage", "app_nand_update", "app_network",
                    "app_http_client", "app_system", "app_system_update")],
                "-I" + str(COMPONENTS / "app_ideas/private"),
+               *["-I" + str(path) for path in includes],
                *map(str, sorted((COMPONENTS / "app_ideas/src").glob("*.c"))),
                str(COMPONENTS / "app_http_client/src/factory_http_client.c"),
-               str(FIXTURE / "sdk.c"), str(FIXTURE / "main.c"), str(cjson_source),
+               str(FIXTURE / "sdk.c"), str(main or FIXTURE / "main.c"), str(cjson_source),
                *["-Wl,--wrap=" + name for name in ("calloc", "fopen", "stat", "lstat", "open", "opendir", "mkdir", "unlink", "rmdir", "rename")],
-               "-lcrypto", "-lz", "-pthread", "-o", str(executable)]
+               "-lcrypto", "-lz", "-pthread", *map(str, link), "-o", str(executable)]
     if os.environ.get("IRIS_HOST_SANITIZERS") == "1":
         command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-no-pie"]
     result = subprocess.run(command, capture_output=True, text=True)
@@ -129,14 +133,21 @@ def worker(tmp_path_factory):
     for release in ["v1", "v2", "bad-font", "bad-display", "bad-icon", "bad-descriptor", "bad-flash", *["bad-multipart-" + k for k in BAD_MULTIPART]]:
         write_release(fixtures, release, "2.0" if release == "v2" else "1.0")
     for release in ("v1", "v2"):
-        document = json.loads((fixtures / (release + ".json")).read_text())
-        document["application"].update(code="042732", id="stable-app-id-2")
-        (fixtures / (release + "-042732.json")).write_text(json.dumps(document))
-        for locale in ("en", "zh-CN"):
-            wire, media = preview_response(encoded(document), locale, lambda sha: (fixtures / sha).read_bytes())
-            (fixtures / f"{release}-042732-{locale}.multipart").write_bytes(wire)
-            (fixtures / f"{release}-042732-{locale}.media").write_text(media)
+        for number in extra_codes:
+            document = json.loads((fixtures / (release + ".json")).read_text())
+            code = f"{number:06d}"
+            document["application"].update(code=code, id=f"stable-app-id-{number - 42730}")
+            (fixtures / f"{release}-{code}.json").write_text(json.dumps(document))
+            for locale in ("en", "zh-CN"):
+                wire, media = preview_response(encoded(document), locale, lambda sha: (fixtures / sha).read_bytes())
+                (fixtures / f"{release}-{code}-{locale}.multipart").write_bytes(wire)
+                (fixtures / f"{release}-{code}-{locale}.media").write_text(media)
     return executable, fixtures
+
+
+@pytest.fixture(scope="module")
+def worker(tmp_path_factory):
+    return build_worker(tmp_path_factory.mktemp("ideas-worker"), extra_codes=range(42732, 42748))
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux fixture requires OpenSSL and linker wrappers")

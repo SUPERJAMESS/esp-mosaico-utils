@@ -255,7 +255,9 @@ void ideas_development_status(ideas_context_t *ctx)
 }
 esp_err_t ideas_save_development(ideas_context_t *ctx)
 {
-    esp_err_t err = factory_system_update_read_acquire();
+    esp_err_t err = ideas_load_library(ctx);
+    if (err != ESP_OK) return err;
+    err = factory_system_update_read_acquire();
     if (err != ESP_OK) return err;
     development_t *dev = calloc(1, sizeof(*dev));
     if (!dev) { factory_system_update_read_release(); return ESP_ERR_NO_MEM; }

@@ -96,7 +96,8 @@ static void run_job(job_t *job) {
             ctx->state->failed = false;
             ctx->state->cancelled = true;
             snprintf(ctx->state->title, sizeof(ctx->state->title), "Cancelled");
-            snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Previously saved Ideas are unchanged");
+            snprintf(ctx->state->detail, sizeof(ctx->state->detail), "%s",
+                     job->command == IDEAS_UPDATE_ALL ? "Completed updates are kept" : "Previously saved Ideas are unchanged");
         }
         if (err == FACTORY_IDEAS_ERR_NO_COMPATIBLE_RELEASE && !ctx->cancel_requested) {
             snprintf(ctx->state->title, sizeof(ctx->state->title), "%s",
