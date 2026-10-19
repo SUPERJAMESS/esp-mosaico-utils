@@ -181,15 +181,25 @@ static esp_err_t copy_flash(const ideas_file_t *file, const char *path, void *ar
     size_t i = 0;
     while (i < dev->package.file_count && strcmp(file->name, dev->package.files[i].name)) ++i;
     if (i == dev->package.file_count) return ESP_ERR_INVALID_ARG;
+    factory_io_metrics_t metrics = {.started = factory_io_now()};
     unsigned char *buffer = malloc(IO_BYTES);
+    int64_t started = factory_io_now();
     FILE *out = fopen(path, "wb");
+    metrics.begin = factory_io_now() - started;
     esp_err_t err = buffer && out ? ESP_OK : ESP_ERR_NO_MEM;
     for (uint32_t pos = 0; err == ESP_OK && pos < file->size;) {
         if (ideas_job_cancelled(dev->owner)) { err = ESP_ERR_INVALID_STATE; break; }
         size_t n = file->size - pos < IO_BYTES ? file->size - pos : IO_BYTES;
+        started = factory_io_now();
         err = esp_flash_read(esp_flash_default_chip, buffer, dev->offsets[i] + pos, n);
-        if (err == ESP_OK && fwrite(buffer, 1, n, out) != n) err = ESP_FAIL;
+        metrics.read += factory_io_now() - started;
         if (err == ESP_OK) {
+            started = factory_io_now();
+            if (fwrite(buffer, 1, n, out) != n) err = ESP_FAIL;
+            metrics.write += factory_io_now() - started;
+        }
+        if (err == ESP_OK) {
+            metrics.bytes += n;
             xSemaphoreTake(dev->owner->lock, portMAX_DELAY);
             dev->owner->state->received += n;
             xSemaphoreGive(dev->owner->lock);
@@ -197,9 +207,12 @@ static esp_err_t copy_flash(const ideas_file_t *file, const char *path, void *ar
         pos += n; vTaskDelay(1);
     }
     if (out) {
+        started = factory_io_now();
         if (fflush(out) || fsync(fileno(out))) err = ESP_FAIL;
         if (fclose(out)) err = ESP_FAIL;
+        metrics.sync = factory_io_now() - started;
     }
+    factory_io_report("development_copy", file->name, &metrics, buffer, IO_BYTES, err);
     free(buffer);
     return err;
 }
@@ -286,9 +299,15 @@ esp_err_t ideas_save_development(ideas_context_t *ctx)
     if (err == ESP_OK && !json) err = ESP_ERR_NO_MEM;
     if (err == ESP_OK) err = ideas_package_parse(json, strlen(json), p->code, existing);
     if (err == ESP_OK) err = ideas_package_firmware(existing, dev->firmware, strlen(dev->firmware));
-    if (err == ESP_OK) err = ideas_check_space(existing->total_size);
-    if (err == ESP_OK) err = ideas_store_download_gated(ROOT, json, strlen(json), existing, copy_flash,
-                                         verify_capture, dev, NULL, capture_gate);
+    if (err == ESP_OK) {
+        ideas_message(ctx, "Saving development Idea", "Scanning NAND...");
+        err = ideas_check_space(existing->total_size);
+    }
+    if (err == ESP_OK) {
+        ideas_message(ctx, "Saving development Idea", "Transferring files");
+        err = ideas_store_download_gated(ROOT, json, strlen(json), existing, copy_flash,
+                                        verify_capture, dev, NULL, capture_gate);
+    }
     if (err == ESP_OK) err = ideas_store_finish(ROOT, existing);
     if (err == ESP_OK) err = ideas_save_boot(existing);
     if (err == ESP_OK) {

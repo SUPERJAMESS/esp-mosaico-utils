@@ -200,6 +200,7 @@ void esp_restart(void) {
     env.busy_restarts += env.ota_busy;
 }
 esp_err_t app_storage_acquire(void) {
+    if (env.storage_failure) return ESP_FAIL;
     if (env.storage_busy || env.lease)
         return ESP_ERR_INVALID_STATE;
     env.lease = true;

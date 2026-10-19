@@ -60,6 +60,10 @@ static void trace_state(vui_handle_t ui, void *ctx)
             (void)sscanf(command, "release-available %31s", model.release_version);
         }
         if (!strcmp(command, "ideas-refresh-busy")) model.idea_busy = true;
+        if (!strcmp(command, "peripherals-ready")) {
+            model.device.imu_available = model.device.haptics_available = model.device.peripherals_ready = true;
+            vibe_ui_poll(state);
+        }
         if (!strcmp(command, "firmware-fail")) {
             model.updating = false;
             model.update_terminal = model.update_failed = true;
@@ -389,6 +393,13 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
             memmove(&model.bundles[i], &model.bundles[i + 1], (--model.bundle_count - i) * sizeof(model.bundles[0]));
             ++delete_calls;
             ++model.nand_generation;
+            if (scenario("delete-terminal")) {
+                model.update_terminal = true;
+                model.update_failed = model.update_cancelled = false;
+                ++model.update_revision;
+                snprintf(model.update_title, sizeof(model.update_title), "Idea deleted");
+                snprintf(model.update_detail, sizeof(model.update_detail), "Removed from this device");
+            }
             break;
         }
         break;
@@ -396,6 +407,10 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         break; /* The PC model already supplies its capacity snapshot. */
     case VIBE_SCAN_NAND:
         ++scan_calls;
+        if (scenario("storage-failed") && scan_calls >= 2) {
+            model.nand_error = 0;
+            model.bundle_count = 2;
+        }
         if (scenario("scan-busy") || scenario("scan-open")) {
             model.nand_scanning = model.idea_busy = true;
             scan_ticks = 0;
@@ -496,7 +511,8 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
                  cmd == VIBE_SAVE_DEVELOPMENT ? "Saving development Idea" : "Updating system");
         snprintf(model.update_detail, sizeof(model.update_detail),
                  "Reading simulated NAND component");
-        snprintf(model.update_owner, sizeof(model.update_owner), "NAND");
+        snprintf(model.update_owner, sizeof(model.update_owner), "%s",
+                 cmd == VIBE_SAVE_DEVELOPMENT ? "Device" : "NAND");
         snprintf(model.update_verified, sizeof(model.update_verified), "Unsigned");
         if (cmd == VIBE_OPEN_IDEA && scenario("open-check")) {
             installing = false;
@@ -595,6 +611,11 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
     model.settings = (vibe_settings_snapshot_t){.language = 1,
         .brightness = 80, .screen_off_seconds = 180, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
     model.device.battery_valid = true;
+    model.device.imu_available = model.device.haptics_available = model.device.peripherals_ready = true;
+    if (scenario("peripherals-pending") || scenario("peripherals-failed")) {
+        model.device.imu_available = model.device.haptics_available = false;
+        model.device.peripherals_ready = scenario("peripherals-failed");
+    }
     model.device.battery_percent = scenario("low-battery") ? 15 : 80;
     model.development_available = scenario("unsaved") || scenario("development");
     snprintf(model.development_name, sizeof(model.development_name), "My development Idea");
@@ -627,6 +648,10 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
     model.nand_scanning = model.idea_busy = scenario("scan-busy") || scenario("scan-open");
     if (scenario("empty"))
         model.bundle_count = 0;
+    if (scenario("storage-failed")) {
+        model.nand_error = -1;
+        model.bundle_count = 0;
+    }
     if (scenario("pager-five")) model.bundle_count = 5;
     if (scenario("pager-six") || scenario("manage-states")) model.bundle_count = 6;
     if (scenario("pager-max")) model.bundle_count = VIBE_BUNDLE_MAX;

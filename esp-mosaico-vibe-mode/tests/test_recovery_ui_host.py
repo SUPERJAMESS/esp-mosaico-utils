@@ -223,6 +223,46 @@ def test_home_maker_animation_captures_gestures(sim):
     assert (sim.directory / "settings-still.png").read_bytes() == (sim.directory / "settings-later.png").read_bytes()
 
 
+def test_fresh_gesture_on_another_control_does_not_wait_for_navigation_guard(sim):
+    # Both clicks land in the same UI clock instant, at different controls.
+    sim.rpc("feed_pointers", samples=[
+        {"x": x, "y": y, "pressed": pressed}
+        for x, y in ((400, 398), (240, 312)) for pressed in (True, False)
+    ])
+    sim.wait(page=13)
+
+
+@pytest.mark.parametrize("sim", ["storage-failed"], indirect=True)
+@pytest.mark.parametrize("language", [1, 2])
+def test_storage_failure_has_retry_and_never_starts_update_all(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38,36); sim.wait(page=11)
+        sim.tap(38,36); sim.wait(page=0)
+    sim.manage(); sim.wait(page=5, bundle_count=0, scan_calls=1)
+    sim.capture("storage-unavailable")
+    sim.tap_ui("manage_update_all")
+    sim.wait(page=5, check_calls=0, download_calls=0)
+    sim.tap_ui("button_retry_storage")
+    sim.wait(page=5, bundle_count=2, scan_calls=2)
+    sim.capture("storage-retry-ready")
+
+
+@pytest.mark.parametrize("sim", ["peripherals-pending", "peripherals-failed"], indirect=True)
+def test_unavailable_peripherals_preserve_preferences_and_recover(sim):
+    sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+    sim.tap_ui("button_settings_top_display"); sim.wait(page=12)
+    sim.swipe(240, 410, 240, 200)
+    sim.tap_ui("button_display_0_rotate"); sim.tap_ui("button_display_0_haptics")
+    sim.wait(rotate=True, haptics=True)
+    sim.capture("peripherals-unavailable")
+    sim.control("peripherals-ready")
+    sim.tap_ui("button_display_0_rotate"); sim.tap_ui("button_display_0_haptics")
+    sim.wait(rotate=False, haptics=False)
+
+
 @pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
 @pytest.mark.parametrize("language", [1, 2])
 def test_release_notice_and_manual_recheck(sim, language):
@@ -1357,3 +1397,13 @@ def test_boot_tip_keeps_the_guide_return_route(sim):
     sim.control("boot"); sim.wait(page=22)
     sim.control("boot-release"); sim.wait(page=25)
     sim.tap(38, 36); sim.wait(page=10)
+
+
+@pytest.mark.parametrize("sim", ["delete-terminal"], indirect=True)
+def test_deleted_idea_result_has_only_a_wide_done_button(sim):
+    sim.manage(); sim.tap(150, 170); sim.wait(page=6)
+    sim.tap_ui("button_local_delete"); sim.wait(page=23)
+    hold(sim, page=5, pending_delete=True, delete_calls=0)
+    sim.wait(timeout=10, page=8, pending_delete=False, delete_calls=1, bundle_count=1)
+    assert_wide_done(sim, "deleted-idea-wide-done")
+    sim.wait(page=5, install_calls=0, restart_calls=0)

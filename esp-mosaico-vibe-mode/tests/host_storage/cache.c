@@ -23,6 +23,11 @@ static void check(size_t p){
  assert(storage_blockdev_wrap(&source,2*p,&d)==0);assert(d->geometry.disk_size==source.geometry.disk_size);
  check_read(d,0);check_read(d,1);check_read(d,0);assert(reads==2);check_read(d,2);check_read(d,0);assert(reads==3);check_read(d,1);assert(reads==4);
  uint8_t b[8192];assert(d->ops->read(d,b,sizeof(b),0,2*p)==0);assert(!memcmp(b,media,2*p));
+ d->geometry.disk_size=4*p;unsigned limited_writes=writes;
+ assert(d->ops->read(d,b,p,4*p,p)==ESP_ERR_INVALID_ARG);
+ assert(d->ops->write(d,b,4*p,p)==ESP_ERR_INVALID_ARG && writes==limited_writes);
+ assert(d->ops->erase(d,4*p,p)==ESP_ERR_INVALID_ARG);
+ assert(source.geometry.disk_size==sizeof(media));d->geometry.disk_size=sizeof(media);
  assert(d->ops->read(d,b,p,0,2*p)==ESP_ERR_INVALID_ARG);
  assert(d->ops->read(d,b,sizeof(b),UINT64_MAX-p,p)==ESP_ERR_INVALID_ARG);
  assert(d->ops->read(d,b,p,1,p)==ESP_ERR_INVALID_ARG);

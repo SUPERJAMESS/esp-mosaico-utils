@@ -23,7 +23,7 @@ BAD_MULTIPART = ["missing", "duplicate", "path", "locale", "length", "oversize",
 SCENARIOS = [
     "device-identity", "identity-unavailable", "no-compatible-en", "no-compatible-zh", "file-conflict",
     "download-stages", "retry-manifest", "retry-read", "retry-limit", "bilingual-offline",
-    "preview", "preview-zh", "preview-single-byte", "cancel-queued", "cancel-resolve", "cancel-asset", "fixed-release",
+    "preview", "preview-zh", "preview-single-byte", "preview-storage-failure", "cancel-queued", "cancel-resolve", "cancel-asset", "fixed-release",
     "queue-failure", "init-retry", "worker-reuse", "worker-handoff", "reject-bad-font", "reject-bad-display", "reject-bad-icon",
     "reject-hash", "reject-etag", "reject-truncated", "reject-missing", "reject-redirect",
     "reject-read-error", "reject-wrong-length", "reject-unknown-code", "reject-resolve-truncated",

@@ -78,7 +78,7 @@ def apply(scene):
         if bind: objects[i]['bind']=bind
         return i
 
-    def header(parent,title,back,size=30,role='title'):
+    def header(parent,title,back,size=30,role='title',title_name=None,title_visible=True):
         for o in objects:
             if o.get('parent')==parent and (o.get('text')=='‹' or o.get('name','').endswith('_title') or (o['type']=='label' and o.get('y',999)<=40)):
                 o['hidden']=True
@@ -86,7 +86,8 @@ def apply(scene):
         icon(parent,'back-32-white',28,32)
         action = named.get(back,{}).get('events',[{}])[0].get('target_name','product_back')
         click(parent,back,2,6,84,84,action)
-        text(parent,'heading_'+str(parent),title,88,29,368,40,size,role,overflow='ellipsis')
+        if title_visible:
+            text(parent,title_name or 'heading_'+str(parent),title,88,29,368,40,size,role,overflow='ellipsis')
 
     def row(parent, name, title, subtitle, glyph, y, action, subtitle_name=None, danger=False):
         rect(parent,16,y,448,80)
@@ -160,7 +161,10 @@ def apply(scene):
     for name,title in (('develop','Develop'),('settings','Settings'),('display','Display & haptics'),('language','Language'),
                        ('shared','Shared info'),('shared_editor','Shared info'),('about','About'),('reset','Factory reset'),
                        ('delete_confirm','Delete Idea'),('boot_tip','Update Vibe Mode')):
-        header(index[name],title,'button_back_'+name)
+        header(index[name],title,'button_back_'+name,
+               size=28 if name=='delete_confirm' else 30,
+               title_name='delete_confirm_title' if name=='delete_confirm' else None,
+               title_visible=name!='shared_editor')
 
     # Help and guide are real destinations; QR points to the supplied guide.
     help_page=add('layer',-1,0,0,480,480,name='help',bind='help_visible',bind_target='visible',hidden=True)
@@ -210,8 +214,11 @@ def apply(scene):
     text(59,'nand_scan','',24,94,432,28,20,color=MUTED,overflow='ellipsis')
     hide('button_nand_scan');hide('button_manage_add')
     for x,glyph,action in ((324,'upgrade-32-white','update_all'),(408,'plus-32-white','download')):
-        rect(59,x,20,56,56,RAISED,28);icon(59,glyph,x+12,32)
-        click(59,'manage_'+action,x-8,12,72,72,action)
+        target=59
+        if action=='update_all':
+            target=add('layer',59,0,0,480,480,name='manage_update_action',bind='manage_update_action_visible',bind_target='visible')
+        rect(target,x,20,56,56,RAISED,28);icon(target,glyph,x+12,32)
+        click(target,'manage_'+action,x-8,12,72,72,action)
     badge=add('layer',59,0,0,480,480,name='manage_update_badge',bind='manage_update_badge_visible',bind_target='visible',hidden=True)
     rect(badge,360,16,24,24,ORANGE,12)
     text(badge,'manage_update_count','',360,17,24,23,16,color=BG,align='center')
@@ -228,7 +235,11 @@ def apply(scene):
     empty=add('layer',59,0,0,480,480,name='library_empty',bind='library_empty_visible',bind_target='visible',hidden=True)
     add('image',empty,200,190,80,80,image='assets/mosaic/hero_empty-80.png')
     text(empty,'library_empty_title','No Ideas yet',24,290,432,30,22,'medium',align='center')
-    text(empty,'library_empty_note','Tap + to download your first Idea.',24,334,432,26,18,color=MUTED,align='center')
+    text(empty,'library_empty_note','Tap + to download your first Idea.',24,334,432,54,18,color=MUTED,align='center')
+    retry=add('layer',empty,0,0,480,480,name='retry_storage_gate',bind='button_retry_storage_visible',bind_target='visible',hidden=True)
+    button(retry,'button_retry_storage','Retry',140,404,200,56)
+    named['button_retry_storage'].update(font=FONT['sans'],font_size=20)
+    named['button_retry_storage']['events']=[{'event':'click','action':'call','target_name':'retry_storage'}]
     move('undo_message',40,405,280,48,font_size=16)
     button(59,'button_undo_delete','Undo',332,405,108,48)
 
@@ -368,9 +379,9 @@ def apply(scene):
             text(selected,f'{kind}_selected_{i}_label',named[f'button_{kind}_{i}']['text'],24+i*88,y+20,80,32,22,'medium',BG,'center')
     for j,(name,title,sub,glyph) in enumerate((('rotate','Auto rotate','Follows how you hold it','rotate'),('haptics','Haptics','Touch feedback','haptic'))):
         y=236+j*88
-        row(gate,'display_0_'+name,title,sub,glyph+'-32-cream',y,'toggle_'+name)
+        row(gate,'display_0_'+name,title,sub,glyph+'-32-cream',y,'toggle_'+name,'display_'+name+'_sub')
         named['row_title_display_0_'+name]['w']=284
-        named['row_sub_display_0_'+name]['w']=284
+        named['display_'+name+'_sub']['w']=284
         for on in (0,1):
             track=add('layer',gate,0,0,480,412,name=f'{name}_0_{on}',bind=f'{name}_0_{on}_visible',bind_target='visible',hidden=not on)
             rect(track,396,y+24,52,32,ORANGE if on else TILE,16)
@@ -403,7 +414,6 @@ def apply(scene):
 
     # Shared editor follows the original input card and keyboard geometry.
     p=index['shared_editor']
-    hide('heading_'+str(p))
     text(p,'shared_editor_heading','New key',88,29,252,40,30,'title')
     rect(p,16,96,448,64)
     text(p,'shared_value','',36,112,332,32,22,'medium')

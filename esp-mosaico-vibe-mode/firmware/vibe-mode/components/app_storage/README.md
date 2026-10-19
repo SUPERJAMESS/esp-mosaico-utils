@@ -21,9 +21,24 @@ if (app_storage_acquire() == ESP_OK) {
 
 ## 约束
 
-占用者在全部路径释放；挂载失败绝不格式化。注册 Iris 文件卷属于 app_iris。本地任务 reservation 沿用既有语义，不宣称提供与远程文件服务之间新增的互斥。
+占用者在全部路径释放；挂载失败绝不格式化。注册 Iris 文件卷属于 app_iris。
+`app_storage_access_status()` 使新文件请求在本地任务持有 reservation 时立即返回 BUSY，
+避免在全卷容量统计后才创建已被主机超时丢弃的句柄。检查不持有租约，不为已经打开的
+远端流提供与后续本地任务之间的完整互斥；流生命周期仍由 Iris 管理。
+
+挂载前通过 LittleFS 公开 raw API 只读探测已有卷的容量，探测卸载后才注册 VFS，
+不同时挂载两份文件系统。Dhara 恢复坏块估计后可能改变可用逻辑页数；VFS 使用已有卷
+的持久化容量，并核对其不超过当前介质容量。探测回调不能写入或擦除，不自动扩容；
+损坏卷、空介质及容量不足均保留原数据并返回错误。此路径要求 LittleFS 1.23 或更新版本。
+
+主机容量兼容回归使用真实 LittleFS；未构建固件依赖时，将 `LITTLEFS_SOURCE_DIR` 指向
+LittleFS 源码目录。CI 使用固定的 v2.11.2 源码，不依赖下载后的 managed component。
 
 ## 读取缓存与 SPI
+
+固件将 `CONFIG_LITTLEFS_LOOKAHEAD_SIZE` 设为 8192 字节，覆盖现有约 6 万个逻辑块。
+默认 128 字节只能跟踪 1024 个块，保存应用时会反复遍历已使用空间。真实 LittleFS
+回归对比两种位图，检查旧文件完整性并统计相同写入的读取次数；这不代表 NAND 总线吞吐量。
 
 `CONFIG_IRIS_FACTORY_NAND_READ_CACHE_KIB` 默认 64，在 LittleFS 与 Dhara 之间缓存逻辑页。
 页数据只分配在 PSRAM，标签与互斥量使用内部 RAM；缓存分配失败回退到直接读取。

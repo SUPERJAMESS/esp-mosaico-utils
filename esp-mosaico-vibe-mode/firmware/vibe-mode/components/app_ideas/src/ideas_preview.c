@@ -126,16 +126,23 @@ esp_err_t ideas_prepare_download(ideas_context_t *ctx, job_t *job) {
     /* Only reading the local descriptor requires a NAND lease. Network IO,
      * the preview and the wait for user confirmation never retain it. */
     esp_err_t err = app_storage_acquire(), existing = ESP_ERR_NOT_FOUND;
+    const bool local_available = err == ESP_OK;
     if (err == ESP_OK) {
         existing = ideas_store_refresh(ROOT, job->code, local);
         app_storage_release();
+    }
+    if (job->command == IDEAS_RESOLVE && (err == ESP_FAIL || err == ESP_ERR_INVALID_SIZE)) {
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        ctx->state->scan_error = err;
+        xSemaphoreGive(ctx->lock);
+        err = ESP_OK; /* Read cloud information even when local storage is unavailable. */
     }
     if (err == ESP_OK && job->command == IDEAS_CHECK && existing != ESP_OK)
         err = existing;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     bool full = ctx->state->count >= IDEAS_MAX_ITEMS;
     xSemaphoreGive(ctx->lock);
-    if (err == ESP_OK && full && existing != ESP_OK)
+    if (err == ESP_OK && local_available && full && existing != ESP_OK)
         err = ESP_ERR_NO_MEM;
     if (err == ESP_OK && ideas_cancelled(ctx, job->request_id))
         err = ESP_ERR_INVALID_STATE;

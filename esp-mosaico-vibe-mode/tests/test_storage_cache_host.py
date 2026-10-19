@@ -4,7 +4,32 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 SANITIZERS = [] if os.name == "nt" else ["-fsanitize=address,undefined"]
+
+
+@pytest.mark.parametrize("case", ["volume", "allocation"])
+def test_existing_volume_geometry(tmp_path, case):
+    root = Path(__file__).resolve().parents[1]
+    component = root / "firmware/vibe-mode/components/app_storage"
+    fixture = root / "tests/host_storage"
+    littlefs = Path(os.environ.get("LITTLEFS_SOURCE_DIR", str(
+        root / "firmware/vibe-mode/managed_components/joltwallet__littlefs/src/littlefs")))
+    assert (littlefs / "lfs.c").is_file(), "Build Vibe Mode first or set LITTLEFS_SOURCE_DIR"
+    for name in ("esp_blockdev.h", "esp_log.h"):
+        (tmp_path / name).write_text('#include "sdk.h"\n')
+    exe = tmp_path / "volume"
+    result = subprocess.run([
+        shutil.which("cc"), "-std=c11", "-D_POSIX_C_SOURCE=200809L", "-Wall", "-Wextra",
+        "-Wno-unused-parameter", "-Wno-unused-variable", "-Werror", *SANITIZERS, "-g", "-pthread",
+        "-I" + str(tmp_path), "-I" + str(fixture), "-I" + str(component / "private"),
+        "-I" + str(littlefs), str(component / "src/storage_volume.c"),
+        str(fixture / (case + ".c")), str(littlefs / "lfs.c"), str(littlefs / "lfs_util.c"), "-o", str(exe),
+    ], check=False, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    result = subprocess.run([str(exe)], check=False, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_storage_cache(tmp_path):

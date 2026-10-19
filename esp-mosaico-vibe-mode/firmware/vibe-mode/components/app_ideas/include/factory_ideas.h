@@ -48,6 +48,8 @@ typedef struct {
     uint32_t generation, revision;
     bool busy, terminal, failed, scanning, cancelled;
     factory_ideas_command_t command;
+    /* Owns terminal/title/detail/revision even when background work changes command. */
+    factory_ideas_command_t terminal_command;
     esp_err_t error, scan_error;
     char title[48], detail[160];
     uint64_t total, received;

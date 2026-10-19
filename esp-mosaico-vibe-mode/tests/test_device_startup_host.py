@@ -8,7 +8,7 @@ import pytest
 
 SANITIZERS = [] if os.name == "nt" else ["-fsanitize=address,undefined"]
 
-@pytest.mark.parametrize("scenario", ["blocked", "sensor-failure", "task-failure", "retry",
+@pytest.mark.parametrize("scenario", ["blocked", "sensor-failure", "task-failure", "retry", "imu-retry",
                                       "shutdown-active", "shutdown-paused",
                                       "shutdown-registration-failure", "motor-timer-failure",
                                       "wifi-sleep-retry", "wifi-wake-retry"])

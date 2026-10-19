@@ -322,7 +322,9 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
                                             ctx->ideas.command == IDEAS_SAVE_DEVELOPMENT ||
                                             (ctx->ideas.command == IDEAS_UPDATE_ALL || ctx->ideas.command == IDEAS_RUN_DEVELOPMENT));
         out->update_terminal = ctx->ideas.terminal;
-        if ((ctx->ideas.command == IDEAS_DELETE || ctx->ideas.command == IDEAS_REFRESH_UPDATES) && !ctx->ideas.failed) out->update_terminal = false;
+        if ((ctx->ideas.terminal_command == IDEAS_DELETE ||
+             ctx->ideas.terminal_command == IDEAS_REFRESH_UPDATES) && !ctx->ideas.failed)
+            out->update_terminal = false;
         out->update_failed = ctx->ideas.failed;
         out->update_cancelled = ctx->ideas.cancelled;
         COPY(update_title, ctx->ideas.title);

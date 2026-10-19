@@ -206,7 +206,9 @@ def generate():
                 obj["font_charset"] = "0123456789% -"
             if obj.get("name") == "home_ideas_count":
                 obj["font_charset"] = "0123456789-"
-            if obj.get("font") == "fonts/NotoSansSC-Bold.otf":
+            # This fixed Chinese welcome subtitle has no runtime text producer.
+            # Its unique 28px style does not need the dynamic ASCII alphabet.
+            if obj.get("name") == "welcome_chinese":
                 obj["font_charset"] = value
             if obj.get("font") == "fonts/ArchivoExtended-Black.ttf" or obj.get("name") == "home_headline":
                 obj["font_charset"] = value

@@ -16,6 +16,7 @@
 #include "spi_nand_flash.h"
 #include "storage_metrics.h"
 #include "storage_blockdev.h"
+#include "storage_volume.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -114,6 +115,12 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
         return err;
     }
     ESP_LOGI("boot_perf", "nand_driver_us=%lld", (long long)(esp_timer_get_time() - driver_started));
+    uint64_t volume_bytes = 0;
+    err = storage_volume_size(ctx->blockdev, &volume_bytes);
+    if (err != ESP_OK) {
+        nand_cleanup_partial(ctx);
+        return err;
+    }
     storage_metrics_bind(ctx->spi, ctx->blockdev->geometry.read_size);
     esp_blockdev_handle_t cached = NULL;
     err = storage_blockdev_wrap(ctx->blockdev, CONFIG_IRIS_FACTORY_NAND_READ_CACHE_KIB * 1024U, &cached);
@@ -122,6 +129,9 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
         return err;
     }
     ctx->blockdev = cached;
+    /* Dhara capacity can change as its bad-block estimate is restored. Keep
+     * the existing volume's geometry rather than treating it as a new disk. */
+    ctx->blockdev->geometry.disk_size = volume_bytes;
 
     const esp_vfs_littlefs_conf_t mount_config = {
         .base_path = NAND_UPDATE_MOUNT_PATH,
@@ -159,6 +169,16 @@ esp_err_t app_storage_mount(void)
 esp_err_t app_storage_status(void)
 {
     return atomic_load(&s_mount_status);
+}
+esp_err_t app_storage_access_status(void)
+{
+    esp_err_t err = app_storage_status();
+    if (err != ESP_OK) return err;
+    app_storage_context_t *ctx = &s_storage;
+    taskENTER_CRITICAL(&ctx->lock);
+    bool busy = ctx->busy;
+    taskEXIT_CRITICAL(&ctx->lock);
+    return busy ? ESP_ERR_INVALID_STATE : ESP_OK;
 }
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
 {
@@ -201,6 +221,7 @@ esp_err_t app_storage_acquire(void)
 }
 #else
 esp_err_t app_storage_status(void) { return ESP_ERR_NOT_SUPPORTED; }
+esp_err_t app_storage_access_status(void) { return ESP_ERR_NOT_SUPPORTED; }
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
 {
     (void)total; (void)used;

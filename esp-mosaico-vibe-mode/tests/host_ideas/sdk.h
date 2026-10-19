@@ -140,7 +140,7 @@ typedef struct {
         MOCK_CONFLICT,
         MOCK_ETAG
     } fault;
-    bool network, lease, storage_busy, fail_send, fail_commit, deny_new_tasks, read_lease, ota_busy, ota_missing, development, cancel_on_delay, no_space;
+    bool network, lease, storage_busy, storage_failure, fail_send, fail_commit, deny_new_tasks, read_lease, ota_busy, ota_missing, development, cancel_on_delay, no_space;
     bool recovery_requested, fail_consume, fail_flash_read;
     bool fail_boot_read;
     const char *fail_file;

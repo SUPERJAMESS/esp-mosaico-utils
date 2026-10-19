@@ -63,19 +63,28 @@ static esp_err_t esp_littlefs_blockdev_info(esp_blockdev_handle_t dev, size_t *t
     ++usage_calls; *total = 1024; *used = 512; return ESP_OK;
 }
 esp_err_t storage_blockdev_wrap(esp_blockdev_handle_t dev, size_t bytes, esp_blockdev_handle_t *out) { *out = dev; return ESP_OK; }
+esp_err_t storage_volume_size(esp_blockdev_handle_t dev, uint64_t *bytes) { *bytes = 4096; return ESP_OK; }
 void storage_metrics_bind(spi_device_handle_t dev, size_t size) {}
 void storage_metrics_begin(void) {}
 void storage_metrics_end(void) {}
 #include STORAGE_SOURCE
 int main(void) {
     assert(app_storage_status() == ESP_ERR_INVALID_STATE && !mounts);
+    assert(app_storage_access_status() == ESP_ERR_INVALID_STATE);
     assert(app_storage_acquire() == ESP_ERR_INVALID_STATE);
     assert(app_storage_status() == ESP_FAIL && mounts == 1 && releases == 1);
     assert(!usage_calls); /* Failed mount never formats or traverses capacity. */
+    assert(app_storage_access_status() == ESP_FAIL);
     fail_mount = false;
     assert(app_storage_acquire() == ESP_OK); /* Failure released the reservation. */
     assert(app_storage_status() == ESP_OK && mounts == 2 && !usage_calls);
+    assert(app_storage_access_status() == ESP_ERR_INVALID_STATE); /* Mounted but leased. */
     app_storage_release();
+    assert(app_storage_access_status() == ESP_OK);
+    assert(app_storage_reserve() == ESP_OK);
+    assert(app_storage_access_status() == ESP_ERR_INVALID_STATE);
+    app_storage_release();
+    assert(app_storage_access_status() == ESP_OK);
     assert(app_storage_acquire() == ESP_OK && mounts == 2 && !usage_calls);
     uint64_t total = 0, used = 0;
     assert(app_storage_info(&total, &used) == ESP_OK && total == 1024 && used == 512);

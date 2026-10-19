@@ -39,6 +39,7 @@ jobs:
     timeout-minutes: 35
     env:
       CJSON_COMPONENT_DIR: ${{ github.workspace }}/.host-deps/cjson
+      LITTLEFS_SOURCE_DIR: ${{ github.workspace }}/.host-deps/littlefs
     strategy:
       fail-fast: false
       matrix:
@@ -103,6 +104,12 @@ jobs:
           repository: DaveGamble/cJSON
           ref: c859b25da02955fef659d658b8f324b5cde87be3 # v1.7.19
           path: .host-deps/cjson
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: littlefs-project/littlefs
+          ref: adad0fbbcf5382c20978d07f94f9c13be9041c1b # v2.11.2
+          path: .host-deps/littlefs
           persist-credentials: false
       - name: Test ESP-Iris
         run: python -m pytest -q --ignore=tests/e2e --junitxml=iris-results.xml

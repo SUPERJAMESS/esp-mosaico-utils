@@ -31,7 +31,8 @@ set_target_properties(vibe_ui PROPERTIES C_STANDARD 11 WINDOWS_EXPORT_ALL_SYMBOL
 
 if(VUI_TEST_MAIN)
     add_executable(vui_runtime_test "${VUI_TEST_MAIN}")
-    target_include_directories(vui_runtime_test PRIVATE ${ui}/include ${ui}/private ../components/app_ideas/include)
+    target_include_directories(vui_runtime_test PRIVATE ${ui}/include ${ui}/private ../components/app_ideas/include
+        ../components/app_settings/include ../components/app_device/include)
     target_link_libraries(vui_runtime_test PRIVATE vibe_ui)
 endif()
 
