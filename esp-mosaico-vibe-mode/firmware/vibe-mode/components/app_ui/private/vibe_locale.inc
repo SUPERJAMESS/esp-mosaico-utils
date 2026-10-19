@@ -374,6 +374,10 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"Current Idea", "当前 Idea"},
     {"Update all saved Ideas?", "更新所有已保存的 Idea？"},
     {"Download available updates to My Ideas.", "将可用更新下载到我的应用。"},
+    {"SSID must contain 1-32 bytes", "SSID:1-32字节"},
+    {"Use 8-63 bytes or 64 hex digits", "密码:8-63字节或64位十六进制"},
+    {"Completed updates are kept", "已完成更新保留"},
+    {"Enter text", "输入"},
 };
 static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {
     {VUI_VIBE_BIND_PAIRING_ENDPOINT, "Connect Wi-Fi first"},

@@ -16,7 +16,8 @@ add_library(vibe_ui SHARED platform_pc.c ../components/app_ideas/src/ideas_title
     ${ui}/src/vibe_transfer.c ${ui}/light/vui.c ${ui}/light/vui_decode.c
     "${asset_c}")
 target_include_directories(vibe_ui PRIVATE ${ui}/include ${ui}/private ${ui}/light
-    ../components/app_ideas/include ../components/app_settings/include ../components/app_device/include)
+    ../components/app_ideas/include ../components/app_settings/include ../components/app_device/include
+    ../components/app_network/include)
 target_link_libraries(vibe_ui PRIVATE ZLIB::ZLIB)
 if(NOT MSVC)
     target_link_libraries(vibe_ui PRIVATE m)

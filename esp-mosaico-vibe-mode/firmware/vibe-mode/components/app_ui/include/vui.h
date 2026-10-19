@@ -68,6 +68,8 @@ vui_err_t vui_set_image_owned(vui_handle_t ui, uint16_t id, void *png, size_t si
 vui_err_t vui_canvas_push(vui_handle_t ui, uint16_t id, void *pixels, size_t stride,
                           void (*release)(void *), void *ctx);
 vui_err_t vui_canvas_stop(vui_handle_t ui, uint16_t id);
+/* Row callbacks bind visible rows only, including newly exposed rows after
+ * scrolling. Hidden/offscreen row resources are released and rebound on demand. */
 vui_list_t vui_list_bind_component(vui_handle_t ui, uint16_t id, vui_row_cb_t callback, void *ctx);
 vui_err_t vui_list_set_total(vui_handle_t ui, vui_list_t list, unsigned count);
 vui_err_t vui_list_refresh(vui_handle_t ui, vui_list_t list);

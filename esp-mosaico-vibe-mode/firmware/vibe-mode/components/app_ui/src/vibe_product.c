@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vibe_ui_state.h"
 #include "vui_ids.h"
+#include "factory_network_credentials.h"
 #include "vibe_locale.inc"
 #include <stdarg.h>
 #include <stdio.h>
@@ -71,6 +72,13 @@ static bool commit_delete(vibe_ui_t *s)
     refresh_library(s);
     return true;
 }
+static bool shared_context(vibe_ui_t *s, vibe_page_t page)
+{
+    if (page == VIBE_SLEEP) page = s->wake_page;
+    if (page == VIBE_BOOT_TIP) page = s->boot_page;
+    if (page == VIBE_DELETE_CONFIRM && !s->delete_code[0]) page = s->return_page;
+    return page == VIBE_SHARED_EDITOR || page == VIBE_SHARED_DETAIL || page == VIBE_SHARED_HELP;
+}
 bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
 {
     if (next != s->page && (s->page == VIBE_RESET || s->page == VIBE_DELETE_CONFIRM)) {
@@ -78,11 +86,12 @@ bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
         s->hold_consumed = true;
         (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, 0);
     }
-    if ((s->page == VIBE_SHARED_EDITOR || s->page == VIBE_SHARED_DETAIL || s->page == VIBE_SHARED_HELP) && next != s->page) {
+    if (shared_context(s, s->page) && next != s->page) {
         (void)vui_set_text(s->ui, VUI_VIBE_BIND_SHARED_VALUE, "");
         s->shared_reveal = false;
-        /* Delete confirmation may be cancelled back to the editor. */
-        if (next != VIBE_DELETE_CONFIRM && next != VIBE_SHARED_DETAIL && next != VIBE_SHARED_EDITOR && next != VIBE_SHARED_HELP) memset(s->shared_value, 0, sizeof(s->shared_value));
+        /* Temporary pages hide secrets without discarding the draft. Leaving
+         * that context, including via a temporary page, clears it. */
+        if (!shared_context(s, next)) memset(s->shared_value, 0, sizeof(s->shared_value));
     }
     if (next != s->page && (s->page == VIBE_NAND || s->page == VIBE_SHARED))
         return commit_delete(s);
@@ -145,7 +154,8 @@ static void project_shared(vibe_ui_t *s)
     if (s->shared_edit_value && secret(s->shared_key) && !s->shared_reveal) {
         memset(masked, '*', len < 32 ? len : 32); masked[len < 32 ? len : 32] = 0; value = masked;
     } else if (len > 32) value += len - 32;
-    (void)vui_set_text(s->ui, VUI_VIBE_BIND_SHARED_VALUE, value[0] ? value : vibe_translate(s, s->shared_edit_value ? "Value" : "Key"));
+    (void)vui_set_text(s->ui, VUI_VIBE_BIND_SHARED_VALUE,
+                       value[0] ? value : vibe_translate(s, "Enter text"));
     bool existing = false;
     for (size_t i = 0; i < s->snapshot.settings.shared_count; ++i)
         existing |= !strcmp(s->shared_key, s->snapshot.settings.shared[i].key);
@@ -165,6 +175,10 @@ static void shared_submit(vibe_ui_t *s)
             TEXT(s, SHARED_FIELD, "Please use a-z, 0-9 and _"); return;
         }
         s->shared_edit_value = true; project_shared(s);
+    } else if (!strcmp(s->shared_key, "wifi_ssid") && !factory_network_ssid_valid(s->shared_value)) {
+        TEXT(s, SHARED_FIELD, "SSID must contain 1-32 bytes");
+    } else if (!strcmp(s->shared_key, "wifi_password") && !factory_network_password_valid(s->shared_value)) {
+        TEXT(s, SHARED_FIELD, "Use 8-63 bytes or 64 hex digits");
     } else if (!setting(s, VIBE_SETTINGS_SHARED_SET, s->shared_key, s->shared_value)) {
         s->shared_wait = true;
         TEXT(s, SHARED_FIELD, "Saving settings...");
@@ -383,6 +397,8 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         if (e->arg == 13) { shared_submit(s); break; }
         char *value = s->shared_edit_value ? s->shared_value : s->shared_key;
         size_t n = strlen(value), cap = s->shared_edit_value ? sizeof(s->shared_value) : sizeof(s->shared_key);
+        if (s->shared_edit_value && !strcmp(s->shared_key, "wifi_ssid")) cap = FACTORY_NETWORK_SSID_BYTES;
+        if (s->shared_edit_value && !strcmp(s->shared_key, "wifi_password")) cap = FACTORY_NETWORK_PASSWORD_BYTES;
         if (e->arg == 8 && n) value[--n] = 0;
         else if (e->arg >= 32 && e->arg <= 126 && n + 1 < cap) { value[n] = !s->shared_edit_value && e->arg == 32 ? '_' : (char)e->arg; value[n + 1] = 0; }
         project_shared(s); break;
@@ -600,6 +616,8 @@ void vibe_product_poll(vibe_ui_t *s)
         if (!v->storage_total || v->nand_error) TEXT(s, ABOUT_STORAGE, "Unknown");
         else FORMAT(s, ABOUT_STORAGE, "%llu / %llu MiB", (unsigned long long)(v->storage_used / 1048576), (unsigned long long)(v->storage_total / 1048576));
     } else if (s->page == VIBE_SHARED) {
+        unsigned last = v->settings.shared_count ? (unsigned)(v->settings.shared_count - 1) / 4 : 0;
+        if (s->shared_page > last) s->shared_page = last;
         const uint16_t rows[] = {VUI_VIBE_BIND_SHARED_ROW_0_LABEL, VUI_VIBE_BIND_SHARED_ROW_1_LABEL, VUI_VIBE_BIND_SHARED_ROW_2_LABEL, VUI_VIBE_BIND_SHARED_ROW_3_LABEL};
         const uint16_t keys[] = {VUI_VIBE_BIND_SHARED_KEY_0, VUI_VIBE_BIND_SHARED_KEY_1, VUI_VIBE_BIND_SHARED_KEY_2, VUI_VIBE_BIND_SHARED_KEY_3};
         const uint16_t values[] = {VUI_VIBE_BIND_SHARED_ENTRY_VALUE_0, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_1, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_2, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_3};
@@ -637,6 +655,7 @@ static void sleep_now(vibe_ui_t *s)
 static void wake(vibe_ui_t *s)
 {
     vibe_show(s, s->wake_page); s->activity_tick = s->tick; s->suppress_until = s->tick + 8;
+    if (s->page == VIBE_SHARED_EDITOR) project_shared(s);
     haptic(s, 1);
 }
 static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *ctx)
@@ -722,8 +741,14 @@ void vibe_product_tick(vibe_ui_t *s)
                          !s->snapshot.updating && !s->snapshot.idea_busy && !s->preview_active) vibe_show(s, VIBE_HOME);
             } else if (key == 3 && !s->snapshot.updating) {
                 if (s->page == VIBE_SLEEP) wake(s);
-                else { s->wake_page = s->page; vibe_show(s, VIBE_BOOT_TIP); }
-            } else if (key == 4 && s->page == VIBE_BOOT_TIP) vibe_show(s, s->wake_page);
+                else { s->boot_page = s->page; vibe_show(s, VIBE_BOOT_TIP); }
+            } else if (key == 4) {
+                if (s->page == VIBE_BOOT_TIP) {
+                    vibe_show(s, s->boot_page);
+                    if (s->page == VIBE_SHARED_EDITOR) project_shared(s);
+                } else if (s->page == VIBE_SLEEP && s->wake_page == VIBE_BOOT_TIP)
+                    s->wake_page = s->boot_page;
+            }
         }
     }
     if (s->motion_revision != s->snapshot.device.motion_revision) {

@@ -372,5 +372,9 @@
   "Tap Value to edit this entry.": "点击「值」编辑此条目。",
   "Current Idea": "当前 Idea",
   "Update all saved Ideas?": "更新所有已保存的 Idea？",
-  "Download available updates to My Ideas.": "将可用更新下载到我的应用。"
+  "Download available updates to My Ideas.": "将可用更新下载到我的应用。",
+  "SSID must contain 1-32 bytes": "SSID:1-32字节",
+  "Use 8-63 bytes or 64 hex digits": "密码:8-63字节或64位十六进制",
+  "Completed updates are kept": "已完成更新保留",
+  "Enter text": "输入"
 }
