@@ -58,7 +58,9 @@ esp_err_t factory_ideas_cancel(void) {
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     uint32_t ready = ctx->state->preview_ready ? ctx->state->preview_id : 0;
-    if (ctx->state->busy && ctx->state->cancellable) {
+    /* A batch may finish its current atomic commit before stopping. Latch
+     * cancellation for the next item even while that commit is closed. */
+    if (ctx->state->busy && (ctx->state->cancellable || ctx->state->batch)) {
         ctx->cancel_requested = true;
         ctx->state->cancellable = false;
         snprintf(ctx->state->title, sizeof(ctx->state->title), "Cancelling...");
@@ -111,7 +113,7 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     ctx->state->busy = true;
     ctx->state->command = command;
     ctx->cancel_requested = false;
-    ctx->state->cancellable = command == IDEAS_OPEN || command == IDEAS_SAVE_DEVELOPMENT;
+    ctx->state->cancellable = command == IDEAS_OPEN || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL;
     ctx->state->batch = command == IDEAS_UPDATE_ALL;
     ctx->state->scanning = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE;
     if (command == IDEAS_RESOLVE || command == IDEAS_CHECK || command == IDEAS_PREVIEW) {

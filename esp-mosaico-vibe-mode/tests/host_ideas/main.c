@@ -62,6 +62,14 @@ static void library(const char *version) {
     assert(generations == 2);
 }
 static unsigned save_cancel_mode;
+static bool batch_commit_cancelled;
+static void cancel_batch_commit(void) {
+    factory_ideas_snapshot_t s = snapshot();
+    if (!batch_commit_cancelled && s.busy && s.batch && !s.cancellable) {
+        batch_commit_cancelled = true;
+        assert(factory_ideas_cancel() == ESP_OK);
+    }
+}
 static bool save_cancel_seen;
 static uint64_t save_copy_end;
 static void cancel_save(void) {
@@ -150,6 +158,15 @@ static void copy_preview(uint32_t id) {
 }
 
 static bool handed_off;
+static bool writer_attempted;
+static void try_writer_at_restart(void) {
+    factory_ideas_snapshot_t s = snapshot();
+    if (writer_attempted || !s.busy || s.command != IDEAS_OPEN || s.phase != IDEAS_PHASE_SAVE)
+        return;
+    writer_attempted = true;
+    /* The updater can claim NOR as soon as the read owner releases it. */
+    if (!mock_environment()->read_lease) mock_environment()->ota_busy = true;
+}
 static void handoff(void) {
     factory_ideas_snapshot_t s = snapshot();
     if (!handed_off && !s.busy && s.preview_ready) {
@@ -183,7 +200,42 @@ int main(int argc, char **argv) {
     assert(!env->directory_reads && !env->storage_info_calls && !snapshot().generation);
     assert(!snapshot().busy); /* Cloud admission is independent of library discovery. */
 
-    if (!strcmp(scenario, "init-retry") || !strcmp(scenario, "worker-reuse")) {
+    if (!strcmp(scenario, "seed-full-library")) {
+        char selected[7];
+        for (unsigned i = 0; i < FACTORY_IDEAS_MAX_ITEMS; ++i) {
+            snprintf(selected, sizeof(selected), "%06u", 42731 + i);
+            code = selected; download();
+            assert(snapshot().count == i + 1 && !snapshot().invalid);
+        }
+    } else if (!strncmp(scenario, "capacity-", 9)) {
+        bool scan_error = !strcmp(scenario, "capacity-scan-error");
+        if (scan_error) { env->fail_file = "/current/manifest.json"; env->fail_file_remaining = 64; }
+        if (!strcmp(scenario, "capacity-development")) {
+            mock_development(); run(IDEAS_SAVE_DEVELOPMENT);
+        } else {
+            bool update = !strcmp(scenario, "capacity-update");
+            code = update ? "042731" : "042747";
+            if (update) env->release = "v2";
+            confirm(preview());
+        }
+        factory_ideas_snapshot_t s = snapshot();
+        fprintf(stderr, "%s: failed=%d count=%zu invalid=%zu firmware=%u\n",
+                scenario, s.failed, s.count, s.invalid, env->firmware);
+        if (scan_error) {
+            assert(s.failed && s.error == ESP_FAIL && !s.count && !env->writes && !env->firmware);
+            env->fail_file = NULL; run(IDEAS_SCAN); s = snapshot();
+        }
+        assert(s.count == FACTORY_IDEAS_MAX_ITEMS && !s.invalid);
+        if (!strcmp(scenario, "capacity-update")) {
+            assert(!s.failed && env->firmware);
+            bool updated = false;
+            for (size_t i = 0; i < s.count; ++i)
+                updated |= !strcmp(s.items[i].code, "042731") && !strcmp(s.items[i].version, "2.0");
+            assert(updated);
+        } else if (!scan_error) {
+            assert(s.failed && s.error == ESP_ERR_NO_MEM && !env->writes && !env->firmware);
+        }
+    } else if (!strcmp(scenario, "init-retry") || !strcmp(scenario, "worker-reuse")) {
         env->deny_new_tasks = true;
         for (unsigned i = 0; i < 30; ++i) {
             preview();
@@ -224,6 +276,31 @@ int main(int argc, char **argv) {
         assert(!snapshot().failed && !strcmp(snapshot().title, "Cancelled"));
         assert(!env->installs && !env->commits && !env->restarts);
         library("1.0");
+    } else if (!strcmp(scenario, "open-current-lease") ||
+               !strcmp(scenario, "open-current-intent") ||
+               !strcmp(scenario, "open-current-intent-failure") ||
+               !strcmp(scenario, "open-current-read-error")) {
+        download(); run(IDEAS_OPEN);
+        unsigned writes = env->writes, consumes = env->consume_requests;
+        bool lease = !strcmp(scenario, "open-current-lease");
+        bool failure = !strcmp(scenario, "open-current-intent-failure");
+        bool read_error = !strcmp(scenario, "open-current-read-error");
+        if (lease) env->observe = try_writer_at_restart;
+        else env->recovery_requested = true; /* A failed maintenance operation left this intent. */
+        env->fail_consume = failure;
+        env->fail_flash_read = read_error;
+        run(IDEAS_OPEN); env->observe = NULL;
+        factory_ideas_snapshot_t s = snapshot();
+        fprintf(stderr, "%s: failed=%d restarts=%u recovery=%u during-write=%u consumes=%u\n",
+                scenario, s.failed, env->restarts, env->recovery_restarts, env->busy_restarts,
+                env->consume_requests - consumes);
+        assert(!env->read_lease && env->writes == writes && env->installs == 1);
+        if (lease) assert(writer_attempted && !env->busy_restarts && !env->ota_busy);
+        if (failure || read_error) {
+            assert(s.failed && env->restarts == 1 && env->recovery_requested);
+            env->fail_consume = env->fail_flash_read = false; run(IDEAS_OPEN);
+        } else assert(!s.failed && env->restarts == 2);
+        assert(!env->recovery_requested && !env->recovery_restarts);
     } else if (!strcmp(scenario, "open-progress") || !strcmp(scenario, "open-current-progress")) {
         download();
         bool current = !strcmp(scenario, "open-current-progress");
@@ -284,6 +361,23 @@ int main(int argc, char **argv) {
         mock_corrupt_flash(); /* Cached library identity cannot skip NOR validation. */
         run(IDEAS_OPEN);
         assert(!snapshot().failed && env->installs == 2 && env->restarts == 3);
+    } else if (!strcmp(scenario, "delete-current-read-error") ||
+               !strcmp(scenario, "delete-current-nvs-error") ||
+               !strcmp(scenario, "delete-during-update") ||
+               !strcmp(scenario, "delete-stale-record")) {
+        download(); run(IDEAS_INSTALL);
+        bool stale = !strcmp(scenario, "delete-stale-record");
+        env->fail_flash_read = !strcmp(scenario, "delete-current-read-error");
+        env->fail_boot_read = !strcmp(scenario, "delete-current-nvs-error");
+        env->ota_busy = !strcmp(scenario, "delete-during-update");
+        if (stale || env->ota_busy) mock_corrupt_flash();
+        unsigned writes = env->writes;
+        run(IDEAS_DELETE);
+        factory_ideas_snapshot_t s = snapshot();
+        fprintf(stderr, "%s: failed=%d count=%zu writes=%u\n", scenario, s.failed, s.count, env->writes - writes);
+        if (stale) assert(!s.failed && s.count == 0);
+        else assert(s.failed && s.count == 1 && env->writes == writes);
+        env->fail_flash_read = env->fail_boot_read = env->ota_busy = false;
     } else if (!strcmp(scenario, "delete") || !strcmp(scenario, "delete-current")) {
         download();
         bool current = !strcmp(scenario, "delete-current");
@@ -311,6 +405,42 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < s.count; ++i)
             assert(!strcmp(s.items[i].version, "2.0") && !s.items[i].queued && !s.items[i].update_available);
         assert(!env->installs && !env->restarts);
+    } else if (!strncmp(scenario, "batch-cancel-", 13)) {
+        download(); code = "042732"; download(); code = "042731";
+        env->release = "v2";
+        assert(factory_ideas_request(IDEAS_UPDATE_ALL, NULL) == ESP_OK);
+        assert(snapshot().batch && snapshot().cancellable);
+        bool queued = !strcmp(scenario, "batch-cancel-queued");
+        if (queued) assert(factory_ideas_cancel() == ESP_OK);
+        else env->observe = cancel_batch_commit;
+        mock_run_worker(); env->observe = NULL;
+        factory_ideas_snapshot_t s = snapshot();
+        assert(s.cancelled && !s.failed && !s.busy && !s.batch);
+        unsigned updated = 0;
+        for (size_t i = 0; i < s.count; ++i) updated += !strcmp(s.items[i].version, "2.0");
+        assert(updated == (queued ? 0U : 1U));
+        assert(queued || batch_commit_cancelled);
+        assert(!env->installs && !env->restarts);
+    } else if (!strcmp(scenario, "scan-overflow")) {
+        download();
+        uint32_t generation = snapshot().generation;
+        for (unsigned i = 0; i < 64; ++i) {
+            char path[128]; snprintf(path, sizeof(path), "/nand/ideas/foreign-%u", i);
+            FILE *f = fopen(path, "wb"); assert(f && fclose(f) == 0);
+        }
+        run(IDEAS_SCAN);
+        assert(snapshot().scan_error == ESP_ERR_INVALID_SIZE && snapshot().count == 1 &&
+               snapshot().generation == generation);
+    } else if (!strcmp(scenario, "scan-read-error")) {
+        download(); code = "042732"; download(); code = "042731";
+        uint32_t generation = snapshot().generation;
+        env->fail_file = "/current/manifest.json"; env->fail_file_remaining = 1;
+        run(IDEAS_SCAN);
+        factory_ideas_snapshot_t s = snapshot();
+        fprintf(stderr, "scan-read-error: count=%zu invalid=%zu error=%d\n", s.count, s.invalid, s.scan_error);
+        assert(s.count == 2 && !s.invalid && s.scan_error == ESP_FAIL && s.generation == generation);
+        env->fail_file = NULL; run(IDEAS_SCAN);
+        assert(snapshot().count == 2 && snapshot().scan_error == ESP_OK);
     } else if (!strcmp(scenario, "scan-metadata-only")) {
         assert(!env->storage_info_calls); /* Initial scan never traverses capacity. */
         assert(!snapshot().storage_total);

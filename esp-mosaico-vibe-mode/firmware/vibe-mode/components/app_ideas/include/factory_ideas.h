@@ -66,7 +66,8 @@ typedef struct {
 } factory_ideas_snapshot_t;
 
 /* Reserve one 16 KiB HP SRAM worker stack and queue background NAND mount
- * and NOR app-description discovery. Library scans are requested on demand.
+ * and NOR app-description discovery. Library scans are requested on demand;
+ * the first save also loads the directory before enforcing its item limit.
  * Call during serialized startup, after network initialization. Idempotent;
  * failure releases partial resources and permits retry. No RTC/PSRAM fallback. */
 esp_err_t factory_ideas_init(void);
