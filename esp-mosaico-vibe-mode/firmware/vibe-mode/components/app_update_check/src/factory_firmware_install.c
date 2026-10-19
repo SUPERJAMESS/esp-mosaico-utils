@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "factory_firmware_install.h"
+#include "factory_http_client.h"
 #include "factory_system_update.h"
 #include "esp_app_desc.h"
 #include "esp_app_format.h"
@@ -75,7 +76,8 @@ static esp_err_t download(const factory_update_check_snapshot_t *release, uint8_
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) return ESP_ERR_NO_MEM;
-    esp_err_t err = esp_http_client_open(client, 0);
+    esp_err_t err = factory_http_client_set_common_headers(client);
+    if (err == ESP_OK) err = esp_http_client_open(client, 0);
     uint32_t received = 0;
     if (err != ESP_OK) goto done;
     int64_t length = esp_http_client_fetch_headers(client);

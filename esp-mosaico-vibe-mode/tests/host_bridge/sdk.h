@@ -296,7 +296,8 @@ int esp_http_client_get_status_code(esp_http_client_handle_t h);
 int esp_http_client_read(esp_http_client_handle_t h, char *out, size_t n);
 int esp_http_client_write(esp_http_client_handle_t h, const char *data, size_t n);
 bool esp_http_client_is_complete_data_received(esp_http_client_handle_t h);
-void esp_http_client_set_header(esp_http_client_handle_t h, const char *key,
+esp_err_t esp_iris_format_device_id(char out[33]);
+esp_err_t esp_http_client_set_header(esp_http_client_handle_t h, const char *key,
                                 const char *value);
 void esp_http_client_set_method(esp_http_client_handle_t h, int method);
 void esp_http_client_close(esp_http_client_handle_t h);

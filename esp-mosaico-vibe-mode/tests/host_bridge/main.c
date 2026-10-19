@@ -98,6 +98,7 @@ struct mock_http {
     struct reply *reply;
     size_t offset;
     char url[768];
+    char device_header[33];
     void *user_data;
     esp_err_t (*event_handler)(esp_http_client_event_t *);
 };
@@ -187,10 +188,12 @@ esp_err_t esp_http_client_set_timeout_ms(esp_http_client_handle_t h, int timeout
 }
 esp_err_t esp_http_client_delete_header(esp_http_client_handle_t h, const char *name)
 {
-    (void)h; (void)name; return ESP_OK;
+    if (!strcmp(name, "X-Device-ID")) h->device_header[0] = 0;
+    return ESP_OK;
 }
 esp_err_t esp_http_client_open(esp_http_client_handle_t h, size_t length)
 {
+    assert(!strcmp(h->device_header, "12345678901234567890123456789012"));
     (void)length;
     if (reply_index >= replies_count)
         fprintf(stderr, "case %d unexpected URL %s\n", test_case, h->url);
@@ -263,12 +266,19 @@ bool esp_http_client_is_complete_data_received(esp_http_client_handle_t h)
 {
     return h->offset == strlen(h->reply->body);
 }
-void esp_http_client_set_header(esp_http_client_handle_t h, const char *key,
+esp_err_t esp_iris_format_device_id(char out[33])
+{
+    strcpy(out, "12345678901234567890123456789012");
+    return ESP_OK;
+}
+esp_err_t esp_http_client_set_header(esp_http_client_handle_t h, const char *key,
                                 const char *value)
 {
-    (void)h;
-    (void)key;
-    (void)value;
+    if (!strcmp(key, "X-Device-ID")) {
+        assert(strlen(value) == 32);
+        strcpy(h->device_header, value);
+    }
+    return ESP_OK;
 }
 void esp_http_client_set_method(esp_http_client_handle_t h, int method)
 {

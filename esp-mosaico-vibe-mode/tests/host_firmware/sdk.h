@@ -18,6 +18,7 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_CRC 7
 #define ESP_ERR_INVALID_SIZE 8
 #define ESP_ERR_NOT_FOUND 9
+#define ESP_ERR_INVALID_ARG 10
 #define CONFIG_PARTITION_TABLE_OFFSET 0x8000
 #define ESP_LOGE(...) ((void)0)
 #define ESP_LOGI(...) ((void)0)
@@ -37,6 +38,7 @@ static uint8_t *staged;
 static uint8_t remote[1024];
 static size_t remote_size, remote_offset;
 static int http_status, read_error, chunked, incomplete, opens, cleanups;
+static bool device_header;
 static int64_t now;
 static int64_t esp_timer_get_time(void) { return now; }
 static int xTaskCreate(void (*fn)(void *), const char *name, int stack, void *arg, int priority, void *out)
@@ -65,8 +67,14 @@ static void esp_crt_bundle_attach(void) {}
 typedef struct { const char *url; void (*crt_bundle_attach)(void); int timeout_ms, buffer_size, buffer_size_tx; bool disable_auto_redirect; } esp_http_client_config_t;
 typedef void *esp_http_client_handle_t;
 static esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *config)
-{ assert(!strcmp(config->url, "https://dl.espressif.com/mosaico/esp-mosaico-vibe-mode-0.2.1.bin")); assert(config->disable_auto_redirect && config->crt_bundle_attach); return (void *)&remote; }
-static int esp_http_client_open(void *c, int n) { ++opens; remote_offset = 0; return ESP_OK; }
+{ device_header = false; assert(!strcmp(config->url, "https://dl.espressif.com/mosaico/esp-mosaico-vibe-mode-0.2.1.bin")); assert(config->disable_auto_redirect && config->crt_bundle_attach); return (void *)&remote; }
+static int esp_iris_format_device_id(char out[33])
+{ strcpy(out, "4553502d495249530100001122334455"); return ESP_OK; }
+static int esp_http_client_set_header(void *c, const char *key, const char *value)
+{ assert(!strcmp(key, "X-Device-ID") && !strcmp(value, "4553502d495249530100001122334455")); device_header = true; return ESP_OK; }
+static int esp_http_client_delete_header(void *c, const char *key)
+{ device_header = false; return ESP_ERR_NOT_FOUND; }
+static int esp_http_client_open(void *c, int n) { assert(device_header); ++opens; remote_offset = 0; return ESP_OK; }
 static int64_t esp_http_client_fetch_headers(void *c) { return chunked ? 0 : (int64_t)remote_size; }
 static int esp_http_client_get_status_code(void *c) { return http_status; }
 static int esp_http_client_read(void *c, char *dst, size_t n)

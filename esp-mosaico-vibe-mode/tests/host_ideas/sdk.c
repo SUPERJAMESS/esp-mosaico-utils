@@ -41,7 +41,7 @@ struct mock_http {
     esp_err_t (*event_handler)(esp_http_client_event_t *);
     size_t expected_body, body_size, size, cursor, readable;
     unsigned char *data;
-    bool post, content_type, closed;
+    bool post, content_type, closed, device_header;
     char locale[6], code[7];
     int fault;
 };
@@ -295,6 +295,14 @@ esp_err_t esp_crt_bundle_attach(void *config) {
     (void)config;
     return ESP_OK;
 }
+esp_err_t esp_iris_format_device_id(char out[33]) {
+    if (env.identity_unavailable) {
+        out[0] = 0;
+        return ESP_ERR_INVALID_STATE;
+    }
+    strcpy(out, env.device_id ? env.device_id : "4553502d495249530100001122334455");
+    return ESP_OK;
+}
 esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *config) {
     assert(env.network);
     assert(!strncmp(config->url, "https://ideas.test/api/v1/ideas/", 30));
@@ -313,9 +321,22 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
         env.resolves++;
         strcpy(client->locale, strstr(config->url, "&locale=zh-CN") ? "zh-CN" : "en");
         assert(strstr(config->url, "&locale="));
+        assert(!strstr(config->url, "device_id="));
     } else {
-        const char *sha = strrchr(config->url, '/') + 1;
-        assert(strlen(sha) == 64);
+        const char *file = strrchr(config->url, '/') + 1;
+        char sha[65];
+        assert(strcspn(file, "?") == 64);
+        memcpy(sha, file, 64);
+        sha[64] = 0;
+        if (env.identity_unavailable) {
+            assert(file[64] == 0);
+        } else {
+            char expected[45], device_id[33];
+            assert(esp_iris_format_device_id(device_id) == ESP_OK);
+            snprintf(expected, sizeof(expected), "?device_id=%s", device_id);
+            assert(!strcmp(file + 64, expected));
+            env.requests_with_identity++;
+        }
         strcpy(client->file, sha);
         /* Resolve aliases only inside this fault-injection fixture. Requests
          * themselves must use the content hash from the pinned snapshot. */
@@ -356,6 +377,12 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
 }
 esp_err_t esp_http_client_set_header(esp_http_client_handle_t c, const char *key,
                                      const char *value) {
+    if (!strcmp(key, "X-Device-ID")) {
+        assert(!env.identity_unavailable);
+        assert(!strcmp(value, env.device_id ? env.device_id : "4553502d495249530100001122334455"));
+        c->device_header = true;
+        return ESP_OK;
+    }
     if (!strcmp(key, "Accept")) {
         assert(!strcmp(value, "multipart/related") && !strcmp(c->file, "resolve"));
         return ESP_OK;
@@ -364,7 +391,14 @@ esp_err_t esp_http_client_set_header(esp_http_client_handle_t c, const char *key
     c->content_type = true;
     return ESP_OK;
 }
+esp_err_t esp_http_client_delete_header(esp_http_client_handle_t c, const char *key) {
+    assert(!strcmp(key, "X-Device-ID"));
+    bool present = c->device_header;
+    c->device_header = false;
+    return present ? ESP_OK : ESP_ERR_NOT_FOUND;
+}
 esp_err_t esp_http_client_open(esp_http_client_handle_t c, int length) {
+    assert(c->device_header == !env.identity_unavailable);
     assert(length >= 0 && length < sizeof(c->body));
     c->expected_body = length;
     return ESP_OK;
@@ -423,6 +457,7 @@ int64_t esp_http_client_fetch_headers(esp_http_client_handle_t c) {
 int esp_http_client_get_status_code(esp_http_client_handle_t c) {
     return c->fault == MOCK_SERVICE_UNAVAILABLE ? 503
            : c->fault == MOCK_NOT_FOUND         ? 404
+           : c->fault == MOCK_CONFLICT          ? 409
            : c->fault == MOCK_REDIRECT          ? 302
                                                 : 200;
 }

@@ -123,9 +123,12 @@ def publish_draft(client, directory, version="1.0.0", mode="create", **target):
     return result, request, path
 
 
-def get(server, path, accept="application/json"):
+def get(server, path, accept="application/json", *, device_id=None):
     c = http.client.HTTPConnection("127.0.0.1", server.server_port)
-    c.request("GET", path, headers={"If-None-Match":"*", "Accept":accept})
+    request_headers = {"If-None-Match":"*", "Accept":accept}
+    if device_id is not None:
+        request_headers["X-Device-ID"] = device_id
+    c.request("GET", path, headers=request_headers)
     response = c.getresponse(); data = response.read(); status = response.status; headers = dict(response.getheaders()); c.close()
     return status, headers, data
 
@@ -163,6 +166,8 @@ def test_one_response_contains_complete_preview_of_one_snapshot(server, tmp_path
     fixed = latest.replace("/manifest.json", "/releases/" + result["release_id"] + "/manifest.json")
     assert get(http, fixed)[2] == files["manifest.json"]
     assert get(http, query, "multipart/related")[2] == raw
+    # Product-wide identity metadata must not alter API negotiation or bytes.
+    assert get(http, query, "multipart/related", device_id="4553502d495249530100001122334455")[2] == raw
     # Neither a firmware binary nor the other language is needed to render.
     assert not any(path.endswith(".bin") for path in files)
     assert get(http, latest + CAPS, "text/html")[0] == 406
@@ -170,6 +175,7 @@ def test_one_response_contains_complete_preview_of_one_snapshot(server, tmp_path
     assert get(http, query + "&locale=" + locale, "multipart/related")[0] == 400
     assert get(http, latest + CAPS + "&locale=fr", "multipart/related")[0] == 400
     assert get(http, query)[0] == 400
+    assert get(http, query + "&device_id=4553502d495249530100001122334455", "multipart/related")[0] == 400
     assert get(http, fixed, "multipart/related")[0] == 400
 
 
@@ -205,6 +211,26 @@ def test_draft_publication_immutable_get_and_bilingual_download(server, tmp_path
     assert get(http, latest + CAPS + "&chip_id=32")[0] == 400
     assert get(http, latest + CAPS.replace("16777216", "8388608"))[0] == 409
     assert get(http, fixed + CAPS)[0] == 400
+
+
+def test_file_device_identity_preserves_published_bytes(server, tmp_path):
+    http, client, store = server
+    result, _, _ = publish_draft(client, tmp_path)
+    store.publish(result["release_id"])
+    raw, _ = store.manifest(result["code"], release_id=result["release_id"])
+    ref = json.loads(raw)["firmware"]["manifest"]
+    path = "/api/v1/ideas/files/" + ref["sha256"]
+    status, headers, expected = get(http, path)
+    assert status == 200
+    assert get(http, path, device_id="4553502d495249530100001122334455")[2] == expected
+    for identity in ("4553502d495249530100001122334455", "4553502d495249530100aabbccddeeff", "x" * 128):
+        status, identified_headers, actual = get(http, path + "?device_id=" + identity)
+        assert status == 200 and actual == expected
+        assert identified_headers["Cache-Control"] == headers["Cache-Control"]
+        assert hashlib.sha256(actual).hexdigest() == ref["sha256"]
+    for query in ("device_id=", "device_id=" + "x" * 129,
+                  "device_id=a&device_id=b", "unknown=a", "device_id=a&unknown=b"):
+        assert get(http, path + "?" + query)[0] == 400
 
 
 def test_upload_idempotency_and_cas_no_duplicate_drafts(server, tmp_path):

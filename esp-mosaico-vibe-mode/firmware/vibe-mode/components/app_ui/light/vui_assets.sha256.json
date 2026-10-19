@@ -1,5 +1,5 @@
 {
-  "components/app_ui/light/vui_assets.bin": "506d38067be0178533672af37410b0152e850cbb9babfd0cc672534484f6c77f",
+  "components/app_ui/light/vui_assets.bin": "5e8699f29cf367ddeb6060cbecd2a306ffccea845e90963f395d3329aabc9dcf",
   "components/app_ui/private/vui_ids.h": "025c04b15712100e83fc2c1f78dcabca36f4a2bfe08ff2a7b63c715d1a6e0939",
   "tools/compile_vui.py": "bd2cbd2df94606829c5098c21272f2e677f2833dd35fd109866d33ba0ae7779b",
   "ui/assets/icons/back-32-white.png": "319ef3fac418b5408d4bfb2d908211259334a4293faa98439f8f2c1d740897b0",
@@ -35,10 +35,10 @@
   "ui/assets/mosaic/hero_empty-80.png": "3da2a5899a707efa6e6ddf5dbad348d1fd58dc42d6b6d6ffb5e88ae6879a6cf8",
   "ui/assets/qr/develop@198.png": "2f3ac9f017fafb72e4d8e1dfdf61a32181ac242919613d3e557e91cc07e78b34",
   "ui/fonts/NotoSansSC-Bold.otf": "7b261fdfd2c11e864afb59d6370ca716d847d3ec894da05a8981dec472e4d3fd",
-  "ui/fonts/VibeDisplay.otf": "4dcfa7ec6a3c16b831efe78b3b06cc5c5165b1c07f06b79b4107106e64354780",
-  "ui/fonts/VibeInter.otf": "34716d16fd14aaefba86428692286d37296e1003b0aaa8307091c5b7dd218bf5",
-  "ui/fonts/VibeMedium.otf": "1cf01d1997672a2825a9c6a487dce5365a47df4be6ce89cfc3ef25cd04922f57",
-  "ui/main.json": "14883ed3783fc325dfcc814c9089d8718fea775f88f4a79858aa980f889c7b2b",
+  "ui/fonts/VibeDisplay.otf": "1d86f3500934c435b67e68503a404de5b9b8c6bc2119e5556b5e806a01d54b54",
+  "ui/fonts/VibeInter.otf": "90f6c0b66170c8e7bdfb2b1935ad0c7ba8bd70bf6bac224883e8a05b144296af",
+  "ui/fonts/VibeMedium.otf": "8fa001fe108537ed70a8a65503f3f5bdd9c399e91544fe10a23977505050a05f",
+  "ui/main.json": "51a4d3bd9899863fcbc13c807c51b14c676fd73b7f591bf02ac4bd8f1ac6d0b4",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3"
 }

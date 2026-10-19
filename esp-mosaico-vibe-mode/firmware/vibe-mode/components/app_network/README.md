@@ -22,3 +22,4 @@ factory_network_request_scan();
 事件回调使用私有上下文；快照锁跨失败重试保留；密码只在连接成功后持久化。
 
 获取 IP 后异步触发 Vibe Mode 固件版本检查；HTTP 请求不在网络事件回调中执行。
+业务 HTTP 公共请求头由 [app_http_client](../app_http_client/README.md) 提供。

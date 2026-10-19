@@ -92,6 +92,11 @@ paths:
       operationId: getPublishedFile
       parameters:
         - {in: path, name: sha256, required: true, schema: {$ref: '#/components/schemas/Sha256'}}
+        - in: query
+          name: device_id
+          required: false
+          schema: {type: string, minLength: 1, maxLength: 128}
+          description: Device Identity.
       responses:
         '200':
           description: Exact published bytes, immutable. No redirects, HTTP compression or draft disclosure.

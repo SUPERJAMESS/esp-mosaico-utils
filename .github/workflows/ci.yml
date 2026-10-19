@@ -105,19 +105,13 @@ jobs:
           path: .host-deps/cjson
           persist-credentials: false
       - name: Test ESP-Iris
-        id: iris-tests
-        continue-on-error: true
         run: python -m pytest -q --ignore=tests/e2e --junitxml=iris-results.xml
         working-directory: ESP-Iris/components/esp_iris/tools
       - name: Test ESP-Mosaico Tools
-        id: tools-tests
-        continue-on-error: true
-        if: runner.os != 'Windows'
+        if: ${{ !cancelled() && runner.os != 'Windows' }}
         run: python -m pytest -q shared mosaico-tools/tests esp-mosaico-vibe-mode/tests --junitxml=tools-results.xml
       - name: Test ESP-Mosaico Tools on Windows
-        id: windows-tests
-        continue-on-error: true
-        if: runner.os == 'Windows'
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
         run: >-
           python -m pytest -q shared mosaico-tools/tests esp-mosaico-vibe-mode/tests
           --deselect=esp-mosaico-vibe-mode/tests/test_cli.py::GatewayTests::test_local_system_update_builds_and_submits_atomic_bundle
@@ -126,8 +120,7 @@ jobs:
           --deselect=esp-mosaico-vibe-mode/tests/test_cli.py::RecoveryCommandTests::test_idf_wrapper_reports_bounded_cmake_diagnostic
           --junitxml=tools-results.xml
       - name: Validate generated project hooks
-        id: hooks-tests
-        continue-on-error: true
+        if: ${{ !cancelled() }}
         env:
           MOSAICO_TEST_PRE_COMMIT: "1"
         run: |
@@ -143,15 +136,14 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Require every host suite to pass
+      - name: Report host test failures
         if: always()
-        # Collect all suite failures in one run without relaxing the job gate.
+        # The suite steps run independently; print JUnit details in the job
+        # even when one of the preceding steps failed.
         run: >-
-          python -c "import sys;
-          results = ['${{ steps.iris-tests.outcome }}', '${{ steps.hooks-tests.outcome }}',
-          '${{ steps.tools-tests.outcome }}', '${{ steps.windows-tests.outcome }}'];
-          print('Host suite outcomes:', results);
-          sys.exit(0 if results[:2] == ['success', 'success'] and sorted(results[2:]) == ['skipped', 'success'] else 1)"
+          python tools/ci/report_junit_failures.py
+          ESP-Iris/components/esp_iris/tools/iris-results.xml
+          tools-results.xml
 
   quality:
     runs-on: ubuntu-22.04
@@ -376,11 +368,28 @@ jobs:
     needs: [repository, host, quality, sanitizers, frontend, frontend-e2e, firmware]
     runs-on: ubuntu-22.04
     steps:
-      - run: |
-          test "${{ needs.repository.result }}" = success
-          test "${{ needs.host.result }}" = success
-          test "${{ needs.quality.result }}" = success
-          test "${{ needs.sanitizers.result }}" = success
-          test "${{ needs.frontend.result }}" = success
-          test "${{ needs.frontend-e2e.result }}" = success
-          test "${{ needs.firmware.result }}" = success
+      - name: Verify required job results
+        env:
+          REPOSITORY_RESULT: ${{ needs.repository.result }}
+          HOST_RESULT: ${{ needs.host.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          SANITIZERS_RESULT: ${{ needs.sanitizers.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          FRONTEND_E2E_RESULT: ${{ needs.frontend-e2e.result }}
+          FIRMWARE_RESULT: ${{ needs.firmware.result }}
+        run: |
+          failed=0
+          for result in \
+            "repository=$REPOSITORY_RESULT" \
+            "host=$HOST_RESULT" \
+            "quality=$QUALITY_RESULT" \
+            "sanitizers=$SANITIZERS_RESULT" \
+            "frontend=$FRONTEND_RESULT" \
+            "frontend-e2e=$FRONTEND_E2E_RESULT" \
+            "firmware=$FIRMWARE_RESULT"; do
+            name="${result%%=*}"
+            value="${result#*=}"
+            echo "$name: $value"
+            [ "$value" = success ] || failed=1
+          done
+          exit "$failed"

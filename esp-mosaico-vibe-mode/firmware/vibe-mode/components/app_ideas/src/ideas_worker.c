@@ -98,7 +98,13 @@ static void run_job(job_t *job) {
             snprintf(ctx->state->title, sizeof(ctx->state->title), "Cancelled");
             snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Previously saved Ideas are unchanged");
         }
-        if (err == FACTORY_IDEAS_ERR_STORAGE_FULL) {
+        if (err == FACTORY_IDEAS_ERR_NO_COMPATIBLE_RELEASE && !ctx->cancel_requested) {
+            snprintf(ctx->state->title, sizeof(ctx->state->title), "%s",
+                     factory_locale_get() ? "No compatible version" : "没有兼容版本");
+            snprintf(ctx->state->detail, sizeof(ctx->state->detail), "%s",
+                     factory_locale_get() ? "This Idea has no release compatible with this device."
+                                          : "此 Idea 暂无与当前设备兼容的发布版本。");
+        } else if (err == FACTORY_IDEAS_ERR_STORAGE_FULL) {
             snprintf(ctx->state->title, sizeof(ctx->state->title), "Not enough space");
             snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Free space or delete an Idea, then retry.");
         } else if (err == ESP_ERR_NOT_FOUND && job->command == IDEAS_RESOLVE) {

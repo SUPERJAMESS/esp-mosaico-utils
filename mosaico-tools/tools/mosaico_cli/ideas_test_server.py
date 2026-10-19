@@ -166,7 +166,10 @@ class Handler(BaseHTTPRequestHandler):
                 return
             match = re.fullmatch(r"/api/v1/ideas/files/([0-9a-f]{64})", parsed.path)
             if match:
-                require(not parsed.query, "Unexpected query parameters")
+                fields = parse_qs(parsed.query, keep_blank_values=True, max_num_fields=1)
+                require(not fields or (set(fields) == {"device_id"} and
+                        len(fields["device_id"]) == 1 and 1 <= len(fields["device_id"][0]) <= 128),
+                        "Invalid device_id query")
                 file = self.server.store.blob(match[1])
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")

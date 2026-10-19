@@ -369,13 +369,47 @@ int main(int argc, char **argv) {
         env->release = "v1";
         run(IDEAS_CHECK);
         assert(snapshot().terminal && !snapshot().failed && !snapshot().preview_ready);
-        assert(env->assets == 3 && env->requests_with_identity == 0);
+        assert(env->assets == 3 && env->requests_with_identity == 5);
         id = preview();
         assert(snapshot().already_downloaded);
         unsigned writes = env->writes;
         confirm(id);
         assert(snapshot().return_library && !snapshot().terminal);
         assert(env->writes == writes && env->firmware == 2);
+    } else if (!strcmp(scenario, "device-identity") || !strcmp(scenario, "identity-unavailable")) {
+        env->device_id = "4553502d495249530100aabbccddeeff";
+        env->identity_unavailable = !strcmp(scenario, "identity-unavailable");
+        env->fault_file = "app.bin";
+        env->fault = MOCK_SERVICE_UNAVAILABLE;
+        env->fault_limit = 1;
+        download();
+        assert(!snapshot().failed);
+        assert(env->fault_hits == 2);
+        assert(env->requests_with_identity == (env->identity_unavailable ? 0 : env->assets + env->firmware));
+        assert(!env->installs);
+    } else if (!strcmp(scenario, "no-compatible-en") || !strcmp(scenario, "no-compatible-zh")) {
+        bool english = !strcmp(scenario, "no-compatible-en");
+        assert(factory_locale_set(english ? 1 : 0) == ESP_OK);
+        env->fault_file = "resolve";
+        env->fault = MOCK_CONFLICT;
+        run(IDEAS_RESOLVE);
+        factory_ideas_snapshot_t s = snapshot();
+        assert(s.terminal && s.failed && !s.preview_ready && !s.preview_id);
+        assert(s.error == FACTORY_IDEAS_ERR_NO_COMPATIBLE_RELEASE);
+        assert(!strcmp(s.title, english ? "No compatible version" : "没有兼容版本"));
+        assert(!strcmp(s.detail, english ? "This Idea has no release compatible with this device."
+                                        : "此 Idea 暂无与当前设备兼容的发布版本。"));
+        assert(env->resolves == 1 && !env->assets && !env->firmware && !env->writes);
+        env->fault_file = NULL;
+        preview();
+        dismiss();
+    } else if (!strcmp(scenario, "file-conflict")) {
+        uint32_t id = preview();
+        env->fault_file = "app.bin";
+        env->fault = MOCK_CONFLICT;
+        confirm(id);
+        assert(snapshot().failed && snapshot().error == ESP_FAIL);
+        assert(env->fault_hits == 1 && !env->installs && !env->commits);
     } else if (!strcmp(scenario, "queue-failure")) {
         env->fail_send = true;
         assert(factory_ideas_request(IDEAS_RESOLVE, code) == ESP_ERR_INVALID_STATE);
@@ -455,6 +489,8 @@ int main(int argc, char **argv) {
         }
         run(IDEAS_RESOLVE);
         assert(snapshot().terminal && snapshot().failed && !snapshot().preview_ready);
+        if (env->fault == MOCK_NOT_FOUND)
+            assert(snapshot().error == ESP_ERR_NOT_FOUND);
         assert(!env->writes && !env->firmware && !env->installs && !env->commits);
         env->fault_file = NULL;
         env->release = "v1";

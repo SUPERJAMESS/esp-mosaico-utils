@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "bridge_internal.h"
+#include "factory_http_client.h"
 
 esp_err_t bridge_response_header(esp_http_client_event_t *event)
 {
@@ -48,7 +49,7 @@ esp_http_client_handle_t bridge_open_request_with_response(bridge_context_t *ctx
     esp_http_client_set_header(h, "Content-Type", "application/json");
     esp_http_client_set_method(h, body ? HTTP_METHOD_POST : HTTP_METHOD_GET);
     size_t length = body ? strlen(body) : 0;
-    if (esp_http_client_open(h, length) != ESP_OK)
+    if (factory_http_client_set_common_headers(h) != ESP_OK || esp_http_client_open(h, length) != ESP_OK)
         goto fail;
     for (size_t done = 0; done < length;) {
         int n = esp_http_client_write(h, body + done, length - done);

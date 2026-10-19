@@ -11,5 +11,5 @@ idf_component_register(
         "src/system_plan.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "private"
-    PRIV_REQUIRES app_network app_system app_system_update esp_mosaico_boot efuse esp_http_client esp-tls espressif__cjson mbedtls esp_app_format esp_hw_support esp_partition spi_flash app_update bootloader_support esp_iris nvs_flash esp_timer esp_wifi
+    PRIV_REQUIRES app_network app_http_client app_system app_system_update esp_mosaico_boot efuse esp_http_client esp-tls espressif__cjson mbedtls esp_app_format esp_hw_support esp_partition spi_flash app_update bootloader_support esp_iris nvs_flash esp_timer esp_wifi
 )
