@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #ifdef ESP_PLATFORM
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -70,37 +71,43 @@ esp_err_t ideas_hash_file_progress(const char *path, uint32_t size, const char *
                               ideas_hash_progress_fn progress, void *ctx) {
     factory_io_metrics_t metrics = {.started = factory_io_now()};
     FILE *file = fopen(path, "rb");
-    unsigned char *buffer = malloc(4096), digest[32];
+    esp_err_t err = file ? ESP_OK : errno == ENOENT ? ESP_ERR_NOT_FOUND : ESP_FAIL;
+    unsigned char *buffer = err == ESP_OK ? malloc(4096) : NULL, digest[32];
     hash_state_t state = {0};
-    bool ok = file && buffer && begin(&state);
+    if (err == ESP_OK && !buffer) err = ESP_ERR_NO_MEM;
+    if (err == ESP_OK && !begin(&state)) err = ESP_FAIL;
     uint64_t total = 0;
-    esp_err_t err = progress ? progress(0, ctx) : ESP_OK;
-    while (ok && err == ESP_OK) {
+    if (err == ESP_OK && progress) err = progress(0, ctx);
+    while (err == ESP_OK) {
         int64_t started = factory_io_now();
         size_t n = fread(buffer, 1, 4096, file);
         metrics.read += factory_io_now() - started;
-        if (!n)
+        if (!n) {
+            if (ferror(file)) err = ESP_FAIL;
             break;
+        }
         total += n;
         started = factory_io_now();
-        ok = total <= size && update(&state, buffer, n);
+        if (total > size) err = ESP_ERR_INVALID_SIZE;
+        else if (!update(&state, buffer, n)) err = ESP_FAIL;
         metrics.hash += factory_io_now() - started;
-        if (ok && progress)
+        if (err == ESP_OK && progress)
             err = progress((uint32_t)total, ctx);
 #ifdef ESP_PLATFORM
         vTaskDelay(1);
 #endif
     }
-    ok = ok && err == ESP_OK && total == size && !ferror(file) && finish(&state, digest);
+    if (err == ESP_OK && total != size) err = ESP_ERR_INVALID_SIZE;
+    if (err == ESP_OK && !finish(&state, digest)) err = ESP_FAIL;
     abort_hash(&state);
-    if (file)
-        fclose(file);
+    if (file && fclose(file) && err == ESP_OK) err = ESP_FAIL;
     char actual[65];
-    if (ok)
+    if (err == ESP_OK) {
         hexadecimal(digest, actual);
-    ok = ok && !strcmp(actual, expected);
+        if (strcmp(actual, expected)) err = ESP_ERR_INVALID_CRC;
+    }
     metrics.bytes = total;
-    factory_io_report("nand_hash", path, &metrics, buffer, 4096, ok ? 0 : -1);
+    factory_io_report("nand_hash", path, &metrics, buffer, 4096, err);
     free(buffer);
-    return err != ESP_OK ? err : ok ? ESP_OK : ESP_ERR_INVALID_CRC;
+    return err;
 }

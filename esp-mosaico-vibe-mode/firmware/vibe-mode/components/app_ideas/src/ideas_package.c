@@ -277,8 +277,10 @@ esp_err_t ideas_package_firmware(ideas_package_t *out, const char *json, size_t 
     if (!out || !out->file_count || out->firmware_ready)
         return ESP_ERR_INVALID_ARG;
     char actual[65];
-    if (size != out->files[0].size || !ideas_hash_data(json, size, actual) ||
-        strcmp(actual, out->files[0].sha256))
+    if (size != out->files[0].size)
+        return ESP_ERR_INVALID_CRC;
+    if (!ideas_hash_data(json, size, actual)) return ESP_FAIL;
+    if (strcmp(actual, out->files[0].sha256))
         return ESP_ERR_INVALID_CRC;
     cJSON *root = parse(json, size, IDEAS_MANIFEST_BYTES);
     if (!root)
@@ -358,8 +360,10 @@ esp_err_t ideas_package_display(ideas_package_t *p, unsigned language, const cha
         return ESP_ERR_INVALID_ARG;
     const ideas_file_t *display = &p->files[p->display_index[language]];
     char actual[65];
-    if (size != display->size || !ideas_hash_data(json, size, actual) ||
-        strcmp(actual, display->sha256))
+    if (size != display->size)
+        return ESP_ERR_INVALID_CRC;
+    if (!ideas_hash_data(json, size, actual)) return ESP_FAIL;
+    if (strcmp(actual, display->sha256))
         return ESP_ERR_INVALID_CRC;
     cJSON *root = parse(json, size, 32768);
     if (!root)
