@@ -146,7 +146,8 @@ static void sample_task(void *unused)
         ESP_LOGW("vibe_device", "Optional peripheral initialization unavailable");
     int64_t next_battery = 0, candidate_since = 0;
     unsigned candidate = 0, brightness = 0;
-    bool sleeping = false;
+    bool sleeping = false, network_retry = false;
+    int64_t next_network = 0;
     float last_x = 0, last_y = 0, last_z = 0;
     while (true) {
         int64_t now = esp_timer_get_time();
@@ -157,9 +158,10 @@ static void sample_task(void *unused)
         unsigned pattern = s_pattern;
         s_pattern = 0;
         taskEXIT_CRITICAL(&s_lock);
-        if (asleep != sleeping) {
-            (void)factory_network_suspend(asleep);
-            sleeping = asleep;
+        if ((asleep != sleeping || network_retry) && now >= next_network) {
+            network_retry = factory_network_suspend(asleep) != ESP_OK;
+            if (!network_retry) sleeping = asleep;
+            next_network = network_retry ? now + 1000000 : 0;
         }
         unsigned level = asleep ? 10 : s_preferences.brightness ? s_preferences.brightness : 80;
         if (level != brightness && s_brightness && s_brightness(level) == ESP_OK) {

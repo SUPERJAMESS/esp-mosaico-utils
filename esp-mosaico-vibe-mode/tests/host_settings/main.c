@@ -194,5 +194,27 @@ int main(void)
     assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "overflow", "v") == ESP_ERR_NO_MEM);
     execute(VIBE_SETTINGS_SHARED_SET, "wifi_password", "new-password");
     assert(!mosaico_shared_get("wifi_password", value, sizeof(value)) && !strcmp(value, "new-password"));
+    /* Reserved shared keys obey the same bounds as ordinary provisioning;
+     * invalid edits must leave the last usable credentials intact. */
+    char ssid[34], password[66];
+    memset(ssid, 's', 33); ssid[33] = 0;
+    memset(password, 'a', 65); password[65] = 0;
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_ssid", ssid) == ESP_ERR_INVALID_ARG);
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_ssid", "") == ESP_ERR_INVALID_ARG);
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_password", password) == ESP_ERR_INVALID_ARG);
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_password", "short") == ESP_ERR_INVALID_ARG);
+    password[64] = 0; password[0] = 'z';
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_password", password) == ESP_ERR_INVALID_ARG);
+    assert(!mosaico_shared_get("wifi_password", value, sizeof(value)) && !strcmp(value, "new-password"));
+    ssid[32] = 0; password[0] = 'a';
+    execute(VIBE_SETTINGS_SHARED_SET, "wifi_ssid", ssid);
+    execute(VIBE_SETTINGS_SHARED_SET, "wifi_password", password);
+    char loaded_ssid[33], loaded_password[65];
+    assert(!mosaico_shared_get("wifi_ssid", loaded_ssid, sizeof(loaded_ssid)) && strlen(loaded_ssid) == 32);
+    assert(!mosaico_shared_get("wifi_password", loaded_password, sizeof(loaded_password)) && strlen(loaded_password) == 64);
+    execute(VIBE_SETTINGS_SHARED_SET, "wifi_password", ""); /* Open network. */
+    memset(value, 'v', sizeof(value) - 1); value[sizeof(value) - 1] = 0;
+    execute(VIBE_SETTINGS_SHARED_SET, "custom0", value); /* Ordinary values retain 256 bytes. */
     puts("preferences, shared application API and interrupted reset passed");
+    return 0;
 }

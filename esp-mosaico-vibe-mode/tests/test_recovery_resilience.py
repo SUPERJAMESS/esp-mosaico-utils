@@ -12,12 +12,15 @@ COMPONENTS = ROOT / "firmware/vibe-mode/components"
 FIXTURE = ROOT / "tests/host_resilience"
 
 
-@pytest.mark.parametrize("kind,source", [
-    ("ui", "factory_ui_dispatch.c"),
-    ("network", "factory_network.c"),
-    ("ota", "recovery_ota_support.c"),
+@pytest.mark.parametrize("kind,source,scenario", [
+    ("ui", "factory_ui_dispatch.c", None),
+    ("network", "factory_network.c", None),
+    *[("network", "factory_network.c", scenario) for scenario in
+      ("pending", "missing", "start-failure", "stop-failure", "read-failure",
+       "config-failure", "connect-failure")],
+    ("ota", "recovery_ota_support.c", None),
 ])
-def test_recovery_resilience(tmp_path, kind, source):
+def test_recovery_resilience(tmp_path, kind, source, scenario):
     cc = shutil.which("cc")
     assert cc, "Recovery service regression tests require a C compiler"
     component = COMPONENTS / {"ui": "app_ui", "network": "app_network", "ota": "app_iris"}[kind]
@@ -43,5 +46,6 @@ def test_recovery_resilience(tmp_path, kind, source):
         command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-g"]
     build = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
     assert build.returncode == 0, build.stdout + build.stderr
-    run = subprocess.run([str(output)], capture_output=True, text=True, timeout=15, check=False)
+    run = subprocess.run([str(output)] + ([scenario] if scenario else []),
+                         capture_output=True, text=True, timeout=15, check=False)
     assert run.returncode == 0, run.stdout + run.stderr
