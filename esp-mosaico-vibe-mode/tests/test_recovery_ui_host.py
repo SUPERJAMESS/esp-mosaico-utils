@@ -13,17 +13,20 @@ from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
 RECOVERY = ROOT / "firmware/vibe-mode"
+# Match the old 400ms settling allowance using observed 50ms UI callbacks.
+# This also covers the eight-tick input suppression after waking the display.
+SETTLE_UI_SAMPLES = 8
 
 
 class Simulator:
-    def __init__(self, directory, executable, bundle, host, scenario=""):
+    def __init__(self, directory, executable, bundle, host, scenario="", tick_ms=10):
         self.directory = directory
         self.state_file = directory / "state.json"
         self.log = (directory / "sim.log").open("w")
         ready = directory / "ready.json"
         self.sim = subprocess.Popen([
             sys.executable, str(host), "--library", str(executable),
-            "--directory", str(directory), "--scenario", scenario],
+            "--directory", str(directory), "--scenario", scenario, "--tick-ms", str(tick_ms)],
             stdout=self.log, stderr=self.log)
         self.backend = None
         self.connection = None
@@ -66,6 +69,8 @@ class Simulator:
     def wait(self, *, timeout=15, **expected):
         deadline = time.monotonic() + timeout
         actual = {}
+        matched = None
+        settled_sample = None
         while time.monotonic() < deadline:
             assert self.backend.poll() is None, (self.directory / "sim.log").read_text()
             try:
@@ -76,13 +81,11 @@ class Simulator:
                 pass
             else:
                 actual = json.loads(snapshot)
-                if all(actual.get(k) == v for k, v in expected.items()):
-                    # The backend timer uses wall time; accelerated renderer
-                    # frames alone do not finish its 150ms navigation guard.
-                    time.sleep(.2)
-                    # Let already-enqueued visibility and list updates paint.
-                    self.rpc("wait", frames=20)
-                    return actual
+                if matched is None and all(actual.get(k) == v for k, v in expected.items()):
+                    matched = actual
+                    settled_sample = actual["ui_sample"] + SETTLE_UI_SAMPLES
+                if settled_sample is not None and actual["ui_sample"] >= settled_sample:
+                    return matched
             time.sleep(.05)
         pytest.fail("expected %r; observed %r; %s" % (expected, actual, (self.directory / "sim.log").read_text()))
 
@@ -141,6 +144,7 @@ class Simulator:
     def open_bridge(self):
         # Same public controller entry used by the device's queued USB RPC.
         self.control("open-bridge")
+        self.wait(page=4)
 
     def control(self, command):
         request = self.directory / "control"
@@ -188,7 +192,10 @@ def native_build(tmp_path_factory):
 
 @pytest.fixture
 def sim(tmp_path, native_build, request):
-    instance = Simulator(tmp_path, *native_build, scenario=getattr(request, "param", ""))
+    options = getattr(request, "param", "")
+    if isinstance(options, str):
+        options = {"scenario": options}
+    instance = Simulator(tmp_path, *native_build, **options)
     try:
         yield instance
     finally:
@@ -567,7 +574,8 @@ def test_cancel_loading_discards_late_preview(sim):
     sim.wait(page=4, idea_ready=False, download_calls=0)
 
 
-@pytest.mark.parametrize("sim", ["already-downloaded"], indirect=True)
+@pytest.mark.parametrize("sim", ["already-downloaded", pytest.param(
+    {"scenario": "already-downloaded", "tick_ms": 100}, id="slow-ui-clock")], indirect=True)
 def test_complete_release_opens_library_without_downloading(sim):
     sim.open_bridge()
     for _ in range(6):
