@@ -45,9 +45,7 @@ CALLBACK = C.CFUNCTYPE(C.c_int, C.POINTER(File), C.c_char_p, C.c_void_p)
 PROGRESS = C.CFUNCTYPE(C.c_int, C.c_uint64, C.c_uint64, C.c_uint, C.c_uint, C.c_void_p)
 
 
-@pytest.fixture(scope="module")
-def core(tmp_path_factory):
-    build = tmp_path_factory.mktemp("ideas-core")
+def build_core(build, extra_sources=(), extra_link=()):
     (build / "esp_err.h").write_text("""typedef int esp_err_t;
 #define ESP_OK 0
 #define ESP_FAIL -1
@@ -64,7 +62,8 @@ def core(tmp_path_factory):
         "-Wall", "-Wextra", "-Werror", "-Wno-sign-compare", "-I" + str(build),
         "-I" + str(cjson.parent), "-I" + str(RECOVERY / "components/app_system/include"), "-I" + str(RECOVERY / "components/app_ideas/include"), "-I" + str(RECOVERY / "components/app_ideas/private"), str(RECOVERY / "components/app_ideas/src/ideas_package.c"),
         *[str(RECOVERY / "components/app_ideas/src" / (name + ".c")) for name in
-          ("ideas_store", "ideas_integrity", "ideas_image", "ideas_font", "ideas_presentation")], "-lcrypto", "-lz", str(cjson), "-o", str(build / "core.so")],
+          ("ideas_store", "ideas_integrity", "ideas_image", "ideas_font", "ideas_presentation")],
+        *map(str, extra_sources), "-lcrypto", "-lz", str(cjson), *extra_link, "-o", str(build / "core.so")],
         text=True, capture_output=True)
     assert result.returncode == 0, result.stderr
     lib = C.CDLL(str(build / "core.so"))
@@ -80,6 +79,11 @@ def core(tmp_path_factory):
     lib.ideas_store_finish.argtypes = [C.c_char_p, C.POINTER(Package)]
     lib.ideas_store_recover.argtypes = [C.c_char_p, C.c_char_p]
     return lib
+
+
+@pytest.fixture(scope="module")
+def core(tmp_path_factory):
+    return build_core(tmp_path_factory.mktemp("ideas-core"))
 
 
 def parse(core, document, code=b"042731", payloads=None):
