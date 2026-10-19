@@ -77,6 +77,149 @@ static void test_download(iris_runtime_t *control, iris_runtime_t *data,
 }
 #endif
 
+static void bus_event(int id)
+{
+    tinyusb_event_t event = {.id = id};
+    usb_device_event_callback(&event, NULL);
+}
+
+static void dtr(unsigned itf, bool open)
+{
+    line_states[itf] = open;
+    cdcacm_event_t event = {.line_state_changed_data = {.dtr = open}};
+    cdc_line_state_callback(itf, &event);
+}
+
+static void suspend_during_io(void)
+{
+    io_hook = NULL;
+    bus_event(TINYUSB_EVENT_SUSPENDED);
+}
+
+static void resume_during_flush(void)
+{
+    flush_hook = NULL;
+    bus_event(TINYUSB_EVENT_SUSPENDED);
+    bus_event(TINYUSB_EVENT_RESUMED);
+}
+
+static void test_sessions(iris_runtime_t *control, iris_runtime_t *data,
+                          iris_transport_state_t *c, iris_transport_state_t *d)
+{
+    bus_event(TINYUSB_EVENT_ATTACHED);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED); /* No DTR needed. */
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
+    dtr(1, true);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
+    uint8_t byte = 0;
+    rx_bytes[0] = rx_bytes[1] = tx_bytes[0] = tx_bytes[1] = 7;
+    bus_event(TINYUSB_EVENT_SUSPENDED);
+    assert(usb_read(data, d, &byte, 1) == -ENOTCONN);
+    assert(usb_write(control, c, &byte, 1) == -ENOTCONN);
+    unsigned gen = s_link[1].generation;
+    bus_event(TINYUSB_EVENT_SUSPENDED);
+    assert(s_link[1].generation == gen);
+    bus_event(TINYUSB_EVENT_RESUMED); /* Entire DOWN/UP between worker polls. */
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(!rx_bytes[0] && !rx_bytes[1] && !tx_bytes[0] && !tx_bytes[1]);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
+    /* Reset/reconfigure without physical DETACHED must release both sessions
+     * and must not trust a cached DTR from the prior configuration. */
+    bus_event(TINYUSB_EVENT_ATTACHED);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
+    dtr(1, true);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
+    dtr(1, false); dtr(1, true);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_NONE);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
+    dtr(0, false); /* Console close releases lifetime even without DTR=1. */
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
+    /* Read/write that race invalidation cannot be credited to a new session. */
+    io_hook = suspend_during_io;
+    assert(usb_read(data, d, &byte, 1) == -ENOTCONN);
+    line_states[1] = 0; /* Resume must refresh DTR, not keep its cached true. */
+    bus_event(TINYUSB_EVENT_RESUMED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
+    dtr(1, true);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
+    io_hook = suspend_during_io;
+    assert(usb_write(data, d, &byte, 1) == -ENOTCONN);
+    bus_event(TINYUSB_EVENT_RESUMED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(!tx_bytes[1]);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
+    bus_event(TINYUSB_EVENT_DETACHED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
+    bus_event(TINYUSB_EVENT_ATTACHED);
+    (void)usb_poll(control, c);
+    (void)usb_poll(control, c);
+    assert(c->reported_link_up);
+    usb_disconnect(control, c);
+    flush_hook = resume_during_flush;
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
+    assert(s_link[0].cleaned_generation != s_link[0].generation);
+    assert(usb_write(control, c, &byte, 1) == -ENOTCONN);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
+    assert(s_link[0].cleaned_generation == s_link[0].generation);
+    io_calls = 0; /* Remaining shutdown regression expects no successful I/O. */
+}
+
+static void test_install_events(iris_runtime_t *control, iris_runtime_t *data,
+                                iris_transport_state_t *c, iris_transport_state_t *d)
+{
+    for (unsigned scenario = 0; scenario < 5; ++scenario) {
+        /* 0: callback omitted, already suspended; 1: ATTACHED before init;
+         * 2: ATTACHED,SUSPEND contradict mounted fallback;
+         * 3: complete suspend/resume before CDC publication;
+         * 4: first ATTACHED after CDC publication, before first poll. */
+        fake_suspended = scenario == 0;
+        fake_mounted = scenario != 4;
+        install_event_count = (scenario == 0 || scenario == 4) ? 0 : (int)scenario;
+        install_events[0] = TINYUSB_EVENT_ATTACHED;
+        install_events[1] = TINYUSB_EVENT_SUSPENDED;
+        install_events[2] = TINYUSB_EVENT_RESUMED;
+        assert(usb_start(control, c) == ESP_OK);
+        assert(usb_start(data, d) == ESP_OK);
+        if (scenario == 4) bus_event(TINYUSB_EVENT_ATTACHED); /* First late configuration. */
+        rx_bytes[0] = 1; /* First native console command, sent before poll. */
+        const unsigned clears = rx_clear[0];
+        const bool suspended = scenario == 0 || scenario == 2;
+        assert(usb_poll(control, c) == (suspended ? IRIS_LINK_EVENT_NONE : IRIS_LINK_EVENT_CONNECTED));
+        assert(rx_bytes[0] == 1 && rx_clear[0] == clears);
+        assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
+        if (suspended) bus_event(TINYUSB_EVENT_RESUMED);
+        (void)usb_poll(control, c);
+        uint8_t byte;
+        assert(usb_read(control, c, &byte, 1) == 1);
+        usb_stop(control, c);
+        /* Restart one CDC while peer holds the stack: old queued bytes must
+         * not be mistaken for a fresh interface's first command. */
+        rx_bytes[0] = 2;
+        assert(usb_start(control, c) == ESP_OK);
+        (void)usb_poll(control, c);
+        assert(rx_bytes[0] == 0);
+        usb_stop(control, c);
+        usb_stop(data, d);
+        bus_event(TINYUSB_EVENT_DETACHED); /* No published runtime pointers. */
+    }
+    install_event_count = 0;
+    fake_suspended = false;
+    fake_mounted = true;
+    io_calls = 0;
+}
+
 int main(void)
 {
     iris_runtime_t control = {0}, data = {.data_link = true};
@@ -101,10 +244,12 @@ int main(void)
     fail_cdc = false;
     assert(usb_start(&data, &d) == ESP_OK);
     assert(installs == installed && registrations == registered && s_users == 2);
+    test_sessions(&control, &data, &c, &d);
     usb_stop(&control, &c);
     assert(s_users == 1 && shutdown_handler && uninstalls == 2);
     usb_stop(&data, &d);
     assert(!s_users && !shutdown_handler && uninstalls == 3 && removals == 2);
+    test_install_events(&control, &data, &c, &d);
 
 #if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
     test_download(&control, &data, &c, &d);
