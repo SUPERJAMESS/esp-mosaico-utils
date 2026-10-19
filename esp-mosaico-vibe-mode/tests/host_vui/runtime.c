@@ -4,14 +4,83 @@
 #include "ideas_presentation.h"
 #include "vibe_input_queue.h"
 #include "vibe_home_motion.h"
+#include "vibe_ui_state.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 extern int vibe_pc_init(vui_handle_t ui);
 extern void vibe_pc_deinit(vui_handle_t ui);
 static unsigned releases, ticks;
 static void released(void *data) { releases++; free(data); }
 static void timer(vui_handle_t ui, void *ctx) { ticks++; assert(vui_timer_delete(ui,*(void **)ctx)==0); }
+typedef struct { vibe_snapshot_t value; unsigned resets, deletes; } clock_model_t;
+static void clock_snapshot(void *ctx, vibe_snapshot_t *out) { *out = ((clock_model_t *)ctx)->value; }
+static int clock_command(void *ctx, vibe_command_t command, const char *a, const char *b) {
+    if (command == VIBE_DELETE_IDEA) ++((clock_model_t *)ctx)->deletes;
+    return 0;
+}
+static int clock_setting(void *ctx, vibe_settings_command_t command, const char *a, const char *b) {
+    if (command == VIBE_SETTINGS_RESET) ++((clock_model_t *)ctx)->resets;
+    return 0;
+}
+static void advance_clock(vui_handle_t ui, uint16_t *frame, unsigned ms, unsigned step) {
+    while (ms) {
+        unsigned elapsed = ms < step ? ms : step;
+        vui_tick(ui, elapsed); vui_render(ui, frame); ms -= elapsed;
+    }
+}
+static void controller_time_contract(void) {
+    const unsigned steps[] = {16,33,40,100};
+    uint16_t *frame = malloc(480*480*2);
+    uint16_t *hint = malloc(480*40*2);
+    assert(frame && hint);
+    for (unsigned n=0;n<sizeof(steps)/sizeof(*steps);++n) {
+        const unsigned step=steps[n];
+        clock_model_t model={.value={.settings={.language=1,.screen_off_seconds=60},
+            .storage_total=1000000,.nand_generation=1,.bundle_count=1}};
+        strcpy(model.value.bundles[0].code,"123456");
+        const vibe_services_t services={.ctx=&model,.snapshot=clock_snapshot,
+            .command=clock_command,.setting=clock_setting};
+        vui_handle_t ui=NULL; vibe_ui_t *state=NULL;
+        assert(!vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
+        vibe_show(state,VIBE_RESET); vui_render(ui,frame);
+        advance_clock(ui,frame,200,step);
+        vui_pointer(ui,240,400,true);
+        advance_clock(ui,frame,2900,step); assert(!model.resets);
+        advance_clock(ui,frame,100,step); assert(model.resets==1);
+        advance_clock(ui,frame,1000,step); assert(model.resets==1);
+        vui_pointer(ui,240,400,false);
+        vibe_show(state,VIBE_DELETE_CONFIRM);
+        strcpy(state->delete_code,"123456");
+        advance_clock(ui,frame,200,step); vui_render(ui,frame);
+        memcpy(hint,frame+20*480,480*40*2);
+        vui_set_text(ui,VUI_VIBE_BIND_DELETE_CONFIRM_TITLE,"Delete Idea"); vui_render(ui,frame);
+        assert(memcmp(hint,frame+20*480,480*40*2)); /* Dynamic header binding must be visible. */
+        memcpy(hint,frame+276*480,480*40*2);
+        vui_pointer(ui,240,400,true);
+        advance_clock(ui,frame,1100,step);
+        vui_pointer(ui,240,400,false); vui_render(ui,frame);
+        assert(!state->hold_started_ms && !state->undo_until && !model.deletes);
+        assert(!memcmp(hint,frame+276*480,480*40*2)); /* Interrupted hold resets its hint. */
+        vibe_show(state,VIBE_HOME); vibe_show(state,VIBE_DELETE_CONFIRM);
+        advance_clock(ui,frame,200,step); vui_render(ui,frame);
+        assert(!memcmp(hint,frame+276*480,480*40*2));
+        vui_pointer(ui,240,400,true);
+        advance_clock(ui,frame,3000,step);
+        assert(state->undo_until && !model.deletes);
+        vui_pointer(ui,240,400,false);
+        advance_clock(ui,frame,3900,step); assert(!model.deletes);
+        advance_clock(ui,frame,100,step); assert(model.deletes==1 && !state->undo_until);
+        vibe_ui_deinit(state); vui_destroy(ui);
+
+        assert(!vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
+        advance_clock(ui,frame,59900,step); assert(state->page!=VIBE_SLEEP);
+        advance_clock(ui,frame,100,step); assert(state->page==VIBE_SLEEP);
+        vibe_ui_deinit(state); vui_destroy(ui);
+    }
+    free(hint); free(frame);
+}
 static void queue_contract(void)
 {
     vibe_input_queue_t queue = {0};
@@ -314,8 +383,36 @@ static void list_binding_contract(uint16_t *frame)
     assert(vui_list_set_total(ui, list, 0) == VUI_OK);
     vui_render(ui, frame); vui_destroy(ui);
 }
+static void list_marquee_damage(void)
+{
+    clock_model_t model={.value={.settings={.language=1},.nand_generation=1,
+        .storage_total=1000000,.bundle_count=1}};
+    strcpy(model.value.bundles[0].code,"123456");
+    strcpy(model.value.bundles[0].release,"A long Idea title that scrolls while every other list pixel stays still");
+    const vibe_services_t services={.ctx=&model,.snapshot=clock_snapshot,
+        .command=clock_command,.setting=clock_setting};
+    vui_handle_t ui=NULL; vibe_ui_t *state=NULL;
+    assert(!vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
+    uint16_t *frame=malloc(480*480*2); assert(frame);
+    vibe_show(state,VIBE_NAND);
+    advance_clock(ui,frame,2000,10);
+    unsigned changed=0;
+    for(unsigned i=0;i<100;i++) {
+        vui_tick(ui,40);
+        vui_area_t area;
+        if(vui_render_changed(ui,frame,&area)) {
+            assert(area.x==100 && area.y==156 && area.w==312 && area.h==34);
+            ++changed;
+            compare_full(ui,frame);
+        }
+    }
+    assert(changed>10);
+    vibe_ui_deinit(state); vui_destroy(ui); free(frame);
+}
 int main(void)
 {
+    list_marquee_damage();
+    controller_time_contract();
     queue_contract();
     motion_contract();
     vui_handle_t ui=NULL;

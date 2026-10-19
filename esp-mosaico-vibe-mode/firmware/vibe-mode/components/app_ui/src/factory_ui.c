@@ -208,8 +208,9 @@ static void render_task(void *unused)
     for (;;) {
         xSemaphoreTakeRecursive(s_device.lock, portMAX_DELAY);
         int64_t now = esp_timer_get_time();
-        vui_tick(s_device.ui, (now - previous) / 1000);
-        previous = now;
+        const uint32_t elapsed = (now - previous) / 1000;
+        vui_tick(s_device.ui, elapsed);
+        previous += (int64_t)elapsed * 1000; /* Keep the fractional millisecond. */
         vibe_input_t input;
         for (unsigned n = 0; n < VIBE_INPUT_CAPACITY && dequeue_input(&input); ++n) {
             int32_t x = input.x, y = input.y;

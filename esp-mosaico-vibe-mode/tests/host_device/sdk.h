@@ -56,6 +56,7 @@ bool tud_mounted(void);
 esp_err_t bsp_motor_init(void);
 esp_err_t bsp_motor_set(bool);
 esp_err_t bsp_imu_init(void);
+esp_err_t bsp_imu_deinit(void);
 esp_err_t bsp_imu_start(const bsp_imu_config_t *);
 esp_err_t bsp_imu_get_accel(float *, float *, float *);
 esp_err_t bsp_battery_init(void);

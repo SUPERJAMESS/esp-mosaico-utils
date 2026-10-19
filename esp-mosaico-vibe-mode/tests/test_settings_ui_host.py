@@ -1,13 +1,14 @@
 """Exercise transient editor pages and reserved credentials with the real settings service."""
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
-from PIL import Image
 import pytest
+from PIL import Image
+from test_recovery_ui_host import native_build
 
-from test_recovery_ui_host import native_build  # noqa: F401
+__all__ = ["native_build"]
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,7 +43,7 @@ def settings_ui(tmp_path_factory, native_build):
         command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
         if sys.platform == "linux":
             command += ["-no-pie"]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
     return executable
 
@@ -51,7 +52,7 @@ def settings_ui(tmp_path_factory, native_build):
                                       "ssid", "password-hex", "password-short"])
 def test_shared_editor_keeps_drafts_and_valid_credentials(settings_ui, tmp_path, scenario):
     result = subprocess.run([str(settings_ui), scenario, str(tmp_path)],
-                            capture_output=True, text=True, timeout=30)
+                            capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
     if scenario in ("boot", "sleep", "boot-sleep"):
         with Image.open(tmp_path / "before.ppm") as before, Image.open(tmp_path / "returned.ppm") as returned:

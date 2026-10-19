@@ -376,5 +376,10 @@
   "SSID must contain 1-32 bytes": "SSID:1-32字节",
   "Use 8-63 bytes or 64 hex digits": "密码:8-63字节或64位十六进制",
   "Completed updates are kept": "已完成更新保留",
-  "Enter text": "输入"
+  "Enter text": "输入",
+  "Unavailable": "不可用",
+  "Starting...": "启动中…",
+  "Retry": "重试",
+  "Your saved files are kept.": "保存的文件仍在。",
+  "You can undo for 4 seconds.": "删除后 4 秒内可以撤销。"
 }

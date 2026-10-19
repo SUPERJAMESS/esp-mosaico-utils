@@ -12,6 +12,9 @@ esp_err_t app_storage_mount(void);
 /* Nonblocking mount status: INVALID_STATE while pending, OK once mounted,
  * otherwise a mount failure. Mounted media remains available for life. */
 esp_err_t app_storage_status(void);
+/* Readiness check for new external file requests. INVALID_STATE while a local
+ * reservation is held; this does not acquire a lease or arbitrate open streams. */
+esp_err_t app_storage_access_status(void);
 /* Nonblocking admission for a local NAND job. ESP_OK transfers the reservation
  * to the caller, which must release it on all completion/failure paths. */
 esp_err_t app_storage_reserve(void);

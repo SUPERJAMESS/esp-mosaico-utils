@@ -384,8 +384,14 @@ int main(int argc, char **argv) {
         if (current) run(IDEAS_INSTALL);
         run(IDEAS_DELETE);
         assert(snapshot().failed == current && snapshot().count == (current ? 1U : 0U));
+        assert(snapshot().terminal_command == IDEAS_DELETE);
         run(IDEAS_SCAN);
         assert(snapshot().count == (current ? 1U : 0U) && !snapshot().invalid);
+        assert(snapshot().command == IDEAS_SCAN && snapshot().terminal_command == IDEAS_DELETE);
+        assert(factory_ideas_request(IDEAS_STORAGE_INFO, NULL) == ESP_OK);
+        mock_run_worker();
+        assert(snapshot().command == IDEAS_STORAGE_INFO && snapshot().terminal_command == IDEAS_DELETE);
+        assert(snapshot().failed == current); /* Background work preserves result ownership. */
     } else if (!strcmp(scenario, "download-cancel")) {
         download(); env->release = "v2";
         uint32_t id = preview();
@@ -550,6 +556,17 @@ int main(int argc, char **argv) {
         assert(env->assets == 0);
         assert(factory_ideas_confirm(id, true) == ESP_ERR_INVALID_STATE);
         assert(env->cancels == (!strcmp(scenario, "cancel-queued") ? 0 : 1));
+        preview();
+        dismiss();
+    } else if (!strcmp(scenario, "preview-storage-failure")) {
+        env->storage_failure = true;
+        uint32_t id = preview();
+        assert(snapshot().preview_ready && snapshot().scan_error == ESP_FAIL);
+        assert(env->resolves == 1 && !env->writes && !env->installs && !env->lease);
+        copy_preview(id);
+        dismiss();
+        assert(!snapshot().preview_ready && !env->lease);
+        env->storage_failure = false;
         preview();
         dismiss();
     } else if (!strcmp(scenario, "fixed-release")) {

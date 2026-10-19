@@ -19,6 +19,8 @@ static atomic_uint brightness;
 static atomic_uint network_calls;
 static atomic_bool network_fail, network_sleeping;
 static bool sensor_failure, task_failure, sample_failure, registration_failure, timer_failure;
+static bool imu_retry;
+static unsigned imu_attempts;
 static atomic_bool motor_on, timer_active;
 static atomic_uint motor_on_count, timer_start_count;
 static shutdown_handler_t shutdown_handler;
@@ -84,7 +86,8 @@ esp_err_t bsp_motor_set(bool on) {
     if (on) atomic_fetch_add(&motor_on_count, 1);
     return ESP_OK;
 }
-esp_err_t bsp_imu_init(void) { return sensor_failure ? ESP_FAIL : ESP_OK; }
+esp_err_t bsp_imu_init(void) { return sensor_failure || (imu_retry && imu_attempts++ == 0) ? ESP_FAIL : ESP_OK; }
+esp_err_t bsp_imu_deinit(void) { return ESP_OK; }
 esp_err_t bsp_imu_start(const bsp_imu_config_t *c) { return 0; }
 esp_err_t bsp_imu_get_accel(float *x, float *y, float *z) { *x = *y = 0; *z = 1; return 0; }
 esp_err_t bsp_battery_init(void) {
@@ -111,6 +114,7 @@ static void expect_key(unsigned key) {
 int main(int argc, char **argv) {
     assert(argc == 2);
     sensor_failure = !strcmp(argv[1], "sensor-failure");
+    imu_retry = !strcmp(argv[1], "imu-retry");
     task_failure = !strcmp(argv[1], "task-failure");
     registration_failure = !strcmp(argv[1], "shutdown-registration-failure");
     timer_failure = !strcmp(argv[1], "motor-timer-failure");
@@ -153,10 +157,12 @@ int main(int argc, char **argv) {
     if (!task_failure) pthread_join(threads[1], NULL);
     for (int i = 0; i < 200; ++i) {
         vibe_device_snapshot(&s);
-        if (s.battery_valid) break;
+        if (s.battery_valid && s.peripherals_ready) break;
         usleep(1000);
     }
     assert(s.battery_valid == (!task_failure && !sensor_failure));
+    assert(s.peripherals_ready);
+    if (imu_retry) assert(imu_attempts == 2 && s.imu_available);
     if (s.battery_valid) {
         assert(s.battery_percent == 73 && s.charging && s.imu_available);
         assert(s.haptics_available == (!registration_failure && !timer_failure));

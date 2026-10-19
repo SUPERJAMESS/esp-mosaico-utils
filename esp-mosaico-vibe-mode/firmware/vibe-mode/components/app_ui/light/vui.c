@@ -152,6 +152,28 @@ static void damage_node(vui_handle_t u, unsigned id)
     rect_t area, clip;
     if (node_geometry(u, id, &area, &clip)) damage_add(u, clip);
 }
+static void damage_list_field(vui_handle_t u, list_t *list, unsigned row, unsigned id)
+{
+    rect_t bounds, clip;
+    if (!node_geometry(u, list->id, &bounds, &clip) || !valid(u, id)) return;
+    const vui_node_t *node = &u->nodes[list->id - 1];
+    int chain[33], count = 0, root = node->template_node - 1;
+    for (int i = id - 1; i >= 0; i = u->nodes[i].parent) {
+        if (count == 33 || u->values[i].hidden) return;
+        chain[count++] = i;
+        if (i == root) break;
+    }
+    if (!count || chain[count - 1] != root) { damage_add(u, clip); return; }
+    int x = bounds.x, y = bounds.y + (int)row * node->item_height - list->scroll;
+    while (count) {
+        unsigned i = chain[--count];
+        const vui_node_t *field = &u->nodes[i];
+        x += field->x; y += field->y;
+        clip = intersect(clip, (rect_t){x, y, field->w, field->h});
+        if (field->flags & VUI_SCROLL) y -= u->values[i].scroll;
+    }
+    damage_add(u, clip);
+}
 static void damage_row(vui_handle_t u, vui_row_t row)
 {
     for (unsigned l = 0; l < LISTS; ++l)
@@ -648,7 +670,8 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
     for (unsigned i = 0; i < TIMERS; i++) {
         vui_timer_state_t *t = &u->timers[i];
         if (t->callback && u->now >= t->next) {
-            t->next = u->now + t->interval;
+            /* Preserve phase without replaying missed callbacks in a burst. */
+            t->next += ((u->now - t->next) / t->interval + 1) * t->interval;
             t->callback(u, t->ctx);
         }
     }
@@ -681,7 +704,7 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
                 int offset = marquee_offset(v, u->now);
                 if (offset != v->marquee_offset) {
                     v->marquee_offset = offset;
-                    if (on_screen) damage_node(u, list->id);
+                    if (on_screen) damage_list_field(u, list, r, field->id);
                 }
             }
         }

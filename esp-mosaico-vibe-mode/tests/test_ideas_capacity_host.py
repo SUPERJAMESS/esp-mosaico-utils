@@ -1,14 +1,14 @@
 """Check library admission after a real service restart, before any UI scan."""
 import hashlib
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
-
 from test_ideas_worker_host import worker
 
+__all__ = ["worker"]
 
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="requires Linux worker fixture")
 
@@ -16,7 +16,7 @@ pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="requires Linux 
 def run(worker, scenario, mount):
     executable, fixtures = worker
     result = subprocess.run([str(executable), scenario, str(fixtures), str(mount)],
-                            capture_output=True, text=True, timeout=30)
+                            capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
 
 

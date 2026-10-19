@@ -26,7 +26,7 @@ static SemaphoreHandle_t s_motor_lock;
 static bool s_motor_shutdown; /* Protected by s_motor_lock, including timer callbacks. */
 /* Publish each peripheral only after its driver and handles are usable. */
 static unsigned s_ready;
-enum { READY_HAPTICS = 1, READY_IMU = 2, READY_BATTERY = 4 };
+enum { READY_HAPTICS = 1, READY_IMU = 2, READY_BATTERY = 4, READY_PERIPHERALS = 8 };
 
 static void peripheral_ready(unsigned mask)
 {
@@ -118,12 +118,21 @@ static void peripheral_task(void *unused)
         xSemaphoreGive(s_motor_lock);
     }
     const bsp_imu_config_t imu_config = BSP_IMU_CONFIG_DEFAULT();
-    if (bsp_imu_init() == ESP_OK && bsp_imu_start(&imu_config) == ESP_OK)
-        peripheral_ready(READY_IMU);
+    for (unsigned attempt = 0; attempt < 3; ++attempt) {
+        if (bsp_imu_init() == ESP_OK) {
+            if (bsp_imu_start(&imu_config) == ESP_OK) {
+                peripheral_ready(READY_IMU);
+                break;
+            }
+            (void)bsp_imu_deinit();
+        }
+        if (attempt < 2) vTaskDelay(pdMS_TO_TICKS(100));
+    }
     /* Battery profile verification and sealing may take seconds. Neither
      * physical keys nor display preferences depend on this work. */
     if (bsp_battery_init() == ESP_OK)
         peripheral_ready(READY_BATTERY);
+    peripheral_ready(READY_PERIPHERALS);
     ESP_LOGI("boot_perf", "peripherals_ready_at_us=%lld", (long long)esp_timer_get_time());
     vTaskDelete(NULL);
 }
@@ -142,8 +151,10 @@ static void sample_task(void *unused)
         (void)gpio_config(&cfg);
     }
     ESP_LOGI("boot_perf", "keys_ready_at_us=%lld", (long long)esp_timer_get_time());
-    if (xTaskCreate(peripheral_task, "vibe_peripherals", 6144, NULL, 1, NULL) != pdPASS)
+    if (xTaskCreate(peripheral_task, "vibe_peripherals", 6144, NULL, 1, NULL) != pdPASS) {
+        peripheral_ready(READY_PERIPHERALS);
         ESP_LOGW("vibe_device", "Optional peripheral initialization unavailable");
+    }
     int64_t next_battery = 0, candidate_since = 0;
     unsigned candidate = 0, brightness = 0;
     bool sleeping = false, network_retry = false;
@@ -172,6 +183,7 @@ static void sample_task(void *unused)
         snapshot.usb_connected = tud_mounted();
         snapshot.haptics_available = (ready & READY_HAPTICS) != 0;
         snapshot.imu_available = (ready & READY_IMU) != 0;
+        snapshot.peripherals_ready = (ready & READY_PERIPHERALS) != 0;
         if ((ready & READY_BATTERY) && now >= next_battery) {
             bsp_battery_status_t status;
             snapshot.battery_valid = bsp_battery_read(&status) == ESP_OK;

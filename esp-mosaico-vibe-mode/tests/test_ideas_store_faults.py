@@ -1,13 +1,12 @@
 """Transient resource failures must not delete a healthy saved generation."""
 import ctypes as C
 import hashlib
-from pathlib import Path
 import shutil
 import sys
+from pathlib import Path
 
 import pytest
-
-from test_ideas_store import build_core, save, Package, parse, callbacks, descriptor
+from test_ideas_store import Package, build_core, callbacks, descriptor, parse, save
 
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="requires GNU linker fault wrappers")
 

@@ -78,6 +78,7 @@ static void run_job(job_t *job) {
     else if (!stale && !ready && job->command != IDEAS_DISMISS && job->command != IDEAS_ROW &&
              (job->command != IDEAS_PREVIEW || err != ESP_OK)) {
         ctx->state->terminal = true;
+        ctx->state->terminal_command = job->command;
         ctx->state->failed = err != ESP_OK;
         ctx->state->error = err;
         if (preparing)

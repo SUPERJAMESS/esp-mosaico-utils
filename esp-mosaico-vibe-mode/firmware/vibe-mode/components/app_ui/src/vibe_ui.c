@@ -32,7 +32,8 @@ static void transfer_text(vibe_ui_t *s)
     const vibe_snapshot_t *v = &s->snapshot;
     const vibe_transfer_t *t = &v->transfer;
     bool waiting = t->phase == VIBE_TRANSFER_SAVE ||
-                   (t->phase == VIBE_TRANSFER_CHECK_IMAGE && !t->total);
+                   (t->phase == VIBE_TRANSFER_CHECK_IMAGE && !t->total) ||
+                   (!strcmp(v->update_owner, "Device") && !t->received);
     (void)vui_set_indeterminate(s->ui, VUI_VIBE_BIND_PROGRESS, (waiting || !t->total) && v->updating);
     if (waiting) {
         TEXT(s, UPDATE_PERCENT, "--");
@@ -58,8 +59,8 @@ static void transfer_text(vibe_ui_t *s)
                             vibe_transfer_permille(t->received, t->total) / 10);
     const char *verb = (!strcmp(v->update_owner, "Bridge") || !strcmp(v->update_owner, "Cloud"))
                            ? T(s, "Download")
-                       : !strcmp(v->update_owner, "NAND") ? T(s, "Write")
-                                                          : T(s, "Receive");
+                       : (!strcmp(v->update_owner, "NAND") || !strcmp(v->update_owner, "Device"))
+                           ? T(s, "Write") : T(s, "Receive");
     if (t->phase == VIBE_TRANSFER_VERIFY_FILES || t->phase == VIBE_TRANSFER_CHECK_IMAGE)
         TEXT(s, UPDATE_RATE, "");
     else if (!s->rate.valid)
@@ -87,7 +88,30 @@ static void transfer_text(vibe_ui_t *s)
         TEXT(s, UPDATE_COMPONENT, T(s, "Application image"));
 }
 static int command(vibe_ui_t *s, vibe_command_t cmd, const char *a, const char *b) {
-    return s->services.command(s->services.ctx, cmd, a, b);
+    int err = s->services.command(s->services.ctx, cmd, a, b);
+    if (!err) {
+        /* Result actions belong to the accepted operation, not a selection
+         * which may survive deletion or change during a background request. */
+        switch (cmd) {
+        case VIBE_DOWNLOAD_IDEA:
+        case VIBE_CHECK_IDEA:
+        case VIBE_OPEN_IDEA:
+            s->result_can_open = true;
+            break;
+        case VIBE_DELETE_IDEA:
+        case VIBE_SAVE_DEVELOPMENT:
+        case VIBE_UPDATE_ALL:
+        case VIBE_INSTALL_FIRMWARE:
+        case VIBE_INSTALL_NAND:
+        case VIBE_START_IDEA:
+        case VIBE_RUN_DEVELOPMENT:
+            s->result_can_open = false;
+            break;
+        default:
+            break;
+        }
+    }
+    return err;
 }
 static void clear_secret(char *text, size_t size) {
     volatile char *p = text;
@@ -174,8 +198,15 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
     }
     if (page != VIBE_WIFI && page != VIBE_PASSWORD)
         s->download_pending = false;
-    if (previous != page) s->page_enter_tick = s->tick;
+    if (previous != page) s->page_enter_ms = vui_now_ms(s->ui);
     s->page = page;
+    if (page == VIBE_DELETE_CONFIRM && previous != page) {
+        TEXT(s, DELETE_CONFIRM_TITLE, s->delete_code[0] ? "Delete Idea" : "Shared information");
+        TEXT(s, DELETE_NOTE, s->delete_code[0]
+            ? "Remove this saved Idea?\nYou can undo for 4 seconds."
+            : "You can undo for 4 seconds.");
+        TEXT(s, DELETE_PROGRESS, "Hold for 3 seconds to delete");
+    }
     /* Authored layers start with only HOME visible. Update only the two
      * participating layers, avoiding redundant visibility invalidations. */
     if (previous != page)
@@ -333,7 +364,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
     vibe_ui_t *s = ctx;
     if (e->type != VUI_EVENT_CALL)
         return;
-    s->activity_tick = s->tick;
+    s->activity_ms = vui_now_ms(s->ui);
     if (vibe_product_event(s, e))
         return;
 #ifdef VIBE_UI_TRACE
@@ -557,7 +588,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         break;
     case VUI_VIBE_ACT_ID_ACCEPT_IDEA:
         if (s->page != VIBE_IDEA_INFO || !s->preview_active || !s->snapshot.idea_ready ||
-            s->snapshot.idea_view_only)
+            s->snapshot.idea_view_only || s->snapshot.nand_error)
             break;
         {
             char request[16];
@@ -734,12 +765,13 @@ void vibe_ui_poll(vibe_ui_t *s) {
         }
         TEXT(s, IDEA_STATUS,
              !v->idea_ready       ? "Please wait"
+             : v->nand_error      ? "Storage unavailable"
              : v->idea_view_only  ? "Saved in My Ideas"
              : v->idea_downloaded ? "Already downloaded"
                                   : "Confirm to save in My Ideas");
         TEXT(s, IDEA_ACCEPT, v->idea_downloaded ? "My Ideas" : "Download");
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_ACCEPT_IDEA_VISIBLE,
-                                            v->idea_ready && !v->idea_view_only);
+                                            v->idea_ready && !v->idea_view_only && !v->nand_error);
         break;
     default:
         break;
@@ -773,8 +805,11 @@ static void tick(vui_handle_t ui, void *ctx)
     vibe_product_tick(s);
     if (s->page == VIBE_PASSWORD)
         project_password(s);
-    if (++s->tick % 5 == 0)
+    const uint64_t now = vui_now_ms(ui);
+    if (now >= s->next_poll_ms) {
+        s->next_poll_ms = now + 250;
         vibe_ui_poll(s);
+    }
 }
 vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *services, vibe_ui_t **out)
 {
