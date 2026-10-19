@@ -65,3 +65,10 @@ Gateway device-info model from session transport. Existing ceilings stay in
 place; the extracted modules have explicit 400, 200 and 100 line ceilings,
 respectively. C include fragments preserve the existing translation unit and
 private state, and `session.DeviceInfo` remains available to existing callers.
+
+The file service's path validation, request decoding and filesystem metadata
+helpers now live in the private `esp_iris_file_paths.inc` fragment (366 lines,
+400-line ceiling). This reduces `esp_iris_files.c` from 1760 to 1398 lines while
+preserving its existing 1750-line ceiling. The fragment keeps the same static
+functions, volume state owner and translation unit; file operations and wire
+behavior are unchanged.
