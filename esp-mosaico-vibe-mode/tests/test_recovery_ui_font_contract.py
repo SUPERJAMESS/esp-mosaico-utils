@@ -57,6 +57,7 @@ def test_all_compiled_glyphs_have_pixels_and_dynamic_translation_coverage():
         required = set(obj.get('font_charset', '') + obj['text']) - set('\r\n')
         assert required <= chars, (obj.get('name'), required - chars)
         dynamic = {
+            'shared_value': ('Enter text',),
             'update_rate': ('Receive', 'Download', 'Read', 'Write'),
             'update_title': ('Checking image', 'Saving Idea', 'Verifying files'),
             'result_title': ('Checking image', 'Saving Idea', 'Verifying files'),

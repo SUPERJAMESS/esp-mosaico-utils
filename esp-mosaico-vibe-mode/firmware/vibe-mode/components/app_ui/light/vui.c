@@ -53,6 +53,7 @@ typedef struct {
     vui_row_cb_t callback;
     void *ctx;
     struct vui_row rows[ROWS];
+    bool bound[ROWS], refresh[ROWS];
 } list_t;
 typedef struct {
     unsigned interval;
@@ -126,24 +127,30 @@ static void damage_add(vui_handle_t u, rect_t r)
     u->damage = r;
     u->dirty = true;
 }
-static void damage_node(vui_handle_t u, unsigned id)
+static bool node_geometry(vui_handle_t u, unsigned id, rect_t *area, rect_t *clip)
 {
-    if (!valid(u, id)) return;
+    if (!valid(u, id)) return false;
     int chain[33], count = 0;
     for (int i = id - 1; i >= 0; i = u->nodes[i].parent) {
-        if (count == 33 || u->values[i].hidden || (u->nodes[i].flags & VUI_TEMPLATE)) return;
+        if (count == 33 || u->values[i].hidden || (u->nodes[i].flags & VUI_TEMPLATE)) return false;
         chain[count++] = i;
     }
-    rect_t clip = {0, 0, WIDTH, HEIGHT};
+    *clip = (rect_t){0, 0, WIDTH, HEIGHT};
     int x = 0, y = 0;
     while (count) {
         unsigned i = chain[--count];
         const vui_node_t *n = &u->nodes[i];
         x += n->x; y += n->y;
-        clip = intersect(clip, (rect_t){x, y, n->w, n->h});
+        *area = (rect_t){x, y, n->w, n->h};
+        *clip = intersect(*clip, *area);
         if (n->flags & VUI_SCROLL) y -= u->values[i].scroll;
     }
-    damage_add(u, clip);
+    return clip->w && clip->h;
+}
+static void damage_node(vui_handle_t u, unsigned id)
+{
+    rect_t area, clip;
+    if (node_geometry(u, id, &area, &clip)) damage_add(u, clip);
 }
 static void damage_row(vui_handle_t u, vui_row_t row)
 {
@@ -439,14 +446,42 @@ static list_t *list(vui_handle_t u, vui_list_t l)
 {
     return u && l && l <= LISTS && u->lists[l - 1].id ? &u->lists[l - 1] : NULL;
 }
+static void clear_row(list_t *v, unsigned row)
+{
+    for (unsigned j = 0; j < ROW_FIELDS; ++j)
+        release_value(&v->rows[row].fields[j].value);
+    memset(&v->rows[row], 0, sizeof(v->rows[row]));
+    v->bound[row] = false;
+}
+static void list_sync_visible(vui_handle_t u, list_t *v)
+{
+    if (!v->id) return;
+    rect_t area, clip;
+    unsigned first = 0, last = 0;
+    const vui_node_t *node = &u->nodes[v->id - 1];
+    if (node->item_height && node_geometry(u, v->id, &area, &clip)) {
+        unsigned top = v->scroll + clip.y - area.y;
+        first = min(v->total, top / node->item_height);
+        last = min(v->total, (top + clip.h + node->item_height - 1) / node->item_height);
+    }
+    for (unsigned i = 0; i < v->total; ++i) {
+        if (i < first || i >= last) {
+            if (v->bound[i]) clear_row(v, i);
+        } else if (!v->bound[i] || v->refresh[i]) {
+            clear_row(v, i);
+            v->bound[i] = true;
+            v->refresh[i] = false;
+            if (v->callback) v->callback(u, &v->rows[i], i, v->ctx);
+        }
+    }
+}
 vui_err_t vui_list_refresh(vui_handle_t u, vui_list_t l)
 {
     list_t *v = list(u, l);
     if (!v)
         return VUI_ERR_INVALID_ARG;
-    for (unsigned i = 0; i < v->total; i++)
-        if (v->callback)
-            v->callback(u, &v->rows[i], i, v->ctx);
+    for (unsigned i = 0; i < v->total; i++) v->refresh[i] = true;
+    list_sync_visible(u, v);
     damage_node(u, v->id);
     return VUI_OK;
 }
@@ -458,9 +493,8 @@ vui_err_t vui_list_set_total(vui_handle_t u, vui_list_t l, unsigned total)
     if (total == v->total)
         return VUI_OK;
     for (unsigned i = total; i < v->total; i++) {
-        for (unsigned j = 0; j < ROW_FIELDS; j++)
-            release_value(&v->rows[i].fields[j].value);
-        memset(&v->rows[i], 0, sizeof(v->rows[i]));
+        clear_row(v, i);
+        v->refresh[i] = false;
     }
     v->total = total;
     v->scroll =
@@ -1105,6 +1139,9 @@ bool vui_render_changed(vui_handle_t u, uint16_t *pixels, vui_area_t *changed)
     if (!u || !pixels) return false;
     if (u->retained != pixels) vui_invalidate(u);
     if (!u->dirty) return false;
+    /* Bind against the same ancestor clips used for drawing. Hidden/offscreen
+     * rows must not start IO or compete with the visible title working set. */
+    for (unsigned i = 0; i < LISTS; ++i) list_sync_visible(u, &u->lists[i]);
     u->pixels = u->retained = pixels;
     u->paint_clip = u->damage;
     if (changed) *changed = u->damage;

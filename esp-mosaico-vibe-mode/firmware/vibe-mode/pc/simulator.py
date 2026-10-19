@@ -24,7 +24,12 @@ function send(x,y,p){queue=queue.then(()=>fetch('/pointer',{method:'POST',header
 function sample(e,p){let r=c.getBoundingClientRect();send(Math.max(0,Math.min(479,Math.round((e.clientX-r.left)*480/r.width))),Math.max(0,Math.min(479,Math.round((e.clientY-r.top)*480/r.height))),p);}
 c.onpointerdown=e=>{pressed=true;c.setPointerCapture(e.pointerId);sample(e,true)};c.onpointermove=e=>{if(pressed)sample(e,true)};c.onpointerup=e=>{sample(e,false);pressed=false};c.onpointercancel=e=>{sample(e,false);pressed=false};
 async function frame(){try{let r=await fetch('/frame.png',{cache:'no-store'});let b=await createImageBitmap(await r.blob());ctx.drawImage(b,0,0);b.close()}catch(e){}setTimeout(frame,50)}frame();
-document.querySelectorAll('button').forEach(b=>b.onclick=()=>fetch('/control',{method:'POST',body:b.dataset.command}));</script></html>"""
+function control(command){queue=queue.then(()=>fetch('/control',{method:'POST',body:command}));}
+document.querySelectorAll('button').forEach(b=>{if(b.dataset.command==='boot'){
+b.onpointerdown=e=>{b.setPointerCapture(e.pointerId);control('boot')};b.onpointerup=b.onpointercancel=()=>control('boot-release');
+b.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.repeat){e.preventDefault();control('boot')}};
+b.onkeyup=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();control('boot-release')}};
+}else b.onclick=()=>control(b.dataset.command)});</script></html>"""
 
 
 class NativeUI:
@@ -178,7 +183,7 @@ class HTTP(BaseHTTPRequestHandler):
                 self.send_error(400)
                 return
         elif self.path == "/control":
-            if body not in (b"ai", b"boot"):
+            if body not in (b"ai", b"boot", b"boot-release"):
                 self.send_error(400)
                 return
             path = Path(os.environ["VIBE_SIM_CONTROL_FILE"])

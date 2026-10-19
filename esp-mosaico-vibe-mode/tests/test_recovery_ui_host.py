@@ -1303,3 +1303,49 @@ def test_download_cancel_has_wide_done_and_aligned_status(sim, language):
     sim.wait(page=8, cancelled=True, cancel_calls=1, install_calls=0, restart_calls=0)
     assert_wide_done(sim, "download-cancelled-wide-done")
     sim.wait(page=0, install_calls=0, restart_calls=0)
+
+
+def test_shared_info_delete_clamps_the_last_page(sim):
+    sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+    sim.tap_ui("button_settings_top_shared"); sim.wait(page=14, shared_count=0)
+    for count, x in enumerate((35, 80, 125, 170, 215), 1):
+        sim.tap_ui("shared_header_add"); sim.wait(page=15)
+        sim.tap(x, 250); sim.tap(430, 430)
+        sim.tap(35, 250); sim.tap(430, 430)
+        sim.wait(page=14, shared_count=count)
+    sim.tap_ui("button_shared_next"); sim.wait(page=14)
+    sim.tap_ui("button_shared_row_0"); sim.wait(page=30)
+    sim.tap_ui("button_shared_detail_delete"); sim.wait(page=23)
+    hold(sim, page=14, pending_delete=True)
+    sim.wait(page=14, shared_count=4, pending_delete=False)
+    sim.capture("shared-page-after-delete")
+    # The first surviving entry is immediately reachable without manual paging.
+    sim.tap_ui("button_shared_row_0"); sim.wait(page=30)
+
+
+@pytest.mark.parametrize("sim", ["low-battery"], indirect=True)
+@pytest.mark.parametrize("language", [1, 2])
+def test_low_battery_warning_does_not_overlap_the_preference(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
+    sim.manage(); sim.tap(150, 170); sim.wait(page=6)
+    sim.tap_ui("button_local_open"); sim.wait(page=20)
+    sim.tap_ui("button_open_accept"); sim.wait(page=20, install_calls=0, restart_calls=0)
+    sim.capture("low-battery-spaced")
+    with Image.open(sim.directory / "low-battery-spaced.png") as frame:
+        # Separate the painted warning and preference label by a clear band.
+        assert not any(max(rgb[:3]) > 100 for rgb in frame.crop((48, 286, 432, 294)).getdata())
+        assert any(rgb[0] > 150 and rgb[1] < 150
+                   for rgb in frame.crop((48, 260, 432, 286)).getdata())
+
+
+def test_boot_tip_keeps_the_guide_return_route(sim):
+    sim.tap_ui("button_nav_develop"); sim.wait(page=10)
+    sim.tap_ui("button_develop_guide"); sim.wait(page=25)
+    sim.control("boot"); sim.wait(page=22)
+    sim.control("boot-release"); sim.wait(page=25)
+    sim.tap(38, 36); sim.wait(page=10)

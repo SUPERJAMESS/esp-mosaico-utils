@@ -34,7 +34,7 @@ struct vibe_ui {
     vibe_page_t pointer_page;
     bool pointer_down, first_run, shared_edit_value, shared_reveal, undo_shared, shared_wait;
     int32_t pointer_x, pointer_y;
-    vibe_page_t return_page, wake_page;
+    vibe_page_t return_page, wake_page, boot_page;
     char delete_code[7], undo_key[16], shared_key[16], shared_value[257];
 };
 

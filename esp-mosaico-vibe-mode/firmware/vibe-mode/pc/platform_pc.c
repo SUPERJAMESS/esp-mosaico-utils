@@ -129,6 +129,7 @@ static void trace_state(vui_handle_t ui, void *ctx)
         }
         if (!strcmp(command, "ai")) next_key = 1;
         if (!strcmp(command, "boot")) next_key = 3;
+        if (!strcmp(command, "boot-release")) next_key = 4;
         if (!strcmp(command, "motion")) ++model.device.motion_revision;
         unsigned battery;
         if (sscanf(command, "battery %u", &battery) == 1) model.device.battery_percent = battery;
@@ -386,6 +387,8 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
             break;
         }
         break;
+    case VIBE_STORAGE_INFO:
+        break; /* The PC model already supplies its capacity snapshot. */
     case VIBE_SCAN_NAND:
         ++scan_calls;
         if (scenario("scan-busy") || scenario("scan-open")) {
@@ -400,7 +403,8 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         break;
     case VIBE_CANCEL_IDEA:
         ++cancel_calls;
-        if (model.cancellable) {
+        if (model.cancellable || model.batch) {
+            bool batch = model.batch;
             if (scenario("open-check") && current_job == VIBE_OPEN_IDEA) {
                 installing = model.cancellable = model.transfer.receiving = false;
                 cancel_ticks = 8;
@@ -412,7 +416,8 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
             model.update_terminal = model.update_cancelled = true;
             ++model.update_revision;
             snprintf(model.update_title, sizeof(model.update_title), "Cancelled");
-            snprintf(model.update_detail, sizeof(model.update_detail), "Previously saved Ideas are unchanged");
+            snprintf(model.update_detail, sizeof(model.update_detail), "%s",
+                     batch ? "Completed updates are kept" : "Previously saved Ideas are unchanged");
         }
         model.idea_loading = model.idea_ready = model.idea_busy = false;
         break;

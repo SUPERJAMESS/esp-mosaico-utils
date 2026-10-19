@@ -276,6 +276,44 @@ static void title_marquee(uint16_t *frame)
     vui_tick(ui, 5000); assert(!vui_render(ui, frame));
     free(first); free(pixels); vui_destroy(ui);
 }
+static unsigned row_bindings[16];
+static vui_err_t bind_visible_row(vui_handle_t ui, vui_row_t row, uint32_t index, void *ctx)
+{
+    (void)ctx; assert(index < 16); ++row_bindings[index];
+    char label[24]; snprintf(label, sizeof(label), "Visible row %u", (unsigned)index);
+    assert(vui_vibe_bundles_row_row_set_bundles_title_text(ui, row, label) == VUI_OK);
+    uint16_t pixels[4] = {0xf800, 0x07e0, 0x001f, 0xffff}; size_t size;
+    void *image = ideas_title_qoi(pixels, 2, 2, &size); assert(image);
+    assert(vui_row_set_image_owned(ui, row, VUI_VIBE_BIND_BUNDLES_PIXELS, image, size) == VUI_OK);
+    return VUI_OK;
+}
+static void list_binding_contract(uint16_t *frame)
+{
+    vui_handle_t ui; assert(vui_create(&ui) == VUI_OK);
+    vui_list_t list = vui_list_bind_component(ui, VUI_VIBE_OBJ_KEY_BUNDLES, bind_visible_row, NULL);
+    assert(list && vui_list_set_total(ui, list, 16) == VUI_OK);
+    assert(vui_list_refresh(ui, list) == VUI_OK);
+    assert(!row_bindings[0] && !row_bindings[15]);
+    vui_set_visible(ui, VUI_VIBE_BIND_HOME_VISIBLE, false);
+    vui_set_visible(ui, VUI_VIBE_BIND_NAND_VISIBLE, true);
+    vui_set_visible(ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, true);
+    assert(vui_render(ui, frame));
+    assert(row_bindings[0] == 1 && !row_bindings[15]);
+    compare_full(ui, frame); assert(row_bindings[0] == 1);
+    assert(vui_scroll_to(ui, VUI_VIBE_OBJ_KEY_BUNDLES, 100000) == VUI_OK);
+    assert(vui_render(ui, frame));
+    assert(row_bindings[0] == 1 && row_bindings[15] == 1);
+    compare_full(ui, frame);
+    vui_set_visible(ui, VUI_VIBE_BIND_NAND_VISIBLE, false);
+    vui_set_visible(ui, VUI_VIBE_BIND_HOME_VISIBLE, true);
+    assert(vui_list_refresh(ui, list) == VUI_OK);
+    assert(vui_render(ui, frame) && row_bindings[15] == 1);
+    vui_set_visible(ui, VUI_VIBE_BIND_HOME_VISIBLE, false);
+    vui_set_visible(ui, VUI_VIBE_BIND_NAND_VISIBLE, true);
+    assert(vui_render(ui, frame) && row_bindings[15] == 2);
+    assert(vui_list_set_total(ui, list, 0) == VUI_OK);
+    vui_render(ui, frame); vui_destroy(ui);
+}
 int main(void)
 {
     queue_contract();
@@ -298,6 +336,7 @@ int main(void)
     uint16_t *frame=malloc(480*480*2);
     title_marquee(frame);
     matrix_rendering(frame);
+    list_binding_contract(frame);
     keyboard_preview(frame);
     activity_progress(frame);
     partial_and_scroll(ui, frame);

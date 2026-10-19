@@ -38,7 +38,7 @@ static void transfer_text(vibe_ui_t *s)
         TEXT(s, UPDATE_PERCENT, "--");
         TEXT(s, UPDATE_BYTES, "");
         TEXT(s, UPDATE_RATE, "");
-        TEXT(s, UPDATE_COMPONENT, T(s, "Please wait"));
+        TEXT(s, UPDATE_COMPONENT, ""); /* The phase detail already explains the wait. */
         (void)vui_set_value(s->ui, VUI_VIBE_BIND_PROGRESS, 0);
         return;
     }
