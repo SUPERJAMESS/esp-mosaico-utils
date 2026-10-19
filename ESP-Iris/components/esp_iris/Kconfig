@@ -112,6 +112,8 @@ config ESP_IRIS_TRANSPORT_USB
     depends on IDF_TARGET_ESP32S31
     depends on !BSP_USB_CONSOLE
     select TINYUSB_CDC_ENABLED
+    select TINYUSB_SUSPEND_CALLBACK
+    select TINYUSB_RESUME_CALLBACK
     help
         The application USB console remains readable by standard terminals.
         Iris control requests are printable commands; bulk content uses the

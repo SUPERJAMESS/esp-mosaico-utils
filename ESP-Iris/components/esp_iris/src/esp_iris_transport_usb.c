@@ -67,6 +67,21 @@ static unsigned s_users;
 static atomic_bool s_shutting_down;
 #define IRIS_USB_RHPORT 0U /* ESP32-S31's single DWC controller. */
 
+/* Callback publication and protocol-worker snapshots share this lock. Never
+ * call TinyUSB I/O under it: the stack has its own FIFO locks. Runtime pointers
+ * are unpublished under the same lock before their owner can destroy them. */
+static portMUX_TYPE s_link_lock = portMUX_INITIALIZER_UNLOCKED;
+static bool s_configured, s_suspended;
+static bool s_bus_event_seen;
+static struct {
+    uint32_t generation, cleaned_generation;
+} s_link[IRIS_USB_CDC_COUNT];
+
+static void usb_invalidate_locked(unsigned itf)
+{
+    ++s_link[itf].generation;
+}
+
 /* S31's pinned SDK resets CPUs without resetting the HS USB DMA engine.
  * Its old RX/SETUP addresses may be code in the next application. Shutdown
  * can run on the Iris worker itself, so do not wait for that worker or free
@@ -144,36 +159,66 @@ static unsigned interface_for(const iris_runtime_t *runtime)
 static void cdc_rx_callback(int itf, cdcacm_event_t *event)
 {
     (void)event;
+    taskENTER_CRITICAL(&s_link_lock);
     if (itf >= 0 && itf < IRIS_USB_CDC_COUNT && s_runtime[itf] != NULL)
         iris_notify_worker(s_runtime[itf]);
+    taskEXIT_CRITICAL(&s_link_lock);
 }
 
 static void cdc_line_state_callback(int itf, cdcacm_event_t *event)
 {
-    if (itf < 0 || itf >= IRIS_USB_CDC_COUNT || s_state[itf] == NULL) return;
+    if (itf < 0 || itf >= IRIS_USB_CDC_COUNT || event == NULL) return;
     if (atomic_load(&s_shutting_down)) return;
     const bool opened = event->line_state_changed_data.dtr;
 #if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
     if (itf == 0) usb_download_line_state(opened, event->line_state_changed_data.rts);
 #endif
-    if (!opened) atomic_store(&s_state[itf]->disconnect_pending, true);
-    atomic_store(&s_state[itf]->host_open, opened);
-    cdc_rx_callback(itf, event);
+    taskENTER_CRITICAL(&s_link_lock);
+    if (s_state[itf]) {
+        if (!opened) usb_invalidate_locked(itf);
+        atomic_store(&s_state[itf]->host_open, opened);
+        iris_notify_worker(s_runtime[itf]);
+    }
+    taskEXIT_CRITICAL(&s_link_lock);
 }
 
 static void usb_device_event_callback(tinyusb_event_t *event, void *arg)
 {
     (void)arg;
-    if (event == NULL || event->id != TINYUSB_EVENT_DETACHED) return;
+    if (event == NULL || atomic_load(&s_shutting_down)) return;
+    const bool attached = event->id == TINYUSB_EVENT_ATTACHED;
+    const bool detached = event->id == TINYUSB_EVENT_DETACHED;
+    const bool suspended = event->id == TINYUSB_EVENT_SUSPENDED;
+    const bool resumed = event->id == TINYUSB_EVENT_RESUMED;
+    if (!attached && !detached && !suspended && !resumed) return;
+    unsigned line_state[IRIS_USB_CDC_COUNT] = {0};
+    if (resumed) {
+        for (unsigned i = 0; i < IRIS_USB_CDC_COUNT; ++i)
+            line_state[i] = tud_cdc_n_get_line_state(i);
+    }
 #if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
-    s_download_sequence = (iris_usb_download_sequence_t){0};
+    if (detached) s_download_sequence = (iris_usb_download_sequence_t){0};
 #endif
+    taskENTER_CRITICAL(&s_link_lock);
+    s_bus_event_seen = true;
+    /* Without VBUS sensing, unplug can look like suspend instead of detach.
+     * Treat normal host suspend as the same protocol-session boundary too:
+     * resume restores transport availability, then the host must re-handshake.
+     * The first configuration has no preceding bus session to discard.
+     * A repeated ATTACHED while configured is a reset boundary even when the
+     * board cannot detect physical DETACHED (no VBUS input). */
+    const bool invalidate = (attached && s_configured) || detached ||
+        (suspended && !s_suspended);
+    if (attached || detached) { s_configured = attached; s_suspended = false; }
+    else s_suspended = suspended;
     for (unsigned i = 0; i < IRIS_USB_CDC_COUNT; ++i) {
         if (s_state[i] == NULL) continue;
-        atomic_store(&s_state[i]->host_open, false);
-        atomic_store(&s_state[i]->disconnect_pending, true);
-        if (s_runtime[i] != NULL) iris_notify_worker(s_runtime[i]);
+        if (invalidate) usb_invalidate_locked(i);
+        if (attached || detached) atomic_store(&s_state[i]->host_open, false);
+        else if (resumed) atomic_store(&s_state[i]->host_open, (line_state[i] & 1U) != 0);
+        iris_notify_worker(s_runtime[i]);
     }
+    taskEXIT_CRITICAL(&s_link_lock);
 }
 
 static esp_err_t usb_start(iris_runtime_t *runtime, iris_transport_state_t *state)
@@ -199,9 +244,27 @@ static esp_err_t usb_start(iris_runtime_t *runtime, iris_transport_state_t *stat
 #if TUD_OPT_HIGH_SPEED
         config.descriptor.high_speed_config = s_hs_config;
 #endif
+        taskENTER_CRITICAL(&s_link_lock);
+        s_configured = s_suspended = false;
+        s_bus_event_seen = false;
+        for (unsigned i = 0; i < IRIS_USB_CDC_COUNT; ++i) {
+            s_link[i].generation = s_link[i].cleaned_generation = 0;
+        }
+        taskEXIT_CRITICAL(&s_link_lock);
+        atomic_store(&s_shutting_down, false);
         esp_err_t err = tinyusb_driver_install(&config);
         if (err != ESP_OK) return err;
-        atomic_store(&s_shutting_down, false);
+        /* Driver task can enumerate before esp_tinyusb installs its event
+         * callback. Seed only if no event was published, never overwrite a
+         * newer SUSPEND/DETACHED with this fallback snapshot. */
+        const bool mounted = tud_mounted();
+        const bool suspended = tud_suspended();
+        taskENTER_CRITICAL(&s_link_lock);
+        if (!s_bus_event_seen) {
+            s_configured = mounted;
+            s_suspended = suspended;
+        }
+        taskEXIT_CRITICAL(&s_link_lock);
         err = esp_register_shutdown_handler(usb_shutdown);
         if (err != ESP_OK) {
             (void)tinyusb_driver_uninstall();
@@ -220,16 +283,26 @@ static esp_err_t usb_start(iris_runtime_t *runtime, iris_transport_state_t *stat
     }
     atomic_store(&state->host_open, false);
     atomic_store(&state->disconnect_pending, false);
+    taskENTER_CRITICAL(&s_link_lock);
     s_runtime[itf] = runtime;
     s_state[itf] = state;
+    /* A new stack/interface has no old session bytes. Do not flush its first
+     * console command: native terminals have no handshake retry. Reopening an
+     * interface while its peer keeps the stack alive still needs isolation. */
+    const bool fresh = s_link[itf].generation == 0;
+    ++s_link[itf].generation;
+    if (fresh) s_link[itf].cleaned_generation = s_link[itf].generation;
+    taskEXIT_CRITICAL(&s_link_lock);
     const tinyusb_config_cdcacm_t cdc = {
         .cdc_port = itf, .callback_rx = cdc_rx_callback,
         .callback_line_state_changed = cdc_line_state_callback,
     };
     esp_err_t err = tinyusb_cdcacm_init(&cdc);
     if (err != ESP_OK) {
+        taskENTER_CRITICAL(&s_link_lock);
         s_runtime[itf] = NULL;
         s_state[itf] = NULL;
+        taskEXIT_CRITICAL(&s_link_lock);
         if (s_users == 0) usb_driver_uninstall();
         return err;
     }
@@ -248,8 +321,10 @@ static void usb_stop(iris_runtime_t *runtime, iris_transport_state_t *state)
 #if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
     if (itf == 0) usb_download_cancel();
 #endif
+    taskENTER_CRITICAL(&s_link_lock);
     s_runtime[itf] = NULL;
     s_state[itf] = NULL;
+    taskEXIT_CRITICAL(&s_link_lock);
     if (--s_users == 0) usb_driver_uninstall();
     state->driver_started = false;
     atomic_store(&state->host_open, false);
@@ -260,43 +335,81 @@ static void usb_stop(iris_runtime_t *runtime, iris_transport_state_t *state)
 static iris_link_event_t usb_poll(iris_runtime_t *runtime, iris_transport_state_t *state)
 {
     if (atomic_load(&s_shutting_down)) return IRIS_LINK_EVENT_NONE;
-    if (atomic_exchange(&state->disconnect_pending, false) && state->reported_link_up) {
+    const unsigned itf = interface_for(runtime);
+    taskENTER_CRITICAL(&s_link_lock);
+    const uint32_t generation = s_link[itf].generation;
+    const bool clean = generation != s_link[itf].cleaned_generation;
+    taskEXIT_CRITICAL(&s_link_lock);
+    if (clean) {
+        /* Discard old software queues before advertising the next session.
+         * Early new-host bytes may be discarded too; the handshake retries.
+         * Already submitted USB transfers cannot be recalled by FIFO clear. */
+        tud_cdc_n_read_flush(itf);
+        (void)tud_cdc_n_write_clear(itf);
+    }
+    taskENTER_CRITICAL(&s_link_lock);
+    if (clean) s_link[itf].cleaned_generation = generation;
+    const bool ready = generation == s_link[itf].generation &&
+        s_configured && !s_suspended && state->driver_started &&
+        (!runtime->data_link || atomic_load(&state->host_open));
+    if (clean && state->reported_link_up) {
         state->link_up = state->reported_link_up = false;
+        taskEXIT_CRITICAL(&s_link_lock);
         return IRIS_LINK_EVENT_DISCONNECTED;
     }
-    /* Stock IDF Monitor may leave DTR deasserted on application CDC. Text
-     * console I/O must work whenever configured, without an Iris handshake.
-     * Data retains DTR-based lifetime; deassertion still releases either role. */
-    state->link_up = state->driver_started && tud_mounted() &&
-        (!runtime->data_link || atomic_load(&state->host_open));
-    if (state->link_up == state->reported_link_up) return IRIS_LINK_EVENT_NONE;
-    state->reported_link_up = state->link_up;
-    return state->link_up ? IRIS_LINK_EVENT_CONNECTED : IRIS_LINK_EVENT_DISCONNECTED;
+    state->link_up = ready;
+    iris_link_event_t result = IRIS_LINK_EVENT_NONE;
+    if (state->link_up != state->reported_link_up) {
+        state->reported_link_up = state->link_up;
+        result = state->link_up ? IRIS_LINK_EVENT_CONNECTED : IRIS_LINK_EVENT_DISCONNECTED;
+    }
+    taskEXIT_CRITICAL(&s_link_lock);
+    return result;
 }
 
 static void usb_disconnect(iris_runtime_t *runtime, iris_transport_state_t *state)
 {
-    (void)runtime;
-    /* Logical rejection only. Never re-enumerate the healthy peer interface. */
-    atomic_store(&state->disconnect_pending, true);
+    (void)state;
+    /* Logical rejection affects only this interface, never its healthy peer. */
+    taskENTER_CRITICAL(&s_link_lock);
+    usb_invalidate_locked(interface_for(runtime));
+    taskEXIT_CRITICAL(&s_link_lock);
+}
+
+static bool usb_io_snapshot(iris_runtime_t *runtime, iris_transport_state_t *state,
+                            uint32_t *generation)
+{
+    const unsigned itf = interface_for(runtime);
+    taskENTER_CRITICAL(&s_link_lock);
+    *generation = s_link[itf].generation;
+    const bool ready = state->link_up && state->driver_started &&
+        *generation == s_link[itf].cleaned_generation &&
+        s_configured && !s_suspended && !atomic_load(&s_shutting_down) &&
+        (!runtime->data_link || atomic_load(&state->host_open));
+    taskEXIT_CRITICAL(&s_link_lock);
+    return ready;
 }
 
 static int usb_read(iris_runtime_t *runtime, iris_transport_state_t *state,
                     uint8_t *buffer, size_t capacity)
 {
-    if (!state->link_up || atomic_load(&s_shutting_down)) return -ENOTCONN;
+    uint32_t generation, after;
+    if (!usb_io_snapshot(runtime, state, &generation)) return -ENOTCONN;
     size_t received = 0;
     esp_err_t err = tinyusb_cdcacm_read(interface_for(runtime), buffer, capacity, &received);
+    if (!usb_io_snapshot(runtime, state, &after) || after != generation) return -ENOTCONN;
     return err == ESP_OK ? (int)received : -EIO;
 }
 
 static int usb_write(iris_runtime_t *runtime, iris_transport_state_t *state,
                      const uint8_t *buffer, size_t length)
 {
-    if (!state->link_up || atomic_load(&s_shutting_down)) return -ENOTCONN;
+    uint32_t generation, after;
+    if (!usb_io_snapshot(runtime, state, &generation)) return -ENOTCONN;
     const unsigned itf = interface_for(runtime);
     const size_t queued = tinyusb_cdcacm_write_queue(itf, buffer, length);
     if (queued > 0) (void)tinyusb_cdcacm_write_flush(itf, 0);
+    if (!usb_io_snapshot(runtime, state, &after) || after != generation) return -ENOTCONN;
     return (int)queued;
 }
 
