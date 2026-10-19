@@ -135,9 +135,14 @@ async def reconcile_operation(
                 record["reason"] = "action has no durable proof contract; live observation retained"
     except (OSError, ConnectionError, LookupError, RuntimeError, asyncio.TimeoutError) as exc:
         record["reason"] = "live observation unavailable: " + type(exc).__name__
+    return save_reconciliation(store, record)
+
+
+def save_reconciliation(store: GatewayStore, record: dict[str, Any]) -> dict[str, Any]:
+    """Retain a new observation without rewriting the original operation."""
     store.db.execute(
         "INSERT INTO operation_reconciliations VALUES (?, ?, ?)",
-        (record["reconciliation_id"], operation_id, json.dumps(record, ensure_ascii=False)),
+        (record["reconciliation_id"], record["operation_id"], json.dumps(record, ensure_ascii=False)),
     )
     store.db.commit()
     return record

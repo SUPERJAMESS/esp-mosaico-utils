@@ -25,7 +25,7 @@ async def identity_candidates(project: ProjectGateway, device_id: str) -> list[d
     live_usb = set()
     for device in await to_thread(discover_iris_usb_devices):
         metadata = {key: getattr(device, key) for key in
-                    ("path", "vid", "pid", "product", "serial_number", "location")}
+                    ("path", "vid", "pid", "product", "serial_number", "location", "interface", "link_role")}
         metadata["device_path"] = device.device
         if not iris_usb_allowed(metadata):
             continue

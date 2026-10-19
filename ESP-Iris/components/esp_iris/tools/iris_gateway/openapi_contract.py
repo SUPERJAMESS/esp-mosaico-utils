@@ -109,7 +109,7 @@ def build_openapi(auth_required: bool) -> dict[str, Any]:
         "/v2/events/ws": {"get": {"summary": "Resumable event WebSocket"}},
         "/v2/operations": {"get": {"summary": "Device operation records"}},
         "/v2/operations/{operation_id}/reconcile": {
-            "post": {"summary": "Append a read-only observation of an uncertain operation; never replay writes"}
+            "post": {"summary": "Append verification evidence; ROM recovery may reconnect by identity, never replay writes or resets"}
         },
         "/v2/operations/{operation_id}/reconciliations": {
             "get": {"summary": "Append-only reconciliation evidence; original status is unchanged"}

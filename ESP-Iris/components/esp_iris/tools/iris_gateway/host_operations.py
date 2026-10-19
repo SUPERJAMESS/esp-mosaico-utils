@@ -6,15 +6,28 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import sys
+import time
+import uuid
 from typing import Any
 
 from aiohttp import web
 
 from .device_activity import stop_session_work
+from .firmware import inspect_firmware_image
 from .host_worker import active_workers, consume_request
 from .http_support import json_body, request_actor, request_is_loopback
 from .operations import OperationOutcomeUnknown
+from .reconciliation import save_reconciliation
+
+
+def _target_identity(device_id: str | None, mac: str | None) -> str | None:
+    if device_id:
+        return device_id
+    if mac and re.fullmatch(r"[0-9a-f]{2}(?::[0-9a-f]{2}){5}", mac):
+        return (b"ESP-IRIS\x01\x00" + bytes.fromhex(mac.replace(":", ""))).hex()
+    return None
 
 
 class HostOperations:
@@ -64,6 +77,21 @@ class HostOperations:
         else:
             writer = primary
         device_id = device_id or primary.get("device_id")
+        if action == "host.recovery":
+            mac = spec.get("expected_hardware_mac")
+            if not mac and not device_id:
+                serial = str(writer.get("serial_number") or "").lower()
+                if re.fullmatch(r"(?:[0-9a-f]{12}|[0-9a-f]{2}(?::[0-9a-f]{2}){5})", serial):
+                    raw = serial.replace(":", "")
+                    mac = ":".join(raw[index:index + 2] for index in range(0, 12, 2))
+            spec["expected_hardware_mac"] = str(mac).lower() if mac else None
+            if mac and not re.fullmatch(r"[0-9a-f]{2}(?::[0-9a-f]{2}){5}", spec["expected_hardware_mac"]):
+                raise ValueError("expected_hardware_mac must be a factory MAC in colon-separated form")
+            spec["expected_device_id"] = _target_identity(device_id, spec["expected_hardware_mac"])
+            if not spec["expected_device_id"]:
+                raise ValueError("ROM recovery requires a verified Device ID or factory hardware MAC")
+            if spec.get("image_path"):
+                spec["expected_image"] = inspect_firmware_image(pathlib.Path(spec["image_path"]).read_bytes()).as_dict()
         # ROM entry re-enumerates the whole USB device. Detach every live USB
         # interface with the same verified identity, including the data CDC.
         if device_id:
@@ -76,6 +104,8 @@ class HostOperations:
                     selected.add(endpoint)
         resources = sorted({str(item.get("device_id") or "endpoint::" + item["endpoint"])
                             for item in endpoints} | {item["endpoint"] for item in endpoints})
+        if spec.get("expected_device_id"):
+            resources = sorted(set(resources) | {spec["expected_device_id"]})
         key = device_id or "endpoint::" + primary["endpoint"]
         if service.project is not None and (
             service.project.closing or any(item in service.project.blocked for item in resources)
@@ -83,6 +113,8 @@ class HostOperations:
             raise RuntimeError("device or project is draining")
         params = {"endpoints": endpoints, "expected_version": spec.get("expected_version"),
                   "expected_hardware_mac": spec.get("expected_hardware_mac"),
+                  "expected_device_id": spec.get("expected_device_id"),
+                  "expected_image": spec.get("expected_image"),
                   "request_sha256": hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()}
         operation, _ = await service.operations.submit(
             key, actor, action, params,
@@ -113,6 +145,8 @@ class HostOperations:
         try:
             for endpoint in endpoints:
                 detached.append(await hub.detach_for_host(endpoint["endpoint"]))
+                if service.project is not None and spec.get("expected_device_id"):
+                    service.project.registry.bind(endpoint["endpoint"], spec["expected_device_id"], verified=False)
             for endpoint in detached:
                 hub.yield_host_lock(endpoint["endpoint"])
             await service.operations.progress(operation_id, stage="transferring", progress_permille=100)
@@ -144,54 +178,120 @@ class HostOperations:
             result = json.loads(result_path.read_text(encoding="utf-8"))
             if result.get("returncode"):
                 raise RuntimeError(result.get("error", "host operation failed"))
+            if result.get("returncode") != 0:
+                raise OperationOutcomeUnknown("host worker did not record a completed write")
             if spec["action"] == "host.recovery":
-                await service.operations.progress(operation_id, stage="verifying", progress_permille=900)
+                evidence["write_completed"] = True
+                await service.operations.progress(operation_id, stage="verifying", progress_permille=900,
+                                                  write_completed=True, log_path=str(directory / "output.log"))
                 await hub.resume_after_host(endpoints[0]["endpoint"], connect=True)
-                verification = await self.verify(endpoints[0]["endpoint"], device_id,
+                verification = await self.verify(spec["expected_device_id"],
                                                  evidence.get("device_before", {}), spec, timeout)
                 evidence["verification"] = verification
-            (directory / "evidence.json").write_text(json.dumps(evidence), encoding="utf-8")
             return {"evidence": evidence, "log_path": str(directory / "output.log"),
                     "returncode": 0, "stdout": result.get("stdout", "")[-65536:]}
-        except Exception:  # Command delivery can fail after the process has started.
+        except Exception as error:  # Delivery can fail after the process has started.
+            delivery_uncertain = process is not None and not writer_finished
             if process is not None and not writer_finished:
                 if process.stdin is not None:
                     process.stdin.close()
                 await process.wait()
                 writer_finished = True
+            if delivery_uncertain or evidence.get("write_completed"):
+                raise OperationOutcomeUnknown(
+                    "ROM operation needs verification; its write was not replayed: " + str(error)
+                ) from error
             raise
         finally:
-            # Spawn failure is safe to unwind; a disconnected Gateway must not
-            # reconnect while its independent worker is still writing.
-            if process is None or writer_finished:
-                for endpoint in reversed(detached):
-                    await hub.resume_after_host(endpoint["endpoint"])
+            try:
+                (directory / "evidence.json").write_text(json.dumps(evidence), encoding="utf-8")
+            finally:
+                # Spawn failure is safe to unwind; a disconnected Gateway must not
+                # reconnect while its independent worker is still writing.
+                if process is None or writer_finished:
+                    for endpoint in reversed(detached):
+                        await hub.resume_after_host(endpoint["endpoint"])
 
-    async def verify(self, endpoint: str, device_id: str | None, before: dict,
+    async def _connect(self, device_id: str, timeout: float) -> None:
+        project = self.service.project
+        async with project.control_lock:
+            await project.acquire({"device_id": device_id, "timeout": min(2, timeout)})
+
+    async def verify(self, device_id: str, before: dict,
                      spec: dict, timeout: float) -> dict:
         hub = self.service.device_hub
         deadline = asyncio.get_running_loop().time() + timeout
+        last_error = "target device has not reconnected"
         while asyncio.get_running_loop().time() < deadline:
-            for candidate in hub.list_devices():
-                if candidate.get("endpoint") != endpoint:
+            project = self.service.project
+            if project is not None:
+                try:
+                    remaining = max(.001, deadline - asyncio.get_running_loop().time())
+                    await asyncio.wait_for(self._connect(device_id, remaining), remaining)
+                except (OSError, LookupError, RuntimeError, asyncio.TimeoutError, web.HTTPBadRequest) as error:
+                    last_error = str(error)
+                    await asyncio.sleep(.05)
                     continue
-                if device_id and candidate["device_id"] != device_id:
+            for candidate in hub.list_devices():
+                if candidate["device_id"] != device_id:
                     continue
                 try:
                     status = await asyncio.wait_for(hub.status(candidate["device_id"]),
                                                     max(0.001, deadline - asyncio.get_running_loop().time()))
                 except (OSError, LookupError, asyncio.TimeoutError):
                     continue
+                image = spec.get("expected_image") or {}
                 if (status.get("device_id") == candidate["device_id"]
                         and status.get("boot_id") not in (None, "")
                         and str(status["boot_id"]) != str(before.get("boot_id"))
                         and status.get("firmware_mode") == "recovery"
                         and "ota" in status.get("capability_names", [])
                         and (not spec.get("expected_version") or status.get("app_version") == spec["expected_version"])
+                        and (not image or (status.get("project_name") == image.get("project_name")
+                             and image.get("elf_sha256") and status.get("firmware_sha256") == image["elf_sha256"]))
                         and (not spec.get("expected_hardware_mac") or status.get("hardware_mac") == spec["expected_hardware_mac"])):
                     return status
+                last_error = "live identity, boot, firmware or OTA readiness did not match"
             await asyncio.sleep(0.05)
-        raise OperationOutcomeUnknown("ROM write finished but Recovery identity verification did not complete")
+        raise OperationOutcomeUnknown("ROM write finished; Vibe Mode verification is pending: " + last_error)
+
+    async def reconcile(self, operation_id: str, actor: Any) -> dict:
+        """Continue acceptance only; retain the original write and terminal record."""
+        service = self.service
+        operation = service.store.operation(operation_id)
+        if operation is None:
+            raise KeyError(operation_id)
+        if operation["action"] != "host.recovery" or operation["status"] not in {
+            "outcome_unknown", "interrupted", "failed"
+        }:
+            raise ValueError("only an unfinished recovery acceptance can be verified again")
+        params = operation["params"]
+        target = params.get("expected_device_id")
+        resources = {operation["device_id"], target} | {
+            item["endpoint"] for item in params.get("endpoints", [])}
+        if any(resources.intersection(worker["resources"]) for worker in active_workers()):
+            raise RuntimeError("a host writer still owns the target; wait for it to finish")
+        record = {"reconciliation_id": str(uuid.uuid4()), "operation_id": operation_id,
+                  "device_id": target or operation["device_id"], "actor": actor.as_dict(),
+                  "observed_ns": time.time_ns(), "outcome": "outcome_unknown", "replayed": False,
+                  "evidence": {}, "reason": "completed write or target identity evidence is missing"}
+        directory = service.store.artifacts_dir / "host-operations" / operation_id
+        try:
+            result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
+            before = json.loads((directory / "before.json").read_text(encoding="utf-8")).get("device_before", {})
+            if target and result.get("returncode") == 0:
+                # Share the operation resource exclusion with writes. This is a
+                # read-only acceptance attempt, never a replay of the request.
+                _, status, _ = await service.operations.execute(
+                    str(target), actor, "host.recovery.verify", {"source_operation_id": operation_id},
+                    lambda: self.verify(str(target), before, params, 10),
+                    exclusive_resources=tuple(sorted(item for item in resources if item)),
+                )
+                record.update(outcome="observed_success", reason="completed ROM write and live Vibe Mode verified",
+                              evidence={"write_completed": True, "status": status})
+        except (OSError, ValueError, LookupError, RuntimeError, asyncio.TimeoutError) as error:
+            record["reason"] = str(error)
+        return save_reconciliation(service.store, record)
 
 
 def register_routes(app: web.Application, service: Any) -> None:

@@ -1012,6 +1012,7 @@ def recover(arguments: Any, context: RunContext) -> dict[str, Any]:
         "endpoint": unowned_port,
         "write_endpoint": independent_identity["path"] if independent_identity else None,
         "expected_version": expected_version, "expected_hardware_mac": selected_hardware_mac,
+        "image_path": str(prepared_dir / prepared_manifest["images"]["recovery"]["file"]),
         "commands": commands, "timeout": arguments.timeout,
     }, timeout=arguments.timeout * 2 + 30)
     status = completed.get("evidence", {}).get("verification", {})

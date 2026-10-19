@@ -393,14 +393,32 @@ def run_host_operation(context: RunContext, session: GatewaySession, spec: dict[
     terminal = {"succeeded", "failed", "cancelled", "interrupted", "outcome_unknown"}
     while operation["status"] not in terminal:
         if time.monotonic() >= deadline:
-            raise DeviceError("ROM operation is still running; its writer and port lock remain active.",
-                              details={"operation_id": operation_id})
+            raise OutcomeUnknownError(
+                "Stopped waiting for the ROM operation; its writer was not cancelled. "
+                f"Inspect with: python mosaico.py iris operation-status {operation_id}.",
+                details={"operation_id": operation_id, "last_known_status": operation["status"]},
+            )
         time.sleep(0.2)
-        operation = gateway_json(context, session, "operation-status", operation_id)
+        try:
+            observed = gateway_json(context, session, "operation-status", operation_id)
+        except (DeviceError, OperationError) as error:
+            raise OutcomeUnknownError(
+                "Lost contact with the Gateway after submitting the ROM operation; no write was replayed. "
+                f"Inspect with: python mosaico.py iris operation-status {operation_id}.",
+                details={**error.details, "operation_id": operation_id,
+                         "last_known_status": operation["status"]},
+            ) from error
+        operation = observed
         operation = operation.get("operation", operation)
     if operation["status"] != "succeeded":
-        raise OperationError(operation.get("error") or "ROM operation did not succeed.",
-                             details={"operation_id": operation_id, "status": operation["status"]})
+        progress = operation.get("progress") or {}
+        message = operation.get("error") or "ROM operation did not succeed."
+        if progress.get("write_completed"):
+            message = ("ROM write completed; Vibe Mode acceptance is pending. "
+                       f"Continue with: python mosaico.py iris operation-reconcile {operation_id}. " + message)
+        error_type = OutcomeUnknownError if operation["status"] in {"outcome_unknown", "interrupted"} or progress.get("write_completed") else OperationError
+        raise error_type(message, details={"operation_id": operation_id, "status": operation["status"],
+                                           "write_completed": bool(progress.get("write_completed"))})
     result = operation.get("result") or {}
     log_path = result.get("log_path")
     if log_path and Path(log_path).is_file():

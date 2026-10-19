@@ -650,6 +650,16 @@ class IrisHub:
             if self.ownership is not None:
                 self.ownership.release(endpoint)
             return
+        if connect:
+            try:
+                metadata = await to_thread(resolve_usb_port, endpoint)
+            except OSError:
+                metadata = None
+            if metadata is None or not iris_usb_allowed(metadata, allow_serial_jtag=True):
+                # Re-enumeration may replace the interface key. Keep ownership
+                # history, but let identity admission create the new supervisor.
+                await self._remove_endpoint(endpoint)
+                return
         opener, pairing_token = self._endpoint_configs[endpoint]
         self._host_endpoints.remove(endpoint)
         self._add_supervisor(endpoint, opener, pairing_token=pairing_token, defer_lock=True)

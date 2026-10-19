@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Load the public Iris extension even before this project's first build."""
 import sys
+from functools import partial
 from pathlib import Path
 
 _tools = str(Path(__file__).resolve().parents[3] / "ESP-Iris/components/esp_iris/tools")
@@ -22,4 +23,5 @@ def action_extensions(base_actions, project_path):
     # Use IDF's flash callback with Iris's identity-checked USB handoff, while
     # retaining the reviewed/current bundle selected by this CMake target.
     return {"version": "1", "actions": {"mosaico-recover-flash": dict(
-        flash, help="Install the selected Vibe Mode base bundle over USB.")}}
+        flash, callback=partial(flash["callback"], reconnect_after_flash=False),
+        help="Install the selected Vibe Mode base bundle over USB.")}}
