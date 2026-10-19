@@ -91,10 +91,17 @@ static void queue_contract(void)
         assert(vibe_input_push(&queue, event));
     }
     event.kind = VIBE_INPUT_UP; ++event.time_ms;
-    assert(vibe_input_push(&queue, event) && queue.count == 3);
+    assert(vibe_input_push(&queue, event) && queue.count <= VIBE_INPUT_CAPACITY);
     assert(vibe_input_pop(&queue, &event) && event.kind == VIBE_INPUT_DOWN && event.x == 420);
-    assert(vibe_input_pop(&queue, &event) && event.kind == VIBE_INPUT_MOVE && event.x == 60 && event.time_ms == 1360);
-    assert(vibe_input_pop(&queue, &event) && event.kind == VIBE_INPUT_UP);
+    unsigned checkpoints = 0;
+    uint64_t last_time = 1000;
+    while (vibe_input_pop(&queue, &event) && event.kind == VIBE_INPUT_MOVE) {
+        assert(event.time_ms > last_time);
+        last_time = event.time_ms;
+        ++checkpoints;
+    }
+    assert(checkpoints >= 10 && last_time == 1360);
+    assert(event.kind == VIBE_INPUT_UP && event.x == 60);
     event = (vibe_input_t){.x = 100, .y = 200, .kind = VIBE_INPUT_DOWN};
     assert(vibe_input_push(&queue, event));
     event.kind = VIBE_INPUT_MOVE; event.x = 200;
@@ -248,17 +255,17 @@ static void partial_and_scroll(vui_handle_t ui, uint16_t *frame)
     vui_pointer_at(ui, 240, 350, true, 1000);
     vui_pointer_at(ui, 240, 300, true, 1100);
     vui_pointer_at(ui, 240, 300, false, 1100);
-    assert(vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT) == 50);
+    assert(vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT) == 38);
     vui_tick(ui, 20);
     int offset = vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT);
-    assert(offset >= 58 && offset <= 61);
+    assert(offset >= 46 && offset <= 48);
     vui_render(ui, frame); compare_full(ui, frame);
     vui_scroll_to(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT, 0); vui_render(ui, frame);
     vui_pointer_at(ui, 240, 350, true, 2000);
     vui_pointer_at(ui, 240, 300, true, 2100);
     vui_pointer_at(ui, 240, 300, false, 2400);
     vui_tick(ui, 40);
-    assert(vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT) == 50);
+    assert(vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT) == 38);
     vui_render(ui, frame); compare_full(ui, frame);
 }
 static void activity_progress(uint16_t *frame)
@@ -409,8 +416,118 @@ static void list_marquee_damage(void)
     assert(changed>10);
     vibe_ui_deinit(state); vui_destroy(ui); free(frame);
 }
+static vui_handle_t scrolling_ui(uint16_t *frame, int offset)
+{
+    vui_handle_t ui = NULL;
+    assert(vui_create(&ui) == VUI_OK);
+    vui_set_visible(ui, VUI_VIBE_BIND_HOME_VISIBLE, false);
+    vui_set_visible(ui, VUI_VIBE_BIND_SETTINGS_VISIBLE, true);
+    vui_scroll_to(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT, offset);
+    vui_render(ui, frame);
+    return ui;
+}
+static int scroll_at(vui_handle_t ui) { return vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT); }
+static void coast(vui_handle_t ui, unsigned step)
+{
+    for (unsigned elapsed = 0; elapsed < 2000; elapsed += step) vui_tick(ui, step);
+}
+static void gesture_contract(void)
+{
+    uint16_t *frame = malloc(480 * 480 * 2);
+    assert(frame);
+    vui_handle_t ui = scrolling_ui(frame, 100);
+    vui_pointer_at(ui, 240, 350, true, 0);
+    vui_pointer_at(ui, 300, 345, true, 50);
+    vui_pointer_at(ui, 300, 345, false, 50);
+    coast(ui, 16); assert(scroll_at(ui) == 100); /* Horizontal jitter is not a vertical drag. */
+    vui_destroy(ui);
+    for (unsigned fine = 0; fine < 2; ++fine) {
+        ui = scrolling_ui(frame, 100);
+        vui_pointer_at(ui, 240, 400, true, 0);
+        if (fine) for (unsigned i = 1; i <= 4; ++i) vui_pointer_at(ui, 240, 400 - 3 * i, true, i * 10);
+        vui_pointer_at(ui, 240, 387, true, 50);
+        assert(scroll_at(ui) == 101); /* Only the distance past the 12 px slop is visible. */
+        vui_pointer_at(ui, 240, 387, false, 50);
+        vui_destroy(ui);
+    }
+    ui = scrolling_ui(frame, 100);
+    vui_pointer_at(ui, 240, 400, true, 0);
+    for (unsigned i = 1; i <= 4; ++i) vui_pointer_at(ui, 240, 400 - 5 * i, true, i * 50);
+    vui_pointer_at(ui, 240, 380, false, 200);
+    int stopped = scroll_at(ui); assert(stopped == 108);
+    coast(ui, 16); assert(scroll_at(ui) == stopped); /* Slow dragging stops on release. */
+    vui_destroy(ui);
+    for (unsigned pause = 0; pause < 2; ++pause) {
+        ui = scrolling_ui(frame, 100);
+        vui_pointer_at(ui, 240, 400, true, 0);
+        for (unsigned i = 1; i <= 4; ++i) vui_pointer_at(ui, 240, 400 - 20 * i, true, i * 20);
+        vui_pointer_at(ui, 240, 321, true, 100); /* A 1 px reverse tail must not reverse the coast. */
+        vui_pointer_at(ui, 240, 321, false, pause ? 300 : 100);
+        stopped = scroll_at(ui);
+        coast(ui, 16);
+        assert(pause ? scroll_at(ui) == stopped : scroll_at(ui) > stopped);
+        vui_destroy(ui);
+    }
+    /* Cadence does not change the same trajectory's release distance. */
+    const unsigned steps[] = {1, 5, 10, 16, 33, 40, 100};
+    int shortest = 10000, longest = 0;
+    for (unsigned i = 0; i < sizeof(steps) / sizeof(*steps); ++i) {
+        ui = scrolling_ui(frame, 0);
+        vui_pointer_at(ui, 240, 400, true, 0);
+        vui_pointer_at(ui, 240, 380, true, 40);
+        vui_pointer_at(ui, 240, 360, true, 80);
+        vui_pointer_at(ui, 240, 360, false, 80);
+        coast(ui, steps[i]);
+        int offset = scroll_at(ui);
+        if (offset < shortest) shortest = offset;
+        if (offset > longest) longest = offset;
+        vui_destroy(ui);
+    }
+    assert(longest - shortest <= 2);
+    free(frame);
+}
+static void target_identity_contract(void)
+{
+    const vibe_page_t pages[] = {VIBE_NAND, VIBE_WIFI, VIBE_GRID, VIBE_SHARED};
+    const int x[] = {150, 150, 92, 150}, y[] = {170, 250, 150, 130};
+    const vibe_page_t accepted[] = {VIBE_CONFIRM, VIBE_PASSWORD, VIBE_OPEN_CONFIRM, VIBE_SHARED_DETAIL};
+    uint16_t *frame = malloc(480 * 480 * 2);
+    assert(frame);
+    for (unsigned page = 0; page < 4; ++page) for (unsigned replace = 0; replace < 2; ++replace) {
+        clock_model_t model = {.value = {.settings = {.language=1, .open_confirm=true, .shared_count=2},
+            .storage_total=1000000, .nand_generation=1, .bundle_count=2, .scan_generation=1, .ap_count=2}};
+        strcpy(model.value.bundles[0].code, "111111"); strcpy(model.value.bundles[0].release, "First");
+        strcpy(model.value.bundles[1].code, "222222"); strcpy(model.value.bundles[1].release, "Second");
+        strcpy(model.value.aps[0].ssid, "First network"); strcpy(model.value.aps[1].ssid, "Second network");
+        strcpy(model.value.settings.shared[0].key, "first"); strcpy(model.value.settings.shared[1].key, "second");
+        const vibe_services_t services = {.ctx=&model, .snapshot=clock_snapshot, .command=clock_command};
+        vui_handle_t ui = NULL; vibe_ui_t *state = NULL;
+        assert(!vui_create(&ui) && !vibe_ui_create(ui, &services, &state));
+        vibe_show(state, pages[page]); vui_tick(ui, 200); vui_render(ui, frame);
+        vui_pointer(ui, x[page], y[page], true);
+        if (replace) {
+            vibe_bundle_t bundle = model.value.bundles[0];
+            model.value.bundles[0] = model.value.bundles[1]; model.value.bundles[1] = bundle;
+            vibe_ap_t ap = model.value.aps[0]; model.value.aps[0] = model.value.aps[1]; model.value.aps[1] = ap;
+            vibe_shared_entry_t entry = model.value.settings.shared[0];
+            model.value.settings.shared[0] = model.value.settings.shared[1]; model.value.settings.shared[1] = entry;
+        } else {
+            strcpy(model.value.bundles[0].release, "Changed title, same Idea");
+            model.value.aps[0].rssi = -42;
+            strcpy(model.value.settings.shared[0].value, "Changed value, same key");
+        }
+        ++model.value.nand_generation; ++model.value.scan_generation; ++model.value.settings.revision;
+        vibe_ui_poll(state); vui_render(ui, frame);
+        vui_pointer(ui, x[page], y[page], false);
+        assert(state->page == (replace ? pages[page] : accepted[page]));
+        vibe_ui_deinit(state); vui_destroy(ui);
+    }
+    free(frame);
+}
 int main(void)
 {
+    gesture_contract();
+    target_identity_contract();
     list_marquee_damage();
     controller_time_contract();
     queue_contract();

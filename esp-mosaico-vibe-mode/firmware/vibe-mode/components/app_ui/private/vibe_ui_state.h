@@ -38,6 +38,8 @@ struct vibe_ui {
     int32_t pointer_x, pointer_y;
     int32_t last_release_x, last_release_y;
     bool have_release;
+    bool pointer_network_open;
+    char pointer_key[33];
     vibe_page_t return_page, wake_page, boot_page;
     char delete_code[7], undo_key[16], shared_key[16], shared_value[257];
 };

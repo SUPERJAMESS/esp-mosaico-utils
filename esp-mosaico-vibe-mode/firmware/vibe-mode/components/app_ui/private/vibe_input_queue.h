@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 
-/* The platform serializes access. Keep gesture edges, coalesce movement, and
- * retain acquisition time so a delayed batch cannot manufacture fling speed. */
+/* The platform serializes access. Keep edges and recent motion checkpoints so
+ * a delayed render batch retains velocity history without an unbounded queue. */
 enum { VIBE_INPUT_DOWN, VIBE_INPUT_MOVE, VIBE_INPUT_UP, VIBE_INPUT_CAPACITY = 32 };
 typedef struct {
     int16_t x, y;
@@ -26,6 +26,7 @@ static inline bool vibe_input_push(vibe_input_queue_t *queue, vibe_input_t event
          * into a tap at its starting position. */
         if (last->kind == VIBE_INPUT_MOVE && last->source == event.source &&
             before->source == event.source && before->kind != VIBE_INPUT_UP &&
+            event.time_ms >= before->time_ms && event.time_ms - before->time_ms < 10 &&
             (last->x - before->x) * (event.x - last->x) >= 0 &&
             (last->y - before->y) * (event.y - last->y) >= 0) {
             *last = event;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vibe_ui_state.h"
 #include "vui_ids.h"
+#include "vui_input.h"
 #include "factory_network_credentials.h"
 #include "vibe_locale.inc"
 #include <stdarg.h>
@@ -193,12 +194,37 @@ static void shared_submit(vibe_ui_t *s)
         TEXT(s, SHARED_FIELD, "Saving settings...");
     }
 }
+static const char *pointer_key(vibe_ui_t *s, const vui_event_t *e)
+{
+    if (e->action_id == VUI_VIBE_ACT_ID_SELECT_NETWORKS && s->page == VIBE_WIFI &&
+        e->list == s->networks && e->item < s->snapshot.ap_count)
+        return s->snapshot.aps[e->item].ssid;
+    if (e->action_id == VUI_VIBE_ACT_ID_SELECT_BUNDLES && s->page == VIBE_NAND && e->list == s->bundles) {
+        size_t index = vibe_bundle_index(s, e->item);
+        return index < s->snapshot.bundle_count ? s->snapshot.bundles[index].code : "";
+    }
+    if (e->action_id == VUI_VIBE_ACT_ID_OPEN_CELL && s->page == VIBE_GRID && e->arg < 6) {
+        size_t index = vibe_bundle_index(s, s->grid_page * 6 + e->arg);
+        return index < s->snapshot.bundle_count ? s->snapshot.bundles[index].code : "";
+    }
+    if (e->action_id == VUI_VIBE_ACT_ID_SHARED_ROW && s->page == VIBE_SHARED && e->arg < 4) {
+        size_t index = s->shared_page * 4 + e->arg;
+        return index < s->snapshot.settings.shared_count ? s->snapshot.settings.shared[index].key : "";
+    }
+    return NULL;
+}
 bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
 {
     if (s->gesture_consumed || vui_now_ms(s->ui) < s->suppress_until || s->snapshot.settings.busy) return true;
     /* A rapid second tap at the same coordinates must not activate a newly
      * revealed control (for example Download becoming Cancel download). */
     if (!s->pointer_page_ready || s->pointer_page != s->page) return true;
+    /* Row indices can be reused by an asynchronous scan while the finger is
+     * down. Content-only refreshes keep the key and remain tappable. */
+    const char *key = pointer_key(s, e);
+    if (key && strcmp(key, s->pointer_key)) return true;
+    if (key && e->action_id == VUI_VIBE_ACT_ID_SELECT_NETWORKS &&
+        s->pointer_network_open != s->snapshot.aps[e->item].open) return true;
     unsigned action = e->action_id;
     if (s->snapshot.updating && !s->snapshot.batch && action != VUI_VIBE_ACT_ID_CANCEL_DOWNLOAD) return true;
     switch (action) {
@@ -725,6 +751,11 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
     if (s->page == VIBE_SLEEP && pressed) { wake(s); s->pointer_down = pressed; return; }
     if (pressed && !s->pointer_down) {
         s->gesture_consumed = false; s->hold_consumed = false; s->pointer_page = s->page;
+        vui_event_t target = {0};
+        const char *key = vui_pointer_target(ui, &target) ? pointer_key(s, &target) : NULL;
+        snprintf(s->pointer_key, sizeof(s->pointer_key), "%s", key ? key : "");
+        s->pointer_network_open = target.action_id == VUI_VIBE_ACT_ID_SELECT_NETWORKS &&
+            target.item < s->snapshot.ap_count && s->snapshot.aps[target.item].open;
         /* Reject a repeated tap on the newly revealed control at the same
          * position. A fresh gesture on another control need not wait. */
         s->pointer_page_ready = now - s->page_enter_ms >= 150 || !s->have_release ||
