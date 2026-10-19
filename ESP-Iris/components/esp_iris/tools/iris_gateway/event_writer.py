@@ -168,12 +168,17 @@ class EventWriter:
                     self.device_cache.clear()
                 else:
                     self.device_writes += len(devices)
-                self._deliver(result)
+                # Publish only after the observable counters include this
+                # batch. The callback is scheduled onto the Gateway loop and
+                # can run before this worker thread reaches the following
+                # statements; Windows/Python 3.8 makes that race visible.
+                with self.condition:
+                    self.lost = max(self.lost, store._lost_events + self.pending_loss)
                 for _, _, _, _, future in batch:
                     if future is not None and not future.done():
                         future.set_result(not self.error)
+                self._deliver(result)
                 with self.condition:
-                    self.lost = max(self.lost, store._lost_events + self.pending_loss)
                     self.inflight = False
                 batch = []
         except Exception as exc:

@@ -10,11 +10,13 @@ def escape(value: str) -> str:
 
 
 def main() -> int:
+    total = 0
     for argument in sys.argv[1:]:
         path = Path(argument)
         if not path.is_file():
             continue
         root = ET.parse(path).getroot()
+        failures = []
         for case in root.iter("testcase"):
             problem = case.find("failure")
             if problem is None:
@@ -24,7 +26,16 @@ def main() -> int:
             name = "{}.{}".format(case.get("classname", "test"),
                                   case.get("name", "failure"))
             message = problem.text or problem.get("message") or "test failed"
+            failures.append((name, message))
             print("::error title={}::{}".format(escape(name), escape(message)))
+        if failures:
+            print("JUnit failures in {}: {}".format(path, len(failures)))
+            for name, message in failures:
+                print("--- {} ---".format(name))
+                print(message)
+            total += len(failures)
+    if not total:
+        print("JUnit failure summary: no failures found.")
     return 0
 
 
