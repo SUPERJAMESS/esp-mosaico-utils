@@ -3,8 +3,11 @@ from __future__ import annotations
 import os
 import pathlib
 import re
+import sys
 from dataclasses import dataclass
 from typing import Any
+
+from .usb_descriptors import link_role, serial_ports
 
 _SERIAL_PATH_DIRECTORIES = (
     pathlib.Path("/dev/serial/by-path"),
@@ -49,10 +52,8 @@ def discover_iris_usb_devices(
     *, include_usb_serial_jtag: bool = False, include_rom: bool = False,
     include_uart: bool = False
 ) -> list[IrisUsbDevice]:
-    from serial.tools import list_ports
-
     devices = []
-    for port in list_ports.comports():
+    for port in serial_ports():
         is_iris_cdc = iris_usb_allowed(
             {"vid": port.vid, "pid": port.pid, "product": port.product or ""}
         )
@@ -81,7 +82,7 @@ def discover_iris_usb_devices(
                     ),
                     location=getattr(port, "location", None) or "",
                     interface=getattr(port, "interface", None) or "",
-                    link_role="data" if getattr(port, "interface", None) == "ESP-Iris 0.2 data" else "control",
+                    link_role=link_role(port),
                 )
             )
     return sorted(devices, key=lambda item: item.path)
@@ -101,6 +102,8 @@ def discover_iris_usb_ports(
 
 
 def serial_port_key(path: str) -> str:
+    if sys.platform == "darwin":
+        path = path.replace("/dev/tty.", "/dev/cu.")
     # COM names are absolute device names, not paths relative to a workspace.
     com_name = path.upper()
     if com_name.startswith("\\\\.\\"):
@@ -120,10 +123,8 @@ def usb_endpoint(metadata: dict) -> str:
 
 def resolve_usb_port(identifier: str) -> dict[str, Any]:
     """Enumerate descriptors without opening a serial session."""
-    from serial.tools import list_ports
-
     matches: list[dict[str, Any]] = []
-    for port in list_ports.comports():
+    for port in serial_ports():
         metadata: dict[str, Any] = {
             "path": _stable_linux_path(port.device),
             "device_path": port.device,
@@ -133,7 +134,7 @@ def resolve_usb_port(identifier: str) -> dict[str, Any]:
             "product": port.product or "",
             "location": getattr(port, "location", None) or "",
             "interface": getattr(port, "interface", None) or "",
-            "link_role": "data" if getattr(port, "interface", None) == "ESP-Iris 0.2 data" else "control",
+            "link_role": link_role(port),
         }
         if identifier == usb_endpoint(metadata) or (
             serial_port_key(identifier) == serial_port_key(port.device)
@@ -152,6 +153,8 @@ def resolve_usb_port(identifier: str) -> dict[str, Any]:
 def iris_usb_allowed(
     metadata: dict, *, allow_serial_jtag: bool = False, explicit: bool = False
 ) -> bool:
+    if metadata.get("link_role") == "unknown":
+        return False
     if metadata.get("vid") == 0x303A:
         if metadata.get("pid") == 0x1001:
             return allow_serial_jtag

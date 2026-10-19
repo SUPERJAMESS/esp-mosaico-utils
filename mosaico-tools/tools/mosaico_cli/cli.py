@@ -435,11 +435,12 @@ def build_parser() -> argparse.ArgumentParser:
         ("device-status", "Read verified live device identity, Boot ID and firmware state"),
         ("screenshot", "Save the device image directly, with identity and operation evidence"),
         ("operation-status", "Query an existing Gateway operation without acquiring a device or replaying it"),
+        ("operation-reconcile", "Continue live operation verification without replaying a write or reset"),
     ):
         child = iris_commands.add_parser(name, help=help_text)
         child.set_defaults(command=name, public_command="iris " + name)
         child.add_argument("--gateway-profile", help="External Iris profile; otherwise use this project's Gateway")
-        if name == "operation-status":
+        if name in {"operation-status", "operation-reconcile"}:
             child.add_argument("operation_id", help="Existing Gateway operation ID")
         else:
             child.add_argument("--device-id", help="Device ID; omit for automatic project device selection")
@@ -831,7 +832,7 @@ def _main(
             result = invoke_rpc(arguments, context)
         elif arguments.command == "crash":
             result = inspect_crash(arguments, context)
-        elif arguments.command in {"restart", "device-status", "screenshot", "operation-status"}:
+        elif arguments.command in {"restart", "device-status", "screenshot", "operation-status", "operation-reconcile"}:
             from .evidence import collect_evidence
             result = collect_evidence(arguments, context)
         elif arguments.command == "memory":
@@ -848,7 +849,7 @@ def _main(
         return 0 if arguments.command in {"monitor", "memory"} else 5
     if arguments.json:
         print(json.dumps({"ok": True, **result}, ensure_ascii=False, sort_keys=True))
-    elif arguments.command in {"restart", "device-status", "screenshot", "operation-status"}:
+    elif arguments.command in {"restart", "device-status", "screenshot", "operation-status", "operation-reconcile"}:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         status = result.get("status", "succeeded")

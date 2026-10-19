@@ -16,7 +16,7 @@ from iris_gateway.link import SerialLink
 def ports(tmp_path, monkeypatch):
     monkeypatch.setattr("iris_gateway.link.tempfile.gettempdir", lambda: str(tmp_path))
     current = []
-    monkeypatch.setattr("serial.tools.list_ports.comports", lambda: list(current))
+    monkeypatch.setattr("iris_gateway.discovery.serial_ports", lambda: list(current))
     return current
 
 

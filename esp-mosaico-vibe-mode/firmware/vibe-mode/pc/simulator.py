@@ -28,7 +28,8 @@ document.querySelectorAll('button').forEach(b=>b.onclick=()=>fetch('/control',{m
 
 
 class NativeUI:
-    def __init__(self, library):
+    def __init__(self, library, tick_ms=10):
+        self.tick_seconds = tick_ms / 1000
         self.dll_directory = None
         if os.name == "nt" and shutil.which("gcc"):
             # Python 3.8+ does not use PATH to resolve dependencies of a DLL.
@@ -65,7 +66,7 @@ class NativeUI:
 
     def run(self):
         last = time.monotonic()
-        while not self.stopped.wait(0.01):
+        while not self.stopped.wait(self.tick_seconds):
             now = time.monotonic()
             elapsed = int((now - last) * 1000)
             last += elapsed / 1000
@@ -200,6 +201,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--directory", type=Path, required=True)
+    parser.add_argument("--tick-ms", type=int, choices=range(1, 1001), default=10,
+                        metavar="1..1000", help="Native UI clock interval; increase to test slow hosts")
     parser.add_argument(
         "--scenario",
         default="empty",
@@ -215,7 +218,7 @@ def main():
         VIBE_SIM_STATE_FILE=str(args.directory / "state.json"),
         VIBE_SIM_CONTROL_FILE=str(args.directory / "control"),
     )
-    ui = NativeUI(args.library.resolve())
+    ui = NativeUI(args.library.resolve(), tick_ms=args.tick_ms)
     rpc = Server(("127.0.0.1", 0), RPC)
     rpc.ui = ui
     threading.Thread(target=rpc.serve_forever, daemon=True).start()

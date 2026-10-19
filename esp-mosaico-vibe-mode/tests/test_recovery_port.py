@@ -37,7 +37,7 @@ def _check_independent_recovery_holds_both_endpoints_and_verifies_original_devic
     context = mock.Mock(workspace=WORKSPACE, repository=REPOSITORY, directory=tmp_path,
                         log_path=tmp_path / "run.log")
     session = SimpleNamespace(started_local=False)
-    manifest = {"version": "0.1", "images": {"recovery": {}}}
+    manifest = {"version": "0.1", "images": {"recovery": {"file": "vibe-mode.bin"}}}
     status = {"device_id": "other" if failure == "wrong_device" else "device-a",
               "boot_id": "old" if failure == "old_boot" else "new", "firmware_mode": "recovery",
               "app_version": "0.1", "capability_names": ["ota"]}

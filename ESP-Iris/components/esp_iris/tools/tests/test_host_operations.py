@@ -81,7 +81,7 @@ class HostHub:
         self.connected = True
 
 
-@pytest.mark.parametrize("outcome", ["success", "foreign", "old_boot", "failed", "timeout_read", "pipe_failure"])
+@pytest.mark.parametrize("outcome", ["success", "foreign", "old_boot", "failed", "timeout_read", "pipe_failure", "changed_endpoint"])
 @pytest.mark.parametrize("composite", [False, True])
 def test_host_operation_has_one_record_and_always_finishes_after_writer(tmp_path, outcome, composite):
     async def scenario():
@@ -117,6 +117,8 @@ def test_host_operation_has_one_record_and_always_finishes_after_writer(tmp_path
                 await finish.wait()
                 hub.actions.append("writer_exit")
                 hub.info.update(boot_id=2, firmware_mode="recovery", app_version="new")
+                if outcome == "changed_endpoint":
+                    hub.info["endpoint"] = "usb:location=different-interface"
                 if outcome == "foreign":
                     hub.info["device_id"] = "device-b"
                 if outcome == "old_boot":
@@ -155,8 +157,8 @@ def test_host_operation_has_one_record_and_always_finishes_after_writer(tmp_path
                 while service.operations._pending:
                     await asyncio.sleep(0.01)
             operation = store.operation(request_id)
-            assert operation["status"] == ("succeeded" if outcome in {"success", "timeout_read"}
-                                            else "failed" if outcome in {"failed", "pipe_failure"} else "outcome_unknown")
+            assert operation["status"] == ("succeeded" if outcome in {"success", "timeout_read", "changed_endpoint"}
+                                            else "failed" if outcome == "failed" else "outcome_unknown")
             assert hub.actions.index("writer_exit") < hub.actions.index("resume")
             assert hub.actions.count("detach") == len(hub.resumed) == (2 if composite else 1)
             assert not service.operations._exclusive

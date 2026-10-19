@@ -1121,6 +1121,10 @@ def create_app(service: GatewayService) -> web.Application:
         return web.json_response(item)
 
     async def operation_reconcile(request: web.Request) -> web.Response:
+        operation = service.store.operation(request.match_info["operation_id"])
+        if operation and operation["action"] == "host.recovery":
+            item = await service.host_operations.reconcile(operation["operation_id"], _actor(request))
+            return web.json_response(item, status=201)
         item = await reconcile_operation(service.store, service.device_hub,
                                          request.match_info["operation_id"], _actor(request))
         return web.json_response(item, status=201)

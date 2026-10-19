@@ -35,7 +35,7 @@ def action_extensions(base_actions: dict, project_path: str) -> dict:
 
     def wrap_flash(original):
         @wraps(original)
-        def flash(action, ctx, args, **kwargs):
+        def flash(action, ctx, args, *, reconnect_after_flash=True, **kwargs):
             from idf_py_actions.errors import FatalError
             from idf_py_actions.tools import ensure_build_directory, run_target
 
@@ -66,6 +66,10 @@ def action_extensions(base_actions: dict, project_path: str) -> dict:
                 args.port = rom.device
                 print(f"Iris: verified ROM {mac} at {rom.device}", flush=True)
                 result = original(action, ctx, args, **kwargs)
+                if not reconnect_after_flash:
+                    # A supervising Gateway owns reconnect and live acceptance.
+                    # A missing CDC must not turn a completed write into failure.
+                    return result
                 try:
                     console = wait_for_port(rom, vid, pid, rom=False, expected_mac=mac)
                 except UsbFlashError as error:

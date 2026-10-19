@@ -15,11 +15,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import serial
-from serial.tools import list_ports
 
 from iris_gateway.discovery import usb_endpoint
 from iris_gateway.hardware_reset import execute_reset, reset_steps
 from iris_gateway.link import EndpointLock
+from iris_gateway.usb_descriptors import serial_ports
 from iris_gateway.usb_ownership import usb_admission
 
 ROM_IDS = (0x303A, 0x0020)
@@ -67,7 +67,7 @@ class Port:
 def ports() -> list[Port]:
     return [Port(canonical_port(p.device), p.vid, p.pid, p.serial_number or "",
                  p.location or "", p.interface or "")
-            for p in list_ports.comports() if p.vid is not None and p.pid is not None
+            for p in serial_ports() if p.vid is not None and p.pid is not None
             and not (sys.platform == "darwin" and p.device.startswith("/dev/tty."))]
 
 

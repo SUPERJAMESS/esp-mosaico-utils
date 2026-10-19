@@ -46,3 +46,20 @@ records, which survive Gateway restart and appear in exported
 missing HEALTHY, interrupted writes, policy bounds, offline HTTP observations,
 matching/mismatching firmware and receipts, unchanged original history and
 export persistence. No hardware result is implied by these host tests.
+
+## ROM recovery acceptance
+
+`host.recovery` uses the same reconcile endpoint to continue acceptance after a
+completed host write. It requires the worker's saved successful result and the
+original target identity. It may reconnect through project identity admission;
+it never invokes a writer or reset. The original operation remains unchanged,
+and a separate verification operation holds the existing resource exclusion
+while a reconciliation record captures the outcome. An active host writer blocks
+verification. Older records without sufficient identity or write evidence stay
+unknown, including failures that only have an unstructured flash log.
+
+The initial acceptance and subsequent verification share the same checks:
+Device ID, optional factory MAC, a new Boot ID when a prior Iris boot exists,
+Vibe Mode, OTA capability, and expected version and image identity. A ROM start
+has no prior Iris Boot ID. The endpoint may change across enumeration. The product
+CLI exposes this as `python mosaico.py iris operation-reconcile OPERATION_ID`.

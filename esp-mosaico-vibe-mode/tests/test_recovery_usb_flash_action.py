@@ -23,7 +23,7 @@ def test_recovery_target_uses_verified_usb_handoff(monkeypatch, identity_matches
         "ESP_IRIS_USB_VID": 0x303A, "ESP_IRIS_USB_PID": 0x4002})
     monkeypatch.setattr(usb, "select_port", lambda *args: port)
     monkeypatch.setattr(usb, "claim_device", lambda _: ExitStack())
-    monkeypatch.setattr(usb, "wait_for_port", lambda *args, **kwargs: port)
+    monkeypatch.setattr(usb, "wait_for_port", lambda *args, **kwargs: pytest.fail("Gateway owns recovery reconnect"))
 
     def prepare(*args):
         events.append("verify-rom")

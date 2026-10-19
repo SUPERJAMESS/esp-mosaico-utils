@@ -50,7 +50,7 @@ def usb(tmp_path, monkeypatch):
         pid=0x4002,
         product="ESP-Iris",
     )
-    monkeypatch.setattr("serial.tools.list_ports.comports", lambda: [port])
+    monkeypatch.setattr("iris_gateway.discovery.serial_ports", lambda: [port])
     return port
 
 

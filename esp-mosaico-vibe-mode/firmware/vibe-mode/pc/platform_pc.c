@@ -20,6 +20,7 @@ static unsigned prepare_calls, cancel_calls, preview_ticks;
 static unsigned download_calls, install_calls, check_calls, restart_calls;
 static unsigned save_calls, delete_calls, reset_calls, next_key, scan_calls, cancel_ticks;
 static unsigned scan_ticks;
+static unsigned ui_sample;
 static vibe_command_t current_job;
 static char last_code[7];
 static bool bridge_active;
@@ -192,8 +193,12 @@ static void trace_state(vui_handle_t ui, void *ctx)
     vibe_ui_status_t status = {0};
     vibe_ui_get_status(state, &status);
     /* Observable test state never contains credentials or pairing tokens. */
+    /* This 50ms timer follows the controller's 50ms timer on the same UI
+     * thread. Count callbacks rather than wall time: slow rendering can stretch
+     * a logical tick, and timers intentionally do not replay missed ticks. */
+    fprintf(file, "{\"ui_sample\":%u,", ++ui_sample);
     fprintf(file,
-            "{\"page\":%d,\"password_length\":%u,\"password_visible\":%s,\"pending\":%s,\"bridge_"
+            "\"page\":%d,\"password_length\":%u,\"password_visible\":%s,\"pending\":%s,\"bridge_"
             "running\":%s,\"network\":%d,\"progress\":%u,\"bridge_open_calls\":%u,\"bridge_"
             "prefetch_calls\":%u,\"bridge_active\":%s,\"code_ready\":%s,\"code_length\":%u,"
             "\"renewed_code\":%s,\"rate_valid\":%s,\"rate_bps\":%llu,\"component_id\":%u,\"sample_"

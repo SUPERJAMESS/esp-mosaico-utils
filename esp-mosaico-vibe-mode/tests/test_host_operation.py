@@ -8,11 +8,11 @@ from unittest.mock import Mock
 
 import pytest
 from mosaico_cli import commands, gateway
-from mosaico_cli.errors import DeviceError, OperationError
+from mosaico_cli.errors import DeviceError, OperationError, OutcomeUnknownError
 from test_cli import REPOSITORY, WORKSPACE
 
 
-@pytest.mark.parametrize("outcome", ["succeeded", "failed", "waiting"])
+@pytest.mark.parametrize("outcome", ["succeeded", "failed", "waiting", "disconnected", "invalid_response"])
 def test_cli_records_operation_and_never_cancels_a_writer_on_timeout(tmp_path, monkeypatch, outcome):
     session = gateway.GatewaySession(Path("python"), Path("iris"),
                                      ("--url", "http://127.0.0.1:8443"), None, False)
@@ -30,6 +30,10 @@ def test_cli_records_operation_and_never_cancels_a_writer_on_timeout(tmp_path, m
             assert json.loads(path.read_text())["commands"][0]["env"]["PRIVATE"] == "secret"
             return {"operation": {"operation_id": "rom-1", "status": "running"}}
         assert command == "operation-status"
+        if outcome == "disconnected":
+            raise DeviceError("Gateway exited")
+        if outcome == "invalid_response":
+            raise OperationError("Invalid Gateway response")
         return {"operation_id": "rom-1", "status": outcome,
                 "error": "write failed", "result": {"stdout": "finished"}}
 
@@ -38,8 +42,14 @@ def test_cli_records_operation_and_never_cancels_a_writer_on_timeout(tmp_path, m
     if outcome == "succeeded":
         assert gateway.run_host_operation(context, session, spec, timeout=2)["operation_id"] == "rom-1"
     else:
-        with pytest.raises(DeviceError if outcome == "waiting" else OperationError):
+        error_type = OperationError if outcome == "failed" else OutcomeUnknownError
+        with pytest.raises(error_type) as error:
             gateway.run_host_operation(context, session, spec, timeout=0 if outcome == "waiting" else 2)
+        assert error.value.details["operation_id"] == "rom-1"
+        if outcome != "failed":
+            assert error.value.details["last_known_status"] == "running"
+            assert "operation-status rom-1" in str(error.value)
+    assert len(submitted) == 1
     assert json.loads((tmp_path / "host-operation.json").read_text()) == {"operation_id": "rom-1"}
     assert not submitted[0].exists()
     assert "secret" not in str(context.note.call_args_list)
@@ -61,7 +71,7 @@ def test_recover_prepares_then_submits_one_operation(tmp_path, monkeypatch, mana
     record = Mock()
     for name, value in {
         "resolve_idf_path": Mock(return_value=Path("/idf")),
-        "load_bundle": Mock(return_value={"version": "0.2.0", "images": {"recovery": {}}}),
+        "load_bundle": Mock(return_value={"version": "0.2.0", "images": {"recovery": {"file": "vibe-mode.bin"}}}),
         "ensure_gateway": Mock(return_value=session),
         "connected_devices": Mock(return_value=[before] if managed else []),
         "provisioning_candidate": Mock(return_value="/dev/test-rom"),

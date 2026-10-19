@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .errors import DeviceError, OperationError
+from .errors import DeviceError, OperationError, OutcomeUnknownError
 from .gateway import connected_devices, ensure_gateway, gateway_json, select_device
 from .runtime import RunContext
 
@@ -23,7 +23,7 @@ def _live_status(context: RunContext, session: Any, device_id: str) -> dict[str,
 def collect_evidence(arguments: Any, context: RunContext) -> dict[str, Any]:
     command = arguments.command
     session = ensure_gateway(
-        context, arguments.gateway_profile, select=command != "operation-status"
+        context, arguments.gateway_profile, select=command not in {"operation-status", "operation-reconcile"}
     )
     result = {
         "command": command,
@@ -38,6 +38,21 @@ def collect_evidence(arguments: Any, context: RunContext) -> dict[str, Any]:
             raise OperationError("ESP-Iris returned an invalid operation record.")
         # A successful query does not make a failed/unknown device operation succeed.
         return {**result, "operation": operation}
+
+    if command == "operation-reconcile":
+        response = gateway_json(context, session, command, arguments.operation_id, timeout=45)
+        if (not isinstance(response, dict) or response.get("operation_id") != arguments.operation_id
+                or response.get("replayed") is not False):
+            raise OperationError("ESP-Iris returned an invalid verification record.")
+        if response.get("outcome") != "observed_success":
+            error_type = OutcomeUnknownError if response.get("outcome") == "outcome_unknown" else OperationError
+            raise error_type(response.get("reason") or "Operation acceptance remains unverified.",
+                             details={"reconciliation": response})
+        status = response.get("evidence", {}).get("status", {})
+        if status.get("firmware_mode") == "recovery" and status.get("device_id") and status.get("app_version"):
+            from .recovery import record_recovery_verification
+            record_recovery_verification(status["device_id"], status["app_version"], status.get("boot_id"))
+        return {**result, "reconciliation": response}
 
     selected = select_device(connected_devices(context, session), arguments.device_id)
     device_id = str(selected["device_id"])
