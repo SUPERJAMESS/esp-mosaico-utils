@@ -23,7 +23,7 @@ static bool ota_idle(void)
     esp_err_t err = esp_iris_ota_get_status(&status);
     return (err == ESP_OK || err == ESP_ERR_NOT_FOUND || err == ESP_ERR_NOT_SUPPORTED) && !status.active;
 }
-static esp_err_t flash_digest(uint32_t offset, uint32_t size, char result[65])
+static esp_err_t flash_digest(ideas_context_t *ctx, uint32_t offset, uint32_t size, char result[65])
 {
     unsigned char *buffer = malloc(IO_BYTES);
     if (!buffer) return ESP_ERR_NO_MEM;
@@ -31,6 +31,7 @@ static esp_err_t flash_digest(uint32_t offset, uint32_t size, char result[65])
     esp_err_t err = psa_crypto_init() == PSA_SUCCESS &&
         psa_hash_setup(&hash, PSA_ALG_SHA_256) == PSA_SUCCESS ? ESP_OK : ESP_FAIL;
     for (uint32_t pos = 0; err == ESP_OK && pos < size;) {
+        if (ctx && ideas_job_cancelled(ctx)) { err = ESP_ERR_INVALID_STATE; break; }
         size_t n = size - pos < IO_BYTES ? size - pos : IO_BYTES;
         err = esp_flash_read(esp_flash_default_chip, buffer, offset + pos, n);
         if (err == ESP_OK && psa_hash_update(&hash, buffer, n) != PSA_SUCCESS) err = ESP_FAIL;
@@ -52,13 +53,13 @@ static esp_err_t add_file(development_t *dev, uint32_t offset, uint32_t size)
     snprintf(file->name, sizeof(file->name), "firmware/part-%u.bin", (unsigned)i);
     snprintf(file->path, sizeof(file->path), "/local/part-%u.bin", (unsigned)i);
     file->size = size; dev->offsets[i] = offset;
-    esp_err_t err = flash_digest(offset, size, file->sha256);
+    esp_err_t err = flash_digest(dev->owner, offset, size, file->sha256);
     if (err == ESP_OK) { ++p->file_count; ++p->component_count; p->total_size += size; }
     return err;
 }
 static esp_err_t inspect(development_t *dev)
 {
-    if (!ota_idle()) return ESP_ERR_INVALID_STATE;
+    if (!ota_idle() || (dev->owner && ideas_job_cancelled(dev->owner))) return ESP_ERR_INVALID_STATE;
     /* Iris may have committed a different layout since boot. Read the live
      * table rather than ESP-IDF's cached esp_partition list. */
     uint8_t *table = malloc(4096);
@@ -168,6 +169,7 @@ static cJSON *descriptor(development_t *dev)
 static esp_err_t copy_flash(const ideas_file_t *file, const char *path, void *argument)
 {
     development_t *dev = argument;
+    if (ideas_job_cancelled(dev->owner)) return ESP_ERR_INVALID_STATE;
     if (!strcmp(file->name, "firmware/manifest.json")) {
         FILE *out = fopen(path, "wb");
         if (!out) return ESP_FAIL;
@@ -183,6 +185,7 @@ static esp_err_t copy_flash(const ideas_file_t *file, const char *path, void *ar
     FILE *out = fopen(path, "wb");
     esp_err_t err = buffer && out ? ESP_OK : ESP_ERR_NO_MEM;
     for (uint32_t pos = 0; err == ESP_OK && pos < file->size;) {
+        if (ideas_job_cancelled(dev->owner)) { err = ESP_ERR_INVALID_STATE; break; }
         size_t n = file->size - pos < IO_BYTES ? file->size - pos : IO_BYTES;
         err = esp_flash_read(esp_flash_default_chip, buffer, dev->offsets[i] + pos, n);
         if (err == ESP_OK && fwrite(buffer, 1, n, out) != n) err = ESP_FAIL;
@@ -200,15 +203,35 @@ static esp_err_t copy_flash(const ideas_file_t *file, const char *path, void *ar
     free(buffer);
     return err;
 }
+static esp_err_t capture_cancel(uint32_t checked, void *argument)
+{
+    (void)checked;
+    development_t *dev = argument;
+    return ideas_job_cancelled(dev->owner) ? ESP_ERR_INVALID_STATE : ESP_OK;
+}
+static esp_err_t verify_capture(const ideas_file_t *file, const char *path, void *argument)
+{
+    return ideas_hash_file_progress(path, file->size, file->sha256, capture_cancel, argument);
+}
 static esp_err_t capture_gate(void *argument)
 {
     development_t *dev = argument;
     if (!ota_idle()) return ESP_ERR_INVALID_STATE;
     for (size_t i = 0; i < dev->package.file_count; ++i) {
-        esp_err_t err = ideas_flash_hash(dev->offsets[i], dev->package.files[i].size, dev->package.files[i].sha256);
+        char digest[65];
+        esp_err_t err = flash_digest(dev->owner, dev->offsets[i], dev->package.files[i].size, digest);
         if (err != ESP_OK) return err;
+        if (strcmp(digest, dev->package.files[i].sha256)) return ESP_ERR_INVALID_CRC;
     }
-    return ota_idle() ? ESP_OK : ESP_ERR_INVALID_STATE;
+    if (!ota_idle()) return ESP_ERR_INVALID_STATE;
+    /* Atomically close cancellation before publishing the verified generation.
+     * A request accepted earlier must roll back .incoming, never report a
+     * cancelled result after making the saved copy visible. */
+    xSemaphoreTake(dev->owner->lock, portMAX_DELAY);
+    esp_err_t err = dev->owner->cancel_requested ? ESP_ERR_INVALID_STATE : ESP_OK;
+    if (err == ESP_OK) dev->owner->state->cancellable = false;
+    xSemaphoreGive(dev->owner->lock);
+    return err;
 }
 void ideas_development_status(ideas_context_t *ctx)
 {
@@ -263,7 +286,7 @@ esp_err_t ideas_save_development(ideas_context_t *ctx)
     if (err == ESP_OK) err = ideas_package_firmware(existing, dev->firmware, strlen(dev->firmware));
     if (err == ESP_OK) err = ideas_check_space(existing->total_size);
     if (err == ESP_OK) err = ideas_store_download_gated(ROOT, json, strlen(json), existing, copy_flash,
-                                         ideas_verify_file, dev, NULL, capture_gate);
+                                         verify_capture, dev, NULL, capture_gate);
     if (err == ESP_OK) err = ideas_store_finish(ROOT, existing);
     if (err == ESP_OK) err = ideas_save_boot(existing);
     if (err == ESP_OK) {

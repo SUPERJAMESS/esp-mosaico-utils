@@ -370,5 +370,7 @@
   "Save a value once.\nEvery Idea can read it.": "保存一次信息，\n每个 Idea 都能读取。",
   "Keys: a-z, 0-9 and _\nUp to 15 characters.\nValues: up to 256 bytes.\nSecret values are hidden by default.": "键名使用 a-z、0-9 和 _，\n最多 15 个字符。\n值最多 256 字节。\n密文默认隐藏。",
   "Tap Value to edit this entry.": "点击「值」编辑此条目。",
-  "Current Idea": "当前 Idea"
+  "Current Idea": "当前 Idea",
+  "Update all saved Ideas?": "更新所有已保存的 Idea？",
+  "Download available updates to My Ideas.": "将可用更新下载到我的应用。"
 }

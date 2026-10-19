@@ -205,7 +205,7 @@ static void activity_progress(uint16_t *frame)
     vui_tick(ui, 200);
     vui_area_t area;
     assert(vui_render_changed(ui, frame, &area));
-    assert(area.x == 40 && area.y == 286 && area.w == 400 && area.h == 12);
+    assert(area.x == 40 && area.y == 316 && area.w == 400 && area.h == 12);
     assert(memcmp(before, frame, 480 * 480 * 2));
     compare_full(ui, frame);
     assert(vui_set_indeterminate(ui, VUI_VIBE_BIND_PROGRESS, false) == VUI_OK);

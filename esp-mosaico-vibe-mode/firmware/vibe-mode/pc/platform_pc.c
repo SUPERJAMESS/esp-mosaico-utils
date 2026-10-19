@@ -289,7 +289,7 @@ static void snapshot(void *ctx, vibe_snapshot_t *out) {
             ++model.update_revision;
             snprintf(model.update_title, sizeof(model.update_title), "%s",
                      (current_job == VIBE_INSTALL_NAND || current_job == VIBE_OPEN_IDEA) ? "Boot application ready"
-                                                      : "Download complete");
+                                                      : current_job == VIBE_SAVE_DEVELOPMENT ? "Development Idea saved" : "Download complete");
             snprintf(model.update_detail, sizeof(model.update_detail), "%s",
                      (current_job == VIBE_INSTALL_NAND || current_job == VIBE_OPEN_IDEA) ? "Starts on next power-on"
                                                       : "Saved in My Ideas");
@@ -412,6 +412,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
             model.update_terminal = model.update_cancelled = true;
             ++model.update_revision;
             snprintf(model.update_title, sizeof(model.update_title), "Cancelled");
+            snprintf(model.update_detail, sizeof(model.update_detail), "Previously saved Ideas are unchanged");
         }
         model.idea_loading = model.idea_ready = model.idea_busy = false;
         break;
@@ -458,7 +459,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         else if (cmd == VIBE_SAVE_DEVELOPMENT) ++save_calls;
         else if (cmd == VIBE_UPDATE_ALL) ++check_calls;
         else ++install_calls;
-        model.cancellable = cmd == VIBE_DOWNLOAD_IDEA || cmd == VIBE_UPDATE_ALL;
+        model.cancellable = cmd == VIBE_DOWNLOAD_IDEA || cmd == VIBE_UPDATE_ALL || cmd == VIBE_SAVE_DEVELOPMENT;
         model.batch = cmd == VIBE_UPDATE_ALL;
         model.batch_total = (unsigned)model.bundle_count;
         model.batch_index = 1;
@@ -481,7 +482,8 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
                                            .component_id = 1,
                                            .receiving = true};
         model.transfer.job[0] = (uint8_t)model.update_revision;
-        snprintf(model.update_title, sizeof(model.update_title), "Updating system");
+        snprintf(model.update_title, sizeof(model.update_title), "%s",
+                 cmd == VIBE_SAVE_DEVELOPMENT ? "Saving development Idea" : "Updating system");
         snprintf(model.update_detail, sizeof(model.update_detail),
                  "Reading simulated NAND component");
         snprintf(model.update_owner, sizeof(model.update_owner), "NAND");

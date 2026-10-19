@@ -1,9 +1,9 @@
 {
-  "components/app_ui/light/vui_assets.bin": "123af8d9a607b628d130730a8409a86601eb061c21c0136943c02b40b286c4b3",
-  "components/app_ui/private/vui_ids.h": "6450b7b2c4e85649fe7f19d9e1b5247c1f40b521b2fc99f86fe598c324c2b69f",
-  "tools/build_vibe_ui.py": "b0891a46d5bbb42ae4b2907a530c06e30fb94f412d3bd80659cebccef40a99aa",
+  "components/app_ui/light/vui_assets.bin": "ab7812e3d857c4ae6abfa8468703e61d3612a20f6756f679f1578b561789f93d",
+  "components/app_ui/private/vui_ids.h": "a3ea8132781fcbe331c2734ff9a034ea199ac6fa9b9d4948828d9d2d9a6a47ff",
+  "tools/build_vibe_ui.py": "9197eb6f3694e70167f898c2c5df5024dbaedcb2062ca6ca83d9a9a2b7f3bec7",
   "tools/compile_vui.py": "85d192ec4827c7466cca144d7e4a7d4dfa8d340856e1a91ad726ea3c1b8c255f",
-  "tools/vibe_design.py": "0f758ecb1b5f4f1a52296fe25ec732c53c9eb9a9ae6856ad089c92edcd6b9697",
+  "tools/vibe_design.py": "fccb805498054b327ded491a6ada610552d8afc99a5cf52db39354120f72234f",
   "ui/assets/icons/arrow-28-orange.png": "4b4df4c7fd4d4f63a9e0fbb18dbf4af2a9c51698c2daa8077aef70e01be25a8b",
   "ui/assets/icons/back-32-white.png": "dda00fc50216a05505b20b1ada090347a88768e26b9f4f852c588c0c6b8f5ac9",
   "ui/assets/icons/backspace-32-white.png": "9b7f79d39d6d55cfdfd226d1c14a77e74ec5539986bdbc5bce4611697392bbf8",
@@ -50,11 +50,11 @@
   "ui/core.json": "39d11191461c6e3f96590f8880488c44c6d81c7120fcd4d8482a9051f177f4ea",
   "ui/fonts/ArchivoExtended-Black.ttf": "82b86f7829d0d48c323088682a49ff304bf7d0f4d2295d60997f0a43e22a7591",
   "ui/fonts/Doto-Black.ttf": "608163f70ddae7207f667877c7ddf99360a79afbc8e995f501a31f756e3a05b7",
-  "ui/fonts/VibeDisplay.otf": "bad82f83269f0f5400e73eef7bb6351f3500851d94911359ac46fa7533d5ec5c",
-  "ui/fonts/VibeInter.otf": "97a5b32c222a531d5786e09b896f40625694aa71f759615336d60f004bb73bf9",
-  "ui/fonts/VibeMedium.otf": "d4356705129bc3143407427907bb91a8d797647aad6774a172badd73d43956d9",
-  "ui/main.json": "c21d84df32269d347854aebadda6b45c12a1df99a58488fc9879eb18ba15052d",
+  "ui/fonts/VibeDisplay.otf": "b6971eb1eef875b84dda83d472394955118c7094a73e44373ea7ef82403086ba",
+  "ui/fonts/VibeInter.otf": "8e25f0e6d2960df45555faee9254e5509c452ca76d608694e69f56559dd7be79",
+  "ui/fonts/VibeMedium.otf": "07cedb726e86d96512fa40190063f58dddee9f718fb69dbfd8c80a31eb0722cc",
+  "ui/main.json": "7d2a4d41bf0c3252efa5f00453f9e12a4efc1f84b6d22b7ee8a5d6c6fe5bb7ce",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3",
-  "ui/translations.json": "6007e4574a6be217f4e0f2a0cf3522281671ad492f977a9632335cc80e292d0c"
+  "ui/translations.json": "ce073885551493a2ac8f1b40730a0baefa3a8c757ff5054defa686c818e7ed87"
 }

@@ -199,6 +199,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         else if (s->snapshot.development_saved) TEXT(s, DEVELOP_FEEDBACK, "Already saved in My Ideas");
         else if (s->snapshot.idea_busy) TEXT(s, DEVELOP_FEEDBACK, "Finishing previous request...");
         else {
+            memset(&s->selected_bundle, 0, sizeof(s->selected_bundle));
             int err = vibe_command(s, VIBE_SAVE_DEVELOPMENT, NULL, NULL);
             if (err) vibe_error(s, "Operation failed", err);
             else vibe_show(s, VIBE_UPDATE);
@@ -249,7 +250,8 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_PRODUCT_BACK:
         if (s->page == VIBE_WELCOME) break;
-        if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE || s->page == VIBE_SHARED_HELP) vibe_show(s, s->return_page);
+        if (s->page == VIBE_UPDATE_CONFIRM) vibe_show(s, VIBE_NAND);
+        else if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE || s->page == VIBE_SHARED_HELP) vibe_show(s, s->return_page);
         else if (s->page == VIBE_LICENSES) vibe_show(s, VIBE_ABOUT);
         else if (s->page == VIBE_SHARED_DETAIL) vibe_show(s, VIBE_SHARED);
         else if (s->page == VIBE_DELETE_CONFIRM) {
@@ -325,9 +327,17 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
             else s->batch_cancel_pending = true;
             break;
         }
+        vibe_show(s, VIBE_UPDATE_CONFIRM);
+        break;
+    }
+    case VUI_VIBE_ACT_ID_UPDATE_ALL_ACCEPT: {
+        if (s->page != VIBE_UPDATE_CONFIRM) break;
+        s->services.snapshot(s->services.ctx, &s->snapshot);
+        if (s->snapshot.idea_busy || s->snapshot.batch) break;
         memset(&s->selected_bundle, 0, sizeof(s->selected_bundle));
         int err = vibe_command(s, VIBE_UPDATE_ALL, NULL, NULL);
         if (err) vibe_error(s, "Operation failed", err);
+        else vibe_show(s, VIBE_NAND);
         break;
     }
     case VUI_VIBE_ACT_ID_CANCEL_DOWNLOAD:
@@ -476,7 +486,10 @@ void vibe_product_poll(vibe_ui_t *s)
         s->first_run = false; vibe_show(s, VIBE_HOME);
     }
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_CANCEL_DOWNLOAD_VISIBLE, v->cancellable);
-    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_OPEN_VISIBLE, !s->result_failed && !s->result_cancelled && s->selected_bundle.code[0]);
+    bool result_open = !s->result_failed && !s->result_cancelled && s->selected_bundle.code[0];
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_OPEN_VISIBLE, result_open);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_LIBRARY_VISIBLE, result_open);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_DONE_VISIBLE, !result_open);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_UNDO_DELETE_VISIBLE, s->undo_until != 0);
     if (s->undo_until) FORMAT(s, UNDO_MESSAGE, "Deleted · %u s to undo", (s->undo_until > s->tick ? s->undo_until - s->tick : 0) / 20 + 1);
     else TEXT(s, UNDO_MESSAGE, "");
@@ -703,6 +716,7 @@ void vibe_product_tick(vibe_ui_t *s)
             s->activity_tick = s->tick;
             if (key == 1) {
                 if (s->page == VIBE_SLEEP) wake(s);
+                else if (s->page == VIBE_UPDATE_CONFIRM) vibe_show(s, VIBE_NAND);
                 else if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE) vibe_show(s, s->return_page);
                 else if (s->page != VIBE_HOME && s->page != VIBE_GRID &&
                          !s->snapshot.updating && !s->snapshot.idea_busy && !s->preview_active) vibe_show(s, VIBE_HOME);

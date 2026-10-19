@@ -645,15 +645,15 @@ def test_ideas_download_verification_stages(sim, english):
     sim.wait(page=7, progress=400, rate_valid=False)
     sim.capture("ideas-verify-files")
     with Image.open(sim.directory / "ideas-verify-files.png") as frame:
-        assert frame.getpixel((100, 295))[0] > 200
-        assert frame.getpixel((300, 295))[0] < 100
+        assert frame.getpixel((100, 325))[0] > 200
+        assert frame.getpixel((300, 325))[0] < 100
     for phase, name in ((2, "check-image"), (3, "save"), (4, "complete")):
         sim.control("ideas-phase %d 1000000 1000000 12 12 %d" % (phase, 3000 + phase*1000))
         sim.wait(page=8 if phase == 4 else 7, rate_valid=False)
         sim.capture("ideas-" + name)
         if phase in (2, 3):
             with Image.open(sim.directory / ("ideas-" + name + ".png")) as frame:
-                pixels = list(frame.convert("RGB").crop((24, 294, 456, 298)).getdata())
+                pixels = list(frame.convert("RGB").crop((24, 324, 456, 328)).getdata())
                 orange = sum(r > 200 and g < 120 for r, g, b in pixels)
                 assert 300 < orange < 600  # Activity segment, no fake percentage.
 
@@ -671,8 +671,8 @@ def test_ideas_verification_failure_has_no_download_rate(sim):
         pixels = frame.convert("RGB").crop((32, 76, 152, 196)).getdata()
         assert sum(r > 100 and r > g * 1.4 for r, g, b in pixels) > 100
     sim.control("library-refreshed")
-    sim.tap_ui("button_result_open")
-    sim.wait(page=8, restart_calls=0, install_calls=0)
+    sim.tap(430, 420)  # Wide Done replaces Open, including its former hit region.
+    sim.wait(page=5, restart_calls=0, install_calls=0)
 
 def test_manage_reuses_library_when_reentered(sim):
     for _ in range(3):
@@ -707,10 +707,8 @@ def test_open_read_rate_and_cancel_returns_home(sim, language):
     sim.capture("open-cancelling")
     sim.wait(page=8, cancelled=True, restart_calls=0)
     sim.capture("open-cancelled")
-    sim.tap_ui("button_result_open")  # Hidden Open must not start the application.
-    sim.wait(page=8, restart_calls=0)
     sim.control("library-refreshed")  # Background work may replace service flags.
-    sim.tap_ui("button_result_library")
+    assert_wide_done(sim, "cancelled-wide-done")
     sim.wait(page=0, restart_calls=0, scan_calls=0)
     sim.manage()
     sim.wait(page=5, bundle_count=2, scan_calls=0)
@@ -753,6 +751,8 @@ def test_unsaved_development_has_only_open_or_cancel(sim):
 def test_batch_update_survives_navigation_and_can_cancel(sim):
     sim.manage()
     sim.tap_ui("manage_update_all")
+    sim.wait(page=31, batch=False, check_calls=0)
+    sim.tap_ui("button_update_all_accept")
     sim.wait(page=5, batch=True, check_calls=1, install_calls=0)
     sim.rpc("wait", frames=120)
     sim.capture("batch-update")
@@ -1051,6 +1051,8 @@ def test_manage_reference_status_colors_badge_and_storage_bar(sim):
         assert sum(r > 200 and 30 < g < 130 and b < 90
                    for r, g, b in pixels.crop((360, 16, 384, 40)).getdata()) > 200
     sim.tap_ui('manage_update_all')
+    sim.wait(page=31, batch=False, check_calls=0)
+    sim.tap_ui('button_update_all_accept')
     sim.wait(page=5, batch=True, check_calls=1)
     sim.tap_ui('manage_update_all')
     sim.wait(page=5, batch=False, cancel_calls=1)
@@ -1066,7 +1068,9 @@ def test_update_tap_during_scan_keeps_library_visible(sim):
     sim.wait(page=5, check_calls=0)
     sim.wait(nand_scanning=False)
     sim.tap_ui('manage_update_all')
-    sim.wait(check_calls=1)
+    sim.wait(page=31, check_calls=0)
+    sim.tap_ui('button_update_all_accept')
+    sim.wait(page=5, check_calls=1)
 
 
 @pytest.mark.parametrize('sim', ['pager-six'], indirect=True)
@@ -1219,3 +1223,83 @@ def test_long_titles_scroll_in_library_details_and_preview_without_moving_contro
     sim.capture("details-marquee-return")
     with Image.open(sim.directory / "details-marquee-start.png") as a, Image.open(sim.directory / "details-marquee-return.png") as b:
         assert a.crop((88, 29, 456, 69)).tobytes() == b.crop((88, 29, 456, 69)).tobytes()
+
+
+def assert_wide_done(sim, name):
+    sim.capture(name)
+    with Image.open(sim.directory / (name + ".png")) as frame:
+        # One continuous primary button spans the centre and both halves.
+        for x in (48, 230, 240, 250, 432):
+            assert min(frame.getpixel((x, 398))[:3]) > 200
+    sim.tap(430, 420)  # The far right must also activate Done, not stale Open.
+
+
+@pytest.mark.parametrize("sim", ["development"], indirect=True)
+def test_save_development_can_cancel_and_retry_with_a_wide_done_button(sim):
+    sim.manage(); sim.tap(150, 170); sim.wait(page=6)
+    sim.tap(38, 36); sim.wait(page=5)
+    sim.tap(38, 36); sim.wait(page=0)  # Leave a previously selected Idea in controller state.
+    sim.tap_ui("button_nav_develop"); sim.wait(page=10)
+    sim.tap_ui("button_develop_save")
+    sim.wait(page=7, save_calls=1, cancellable=True, development_saved=False)
+    sim.tap_ui("button_cancel_download")
+    sim.wait(page=8, cancel_calls=1, cancelled=True, development_saved=False, restart_calls=0)
+    assert_wide_done(sim, "save-cancelled-wide-done")
+    sim.wait(page=0, restart_calls=0)
+    sim.tap_ui("button_nav_develop"); sim.wait(page=10)
+    sim.tap_ui("button_develop_save")
+    sim.wait(timeout=45, page=8, save_calls=2, development_saved=True, restart_calls=0)
+    assert_wide_done(sim, "development-saved-wide-done")
+    sim.wait(page=5, restart_calls=0, install_calls=0)
+
+
+@pytest.mark.parametrize("sim", ["batch"], indirect=True)
+@pytest.mark.parametrize("language", [1, 2])
+def test_update_all_requires_confirmation_and_cancel_has_no_side_effects(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
+    sim.manage(); sim.tap_ui("manage_update_all")
+    sim.wait(page=31, batch=False, check_calls=0, download_calls=0)
+    sim.capture("confirm-update-all")
+    sim.tap_ui("button_update_all_cancel")
+    sim.wait(page=5, check_calls=0, cancel_calls=0, download_calls=0)
+    sim.tap_ui("manage_update_all"); sim.wait(page=31)
+    sim.control("ai"); sim.wait(page=5, check_calls=0)
+    sim.tap_ui("manage_update_all"); sim.wait(page=31)
+    sim.tap_ui("button_update_all_accept")
+    sim.wait(page=5, batch=True, check_calls=1, install_calls=0, restart_calls=0)
+    sim.tap_ui("manage_update_all")
+    sim.wait(page=5, batch=False, check_calls=1, cancel_calls=1)
+
+
+@pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
+@pytest.mark.parametrize("language", [1, 2])
+def test_download_cancel_has_wide_done_and_aligned_status(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
+    sim.download(); sim.wait(page=4)
+    for digit in (0, 4, 2, 7, 3, 1):
+        sim.tap_ui("button_code_" + str(digit))
+    sim.tap_ui("button_download_code"); sim.wait(page=9, idea_ready=True)
+    sim.tap_ui("button_accept_idea"); sim.wait(page=7, cancellable=True, download_calls=1)
+    sim.control("ideas-phase 0 500000 1000000 0 12 1000")
+    sim.capture("download-status-aligned")
+    with Image.open(sim.directory / "download-status-aligned.png") as frame:
+        # Keep one status line just below the title, sharing its left edge.
+        title = frame.crop((148, 50, 456, 106)).convert("L").point(lambda x: 255 if x > 100 else 0).getbbox()
+        detail = frame.crop((148, 108, 456, 140)).convert("L").point(lambda x: 255 if x > 100 else 0).getbbox()
+        assert title and detail and abs(title[0] - detail[0]) <= 4
+        assert not any(max(rgb[:3]) > 100 for rgb in frame.crop((24, 172, 456, 196)).getdata())
+        assert sum(max(rgb[:3]) > 100 for rgb in frame.crop((24, 208, 456, 298)).getdata()) > 300
+    sim.tap_ui("button_cancel_download")
+    sim.wait(page=8, cancelled=True, cancel_calls=1, install_calls=0, restart_calls=0)
+    assert_wide_done(sim, "download-cancelled-wide-done")
+    sim.wait(page=0, install_calls=0, restart_calls=0)
