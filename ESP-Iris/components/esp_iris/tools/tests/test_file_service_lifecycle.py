@@ -25,6 +25,9 @@ def test_file_service_lifecycle(tmp_path: Path, external_registry: bool) -> None
         "-std=c11", "-D_POSIX_C_SOURCE=200809L", "-Wall", "-Wextra",
         "-Werror", "-Wno-unused-parameter", "-ffunction-sections", "-fdata-sections",
     ]
+    if sys.platform == "darwin":
+        # The macOS SDK exposes mkdtemp through its Darwin feature namespace.
+        flags.append("-D_DARWIN_C_SOURCE")
     if os.environ.get("IRIS_HOST_SANITIZERS") == "1":
         flags += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-g"]
     if external_registry:

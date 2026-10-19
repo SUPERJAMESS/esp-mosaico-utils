@@ -1,0 +1,96 @@
+[
+  {
+    "IOObjectClass": "IOUSBHostDevice",
+    "IORegistryEntryChildren": [
+      {
+        "IOObjectClass": "AppleUSBCDCCompositeDevice",
+        "IORegistryEntryName": "AppleUSBCDCCompositeDevice"
+      },
+      {
+        "IOObjectClass": "IOUSBHostInterface",
+        "IORegistryEntryChildren": [
+          {
+            "IOObjectClass": "AppleUSBACMControl",
+            "IORegistryEntryName": "AppleUSBACMControl",
+            "bInterfaceClass": 2
+          }
+        ],
+        "IORegistryEntryName": "ESP-Iris 0.2 console",
+        "bInterfaceClass": 2,
+        "bInterfaceNumber": 0,
+        "idProduct": 16386,
+        "idVendor": 12346,
+        "kUSBString": "ESP-Iris 0.2 console"
+      },
+      {
+        "IOObjectClass": "IOUSBHostInterface",
+        "IORegistryEntryChildren": [
+          {
+            "IOObjectClass": "AppleUSBACMData",
+            "IORegistryEntryChildren": [
+              {
+                "IOCalloutDevice": "/dev/cu.usbmodemfixture-a1",
+                "IODialinDevice": "/dev/tty.usbmodemfixture-a1",
+                "IOObjectClass": "IOSerialBSDClient",
+                "IORegistryEntryName": "IOSerialBSDClient"
+              }
+            ],
+            "IORegistryEntryName": "AppleUSBACMData",
+            "bInterfaceClass": 10,
+            "idProduct": 16386,
+            "idVendor": 12346
+          }
+        ],
+        "IORegistryEntryName": "IOUSBHostInterface",
+        "bInterfaceClass": 10,
+        "bInterfaceNumber": 1,
+        "idProduct": 16386,
+        "idVendor": 12346
+      },
+      {
+        "IOObjectClass": "IOUSBHostInterface",
+        "IORegistryEntryChildren": [
+          {
+            "IOObjectClass": "AppleUSBACMControl",
+            "IORegistryEntryName": "AppleUSBACMControl",
+            "bInterfaceClass": 2
+          }
+        ],
+        "IORegistryEntryName": "ESP-Iris 0.2 data",
+        "bInterfaceClass": 2,
+        "bInterfaceNumber": 2,
+        "idProduct": 16386,
+        "idVendor": 12346,
+        "kUSBString": "ESP-Iris 0.2 data"
+      },
+      {
+        "IOObjectClass": "IOUSBHostInterface",
+        "IORegistryEntryChildren": [
+          {
+            "IOObjectClass": "AppleUSBACMData",
+            "IORegistryEntryChildren": [
+              {
+                "IOCalloutDevice": "/dev/cu.usbmodemfixture-a3",
+                "IODialinDevice": "/dev/tty.usbmodemfixture-a3",
+                "IOObjectClass": "IOSerialBSDClient",
+                "IORegistryEntryName": "IOSerialBSDClient"
+              }
+            ],
+            "IORegistryEntryName": "AppleUSBACMData",
+            "bInterfaceClass": 10,
+            "idProduct": 16386,
+            "idVendor": 12346
+          }
+        ],
+        "IORegistryEntryName": "IOUSBHostInterface",
+        "bInterfaceClass": 10,
+        "bInterfaceNumber": 3,
+        "idProduct": 16386,
+        "idVendor": 12346
+      }
+    ],
+    "IORegistryEntryName": "ESP-Iris Mosaico Vibe Mode",
+    "idProduct": 16386,
+    "idVendor": 12346
+  }
+]

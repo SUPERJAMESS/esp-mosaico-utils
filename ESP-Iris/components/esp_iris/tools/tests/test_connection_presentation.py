@@ -21,7 +21,7 @@ def test_picker_lists_mixed_transports_without_widening_auto_discovery(tmp_path,
              port("/dev/ttyACM2", 0x303A, 0x4002, "ESP-Iris", "1-2:1.2", "ESP-Iris 0.2 data"),
              port("/dev/ttyACM1", 0x303A, 0x1001, "USB JTAG/serial debug unit", "1-8:1.0"),
              port("/dev/ttyUSB0", 0x10C4, 0xEA60, "CP2102N", "1-7")]
-    monkeypatch.setattr("serial.tools.list_ports.comports", lambda: ports)
+    monkeypatch.setattr("iris_gateway.discovery.serial_ports", lambda: ports)
     store = GatewayStore(tmp_path)
     service = GatewayService(store, instance_id="picker")
     hub = HostHub()
@@ -60,7 +60,7 @@ def test_present_port_only_connecting_during_active_attempt(tmp_path, attempt_st
 
 
 def test_disconnected_cache_never_reports_live_links(tmp_path, monkeypatch):
-    monkeypatch.setattr("serial.tools.list_ports.comports", list)
+    monkeypatch.setattr("iris_gateway.discovery.serial_ports", list)
     store = GatewayStore(tmp_path)
     service = GatewayService(store, instance_id="cache")
     hub = HostHub()
