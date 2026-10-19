@@ -127,11 +127,16 @@ esp_err_t update_write_component(const esp_iris_system_update_component_t *compo
     update_context_t *ctx = user_ctx;
 
     if (component == NULL || data == NULL || size == 0 || ctx->transaction.active_index < 0 ||
-        offset != ctx->transaction.received ||
-        component->id != ctx->transaction.plan[ctx->transaction.active_index].descriptor.id ||
-        size > component->size - offset) {
+        offset != ctx->transaction.received) {
         return ESP_ERR_INVALID_SIZE;
     }
+    if (update_find_plan_component(ctx, component) != ctx->transaction.active_index)
+        return ESP_ERR_INVALID_ARG;
+    /* Allocation and target permissions came from the accepted plan. Never
+     * use a caller's changed size/kind/offset to write or validate a component. */
+    component = &ctx->transaction.plan[ctx->transaction.active_index].descriptor;
+    if (offset > component->size || size > component->size - offset)
+        return ESP_ERR_INVALID_SIZE;
     esp_err_t err = ESP_OK;
     if (component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_APPLICATION) {
         err = ctx->transaction.active_partition != NULL
@@ -170,12 +175,15 @@ esp_err_t update_end_component(const esp_iris_system_update_component_t *compone
     update_context_t *ctx = user_ctx;
 
     ESP_RETURN_ON_FALSE(component != NULL && actual_sha256 != NULL &&
-                            ctx->transaction.active_index >= 0 &&
-                            ctx->transaction.received == component->size,
+                            ctx->transaction.active_index >= 0,
                         ESP_ERR_INVALID_STATE, TAG, "component end state");
+    ESP_RETURN_ON_FALSE(update_find_plan_component(ctx, component) == ctx->transaction.active_index,
+                        ESP_ERR_INVALID_ARG, TAG, "component descriptor does not match plan");
     factory_update_plan_component_t *plan = &ctx->transaction.plan[ctx->transaction.active_index];
-    ESP_RETURN_ON_FALSE(component->id == plan->descriptor.id &&
-                            update_bytes_equal(actual_sha256, plan->descriptor.sha256, 32),
+    component = &plan->descriptor;
+    ESP_RETURN_ON_FALSE(ctx->transaction.received == component->size,
+                        ESP_ERR_INVALID_STATE, TAG, "component end size");
+    ESP_RETURN_ON_FALSE(update_bytes_equal(actual_sha256, plan->descriptor.sha256, 32),
                         ESP_ERR_INVALID_CRC, TAG, "component digest does not match plan");
 
     esp_err_t ret = ESP_OK;
