@@ -39,6 +39,9 @@ if(CONFIG_ESP_IRIS_ENABLE)
     if(CONFIG_ESP_IRIS_TRANSPORT_USB)
         list(APPEND ESP_IRIS_SRCS "src/esp_iris_transport_usb.c")
     endif()
+    if(CONFIG_ESP_IRIS_USB_EARLY_LOGS)
+        list(APPEND ESP_IRIS_SRCS "src/esp_iris_startup.c")
+    endif()
     if(CONFIG_ESP_IRIS_TRANSPORT_USB_SERIAL_JTAG)
         list(APPEND ESP_IRIS_SRCS "src/esp_iris_transport_usb_serial_jtag.c")
     endif()
@@ -88,6 +91,11 @@ idf_component_register(
     REQUIRES esp_common
     PRIV_REQUIRES ${ESP_IRIS_PRIV_REQUIRES}
 )
+
+if(CONFIG_ESP_IRIS_USB_EARLY_LOGS)
+    target_link_libraries(${COMPONENT_LIB} INTERFACE
+        "-Wl,--wrap=app_main" "-u __wrap_app_main")
+endif()
 
 if(CONFIG_ESP_IRIS_USB_FIFO_PSRAM)
     include("${CMAKE_CURRENT_LIST_DIR}/cmake/usb_fifo_psram.cmake")

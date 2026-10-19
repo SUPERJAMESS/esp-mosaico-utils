@@ -65,6 +65,9 @@ static iris_runtime_t *s_runtime[IRIS_USB_CDC_COUNT];
 static iris_transport_state_t *s_state[IRIS_USB_CDC_COUNT];
 static unsigned s_users;
 static atomic_bool s_shutting_down;
+static atomic_bool s_console_host_seen;
+static atomic_uint s_console_activity_tick;
+#define IRIS_USB_CONSOLE_SETTLE_MS 50U
 #define IRIS_USB_RHPORT 0U /* ESP32-S31's single DWC controller. */
 
 /* Callback publication and protocol-worker snapshots share this lock. Never
@@ -156,10 +159,42 @@ static unsigned interface_for(const iris_runtime_t *runtime)
     return runtime->data_link ? 1U : 0U;
 }
 
+static bool usb_console_settled(void)
+{
+    if (!atomic_load(&s_console_host_seen)) return false;
+    const TickType_t settle = pdMS_TO_TICKS(IRIS_USB_CONSOLE_SETTLE_MS);
+    const TickType_t activity = atomic_load(&s_console_activity_tick);
+    return (TickType_t)(xTaskGetTickCount() - activity) >= (settle > 0 ? settle : 1);
+}
+
+static bool usb_console_ready(void)
+{
+    taskENTER_CRITICAL(&s_link_lock);
+    const bool ready = !atomic_load(&s_shutting_down) && s_configured &&
+        !s_suspended && usb_console_settled();
+    taskEXIT_CRITICAL(&s_link_lock);
+    return ready;
+}
+
+void iris_usb_console_wait(void)
+{
+    const TickType_t start = xTaskGetTickCount();
+    const TickType_t timeout = pdMS_TO_TICKS(CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS);
+    const TickType_t poll = pdMS_TO_TICKS(10);
+    while (CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS > 0 && !usb_console_ready() &&
+           (TickType_t)(xTaskGetTickCount() - start) < timeout) {
+        vTaskDelay(poll > 0 ? poll : 1);
+    }
+}
+
 static void cdc_rx_callback(int itf, cdcacm_event_t *event)
 {
     (void)event;
     taskENTER_CRITICAL(&s_link_lock);
+    if (itf == 0 && s_runtime[0] && !atomic_load(&s_console_host_seen)) {
+        atomic_store(&s_console_activity_tick, xTaskGetTickCount());
+        atomic_store(&s_console_host_seen, true);
+    }
     if (itf >= 0 && itf < IRIS_USB_CDC_COUNT && s_runtime[itf] != NULL)
         iris_notify_worker(s_runtime[itf]);
     taskEXIT_CRITICAL(&s_link_lock);
@@ -174,6 +209,15 @@ static void cdc_line_state_callback(int itf, cdcacm_event_t *event)
     if (itf == 0) usb_download_line_state(opened, event->line_state_changed_data.rts);
 #endif
     taskENTER_CRITICAL(&s_link_lock);
+    if (itf == 0) {
+        /* Stock monitor asserts the lines while opening, then can leave both
+         * deasserted. Remember that open, and allow its input flush/reset
+         * sequence to settle before draining the startup log ring. Enumeration
+         * alone is insufficient evidence that a terminal is reading. */
+        atomic_store(&s_console_activity_tick, xTaskGetTickCount());
+        if (opened || event->line_state_changed_data.rts)
+            atomic_store(&s_console_host_seen, true);
+    }
     if (s_state[itf]) {
         if (!opened) usb_invalidate_locked(itf);
         atomic_store(&s_state[itf]->host_open, opened);
@@ -201,6 +245,12 @@ static void usb_device_event_callback(tinyusb_event_t *event, void *arg)
 #endif
     taskENTER_CRITICAL(&s_link_lock);
     s_bus_event_seen = true;
+    if (attached || detached || suspended) {
+        atomic_store(&s_console_host_seen, false);
+    } else if (resumed && (line_state[0] & 3U)) {
+        atomic_store(&s_console_activity_tick, xTaskGetTickCount());
+        atomic_store(&s_console_host_seen, true);
+    }
     /* Without VBUS sensing, unplug can look like suspend instead of detach.
      * Treat normal host suspend as the same protocol-session boundary too:
      * resume restores transport availability, then the host must re-handshake.
@@ -228,6 +278,7 @@ static esp_err_t usb_start(iris_runtime_t *runtime, iris_transport_state_t *stat
     const unsigned itf = interface_for(runtime);
     if (itf >= IRIS_USB_CDC_COUNT) return ESP_ERR_NOT_SUPPORTED;
     if (s_state[itf] != NULL) return ESP_ERR_INVALID_STATE;
+    if (itf == 0) atomic_store(&s_console_host_seen, false);
     if (s_users == 0) {
         static const char hex[] = "0123456789abcdef";
         for (size_t i = 0; i < sizeof(runtime->hardware_mac); ++i) {
@@ -317,6 +368,7 @@ static void usb_stop(iris_runtime_t *runtime, iris_transport_state_t *state)
     if (runtime == NULL || state == NULL || !state->driver_started) return;
     if (atomic_load(&s_shutting_down)) return;
     const unsigned itf = interface_for(runtime);
+    if (itf == 0) atomic_store(&s_console_host_seen, false);
     (void)tinyusb_cdcacm_deinit(itf);
 #if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
     if (itf == 0) usb_download_cancel();
@@ -351,7 +403,7 @@ static iris_link_event_t usb_poll(iris_runtime_t *runtime, iris_transport_state_
     if (clean) s_link[itf].cleaned_generation = generation;
     const bool ready = generation == s_link[itf].generation &&
         s_configured && !s_suspended && state->driver_started &&
-        (!runtime->data_link || atomic_load(&state->host_open));
+        (runtime->data_link ? atomic_load(&state->host_open) : usb_console_settled());
     if (clean && state->reported_link_up) {
         state->link_up = state->reported_link_up = false;
         taskEXIT_CRITICAL(&s_link_lock);
@@ -385,7 +437,7 @@ static bool usb_io_snapshot(iris_runtime_t *runtime, iris_transport_state_t *sta
     const bool ready = state->link_up && state->driver_started &&
         *generation == s_link[itf].cleaned_generation &&
         s_configured && !s_suspended && !atomic_load(&s_shutting_down) &&
-        (!runtime->data_link || atomic_load(&state->host_open));
+        (runtime->data_link ? atomic_load(&state->host_open) : usb_console_settled());
     taskEXIT_CRITICAL(&s_link_lock);
     return ready;
 }

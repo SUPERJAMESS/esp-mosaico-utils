@@ -7,7 +7,11 @@ import pytest
 
 
 @pytest.mark.parametrize("auto_download", [0, 1])
-def test_usb_shutdown_ownership_and_initialization_rollback(tmp_path, auto_download):
+@pytest.mark.parametrize("host_wait_ms", [0, 1500])
+@pytest.mark.parametrize("tick_rate_hz", [100, 1000])
+def test_usb_shutdown_ownership_and_initialization_rollback(
+    tmp_path, auto_download, host_wait_ms, tick_rate_hz
+):
     tests = Path(__file__).resolve().parent
     source = tests.parents[1] / "src/esp_iris_transport_usb.c"
     for name in re.findall(r'#include "([^"]+)"', source.read_text()):
@@ -21,6 +25,8 @@ def test_usb_shutdown_ownership_and_initialization_rollback(tmp_path, auto_downl
     subprocess.run([
         "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter",
         "-DCONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD=" + str(auto_download),
+        "-DCONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS=" + str(host_wait_ms),
+        "-DconfigTICK_RATE_HZ=" + str(tick_rate_hz),
         '-DUSB_SOURCE="' + str(copied) + '"',
         "-I" + str(tmp_path), "-I" + str(tests / "usb_host"),
         str(tests / "usb_host/main.c"), "-o", str(output),

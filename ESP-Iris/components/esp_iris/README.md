@@ -192,6 +192,37 @@ stays alive for the stable interval, or calls `esp_iris_mark_healthy()`, clears
 the count. `esp_iris_start()` is idempotent. `esp_iris_stop()` releases the worker,
 transport, VFS, and stdio ownership so the component can be started again.
 
+### USB application startup logs
+
+With application USB and stdio capture enabled, `CONFIG_ESP_IRIS_USB_EARLY_LOGS`
+defaults to enabled. A linker wrapper installs the bounded stdout/stderr tap
+immediately before `app_main()`, preserving native console output as well.
+`esp_iris_start()` adopts those records and starts the existing USB driver;
+it does not install a second USB stack or initialize application NVS early.
+Call it early in `app_main()` to make the USB port available promptly.
+
+`CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS` defaults to 1500. After starting the
+worker, `esp_iris_start()` waits at most that long for a console host, then
+returns successfully even when no host is connected. Set it to `0` to avoid
+waiting. Pending output remains in `CONFIG_ESP_IRIS_LOG_RING_BYTES` (8192 bytes
+by default, including record headers); overflow drops the oldest records and
+prints a lost-byte notice before the remaining text.
+
+USB enumeration alone does not drain startup logs. CDC0 begins sending after
+host control-line activity or input, with a short settling interval for the
+terminal's open/reset/input-flush sequence. Stock IDF Monitor can subsequently
+leave DTR deasserted; no Iris handshake is required. USB disconnect retains
+records still in the log ring, but bytes already handed to USB are not
+acknowledged or replayed, so reconnect is not a guarantee of lossless capture.
+Gateway and a stock monitor must take turns owning the port.
+
+Capture covers `app_main()` and later stdout/stderr output, including Iris
+initialization. It does not cover ROM, bootloader, constructors, early system
+initialization, or output that bypasses stdio. Keep a supported native console
+for those stages. Disable `CONFIG_ESP_IRIS_USB_EARLY_LOGS` if another component
+owns the `app_main` linker wrapper; capture then begins at `esp_iris_start()`.
+Stopping before the first start also releases the early tap.
+
 ### 4. Build the firmware
 
 ```bash

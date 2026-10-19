@@ -148,6 +148,8 @@ typedef struct iris_runtime {
     size_t log_tail;
     size_t log_used;
     uint32_t log_dropped_bytes;
+    uint32_t log_dropped_reported;
+    bool retain_usb_logs;
 
     uint32_t rx_frames;
     uint32_t tx_frames;
@@ -229,6 +231,8 @@ void iris_crash_context_prepare(iris_runtime_t *runtime);
 esp_err_t iris_identity_load_or_create(iris_runtime_t *runtime);
 
 esp_err_t iris_log_vfs_init(iris_runtime_t *runtime);
+esp_err_t iris_log_capture_start(iris_runtime_t *runtime);
+esp_err_t iris_log_capture_stop(iris_runtime_t *runtime);
 esp_err_t iris_log_vfs_deinit(void);
 esp_err_t iris_log_redirect_stdio(void);
 esp_err_t iris_log_restore_stdio(void);
@@ -318,6 +322,7 @@ void iris_transport_disconnect(iris_runtime_t *runtime);
 
 #if CONFIG_ESP_IRIS_TRANSPORT_USB
 extern const iris_transport_ops_t g_iris_usb_transport_ops;
+void iris_usb_console_wait(void);
 #endif
 #if CONFIG_ESP_IRIS_TRANSPORT_TCP
 extern const iris_transport_ops_t g_iris_tcp_transport_ops;
