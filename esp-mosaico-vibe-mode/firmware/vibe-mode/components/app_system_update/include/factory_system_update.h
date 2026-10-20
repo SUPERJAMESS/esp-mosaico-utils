@@ -37,6 +37,9 @@ typedef struct {
     uint64_t received_size;
     uint64_t completed_size;
     uint32_t commit_written, commit_total;
+    /* Local preparation counters; never counted as received payload. */
+    uint32_t erase_done, erase_total;
+    bool erasing;
 } factory_system_update_status_t;
 
 /* Register the Recovery-resident, product-owned Flash-policy backend.

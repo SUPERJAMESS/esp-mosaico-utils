@@ -1591,3 +1591,23 @@ def test_battery_icons_invalidate_on_read_failure_and_recover(sim, page):
             assert any(max(pixel[:3]) > 120 for pixel in crop.getdata()) == bool(valid)
             crops.append(crop.tobytes())
     assert len(set(crops)) == 5  # Full, charging, low, unknown and recovered-mid are distinct.
+
+
+@pytest.mark.parametrize("language", [1, 2])
+def test_flash_preparation_progress_has_no_receive_rate_and_transitions_to_payload(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+    sim.control("prepare 0 0 12582912 2")
+    sim.wait(page=7, progress=0, rate_valid=False)
+    sim.capture("flash-preparation-start-%d" % language)
+    sim.control("prepare 1000 3145728 12582912 2")
+    sim.wait(page=7, progress=250, rate_valid=False)
+    sim.capture("flash-preparation-quarter-%d" % language)
+    sim.control("prepare 3000 9437184 12582912 2")
+    sim.wait(page=7, progress=750, rate_valid=False)
+    sim.control("transfer 4000 0 12582912 2 2 1 1 1 0 12582912 0")
+    sim.wait(page=7, progress=0, rate_valid=False)
+    sim.control("transfer 5000 1048576 12582912 2 2 1 1 1 1048576 12582912 0")
+    sim.wait(page=7, rate_valid=True, rate_bps=1048576)

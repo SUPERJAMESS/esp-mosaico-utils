@@ -36,6 +36,7 @@ def gateway(tmp_path, monkeypatch):
                         "evidence": {"status": {"device_id": DEVICE_ID, "boot_id": 43,
                                                "firmware_mode": "recovery", "app_version": "0.2.0"}}},
         capture_error=False,
+        capture_body=None,
         inventory={"layout_version": 5, "partition_table_sha256": "ab" * 32},
     )
 
@@ -69,7 +70,7 @@ def gateway(tmp_path, monkeypatch):
 
         def do_POST(self):
             state.requests.append(("POST", self.path))
-            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
             if self.path == f"/v2/operations/{OPERATION_ID}/reconcile":
                 return self.reply(state.reconciliation, 201)
             if self.path == f"/v2/devices/{DEVICE_ID}/restart":
@@ -80,6 +81,7 @@ def gateway(tmp_path, monkeypatch):
                 return self.reply({"error": "unexpected route"}, 404)
             if state.capture_error:
                 return self.reply({"error": "capture unavailable"}, 503)
+            state.capture_body = json.loads(body)
             self.send_response(200)
             self.send_header("Content-Type", "image/png")
             self.send_header("Content-Length", str(len(PNG)))
@@ -131,6 +133,14 @@ def test_screenshot_saves_device_bytes_and_correlated_evidence(gateway, tmp_path
         ("GET", f"/v2/devices/{DEVICE_ID}"),
     ]
     assert gateway.ensure.call_args.kwargs == {"select": True}
+
+
+def test_screenshot_can_use_control_while_firmware_owns_data_link(gateway, tmp_path, capsys):
+    output = tmp_path / "preparation.png"
+    assert main(["iris", "screenshot", str(output), "--path", "control", "--json"]) == 0
+    assert output.read_bytes() == PNG
+    assert gateway.capture_body["path"] == "control"
+    assert json.loads(capsys.readouterr().out)["boot_id"] == 42
 
 
 @pytest.mark.parametrize("change", [{"stale": True}, {"device_id": "other"}, {"boot_id": None}])

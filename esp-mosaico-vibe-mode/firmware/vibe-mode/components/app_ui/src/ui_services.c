@@ -382,6 +382,16 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
             COPY(update_detail, system.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTING
                                     ? "Selecting boot application"
                                     : "Writing application");
+            if (system.erasing) {
+                COPY(update_detail, "Preparing storage for writing");
+                out->transfer.phase = VIBE_TRANSFER_ERASE;
+                out->transfer.receiving = false;
+                out->transfer.received = system.erase_done;
+                out->transfer.total = system.erase_total;
+                out->transfer.component_received = system.erase_done;
+                out->transfer.component_size = system.erase_total;
+                out->progress = vibe_transfer_permille(system.erase_done, system.erase_total);
+            }
         }
         return;
     }
@@ -436,6 +446,8 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     COPY(update_title, system_active        ? "Updating system"
                        : out->update_failed ? "Update failed"
                                             : "Update complete");
+    out->transfer.phase = system.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTING
+                              ? VIBE_TRANSFER_SAVE : VIBE_TRANSFER_BYTES;
     const char *detail = "Validating unsigned update plan";
     if (system.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_RECEIVING)
         detail = system.owner == FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE ? "Downloading system component"
@@ -467,6 +479,16 @@ static void service_snapshot(void *argument, vibe_snapshot_t *out) {
     out->transfer.receiving = system.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_RECEIVING &&
                               system.update.component_received < system.update.component_size;
     out->progress = vibe_transfer_permille(system.received_size, system.total_size);
+    if (system.erasing) {
+        COPY(update_detail, "Preparing storage for writing");
+        out->transfer.phase = VIBE_TRANSFER_ERASE;
+        out->transfer.receiving = false;
+        out->transfer.received = system.erase_done;
+        out->transfer.total = system.erase_total;
+        out->transfer.component_received = system.erase_done;
+        out->transfer.component_size = system.erase_total;
+        out->progress = vibe_transfer_permille(system.erase_done, system.erase_total);
+    }
     COPY(update_owner, system.owner == FACTORY_SYSTEM_UPDATE_OWNER_NAND     ? "NAND"
                        : system.owner == FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE ? "Bridge"
                        : out->usb_owner                                     ? "USB"

@@ -390,5 +390,6 @@
   "Formatting NAND": "正在格式化 NAND",
   "NAND formatted": "NAND 格式化完成",
   "Format failed": "格式化失败",
-  "You can download Ideas again.": "现在可以重新下载 Ideas。"
+  "You can download Ideas again.": "现在可以重新下载 Ideas。",
+  "Preparing storage for writing": "正在准备写入空间"
 }

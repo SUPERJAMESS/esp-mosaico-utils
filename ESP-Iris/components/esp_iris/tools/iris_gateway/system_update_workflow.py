@@ -99,16 +99,22 @@ async def run_system_update(
     except ValueError:
         wire_operation_id = uuid.uuid5(uuid.NAMESPACE_URL, operation_id).bytes
     last_progress = -10
+    last_stage = None
 
     async def report_progress(progress: dict[str, Any]) -> None:
-        nonlocal last_progress
+        nonlocal last_progress, last_stage
         device_progress = int(progress.get("progress_permille", 0))
-        if device_progress < last_progress + 10 and device_progress < 950:
+        stage = str(progress.get("stage", "transferring"))
+        if stage == last_stage and device_progress < last_progress + 10 and device_progress < 950:
             return
         last_progress = device_progress
+        last_stage = stage
         await operations.progress(
             operation_id,
-            stage=str(progress.get("stage", "transferring")),
+            stage=stage,
+            phase_indeterminate=bool(progress.get("phase_indeterminate", False)),
+            component_index=progress.get("component_index"),
+            component_count=progress.get("component_count"),
             progress_permille=50 + device_progress * 800 // 1000,
             device_progress_permille=device_progress,
             component_id=progress.get("component_id"),

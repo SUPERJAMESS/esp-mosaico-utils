@@ -188,6 +188,21 @@ static void trace_state(vui_handle_t ui, void *ctx)
         unsigned long long ms, received, total;
         unsigned component, count, completed, receiving, job, component_received, component_size,
             terminal;
+        if (sscanf(command, "prepare %llu %llu %llu %u", &ms, &received, &total, &component) == 4) {
+            model.transfer = (vibe_transfer_t){.now_ms = ms, .received = received, .total = total,
+                .component_id = component, .component_count = 2, .completed_components = 1,
+                .component_received = (uint32_t)received, .component_size = (uint32_t)total,
+                .source = 2, .phase = VIBE_TRANSFER_ERASE};
+            model.transfer.job[0] = 1;
+            model.progress = vibe_transfer_permille(received, total);
+            model.updating = true;
+            model.update_terminal = model.update_failed = false;
+            ++model.update_revision;
+            snprintf(model.update_title, sizeof(model.update_title), "Updating system");
+            snprintf(model.update_detail, sizeof(model.update_detail), "Preparing storage for writing");
+            snprintf(model.update_owner, sizeof(model.update_owner), "USB");
+            vibe_ui_poll(state);
+        }
         if (sscanf(command, "transfer %llu %llu %llu %u %u %u %u %u %u %u %u", &ms, &received,
                    &total, &component, &count, &completed, &receiving, &job, &component_received,
                    &component_size, &terminal) == 11) {

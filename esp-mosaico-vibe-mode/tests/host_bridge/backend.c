@@ -12,6 +12,7 @@ esp_partition_t mock_factory = {
 void *esp_flash_default_chip;
 static uint8_t flash[0x1000000];
 static int erased, persisted, corrupt_readback;
+static unsigned fail_erase_at, fail_read_at, raw_reads;
 static unsigned image_checks, boot_checks, boot_selections;
 static unsigned scheduled_restarts;
 static bool fail_image;
@@ -84,9 +85,22 @@ esp_err_t esp_partition_erase_range(const esp_partition_t *p, uint32_t offset,
 {
     assert(p->address >= 0x200000);
     assert(offset + size <= p->size);
+    factory_system_update_status_t status;
+    assert(factory_system_update_get_status(&status) == ESP_OK);
+    assert(status.erasing && status.erase_done == offset &&
+           status.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_PREPARED);
+    if (fail_erase_at && (unsigned)erased + 1 == fail_erase_at) return ESP_FAIL;
     memset(flash + p->address + offset, 0xff, size);
     erased++;
     return 0;
+}
+esp_err_t esp_partition_read_raw(const esp_partition_t *p, uint32_t offset,
+                                 void *data, size_t size)
+{
+    assert(offset + size <= p->size);
+    if (fail_read_at && ++raw_reads == fail_read_at) return ESP_FAIL;
+    memcpy(data, flash + p->address + offset, size);
+    return ESP_OK;
 }
 esp_err_t esp_partition_write(const esp_partition_t *p, uint32_t offset,
                               const void *data, size_t size)
@@ -186,6 +200,7 @@ static void setup(void)
     s_backend.layout_needs_reload = false;
     s_backend.status.commit_written = s_backend.status.commit_total = 0;
     last_progress = progress_samples = fail_write_at = 0;
+    fail_erase_at = fail_read_at = raw_reads = 0;
     write_protected = true;
     update_state_reset(&s_backend);
     update_owner_release(&s_backend);
@@ -492,6 +507,34 @@ int main(void)
     esp_iris_system_update_component_t data_component = s_backend.transaction.plan[0].descriptor;
     assert(update_begin_component(&data_component, &s_backend) == ESP_OK);
     assert(flash[0x200000] == 0xff && flash[0x20ffff] == 0xff);
+    /* Blank NOR is already ready. Mixed data skips only fully blank blocks,
+     * and progress advances after actual preparation, never payload reception. */
+    for (unsigned mode = 0; mode < 4; ++mode) {
+        setup();
+        const size_t bytes = 3 * 65536 + 4096;
+        flash[0x210000 - 1] = 0x44;
+        flash[0x210000 + bytes] = 0x66;
+        if (mode) memset(flash + 0x210000, 0x33, bytes);
+        if (mode == 1) memset(flash + 0x220000, 0xff, 65536);
+        if (mode == 2) fail_erase_at = 2;
+        if (mode == 3) fail_read_at = 1;
+        assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
+                       manifest(true, "application", 0x210000, bytes)) == ESP_OK);
+        esp_iris_system_update_component_t app = s_backend.transaction.plan[0].descriptor;
+        esp_err_t err = update_begin_component(&app, &s_backend);
+        factory_system_update_status_t status;
+        assert(factory_system_update_get_status(&status) == ESP_OK);
+        assert(!status.erasing && status.erase_total == bytes && status.received_size == 0);
+        assert(flash[0x210000 - 1] == 0x44 && flash[0x210000 + bytes] == 0x66);
+        if (mode < 2) {
+            assert(err == ESP_OK && status.erase_done == bytes);
+            assert(erased == (mode == 0 ? 0 : 3));
+            for (size_t b = 0; b < bytes; ++b) assert(flash[0x210000 + b] == 0xff);
+        } else {
+            assert(err == ESP_FAIL && !mock_writes);
+            assert(status.erase_done == (mode == 2 ? 65536 : 0));
+        }
+    }
     /* Actual source table hash and protected prefix are independently checked. */
     setup();
     json = manifest(true, "data", 0x200000, 4);
@@ -516,7 +559,7 @@ int main(void)
                FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, &c, c.sha256) == 0);
     assert(factory_system_update_source_commit(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
                                                op) == 0);
-    assert(erased == 1 && mock_writes == 1 && boot == &mock_factory && persisted == 1);
+    assert(erased == 0 && mock_writes == 1 && boot == &mock_factory && persisted == 1);
     assert(
         factory_system_update_source_needs_restart(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE));
     setup();
@@ -572,7 +615,7 @@ int main(void)
             assert(update_end_component(&c, c.sha256, &s_backend) == ESP_OK);
         }
         assert(update_commit_update(op, &s_backend) == ESP_OK);
-        assert(erased == 2 && mock_writes == 2 && last_write == 0x8000);
+        assert(erased == 1 && mock_writes == 2 && last_write == 0x8000);
         for (size_t i = 0; i < 0x10000; ++i) {
             assert(flash[0x200000 + i] == 0x55);
             assert(flash[0x310000 + i] == 0x66);

@@ -70,6 +70,8 @@ esp_err_t esp_partition_table_verify(const esp_partition_info_t *entries, bool c
                                      int *count);
 esp_err_t esp_partition_erase_range(const esp_partition_t *p, uint32_t offset,
                                     size_t size);
+esp_err_t esp_partition_read_raw(const esp_partition_t *p, uint32_t offset,
+                                 void *data, size_t size);
 esp_err_t esp_partition_write(const esp_partition_t *p, uint32_t offset,
                               const void *data, size_t size);
 esp_err_t esp_flash_set_dangerous_write_protection(void *chip, bool enabled);

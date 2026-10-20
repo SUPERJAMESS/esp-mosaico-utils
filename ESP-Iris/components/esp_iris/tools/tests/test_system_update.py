@@ -486,6 +486,10 @@ def test_session_system_update_encodes_bounded_component_sequence() -> None:
         )()
         calls = 0
         begin_attempts = 0
+        progress_events = []
+
+        async def progress(item):
+            progress_events.append(item)
         operation_id = bytes.fromhex("01" * 16)
 
         async def ready(timeout: float = 5.0):
@@ -519,6 +523,9 @@ def test_session_system_update_encodes_bounded_component_sequence() -> None:
                 )
             if calls == 2:
                 assert type_ == SystemUpdateType.COMPONENT_BEGIN
+                assert progress_events[-1]["stage"] == "erasing"
+                assert progress_events[-1]["phase_indeterminate"] is True
+                assert progress_events[-1]["bytes_received"] == 0
                 return Frame(
                     channel=channel,
                     type=SystemUpdateType.COMPONENT_BEGIN_RESPONSE,
@@ -555,8 +562,10 @@ def test_session_system_update_encodes_bounded_component_sequence() -> None:
         session._request = request
         session.wait_ready = ready
         result = await session.system_update(
-            _bundle_for_session(), operation_id=operation_id
+            _bundle_for_session(), operation_id=operation_id, progress_callback=progress
         )
+        assert [x["stage"] for x in progress_events] == ["erasing", "transferring", "transferring", "verifying", "committing"]
+        assert progress_events[1]["phase_indeterminate"] is False
         assert result["bytes"] == 3
         assert result["completion_evidence"] == "commit_response"
 
