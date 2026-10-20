@@ -3,6 +3,7 @@
 #include "vui_format.h"
 #include "vui_memory.h"
 #include "vui_input.h"
+#include "vui_transition.h"
 #include <string.h>
 #include <limits.h>
 
@@ -71,6 +72,11 @@ typedef struct {
     uint16_t node;
     vui_event_t event;
 } hit_t;
+typedef struct {
+    int position[MOTION_SAMPLES];
+    uint64_t ms[MOTION_SAMPLES];
+    unsigned count;
+} motion_t;
 struct vui {
     uint8_t *assets;
     const vui_asset_header_t *header;
@@ -93,11 +99,14 @@ struct vui {
     int start_x, start_y, last_y, pointer_x, pointer_y;
     uint16_t drag_node, fling_node;
     int velocity_q8, scroll_fraction;
-    int motion_y[MOTION_SAMPLES];
-    uint64_t motion_ms[MOTION_SAMPLES];
-    unsigned motion_count;
+    motion_t motion_y, motion_x;
+    uint64_t pointer_ms;
     uint16_t *pixels, *retained;
     rect_t damage, paint_clip;
+    uint16_t *page_cache;
+    rect_t page_viewport;
+    int page_offset;
+    bool page_active, page_incoming;
 };
 static int min(int a, int b)
 {
@@ -302,6 +311,7 @@ void vui_destroy(vui_handle_t u)
     free(u->child);
     free(u->sibling);
     free(u->assets);
+    free(u->page_cache);
     free(u);
 }
 vui_err_t vui_set_text(vui_handle_t u, uint16_t id, const char *text)
@@ -1147,7 +1157,7 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
     int offset = (n->flags & VUI_SCROLL) ? v->scroll : 0;
     for (int c = u->child[i]; c >= 0; c = u->sibling[c])
         draw(u, c, r.x, r.y - offset, clip, row, depth + 1);
-    if (n->kind == VUI_BUTTON && u->pressed && !u->moved && u->down.node == i + 1 &&
+    if (n->kind == VUI_BUTTON && !u->page_active && u->pressed && !u->moved && u->down.node == i + 1 &&
         contains(u->down.rect, u->pointer_x, u->pointer_y)) {
         if (n->flags & VUI_PRESS_RING) {
             /* Grid presses keep the icon in place and only light its ring. */
@@ -1167,17 +1177,58 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
         box(u, (rect_t){r.x + r.w - 12, y, 4, thumb}, paint, 2, 0x9cd3);
     }
 }
+vui_err_t vui_transition_begin(vui_handle_t u, vui_area_t viewport)
+{
+    if (!u || !u->retained || viewport.x < 0 || viewport.y < 0 || viewport.w <= 0 || viewport.h <= 0 ||
+        viewport.w > WIDTH || viewport.h > HEIGHT || viewport.x > WIDTH - viewport.w ||
+        viewport.y > HEIGHT - viewport.h || u->page_active)
+        return VUI_ERR_INVALID_STATE;
+    if (!u->page_cache) u->page_cache = vui_alloc(WIDTH * HEIGHT * sizeof(*u->page_cache));
+    if (!u->page_cache) return VUI_ERR_NO_MEM;
+    /* Retire the press highlight before freezing the outgoing page. This
+     * render is not submitted; the caller composes the drag in the same frame. */
+    vui_render(u, u->retained);
+    memcpy(u->page_cache, u->retained, WIDTH * HEIGHT * sizeof(*u->page_cache));
+    u->page_viewport = viewport;
+    u->page_offset = 0;
+    u->page_active = true;
+    u->page_incoming = false;
+    damage_add(u, viewport);
+    return VUI_OK;
+}
+void vui_transition_update(vui_handle_t u, int offset, bool incoming)
+{
+    if (!u || !u->page_active) return;
+    offset = max(-u->page_viewport.w, min(offset, u->page_viewport.w));
+    if (u->page_offset == offset && u->page_incoming == incoming) return;
+    u->page_offset = offset;
+    u->page_incoming = incoming;
+    damage_add(u, u->page_viewport);
+}
+void vui_transition_end(vui_handle_t u)
+{
+    if (!u || !u->page_active) return;
+    u->page_active = false;
+    /* Timers run before queued input. Retire translated hit regions until
+     * the next render rebuilds them at their final page coordinates. */
+    u->hit_count = 0;
+    vui_invalidate(u);
+}
 bool vui_render_changed(vui_handle_t u, uint16_t *pixels, vui_area_t *changed)
 {
     if (!u || !pixels) return false;
-    if (u->retained != pixels) vui_invalidate(u);
+    if (u->retained != pixels) {
+        if (u->page_active)
+            memcpy(pixels, u->page_cache, WIDTH * HEIGHT * sizeof(*pixels));
+        vui_invalidate(u);
+    }
     if (!u->dirty) return false;
     /* Bind against the same ancestor clips used for drawing. Hidden/offscreen
      * rows must not start IO or compete with the visible title working set. */
     for (unsigned i = 0; i < LISTS; ++i) list_sync_visible(u, &u->lists[i]);
     u->pixels = u->retained = pixels;
-    u->paint_clip = u->damage;
-    if (changed) *changed = u->damage;
+    u->paint_clip = u->page_active ? u->page_viewport : u->damage;
+    if (changed) *changed = u->paint_clip;
     u->dirty = false;
     u->damage = (rect_t){0};
     u->hit_count = 0;
@@ -1185,10 +1236,25 @@ bool vui_render_changed(vui_handle_t u, uint16_t *pixels, vui_area_t *changed)
         memset(pixels + y * WIDTH + u->paint_clip.x, 0, (size_t)u->paint_clip.w * 2);
     /* Rebuild all hit regions using geometry clips, independently of the
      * paint clip: a small animation update must not remove other buttons. */
-    for (unsigned i = 0; i < u->header->node_count; i++)
-        if (u->nodes[i].parent < 0 && !(u->nodes[i].flags & VUI_TEMPLATE))
-            draw(u, i, 0, 0, (rect_t){0, 0, WIDTH, HEIGHT}, NULL, 0);
-    if (u->pressed && !u->moved && valid(u, u->down.node) && visible(u, u->down.node-1) &&
+    if (!u->page_active || u->page_incoming) {
+        int x = !u->page_active ? 0 : u->page_offset < 0
+            ? u->page_offset + u->page_viewport.w : u->page_offset - u->page_viewport.w;
+        rect_t clip = u->page_active ? u->page_viewport : (rect_t){0, 0, WIDTH, HEIGHT};
+        for (unsigned i = 0; i < u->header->node_count; i++)
+            if (u->nodes[i].parent < 0 && !(u->nodes[i].flags & VUI_TEMPLATE))
+                draw(u, i, x, 0, clip, NULL, 0);
+    }
+    if (u->page_active) {
+        const rect_t r = u->page_viewport;
+        int left = max(r.x, r.x + u->page_offset);
+        int right = min(r.x + r.w, r.x + r.w + u->page_offset);
+        if (left < right)
+            for (int y = r.y; y < r.y + r.h; ++y)
+                memcpy(pixels + y * WIDTH + left,
+                       u->page_cache + y * WIDTH + left - u->page_offset,
+                       (size_t)(right - left) * sizeof(*pixels));
+    }
+    if (!u->page_active && u->pressed && !u->moved && valid(u, u->down.node) && visible(u, u->down.node-1) &&
         contains(u->down.rect, u->pointer_x, u->pointer_y)) {
         rect_t bubble = key_preview(u), clip = intersect(bubble, u->paint_clip);
         if (bubble.w && clip.w && clip.h) {
@@ -1206,45 +1272,60 @@ bool vui_render(vui_handle_t u, uint16_t *pixels)
 {
     return vui_render_changed(u, pixels, NULL);
 }
-static void motion_sample(vui_handle_t u, int y, uint64_t time_ms)
+static void motion_sample(motion_t *motion, int position, uint64_t time_ms)
 {
-    if (u->motion_count) {
-        unsigned last = u->motion_count - 1;
-        if (time_ms <= u->motion_ms[last]) {
-            if (u->motion_count > 1) u->motion_y[last] = y;
+    if (motion->count) {
+        unsigned last = motion->count - 1;
+        if (time_ms <= motion->ms[last]) {
+            if (motion->count > 1) motion->position[last] = position;
             return;
         }
-        if (u->motion_y[last] == y) return;
+        if (motion->position[last] == position) return;
     }
-    if (u->motion_count == MOTION_SAMPLES) {
-        memmove(u->motion_y, u->motion_y + 1, (MOTION_SAMPLES - 1) * sizeof(*u->motion_y));
-        memmove(u->motion_ms, u->motion_ms + 1, (MOTION_SAMPLES - 1) * sizeof(*u->motion_ms));
-        --u->motion_count;
+    if (motion->count == MOTION_SAMPLES) {
+        memmove(motion->position, motion->position + 1, (MOTION_SAMPLES - 1) * sizeof(*motion->position));
+        memmove(motion->ms, motion->ms + 1, (MOTION_SAMPLES - 1) * sizeof(*motion->ms));
+        --motion->count;
     }
-    unsigned next = u->motion_count++;
-    u->motion_y[next] = y;
-    u->motion_ms[next] = time_ms;
+    unsigned next = motion->count++;
+    motion->position[next] = position;
+    motion->ms[next] = time_ms;
 }
-static int release_velocity(vui_handle_t u, uint64_t time_ms)
+static int motion_velocity(const motion_t *motion, uint64_t time_ms, bool reversal)
 {
-    if (u->motion_count < 2) return 0;
-    unsigned latest = u->motion_count - 1;
-    if (time_ms < u->motion_ms[latest] || time_ms - u->motion_ms[latest] >= RELEASE_GRACE_MS) return 0;
+    if (motion->count < 2) return 0;
+    unsigned latest = motion->count - 1;
+    if (time_ms < motion->ms[latest] || time_ms - motion->ms[latest] >= RELEASE_GRACE_MS) return 0;
     unsigned oldest = latest - 1;
-    while (oldest && u->motion_ms[latest] - u->motion_ms[oldest - 1] <= VELOCITY_WINDOW_MS) --oldest;
+    while (oldest && motion->ms[latest] - motion->ms[oldest - 1] <= VELOCITY_WINDOW_MS) --oldest;
+    if (reversal && latest > oldest + 1) {
+        int tail = motion->position[latest] - motion->position[latest - 1];
+        unsigned turning = latest - 1;
+        while (turning > oldest) {
+            int delta = motion->position[turning] - motion->position[turning - 1];
+            if ((tail < 0 && delta >= 0) || (tail > 0 && delta <= 0)) break;
+            --turning;
+        }
+        if (turning > oldest && latest - turning >= 2 &&
+            abs(motion->position[latest] - motion->position[turning]) >= 4) oldest = turning;
+    }
     int64_t distance = 0;
     uint64_t elapsed = 0;
     for (unsigned i = oldest + 1; i <= latest; ++i) {
-        uint64_t dt = u->motion_ms[i] - u->motion_ms[i - 1];
+        uint64_t dt = motion->ms[i] - motion->ms[i - 1];
         if (dt > 1000) return 0; /* A stale pair must not manufacture a fling. */
         unsigned weight = i - oldest;
-        distance += ((int64_t)u->motion_y[i - 1] - u->motion_y[i]) * weight;
+        distance += ((int64_t)motion->position[i] - motion->position[i - 1]) * weight;
         elapsed += dt * weight;
     }
     int64_t velocity = elapsed ? distance * 1000 / (int64_t)elapsed : 0;
     if (velocity > MAX_FLING_SPEED) velocity = MAX_FLING_SPEED;
     if (velocity < -MAX_FLING_SPEED) velocity = -MAX_FLING_SPEED;
-    return velocity > MIN_FLING_SPEED || velocity < -MIN_FLING_SPEED ? (int)velocity : 0;
+    return (int)velocity;
+}
+int vui_pointer_velocity_x(vui_handle_t u)
+{
+    return u ? motion_velocity(&u->motion_x, u->pointer_ms, true) : 0;
 }
 bool vui_pointer_target(vui_handle_t u, vui_event_t *event)
 {
@@ -1262,6 +1343,7 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
         return;
     if (u->pressed) { damage_node(u, u->down.node); damage_add(u, key_preview(u)); }
     u->pointer_x = x; u->pointer_y = y;
+    u->pointer_ms = time_ms;
     if (pressed && !u->pressed) {
         memset(&u->down, 0, sizeof(u->down));
         u->start_x = x;
@@ -1272,8 +1354,9 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
         u->scrolling = false;
         u->fling_node = 0;
         u->velocity_q8 = u->scroll_fraction = 0;
-        u->motion_count = 0;
-        motion_sample(u, y, time_ms);
+        u->motion_y.count = u->motion_x.count = 0;
+        motion_sample(&u->motion_y, y, time_ms);
+        motion_sample(&u->motion_x, x, time_ms);
         u->drag_node = 0;
         for (int i = (int)u->hit_count - 1; i >= 0; i--)
             if (contains(u->hits[i].rect, x, y)) {
@@ -1293,7 +1376,8 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
         int dx = x - u->start_x, dy = y - u->start_y;
         if (abs(dx) > TAP_SLOP || abs(dy) > TAP_SLOP)
             u->moved = true;
-        motion_sample(u, y, time_ms);
+        motion_sample(&u->motion_y, y, time_ms);
+        motion_sample(&u->motion_x, x, time_ms);
         int limit;
         int *position = scroll_position(u, u->drag_node, &limit);
         if (position && !u->scrolling && abs(dy) > TAP_SLOP && abs(dy) > abs(dx)) {
@@ -1310,9 +1394,10 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
         u->last_y = y;
     }
     bool clicked =
-        !pressed && u->pressed && !u->moved && u->down.node && contains(u->down.rect, x, y);
+        !u->page_active && !pressed && u->pressed && !u->moved && u->down.node && contains(u->down.rect, x, y);
     if (!pressed && u->pressed && u->scrolling) {
-        u->velocity_q8 = release_velocity(u, time_ms) * SCROLL_SUBPIXEL;
+        int velocity = -motion_velocity(&u->motion_y, time_ms, false);
+        u->velocity_q8 = abs(velocity) > MIN_FLING_SPEED ? velocity * SCROLL_SUBPIXEL : 0;
         if (u->velocity_q8) u->fling_node = u->drag_node;
     }
     if (u->observer)

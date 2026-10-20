@@ -794,7 +794,7 @@ static void home_tick(vui_handle_t ui, void *ctx)
         (void)vui_set_matrix(ui, VUI_VIBE_OBJ_KEY_DEVELOP_SIGNAL, &frame);
         return;
     }
-    if (s->page != VIBE_HOME) return;
+    if (s->page != VIBE_HOME || s->pager.active) return;
     vibe_home_motion_sample(&s->home_motion, vui_now_ms(ui));
     (void)vui_set_matrix(ui, VUI_VIBE_OBJ_KEY_HOME_HERO, &s->home_motion.frame);
 }
@@ -852,6 +852,7 @@ vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *services, vibe_
 void vibe_ui_deinit(vibe_ui_t *s) {
     if (!s || !s->ui)
         return;
+    vibe_product_cancel_pager(s);
     show(s, VIBE_HOME);
     (void)command(s, VIBE_STOP_BRIDGE, NULL, NULL);
     if (s->timer)

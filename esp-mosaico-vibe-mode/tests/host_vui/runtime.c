@@ -5,6 +5,7 @@
 #include "vibe_input_queue.h"
 #include "vibe_home_motion.h"
 #include "vibe_ui_state.h"
+#include "vui_transition.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -14,15 +15,19 @@ extern void vibe_pc_deinit(vui_handle_t ui);
 static unsigned releases, ticks;
 static void released(void *data) { releases++; free(data); }
 static void timer(vui_handle_t ui, void *ctx) { ticks++; assert(vui_timer_delete(ui,*(void **)ctx)==0); }
-typedef struct { vibe_snapshot_t value; unsigned resets, deletes; } clock_model_t;
+typedef struct { vibe_snapshot_t value; unsigned resets, deletes, formats, key; } clock_model_t;
 static void clock_snapshot(void *ctx, vibe_snapshot_t *out) { *out = ((clock_model_t *)ctx)->value; }
 static int clock_command(void *ctx, vibe_command_t command, const char *a, const char *b) {
     if (command == VIBE_DELETE_IDEA) ++((clock_model_t *)ctx)->deletes;
+    if (command == VIBE_FORMAT_NAND) ++((clock_model_t *)ctx)->formats;
     return 0;
 }
 static int clock_setting(void *ctx, vibe_settings_command_t command, const char *a, const char *b) {
     if (command == VIBE_SETTINGS_RESET) ++((clock_model_t *)ctx)->resets;
     return 0;
+}
+static unsigned clock_key(void *ctx) {
+    clock_model_t *model = ctx; unsigned key = model->key; model->key = 0; return key;
 }
 static void advance_clock(vui_handle_t ui, uint16_t *frame, unsigned ms, unsigned step) {
     while (ms) {
@@ -524,8 +529,175 @@ static void target_identity_contract(void)
     }
     free(frame);
 }
+static void pager_create(clock_model_t *model, vui_handle_t *ui, vibe_ui_t **state, uint16_t *frame)
+{
+    *model = (clock_model_t){.value={.settings={.language=1,.screen_off_seconds=180,.open_confirm=true},
+        .storage_total=1000000,.nand_generation=1,.bundle_count=16}};
+    for (unsigned i = 0; i < 16; ++i) {
+        snprintf(model->value.bundles[i].code, sizeof(model->value.bundles[i].code), "%06u", i + 1);
+        snprintf(model->value.bundles[i].release, sizeof(model->value.bundles[i].release), "Idea %u", i + 1);
+    }
+    const vibe_services_t services = {.ctx=model,.snapshot=clock_snapshot,.command=clock_command,
+        .setting=clock_setting,.key=clock_key};
+    assert(!vui_create(ui) && !vibe_ui_create(*ui, &services, state));
+    advance_clock(*ui, frame, 200, 16);
+}
+static void pager_swipe(vui_handle_t ui, uint16_t *frame, int from, int to)
+{
+    uint64_t now = vui_now_ms(ui);
+    vui_pointer_at(ui, from, 250, true, now);
+    vui_pointer_at(ui, to, 250, true, now + 100);
+    vui_render(ui, frame);
+    vui_pointer_at(ui, to, 250, false, now + 110);
+    advance_clock(ui, frame, 240, 16);
+}
+static void pager_render_contract(void)
+{
+    uint16_t *frame = malloc(480 * 480 * 2), *home = malloc(480 * 480 * 2);
+    uint16_t *grid = malloc(480 * 480 * 2), *other = malloc(480 * 480 * 2);
+    assert(frame && home && grid && other);
+    clock_model_t model; vui_handle_t ui = NULL; vibe_ui_t *state = NULL;
+    pager_create(&model, &ui, &state, frame);
+    vibe_show(state, VIBE_GRID); vibe_product_poll(state); vui_render(ui, frame);
+    memcpy(grid, frame, 480 * 480 * 2);
+    vibe_show(state, VIBE_HOME); advance_clock(ui, frame, 200, 16);
+    memcpy(home, frame, 480 * 480 * 2);
+    vui_pointer_at(ui, 420, 250, true, 1000);
+    vui_pointer_at(ui, 300, 250, true, 1120);
+    assert(state->page == VIBE_HOME && state->pager.active && state->pager.offset == -108);
+    vui_area_t area;
+    assert(vui_render_changed(ui, frame, &area));
+    assert(area.x == 0 && area.y == 56 && area.w == 480 && area.h == 392);
+    assert(!memcmp(home, frame, 56 * 480 * 2));
+    assert(!memcmp(home + 448 * 480, frame + 448 * 480, 32 * 480 * 2));
+    for (unsigned y = 56; y < 448; ++y) {
+        assert(!memcmp(frame + y * 480, home + y * 480 + 108, 372 * 2));
+        assert(!memcmp(frame + y * 480 + 372, grid + y * 480, 108 * 2));
+    }
+    /* Replacing the retained surface must not read the old surface or lose
+     * the frozen header/footer. Full invalidation preserves the same blend. */
+    assert(vui_render(ui, other)); assert(!memcmp(frame, other, 480 * 480 * 2));
+    assert(vui_render(ui, frame)); compare_full(ui, frame);
+    assert(vui_transition_begin(ui, (vui_area_t){0,56,480,392}) == VUI_ERR_INVALID_STATE);
+    vui_pointer_at(ui, 300, 250, false, 1500); /* Held short drag cancels. */
+    assert(state->pager.settling && state->page == VIBE_HOME);
+    advance_clock(ui, frame, 240, 33);
+    assert(!state->pager.active && state->page == VIBE_HOME);
+    /* The device ticks timers before draining input and drawing. A tap in
+     * that gap must not use hit regions left over from a translated page. */
+    vui_pointer_at(ui, 420, 250, true, 1600);
+    vui_pointer_at(ui, 300, 250, true, 1620);
+    vui_render(ui, frame);
+    vui_pointer_at(ui, 300, 250, false, 1630);
+    vui_tick(ui, 240);
+    assert(!state->pager.active && state->page == VIBE_GRID);
+    vui_pointer(ui, 420, 150, true); vui_pointer(ui, 420, 150, false);
+    assert(state->page == VIBE_GRID);
+    vui_render(ui, frame);
+    vui_tick(ui, 160);
+    vui_pointer(ui, 420, 150, true); vui_pointer(ui, 420, 150, false);
+    assert(state->page == VIBE_OPEN_CONFIRM && !strcmp(state->selected_bundle.code, "000003"));
+    vibe_show(state, VIBE_HOME); advance_clock(ui, frame, 200, 16);
+    /* Frozen transitions also retire safely during deinit, without an UP. */
+    vui_pointer_at(ui, 420, 250, true, 2000);
+    vui_pointer_at(ui, 200, 250, true, 2100);
+    assert(state->pager.active);
+    vibe_ui_deinit(state); vui_destroy(ui);
+    free(other); free(grid); free(home); free(frame);
+}
+static void pager_input_contract(void)
+{
+    typedef struct { int x[3]; unsigned ms[3]; unsigned moves; bool commit; } trace_t;
+    const trace_t traces[] = {
+        {{360}, {500}, 1, false},                   /* Deliberate short, slow drag. */
+        {{400,380}, {20,40}, 2, true},              /* Short fast flick. */
+        {{280}, {400}, 1, true},                    /* Distance commits without speed. */
+        {{200,240,280}, {100,140,180}, 3, false},    /* Deliberate reverse cancels. */
+        {{240,241}, {80,100}, 2, true},             /* One pixel of noise does not cancel. */
+    };
+    uint16_t *frame = malloc(480 * 480 * 2); assert(frame);
+    for (unsigned i = 0; i < sizeof(traces)/sizeof(*traces); ++i) {
+        clock_model_t model; vui_handle_t ui = NULL; vibe_ui_t *state = NULL;
+        pager_create(&model, &ui, &state, frame);
+        vui_pointer_at(ui,420,250,true,1000);
+        for (unsigned j = 0; j < traces[i].moves; ++j)
+            vui_pointer_at(ui,traces[i].x[j],250,true,1000+traces[i].ms[j]);
+        unsigned last = traces[i].moves-1;
+        vui_pointer_at(ui,traces[i].x[last],250,false,1000+traces[i].ms[last]+10);
+        advance_clock(ui,frame,240,16);
+        assert(state->page == (traces[i].commit ? VIBE_GRID : VIBE_HOME));
+        assert(!state->pager.active && !model.resets && !model.deletes);
+        vibe_ui_deinit(state); vui_destroy(ui);
+    }
+    clock_model_t model; vui_handle_t ui = NULL; vibe_ui_t *state = NULL;
+    pager_create(&model, &ui, &state, frame);
+    vui_pointer_at(ui,420,250,true,1000);
+    vui_pointer_at(ui,400,290,true,1040);
+    vui_pointer_at(ui,220,300,true,1120);
+    vui_pointer_at(ui,220,300,false,1130);
+    advance_clock(ui,frame,240,16);
+    assert(state->page == VIBE_HOME && !state->pager.active); /* A vertical claim cannot become paging. */
+    vui_pointer_at(ui,420,32,true,1200); vui_pointer_at(ui,60,32,true,1300);
+    vui_pointer_at(ui,60,32,false,1310); advance_clock(ui,frame,240,16);
+    assert(state->page == VIBE_HOME); /* Header gestures do not navigate. */
+    pager_swipe(ui,frame,420,60); assert(state->page == VIBE_GRID && state->grid_page == 0);
+    pager_swipe(ui,frame,420,60); assert(state->grid_page == 1);
+    vui_pointer(ui,92,150,true); vui_pointer(ui,92,150,false);
+    assert(state->page == VIBE_OPEN_CONFIRM && !strcmp(state->selected_bundle.code,"000007"));
+    vibe_show(state,VIBE_GRID); advance_clock(ui,frame,200,16);
+    pager_swipe(ui,frame,420,60); assert(state->grid_page == 2);
+    pager_swipe(ui,frame,420,60); assert(state->page == VIBE_GRID && state->grid_page == 2);
+    pager_swipe(ui,frame,60,420); assert(state->grid_page == 1);
+    pager_swipe(ui,frame,60,420); assert(state->grid_page == 0);
+    pager_swipe(ui,frame,60,420); assert(state->page == VIBE_HOME);
+    pager_swipe(ui,frame,60,420); assert(state->page == VIBE_HOME);
+    /* Regrab a settling page and pull it back without opening its icons. */
+    vui_pointer_at(ui,420,250,true,3000); vui_pointer_at(ui,200,250,true,3100);
+    vui_pointer_at(ui,200,250,false,3110); advance_clock(ui,frame,32,16);
+    assert(state->pager.settling);
+    int before = state->pager.offset;
+    vui_pointer_at(ui,240,250,true,3200);
+    assert(!state->pager.settling && state->pager.offset == before);
+    vui_pointer_at(ui,440,250,true,3300); vui_pointer_at(ui,440,250,false,3310);
+    advance_clock(ui,frame,240,16);
+    assert(state->page == VIBE_HOME && !state->pager.active);
+    /* A changed library, navigation or hardware key cancels the frozen page. */
+    vui_pointer_at(ui,420,250,true,4000); vui_pointer_at(ui,200,250,true,4100);
+    ++model.value.nand_generation; vibe_ui_poll(state); advance_clock(ui,frame,60,16);
+    assert(state->pager.active); /* Capacity/badge refresh preserves page identity. */
+    vibe_bundle_t changed = model.value.bundles[0];
+    model.value.bundles[0] = model.value.bundles[1]; model.value.bundles[1] = changed;
+    ++model.value.nand_generation; vibe_ui_poll(state); advance_clock(ui,frame,60,16);
+    assert(!state->pager.active && state->page == VIBE_HOME);
+    vui_pointer_at(ui,200,250,false,4110);
+    vui_pointer_at(ui,420,250,true,4200); vui_pointer_at(ui,200,250,true,4300);
+    model.key = 3; advance_clock(ui,frame,60,16);
+    assert(!state->pager.active && state->page == VIBE_BOOT_TIP);
+    vui_pointer_at(ui,200,250,false,4310);
+    model.key = 4; advance_clock(ui,frame,60,16); assert(state->page == VIBE_HOME);
+    vui_pointer_at(ui,420,250,true,4400); vui_pointer_at(ui,200,250,true,4500);
+    model.value.nand_error = 0x101; model.value.nand_needs_format = true;
+    vibe_ui_poll(state);
+    assert(state->page == VIBE_FORMAT_NAND_CONFIRM && !state->pager.active);
+    vui_pointer_at(ui,400,420,false,4510); /* Old drag cannot accept a newly shown destructive action. */
+    assert(state->page == VIBE_FORMAT_NAND_CONFIRM && !model.formats);
+    model.value.nand_error = 0; model.value.nand_needs_format = false;
+    vibe_show(state,VIBE_HOME); advance_clock(ui,frame,200,16);
+    /* Timer exhaustion falls back to committing the release, never leaving
+     * a translated page or an unresponsive input owner. */
+    void *reserved[6];
+    for (unsigned i = 0; i < 6; ++i) {
+        reserved[i] = vui_timer_create(ui,100000,timer,&reserved[i]); assert(reserved[i]);
+    }
+    vui_pointer_at(ui,420,250,true,5000); vui_pointer_at(ui,60,250,true,5100);
+    vui_pointer_at(ui,60,250,false,5110);
+    assert(state->page == VIBE_GRID && !state->pager.active);
+    vibe_ui_deinit(state); vui_destroy(ui); free(frame);
+}
 int main(void)
 {
+    pager_render_contract();
+    pager_input_contract();
     gesture_contract();
     target_identity_contract();
     list_marquee_damage();

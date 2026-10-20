@@ -2,6 +2,7 @@
 #include "vibe_ui_state.h"
 #include "vui_ids.h"
 #include "vui_input.h"
+#include "vui_transition.h"
 #include "factory_network_credentials.h"
 #include "vibe_locale.inc"
 #include <stdarg.h>
@@ -83,6 +84,7 @@ static bool shared_context(vibe_ui_t *s, vibe_page_t page)
 }
 bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
 {
+    if (next != s->page) vibe_product_cancel_pager(s);
     if (next != s->page && (s->page == VIBE_RESET || s->page == VIBE_DELETE_CONFIRM)) {
         s->hold_started_ms = 0;
         s->hold_consumed = true;
@@ -489,7 +491,7 @@ static void render_pager(vibe_ui_t *s)
             (void)vui_set_visible(s->ui, grid[index++], total == pages && current == active);
     }
 }
-static void render_grid(vibe_ui_t *s)
+static void render_grid(vibe_ui_t *s, unsigned page)
 {
     static const uint16_t updates[] = {VUI_VIBE_BIND_CELL_UPDATE_0_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_1_VISIBLE,
         VUI_VIBE_BIND_CELL_UPDATE_2_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_3_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_4_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_5_VISIBLE};
@@ -502,14 +504,14 @@ static void render_grid(vibe_ui_t *s)
     static const uint16_t add[] = {VUI_VIBE_BIND_CELL_ADD_0_VISIBLE, VUI_VIBE_BIND_CELL_ADD_1_VISIBLE, VUI_VIBE_BIND_CELL_ADD_2_VISIBLE,
         VUI_VIBE_BIND_CELL_ADD_3_VISIBLE, VUI_VIBE_BIND_CELL_ADD_4_VISIBLE, VUI_VIBE_BIND_CELL_ADD_5_VISIBLE};
     size_t visible = vibe_bundle_count(s);
-    if (s->grid_page > visible / 6) s->grid_page = (unsigned)visible / 6;
+    if (page > visible / 6) page = (unsigned)visible / 6;
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_GRID_EMPTY_VISIBLE, !visible);
     for (size_t cell = 0; cell < 6; ++cell) {
-        size_t i = vibe_bundle_index(s, s->grid_page * 6 + cell);
+        size_t i = vibe_bundle_index(s, page * 6 + cell);
         bool present = i < s->snapshot.bundle_count;
         const vibe_bundle_t *idea = present ? &s->snapshot.bundles[i] : NULL;
         char name[80] = "";
-        bool add_cell = visible && s->grid_page * 6 + cell == visible;
+        bool add_cell = visible && page * 6 + cell == visible;
         if (add_cell) snprintf(name, sizeof(name), "%s", vibe_translate(s, "Add Idea"));
         if (idea) {
             bool ascii = strspn(idea->release, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_.,!?()") == strlen(idea->release);
@@ -528,9 +530,187 @@ static void render_grid(vibe_ui_t *s)
         (void)vui_set_visible(s->ui, cards[cell], visible ? present || add_cell : cell == 1);
         (void)vui_set_visible(s->ui, add[cell], add_cell);
     }
-    if (visible) FORMAT(s, GRID_TITLE_TOP, "Ideas %u/%u", s->grid_page + 1, (unsigned)visible / 6 + 1);
+    if (visible) FORMAT(s, GRID_TITLE_TOP, "Ideas %u/%u", page + 1, (unsigned)visible / 6 + 1);
     else TEXT(s, GRID_TITLE_TOP, "");
     s->grid_generation = s->snapshot.nand_generation + 1;
+    s->grid_rendered_page = page;
+}
+enum { PAGER_WIDTH = 480, PAGER_TOP = 56, PAGER_BOTTOM = 448,
+       PAGER_START = 24, PAGER_SLOP = 12, PAGER_FLICK_DISTANCE = 32, PAGER_FLICK_SPEED = 450 };
+static int pager_clamp(int value, int low, int high)
+{
+    return value < low ? low : value > high ? high : value;
+}
+static unsigned pager_origin(const vibe_pager_t *p)
+{
+    return p->origin == VIBE_HOME ? 0 : p->grid + 1;
+}
+static void pager_project(vibe_ui_t *s, unsigned index)
+{
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HOME_VISIBLE, !index);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_GRID_VISIBLE, index != 0);
+    if (index && (s->grid_generation != s->snapshot.nand_generation + 1 ||
+                  s->grid_rendered_page != index - 1)) render_grid(s, index - 1);
+}
+static void pager_finish(vibe_ui_t *s, bool commit)
+{
+    vibe_pager_t *p = &s->pager;
+    unsigned index = commit && p->target >= 0 ? (unsigned)p->target : pager_origin(p);
+    unsigned original_grid = p->grid;
+    if (p->timer) (void)vui_timer_delete(s->ui, p->timer);
+    memset(p, 0, sizeof(*p));
+    vui_transition_end(s->ui);
+    s->grid_page = index ? index - 1 : original_grid;
+    pager_project(s, index);
+    const vibe_page_t page = index ? VIBE_GRID : VIBE_HOME;
+    if (page != s->page) vibe_show(s, page);
+    s->pager_state = 0;
+    render_pager(s);
+}
+void vibe_product_cancel_pager(vibe_ui_t *s)
+{
+    if (!s->pager.active && !s->pager.candidate) return;
+    if (s->pager.active) pager_finish(s, false);
+    else memset(&s->pager, 0, sizeof(s->pager));
+    s->pager.blocked = s->pointer_down;
+}
+static void pager_move(vibe_ui_t *s, int x)
+{
+    vibe_pager_t *p = &s->pager;
+    int shift = p->base_shift + x - p->anchor_x;
+    shift = shift > p->slop ? shift - p->slop : shift < -p->slop ? shift + p->slop : 0;
+    p->shift = pager_clamp(shift, -PAGER_WIDTH, PAGER_WIDTH);
+    if (p->shift) {
+        int target = (int)pager_origin(p) + (p->shift < 0 ? 1 : -1);
+        if (target < 0 || target >= (int)(p->count / 6 + 2)) target = -1;
+        if (target != p->target) {
+            p->target = target;
+            if (p->live && target >= 0) pager_project(s, (unsigned)target);
+        }
+    }
+    p->offset = p->target >= 0 ? p->shift : pager_clamp(p->shift / 4, -60, 60);
+    if (p->live) vui_transition_update(s->ui, p->offset, p->target >= 0);
+}
+static void pager_tick(vui_handle_t ui, void *ctx)
+{
+    vibe_ui_t *s = ctx;
+    vibe_pager_t *p = &s->pager;
+    if (!p->active) return;
+    if (p->count != vibe_bundle_count(s)) {
+        vibe_product_cancel_pager(s);
+        return;
+    }
+    if (p->generation != s->snapshot.nand_generation) {
+        /* Update badges and title loads share this generation with the library.
+         * Only replacing/reordering actual targets invalidates a page drag. */
+        for (unsigned i = 0; i < p->count; ++i) {
+            size_t index = vibe_bundle_index(s, i);
+            if (strncmp(p->codes[i], s->snapshot.bundles[index].code, sizeof(p->codes[i]))) {
+                vibe_product_cancel_pager(s);
+                return;
+            }
+        }
+        p->generation = s->snapshot.nand_generation;
+    }
+    if (!p->settling) return;
+    uint64_t elapsed = vui_now_ms(ui) - p->settle_start;
+    if (elapsed >= p->settle_duration) {
+        pager_finish(s, p->settle_to != 0);
+        return;
+    }
+    int64_t t = (int64_t)elapsed * 65536 / p->settle_duration;
+    int64_t t2 = t * t >> 16, t3 = t2 * t >> 16;
+    int64_t value = (2 * t3 - 3 * t2 + 65536) * p->settle_from +
+                    (t3 - 2 * t2 + t) * p->settle_tangent +
+                    (-2 * t3 + 3 * t2) * p->settle_to;
+    int position = (int)(value / 65536);
+    p->offset = p->settle_from < p->settle_to
+        ? pager_clamp(position, p->settle_from, p->settle_to)
+        : pager_clamp(position, p->settle_to, p->settle_from);
+    if (p->live) vui_transition_update(ui, p->offset, p->target >= 0);
+}
+static bool pager_pointer(vibe_ui_t *s, int x, int y, bool pressed)
+{
+    vibe_pager_t *p = &s->pager;
+    if (p->blocked) {
+        if (!pressed) p->blocked = false;
+        s->gesture_consumed = true;
+        return true;
+    }
+    if (pressed && !s->pointer_down) {
+        if (p->active && p->settling) {
+            if (y < PAGER_TOP || y >= PAGER_BOTTOM) {
+                bool commit = p->settle_to != 0;
+                pager_finish(s, commit);
+                p->blocked = true;
+            } else {
+                if (p->timer) (void)vui_timer_delete(s->ui, p->timer);
+                p->timer = NULL;
+                p->settling = false;
+                p->anchor_x = x;
+                p->base_shift = p->target >= 0 ? p->offset : p->offset * 4;
+                p->slop = 0;
+            }
+            s->home_capture = false;
+            s->gesture_consumed = true;
+            return true;
+        }
+        memset(p, 0, sizeof(*p));
+        p->candidate = (s->page == VIBE_HOME || s->page == VIBE_GRID) &&
+            s->pointer_page_ready && vui_now_ms(s->ui) >= s->suppress_until &&
+            y >= PAGER_TOP && y < PAGER_BOTTOM;
+        return false;
+    }
+    if (!p->candidate && !p->active) return false;
+    if (!p->active) {
+        int dx = x - s->pointer_x, dy = y - s->pointer_y;
+        if (abs(dy) >= PAGER_START && abs(dy) >= abs(dx)) p->vertical = true;
+        if (p->vertical || abs(dx) < PAGER_START || abs(dx) * 4 < abs(dy) * 5) {
+            if (!pressed) p->candidate = false;
+            return false;
+        }
+        p->origin = s->page;
+        p->grid = s->grid_page;
+        p->count = (unsigned)vibe_bundle_count(s);
+        p->generation = s->snapshot.nand_generation;
+        for (unsigned i = 0; i < p->count; ++i)
+            memcpy(p->codes[i], s->snapshot.bundles[vibe_bundle_index(s, i)].code, sizeof(p->codes[i]));
+        p->anchor_x = s->pointer_x;
+        p->slop = PAGER_SLOP;
+        p->target = -2;
+        if (s->home_capture) {
+            vibe_home_motion_input(&s->home_motion, 0, 0, false, true);
+            s->home_capture = false;
+        }
+        p->live = vui_transition_begin(s->ui, (vui_area_t){0, PAGER_TOP, PAGER_WIDTH,
+                                                       PAGER_BOTTOM - PAGER_TOP}) == VUI_OK;
+        p->active = true;
+    }
+    s->gesture_consumed = true;
+    pager_move(s, x);
+    if (!pressed) {
+        int velocity = vui_pointer_velocity_x(s->ui);
+        int direction = p->shift < 0 ? -1 : 1;
+        int distance = abs(p->shift);
+        bool commit = p->target >= 0 && (distance >= PAGER_WIDTH / 4 ||
+            (distance + p->slop >= PAGER_FLICK_DISTANCE && velocity * direction >= PAGER_FLICK_SPEED));
+        if (distance < PAGER_WIDTH * 17 / 20 && velocity * direction < 0) commit = false;
+        p->settle_from = p->offset;
+        p->settle_to = commit ? direction * PAGER_WIDTH : 0;
+        int delta = p->settle_to - p->offset;
+        if (!p->live || !delta) { pager_finish(s, commit); return true; }
+        int reduction = velocity * (delta < 0 ? -1 : 1) * 60 / PAGER_WIDTH;
+        reduction = pager_clamp(reduction, 0, 120);
+        p->settle_duration = (unsigned)pager_clamp(120 + abs(delta) * 80 / PAGER_WIDTH - reduction, 80, 220);
+        int tangent = velocity * (int)p->settle_duration / 1000;
+        p->settle_tangent = delta > 0 ? pager_clamp(tangent, delta * 2, delta * 3)
+                                     : pager_clamp(tangent, delta * 3, delta * 2);
+        p->settle_start = vui_now_ms(s->ui);
+        p->settling = true;
+        p->timer = vui_timer_create(s->ui, 16, pager_tick, s);
+        if (!p->timer) pager_finish(s, commit);
+    }
+    return true;
 }
 void vibe_product_poll(vibe_ui_t *s)
 {
@@ -656,8 +836,10 @@ void vibe_product_poll(vibe_ui_t *s)
         if (v->device.battery_valid) snprintf(battery, sizeof(battery), "%u%%%s", v->device.battery_percent, v->device.charging ? "+" : "");
         FORMAT(s, HOME_STATUS, "%s %s %s", v->network == VIBE_NET_CONNECTED ? "Wi-Fi" : "", v->device.usb_connected ? "USB" : "", battery);
     }
-    if (s->page == VIBE_GRID) {
-        if (s->grid_generation != v->nand_generation + 1) render_grid(s);
+    if (s->page == VIBE_GRID && !s->pager.active) {
+        if (s->grid_page > vibe_bundle_count(s) / 6) s->grid_page = (unsigned)vibe_bundle_count(s) / 6;
+        if (s->grid_generation != v->nand_generation + 1 || s->grid_rendered_page != s->grid_page)
+            render_grid(s, s->grid_page);
     } else if (s->page == VIBE_DEVELOP) {
         TEXT(s, DEVELOP_USB, v->device.usb_connected ? "Device connected" : "USB not connected");
         TEXT(s, DEVELOP_AGENT, !v->device.usb_connected ? "Connect USB to develop" : v->usb_owner ? "Agent ready" : "Waiting for Agent");
@@ -769,6 +951,7 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
             x >= VIBE_HOME_DOTS_X && x < VIBE_HOME_DOTS_X + VIBE_HOME_DOTS_SIZE &&
             y >= VIBE_HOME_DOTS_Y && y < VIBE_HOME_DOTS_Y + VIBE_HOME_DOTS_SIZE;
     }
+    if (pager_pointer(s, x, y, pressed)) { s->pointer_down = pressed; return; }
     if (s->home_capture) {
         vibe_home_motion_input(&s->home_motion, x - VIBE_HOME_DOTS_X, y - VIBE_HOME_DOTS_Y, pressed, false);
         s->gesture_consumed = true;
@@ -790,21 +973,6 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
                 TEXT(s, DELETE_PROGRESS, "Hold for 3 seconds to delete");
         }
     }
-    if (!pressed && s->pointer_down && (s->page == VIBE_HOME || s->page == VIBE_GRID) && abs(y - s->pointer_y) < 80) {
-        int dx = x - s->pointer_x;
-        if (dx < -80) {
-            bool moved = s->page == VIBE_HOME || (s->grid_page + 1) * 6 <= vibe_bundle_count(s);
-            if (s->page == VIBE_HOME) { s->grid_page = 0; vibe_show(s, VIBE_GRID); }
-            else if (moved) ++s->grid_page;
-            if (moved) {
-                s->grid_generation = 0; s->suppress_until = now + 250;
-            }
-        } else if (dx > 80 && s->page == VIBE_GRID) {
-            if (s->grid_page) --s->grid_page; else vibe_show(s, VIBE_HOME);
-            s->grid_generation = 0; s->suppress_until = now + 250;
-        }
-        vibe_product_poll(s);
-    }
     if (!pressed && s->pointer_down && !s->gesture_consumed) {
         s->last_release_ms = now; s->last_release_x = x; s->last_release_y = y; s->have_release = true;
     }
@@ -813,6 +981,7 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
 void vibe_product_tick(vibe_ui_t *s)
 {
     const uint64_t now = vui_now_ms(s->ui);
+    pager_tick(s->ui, s);
     if (s->undo_until && now >= s->undo_until) {
         if (!commit_delete(s)) { s->undo_until = 0; refresh_library(s); }
     }
@@ -837,6 +1006,7 @@ void vibe_product_tick(vibe_ui_t *s)
         unsigned key;
         while ((key = s->services.key(s->services.ctx)) != 0) {
             s->activity_ms = now;
+            vibe_product_cancel_pager(s);
             if (key == 1) {
                 if (s->page == VIBE_SLEEP) wake(s);
                 else if (s->page == VIBE_FORMAT_NAND_CONFIRM) vibe_show(s, s->format_return);
@@ -864,7 +1034,7 @@ void vibe_product_tick(vibe_ui_t *s)
     if (timeout && s->page != VIBE_SLEEP && s->page != VIBE_WELCOME &&
         now - s->activity_ms >= (uint64_t)timeout * 1000) sleep_now(s);
     if (s->services.device_policy) s->services.device_policy(s->services.ctx, s->page == VIBE_SLEEP,
-        !s->pointer_down && !s->hold_started_ms && s->page != VIBE_PASSWORD && s->page != VIBE_SHARED_EDITOR &&
+        !s->pointer_down && !s->pager.active && !s->hold_started_ms && s->page != VIBE_PASSWORD && s->page != VIBE_SHARED_EDITOR &&
         !s->snapshot.updating && s->page != VIBE_BOOT_TIP && s->page != VIBE_OPEN_CONFIRM);
 }
 void vibe_product_init(vibe_ui_t *s)
