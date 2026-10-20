@@ -196,6 +196,26 @@ D05 单台重测相同 A 再次失败，操作 `888545d3-59c5-44d1-a650-df047dfe
 
 证据包括 `validated-package-plans.json`、`application-debug-artifacts/`、`normal-entry-source-verification.json`、`merge-preservation.json`、`validation-results.json`、`final-device-states.json`、`persisted-operation-checks.json`、`durable-healthy-evidence.json`、`normal-idle-restart-verification.json` 和完整 CLI 原始输出。本轮闭环末次应用包实机与正常消费入口两项；不替代原 720 次压力矩阵，也不将未再次复现的历史 D05 看门狗判为根治。
 
+### 大固件传输前的等待与进度反馈
+
+本轮运行目录为 `.codex-runs/flash-repro/20261020T120720Z-prepare-progress`，实现提交 `fc22a36`。APP/DATA 的 `COMPONENT_BEGIN` 原来同步擦除目标 Flash 后才返回，设备本地状态却在返回前没有更新；12 MB 大应用约 30 秒的擦除因此沿用上一组件的显示。APP 只擦除镜像向上对齐到 4 KiB 的范围，DATA 仍准备整个声明的目标分区；分区表等保护组件先暂存，提交时再按原有保护流程写入。
+
+完整更新还包含主机包解析/摘要检查、保存旧诊断记录、正常应用切入 Vibe Mode、USB 重枚举及双接口握手、现场布局和更新计划校验。数据传输时同步写 Flash；传输结束后还有读回摘要、镜像检查、提交、重启及目标 HEALTHY 验收。不能把这些耗时全部称为“传输”或“擦除”。
+
+设备既有中英文更新页增加“正在准备写入空间”，以实际完成的准备字节显示组件进度，期间不显示接收速率。PC Workbench 在发送 COMPONENT_BEGIN 前即发布准备状态，并显示组件序号、阶段及已等待秒数；现有协议没有擦除字节遥测，所以 PC 此阶段使用不定进度，数据传输后恢复实际传输计数。校验和提交阶段同样明确显示，阶段改变不会再被相同百分比的节流规则吞掉。Recovery ABI、协议枚举和保护分区合同未改变。
+
+速度优化为：按绝对 64 KiB 边界逐块检查 Flash **原始字节**，只有整块全为 `0xff` 才跳过物理擦除，非空块仍走 SDK 擦除。SDK 本来就支持对齐的 64 KiB block erase，此改动不是“启用原先关闭的块擦除”，也没有改为大量 4 KiB 擦除、关闭看门狗或略过后续校验。已空区域受益；反复烧录且目标区非空时仍受 Flash 擦除速度限制，不保证所有大固件等待都消失。主机 C 事务夹具覆盖全空、混合、非对齐边界、读失败、擦除失败及进度状态清理。
+
+设备模拟器已检查中英文准备进度从 0→25→75%，以及随后恢复接收计数和速率。Workbench 单元/构建通过，新浏览器流程验证准备状态、不定进度和计时显示，再切回真实传输值；完整 E2E 为 21 passed、4 skipped、1 failed，唯一失败是控制台输入框/按钮纵向差值恰为 5 px、断言要求小于 5，使用修改前 `88d2cf8` 的原 dist 独立重跑得到相同失败。Iris 全量 804 passed、1 skipped；Tools 208 passed、26 skipped、51 subtests passed。Vibe 非 UI/字体合同套件为 616 passed、121 skipped、69 subtests passed、5 failed，五项仍是已记录的 `libraqm` 缺失；另有本次三个原生 UI 流程和 macOS 直接运行的 C 后端事务夹具通过。消费入口新增相关测试 66/66 通过。
+
+本次仍使用原消费工程 launcher，消费 utils 快进同步实现，原有工作区增删内容保留。Vibe Mode 按固定 SDK 从源码重建、冻结镜像/ELF/map/配置及自更新包，ELF `fed410d6…55d9f36e`；发布预编译目录未替换。实机擦除期间两次通过正常 CLI 指定 control 路径截图均返回设备 `0x103`：现有服务执行器忙碌时拒绝截图，未放宽此并发保护。模拟器图片不能当作实机画面，设备准备页的实机视觉采集仍有该限制。CLI 新增可选 `screenshot --path auto|control|data`，保持原默认路径，并有真实客户端到 API 夹具的路径传递测试。
+
+实机先九台并发源码 Vibe Mode 自更新，再九台 B→C→A，共 **36/36 通过**；随后仅 D05 一轮 A2→B→C→A，**4/4 通过**，其余八台 Boot ID 不变。九台最终均为原源码样本 A、正常角色、新 Boot ID、零崩溃计数、空队列；逐次检查 ELF、布局、receipt、载荷/资源摘要、bootloader 及原 `ui_apps`。40 条操作经正常 CLI 再查询均为持久化成功和 HEALTHY/validated。最终主机存储和事件写入器正常，事件无丢弃、队列排空。未扩大到历史 720 次矩阵，也未据此将历史 D05 看门狗判为已根治。
+
+D05 大应用操作 `fd3669d7-8f07-431f-91ae-c45b97346581` 的主机准备阶段发布至首个 DATA ACK 为 **29.644 秒**，该口径包括准备检查、擦除和首个 DATA 往返，并非纯 Flash 计时。独立使用 APP 组件首末实际传输进度时间戳，采样跨度 47.504 秒、差值 11,749,248 字节，为 **247,332 B/s**，与上一轮正常入口 244,979 B/s 接近；擦除、校验、提交和重启均未混入。此次目标已被此前反复写入，准备等待没有显著缩短；空白跳过优化不能被表述为非空 Flash 擦除整体提速。原构建默认 WARN 级别，准备函数 INFO 汇总未启用，因此本轮不报告未经测量的实机跳过字节数。
+
+证据为 `samples.json`、冻结 `inputs/preparation/`、`build-logs/`、`validation-results.json`、`persisted-operation-checks.json`、`final-device-states.json`、`other-boot-ids.json`、`single-B-progress-samples.json`、`large-update-timing.json`、`final-host-health.json`、完整 CLI 原始输出、中英文模拟器图及 Workbench 浏览器图片。实机 PC 图为传输阶段 `workbench-live-transfer.png`；准备阶段的浏览器图来自明确标记 DEMO 的自动化夹具，不冒充实机截图。
+
 ## 证据位置
 
 消费工作区运行目录：
