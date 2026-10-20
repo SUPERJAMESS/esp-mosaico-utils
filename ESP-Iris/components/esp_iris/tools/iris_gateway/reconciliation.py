@@ -12,6 +12,7 @@ from typing import Any
 from .contracts import GatewayHub
 from .security import Actor
 from .store import GatewayStore
+from .update_acceptance import validate_crash_state
 
 
 def health_timeout(status: dict[str, Any], override: float | None = None) -> float:
@@ -84,6 +85,7 @@ async def reconcile_operation(
         if status.get("device_id") != device_id or status.get("boot_id") is None:
             record["reason"] = "live device identity is missing or does not match"
         else:
+            validate_crash_state(status)
             progress = operation.get("progress") or {}
             writer_boot = progress.get("writer_boot_id", progress.get("previous_boot_id"))
             boot = status["boot_id"]
@@ -109,6 +111,7 @@ async def reconcile_operation(
                 record["evidence"]["status_after_inventory"] = after
                 if after.get("device_id") != device_id or after.get("boot_id") != boot:
                     raise RuntimeError("device rebooted during inventory observation")
+                validate_crash_state(after)
                 try:
                     wire_id = uuid.UUID(operation_id).hex
                 except ValueError:
@@ -133,6 +136,8 @@ async def reconcile_operation(
                     record.update(outcome="observed_success", reason="matching commit receipt, layout and healthy new boot")
             else:
                 record["reason"] = "action has no durable proof contract; live observation retained"
+    except ValueError as exc:
+        record["reason"] = str(exc)
     except (OSError, ConnectionError, LookupError, RuntimeError, asyncio.TimeoutError) as exc:
         record["reason"] = "live observation unavailable: " + type(exc).__name__
     return save_reconciliation(store, record)

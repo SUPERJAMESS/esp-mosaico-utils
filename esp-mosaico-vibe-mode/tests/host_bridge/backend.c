@@ -13,6 +13,7 @@ void *esp_flash_default_chip;
 static uint8_t flash[0x1000000];
 static int erased, persisted, corrupt_readback;
 static unsigned image_checks, boot_checks, boot_selections;
+static unsigned scheduled_restarts;
 static bool fail_image;
 static uint32_t last_write, last_progress, progress_samples;
 static int fail_write_at;
@@ -53,6 +54,12 @@ void vTaskDelete(void *task)
 void esp_restart(void)
 {
     assert(false);
+}
+esp_err_t esp_iris_schedule_restart(uint32_t delay_ms)
+{
+    assert(delay_ms == FACTORY_SYSTEM_RESTART_DELAY_MS);
+    ++scheduled_restarts;
+    return mock_create_fail ? ESP_ERR_NO_MEM : ESP_OK;
 }
 esp_err_t esp_flash_read(void *chip, void *buf, uint32_t offset, size_t size)
 {
@@ -187,6 +194,7 @@ static void setup(void)
         mock_commit_error = 0;
     boot = NULL;
     image_checks = boot_checks = boot_selections = 0;
+    scheduled_restarts = 0;
     fail_image = false;
     esp_partition_info_t *entries = (void *)(flash + 0x8000);
     for (size_t i = 0; i < 5; i++) {
@@ -588,6 +596,7 @@ int main(void)
     }
     assert(update_commit_update(op, &s_backend) == 0);
     assert(last_write == 0x8000);
+    assert(scheduled_restarts == 0); /* Bridge owns its restart. */
 
     setup();
     assert(prepare(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE, layout_manifest(true)) == 0);
@@ -684,6 +693,7 @@ int main(void)
     assert(factory_system_update_source_end_component(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, &c, c.sha256) == ESP_OK);
     assert(!erased);
     assert(factory_system_update_source_commit(FACTORY_SYSTEM_UPDATE_OWNER_FIRMWARE, op) == ESP_OK);
+    assert(scheduled_restarts == 1);
     assert(last_write == 0x1d0000 && !memcmp(flash + 0x20000, image, 0x1c0000));
     assert(progress_samples == 28 && last_progress == c.size && write_protected);
     int writes_before = mock_writes;
@@ -787,6 +797,7 @@ int main(void)
     s_backend.transaction.plan[1].image_verified = true;
     mock_create_fail = 1; /* commit must succeed even when scheduling is impossible */
     assert(factory_system_update_source_commit_deferred(op) == ESP_OK);
+    assert(scheduled_restarts == 0);
     assert(image_checks == 1 && !boot_checks && boot_selections == 1);
     assert(boot == &s_backend.transaction.plan[1].target_partition && boot->address == 0x210000);
     assert(s_backend.status.update.phase == ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED);

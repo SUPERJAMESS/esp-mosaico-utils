@@ -20,6 +20,10 @@ The product CLI and build runner now live in [mosaico-tools](../mosaico-tools/RE
 The old local launcher, Python forwarding package and build-runner entrypoint
 have been removed. Consumers use `mosaico-tools`.
 Integration and firmware tests remain under `tests/`.
+See the [nine-device flashing reproduction plan (中文)](docs/multi-device-flash-reproduction-plan.zh-CN.md)
+for large-image, layout-switching and repeated-update hardware experiments.
+The [source-built self-update issue record (中文)](docs/multi-device-self-update-issues.zh-CN.md)
+preserves the first concurrent failure and device-side observations.
 
 To add Vibe Mode and Iris to an existing application, follow the
 [0.2 migration and boot contract (中文)](docs/migration-0.2.md).

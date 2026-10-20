@@ -70,6 +70,8 @@ async def update(hub, method):
     {"firmware_mode": "unknown"}, {"firmware_mode": "recovery"},
     {"product_contract": ""}, {"board_id": "wrong"}, {"layout_id": "wrong"},
     {"recovery_abi": 0}, {"device_id": "other"},
+    {"crash_count": 1}, {"crash_loop_triggered": True},
+    {"crash_recovery_pending": True}, {"crash_state_error": 1},
 ])
 def test_healthy_matching_image_cannot_hide_a_bad_final_contract(method, fast, changes):
     async def scenario():
