@@ -2,6 +2,8 @@
 #include "vui.h"
 #include "vui_format.h"
 #include "vui_memory.h"
+#include "vui_input.h"
+#include "vui_transition.h"
 #include <string.h>
 #include <limits.h>
 
@@ -24,18 +26,23 @@ _Static_assert(sizeof(vui_node_t) == 44 && sizeof(vui_glyph_t) == 20 && sizeof(v
 #define TIMERS 8
 #define HITS 128
 #define MAX_TEXT 1024
+enum { TAP_SLOP = 12, MOTION_SAMPLES = 12, VELOCITY_WINDOW_MS = 100,
+       RELEASE_GRACE_MS = 120, MIN_FLING_SPEED = 160, MAX_FLING_SPEED = 3000,
+       SCROLL_SUBPIXEL = 256, SCROLL_DECAY_MS = 167 };
 
 typedef struct {
     char *text;
     uint8_t *image;
     vui_dot_t *dots;
+    vui_matrix_t *matrix;
     size_t dot_count, dot_capacity;
     void *canvas, *release_ctx;
     void (*release)(void *);
     size_t stride;
     uint16_t width, height, color, value;
-    int scroll;
-    bool hidden, has_color, indeterminate;
+    int scroll, marquee_extent, marquee_offset;
+    uint64_t marquee_start;
+    bool hidden, has_color, indeterminate, marquee_active;
 } value_t;
 typedef struct {
     uint16_t id;
@@ -51,6 +58,7 @@ typedef struct {
     vui_row_cb_t callback;
     void *ctx;
     struct vui_row rows[ROWS];
+    bool bound[ROWS], refresh[ROWS];
 } list_t;
 typedef struct {
     unsigned interval;
@@ -64,6 +72,11 @@ typedef struct {
     uint16_t node;
     vui_event_t event;
 } hit_t;
+typedef struct {
+    int position[MOTION_SAMPLES];
+    uint64_t ms[MOTION_SAMPLES];
+    unsigned count;
+} motion_t;
 struct vui {
     uint8_t *assets;
     const vui_asset_header_t *header;
@@ -82,13 +95,18 @@ struct vui {
     void *observer_ctx;
     uint64_t now;
     uint32_t animation;
-    bool dirty, pressed, moved;
-    int start_x, start_y, last_y;
+    bool dirty, pressed, moved, scrolling;
+    int start_x, start_y, last_y, pointer_x, pointer_y;
     uint16_t drag_node, fling_node;
-    int velocity, scroll_fraction;
-    uint64_t last_move;
+    int velocity_q8, scroll_fraction;
+    motion_t motion_y, motion_x;
+    uint64_t pointer_ms;
     uint16_t *pixels, *retained;
     rect_t damage, paint_clip;
+    uint16_t *page_cache;
+    rect_t page_viewport;
+    int page_offset;
+    bool page_active, page_incoming;
 };
 static int min(int a, int b)
 {
@@ -124,22 +142,50 @@ static void damage_add(vui_handle_t u, rect_t r)
     u->damage = r;
     u->dirty = true;
 }
-static void damage_node(vui_handle_t u, unsigned id)
+static bool node_geometry(vui_handle_t u, unsigned id, rect_t *area, rect_t *clip)
 {
-    if (!valid(u, id)) return;
+    if (!valid(u, id)) return false;
     int chain[33], count = 0;
     for (int i = id - 1; i >= 0; i = u->nodes[i].parent) {
-        if (count == 33 || u->values[i].hidden || (u->nodes[i].flags & VUI_TEMPLATE)) return;
+        if (count == 33 || u->values[i].hidden || (u->nodes[i].flags & VUI_TEMPLATE)) return false;
         chain[count++] = i;
     }
-    rect_t clip = {0, 0, WIDTH, HEIGHT};
+    *clip = (rect_t){0, 0, WIDTH, HEIGHT};
     int x = 0, y = 0;
     while (count) {
         unsigned i = chain[--count];
         const vui_node_t *n = &u->nodes[i];
         x += n->x; y += n->y;
-        clip = intersect(clip, (rect_t){x, y, n->w, n->h});
+        *area = (rect_t){x, y, n->w, n->h};
+        *clip = intersect(*clip, *area);
         if (n->flags & VUI_SCROLL) y -= u->values[i].scroll;
+    }
+    return clip->w && clip->h;
+}
+static void damage_node(vui_handle_t u, unsigned id)
+{
+    rect_t area, clip;
+    if (node_geometry(u, id, &area, &clip)) damage_add(u, clip);
+}
+static void damage_list_field(vui_handle_t u, list_t *list, unsigned row, unsigned id)
+{
+    rect_t bounds, clip;
+    if (!node_geometry(u, list->id, &bounds, &clip) || !valid(u, id)) return;
+    const vui_node_t *node = &u->nodes[list->id - 1];
+    int chain[33], count = 0, root = node->template_node - 1;
+    for (int i = id - 1; i >= 0; i = u->nodes[i].parent) {
+        if (count == 33 || u->values[i].hidden) return;
+        chain[count++] = i;
+        if (i == root) break;
+    }
+    if (!count || chain[count - 1] != root) { damage_add(u, clip); return; }
+    int x = bounds.x, y = bounds.y + (int)row * node->item_height - list->scroll;
+    while (count) {
+        unsigned i = chain[--count];
+        const vui_node_t *field = &u->nodes[i];
+        x += field->x; y += field->y;
+        clip = intersect(clip, (rect_t){x, y, field->w, field->h});
+        if (field->flags & VUI_SCROLL) y -= u->values[i].scroll;
     }
     damage_add(u, clip);
 }
@@ -160,6 +206,7 @@ static void release_value(value_t *v)
     }
     free(v->image);
     free(v->dots);
+    free(v->matrix);
     if (v->release)
         v->release(v->release_ctx);
     memset(v, 0, sizeof(*v));
@@ -180,6 +227,7 @@ static int text_value(value_t *v, const char *text, bool *changed)
         free(v->text);
     }
     v->text = copy;
+    v->marquee_active = false;
     *changed = true;
     return VUI_OK;
 }
@@ -263,6 +311,7 @@ void vui_destroy(vui_handle_t u)
     free(u->child);
     free(u->sibling);
     free(u->assets);
+    free(u->page_cache);
     free(u);
 }
 vui_err_t vui_set_text(vui_handle_t u, uint16_t id, const char *text)
@@ -314,6 +363,7 @@ static int image_value(value_t *v, void *png, size_t size, bool *changed)
         *changed = v->image != NULL;
         free(v->image);
         v->image = NULL;
+        v->marquee_active = false;
         return VUI_OK;
     }
     unsigned w, h;
@@ -323,6 +373,7 @@ static int image_value(value_t *v, void *png, size_t size, bool *changed)
         return VUI_ERR_INVALID_ARG;
     free(v->image);
     v->image = p;
+    v->marquee_active = false;
     v->width = w;
     v->height = h;
     free(png);
@@ -362,6 +413,24 @@ vui_err_t vui_canvas_push(vui_handle_t u, uint16_t id, void *pixels, size_t stri
     v->stride = stride;
     v->release = release;
     v->release_ctx = ctx;
+    damage_node(u, id);
+    return VUI_OK;
+}
+vui_err_t vui_set_matrix(vui_handle_t u, uint16_t id, const vui_matrix_t *frame)
+{
+    if (!valid(u, id) || u->nodes[id - 1].kind != VUI_MATRIX)
+        return VUI_ERR_INVALID_ARG;
+    value_t *v = &u->values[id - 1];
+    if (!frame) {
+        if (v->matrix) { free(v->matrix); v->matrix = NULL; damage_node(u, id); }
+        return VUI_OK;
+    }
+    if (v->matrix && !memcmp(v->matrix, frame, sizeof(*frame))) return VUI_OK;
+    if (!v->matrix) {
+        v->matrix = vui_alloc(sizeof(*frame));
+        if (!v->matrix) return VUI_ERR_NO_MEM;
+    }
+    memcpy(v->matrix, frame, sizeof(*frame));
     damage_node(u, id);
     return VUI_OK;
 }
@@ -415,14 +484,42 @@ static list_t *list(vui_handle_t u, vui_list_t l)
 {
     return u && l && l <= LISTS && u->lists[l - 1].id ? &u->lists[l - 1] : NULL;
 }
+static void clear_row(list_t *v, unsigned row)
+{
+    for (unsigned j = 0; j < ROW_FIELDS; ++j)
+        release_value(&v->rows[row].fields[j].value);
+    memset(&v->rows[row], 0, sizeof(v->rows[row]));
+    v->bound[row] = false;
+}
+static void list_sync_visible(vui_handle_t u, list_t *v)
+{
+    if (!v->id) return;
+    rect_t area, clip;
+    unsigned first = 0, last = 0;
+    const vui_node_t *node = &u->nodes[v->id - 1];
+    if (node->item_height && node_geometry(u, v->id, &area, &clip)) {
+        unsigned top = v->scroll + clip.y - area.y;
+        first = min(v->total, top / node->item_height);
+        last = min(v->total, (top + clip.h + node->item_height - 1) / node->item_height);
+    }
+    for (unsigned i = 0; i < v->total; ++i) {
+        if (i < first || i >= last) {
+            if (v->bound[i]) clear_row(v, i);
+        } else if (!v->bound[i] || v->refresh[i]) {
+            clear_row(v, i);
+            v->bound[i] = true;
+            v->refresh[i] = false;
+            if (v->callback) v->callback(u, &v->rows[i], i, v->ctx);
+        }
+    }
+}
 vui_err_t vui_list_refresh(vui_handle_t u, vui_list_t l)
 {
     list_t *v = list(u, l);
     if (!v)
         return VUI_ERR_INVALID_ARG;
-    for (unsigned i = 0; i < v->total; i++)
-        if (v->callback)
-            v->callback(u, &v->rows[i], i, v->ctx);
+    for (unsigned i = 0; i < v->total; i++) v->refresh[i] = true;
+    list_sync_visible(u, v);
     damage_node(u, v->id);
     return VUI_OK;
 }
@@ -434,9 +531,8 @@ vui_err_t vui_list_set_total(vui_handle_t u, vui_list_t l, unsigned total)
     if (total == v->total)
         return VUI_OK;
     for (unsigned i = total; i < v->total; i++) {
-        for (unsigned j = 0; j < ROW_FIELDS; j++)
-            release_value(&v->rows[i].fields[j].value);
-        memset(&v->rows[i], 0, sizeof(v->rows[i]));
+        clear_row(v, i);
+        v->refresh[i] = false;
     }
     v->total = total;
     v->scroll =
@@ -555,6 +651,32 @@ uint64_t vui_now_ms(vui_handle_t u)
 {
     return u ? u->now : 0;
 }
+/* Native title movement: 28 px/s, with a 1.2 s reading pause at both ends.
+ * Only an overflowing, visible title damages the retained framebuffer. */
+static int marquee_offset(const value_t *v, uint64_t now)
+{
+    if (!v->marquee_active || v->marquee_extent <= 0) return 0;
+    uint64_t travel = ((uint64_t)v->marquee_extent * 1000 + 27) / 28;
+    uint64_t t = (now - v->marquee_start) % (2 * (1200 + travel));
+    if (t < 1200) return 0;
+    t -= 1200;
+    if (t < travel) return (int)(t * v->marquee_extent / travel);
+    t -= travel;
+    if (t < 1200) return v->marquee_extent;
+    t -= 1200;
+    return v->marquee_extent - (int)(t * v->marquee_extent / travel);
+}
+static int marquee_layout(vui_handle_t u, value_t *v, int content, int viewport)
+{
+    int extent = max(0, content - viewport);
+    if (!v->marquee_active || v->marquee_extent != extent) {
+        v->marquee_start = u->now;
+        v->marquee_offset = 0;
+        v->marquee_extent = extent;
+        v->marquee_active = true;
+    }
+    return v->marquee_offset;
+}
 void vui_tick(vui_handle_t u, uint32_t elapsed)
 {
     if (!u)
@@ -564,7 +686,8 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
     for (unsigned i = 0; i < TIMERS; i++) {
         vui_timer_state_t *t = &u->timers[i];
         if (t->callback && u->now >= t->next) {
-            t->next = u->now + t->interval;
+            /* Preserve phase without replaying missed callbacks in a burst. */
+            t->next += ((u->now - t->next) / t->interval + 1) * t->interval;
             t->callback(u, t->ctx);
         }
     }
@@ -575,14 +698,48 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
         int limit;
         int *position = scroll_position(u, u->fling_node, &limit);
         if (!position || !visible(u, u->fling_node - 1)) { u->fling_node = 0; break; }
-        u->scroll_fraction += u->velocity * (int)step;
-        int next = max(0, min(*position + u->scroll_fraction / 1000, limit));
-        u->scroll_fraction %= 1000;
+        /* Fixed-point velocity avoids cadence-dependent integer truncation.
+         * Padé decay and trapezoidal integration retain the existing damping. */
+        int next_velocity = u->velocity_q8 * (2 * SCROLL_DECAY_MS - (int)step) /
+                            (2 * SCROLL_DECAY_MS + (int)step);
+        u->scroll_fraction += (u->velocity_q8 + next_velocity) * (int)step / 2;
+        int next = max(0, min(*position + u->scroll_fraction / (1000 * SCROLL_SUBPIXEL), limit));
+        u->scroll_fraction %= 1000 * SCROLL_SUBPIXEL;
         if (next != *position) { *position = next; damage_node(u, u->fling_node); }
-        u->velocity = u->velocity * (1000 - (int)step * 6) / 1000;
-        if (!next || next == limit || abs(u->velocity) < 20) u->fling_node = 0;
+        u->velocity_q8 = next_velocity;
+        if (!next || next == limit || abs(u->velocity_q8) < 20 * SCROLL_SUBPIXEL) u->fling_node = 0;
+    }
+    for (unsigned l = 0; l < LISTS; ++l) {
+        list_t *list = &u->lists[l];
+        bool shown = list->id && visible(u, list->id - 1);
+        for (unsigned r = 0; r < list->total; ++r) {
+            int y = r * u->nodes[list->id - 1].item_height - list->scroll;
+            bool on_screen = shown && y + u->nodes[list->id - 1].item_height > 0 &&
+                             y < u->nodes[list->id - 1].h;
+            for (unsigned f = 0; f < ROW_FIELDS; ++f) {
+                row_field_t *field = &list->rows[r].fields[f];
+                if (!valid(u, field->id) || !(u->nodes[field->id - 1].flags & VUI_MARQUEE)) continue;
+                value_t *v = &field->value;
+                if (!on_screen) v->marquee_active = false;
+                int offset = marquee_offset(v, u->now);
+                if (offset != v->marquee_offset) {
+                    v->marquee_offset = offset;
+                    if (on_screen) damage_list_field(u, list, r, field->id);
+                }
+            }
+        }
     }
     for (unsigned i = 0; i < u->header->node_count; i++) {
+        if (u->nodes[i].flags & VUI_MARQUEE) {
+            value_t *v = &u->values[i];
+            bool shown = visible(u, i);
+            if (!shown) v->marquee_active = false;
+            int offset = marquee_offset(v, u->now);
+            if (offset != v->marquee_offset) {
+                v->marquee_offset = offset;
+                if (shown) damage_node(u, i + 1);
+            }
+        }
         if (u->values[i].indeterminate && previous / 50 != u->now / 50)
             damage_node(u, i + 1);
         if (u->nodes[i].image) {
@@ -797,8 +954,35 @@ static void text(vui_handle_t u, const vui_node_t *n, rect_t r, rect_t clip, con
         }
     }
 }
+static void marquee_text(vui_handle_t u, const vui_node_t *n, value_t *v,
+                          rect_t r, rect_t clip, const char *s, uint16_t color)
+{
+    if (!s || !*s) return;
+    const vui_font_t *f = &u->fonts[n->font];
+    int width = 0;
+    for (const char *p = s; *p;) {
+        unsigned code = utf8(&p);
+        const vui_glyph_t *g = glyph(u, f, code == '\n' ? ' ' : code);
+        if (g) width += g->advance;
+    }
+    int offset = marquee_layout(u, v, (width + 63) / 64, r.w);
+    int pen = (r.x - offset) * 64, baseline = r.y + max(0, (r.h - f->height) / 2) + f->ascent;
+    for (const char *p = s; *p;) {
+        unsigned code = utf8(&p);
+        const vui_glyph_t *g = glyph(u, f, code == '\n' ? ' ' : code);
+        if (!g) continue;
+        rect_t gr = {pen / 64 + g->x, baseline + g->y, g->w, g->h}, b = intersect(gr, clip);
+        const uint8_t *bits = u->assets + g->data;
+        for (int y = b.y; y < b.y + b.h; ++y)
+            for (int x = b.x; x < b.x + b.w; ++x) {
+                unsigned alpha = bits[(y - gr.y) * g->w + x - gr.x];
+                if (alpha) pixel(u, x, y, color, alpha);
+            }
+        pen += g->advance;
+    }
+}
 static void bitmap(vui_handle_t u, rect_t r, rect_t clip, const uint8_t *data, unsigned w,
-                   unsigned h, bool rgb, size_t stride)
+                   unsigned h, bool rgb, size_t stride, unsigned radius)
 {
     if (!w || !h)
         return;
@@ -807,7 +991,7 @@ static void bitmap(vui_handle_t u, rect_t r, rect_t clip, const uint8_t *data, u
     for (int y = b.y; y < b.y + b.h; y++) {
         unsigned sy = native ? (unsigned)(y - r.y) : (y - r.y) * h / r.h;
         const uint8_t *row = data + sy * stride;
-        if (native && rgb) {
+        if (native && rgb && !radius) {
             memcpy(u->pixels + y * WIDTH + b.x, row + (b.x - r.x) * 2, (size_t)b.w * 2);
             continue;
         }
@@ -815,6 +999,7 @@ static void bitmap(vui_handle_t u, rect_t r, rect_t clip, const uint8_t *data, u
             unsigned sx = native ? (unsigned)(x - r.x) : (x - r.x) * w / r.w;
             const uint8_t *p = row + sx * (rgb ? 2 : 3);
             unsigned a = rgb ? 255 : p[2];
+            if (radius) a = a * coverage(r, radius, x, y) / 255;
             if (a) pixel(u, x, y, p[0] | (p[1] << 8), a);
         }
     }
@@ -854,6 +1039,36 @@ static void hit(vui_handle_t u, rect_t r, rect_t clip, unsigned node, vui_event_
     if (r.w > 0 && r.h > 0 && u->hit_count < HITS)
         u->hits[u->hit_count++] = (hit_t){r, node, event};
 }
+static void draw_matrix(vui_handle_t u, rect_t r, rect_t clip, const value_t *v)
+{
+    box(u, r, clip, r.w / 7, 0x1082);
+    outline(u, r, clip, r.w / 7, 1, 0x2945);
+    int pitch = (r.w - 20) / 15, cell = max(1, pitch - 2);
+    int ox = r.x + (r.w - (15 * pitch - 2)) / 2;
+    int oy = r.y + (r.h - (15 * pitch - 2)) / 2;
+    for (int y = 0; y < 15; ++y) for (int x = 0; x < 15; ++x) {
+        int edge_x = min(x, 14-x), edge_y = min(y, 14-y);
+        if (edge_x + edge_y < 2) continue;
+        int i = y * 15 + x;
+        unsigned w = v->matrix ? v->matrix->white[i] : 0;
+        unsigned a = v->matrix ? v->matrix->accent[i] : 0;
+        unsigned level = max(w, a);
+        unsigned red = (25 * (255-level) + 243 * w + 255 * a) / 255;
+        unsigned green = (27 * (255-level) + 244 * w + 100 * a) / 255;
+        unsigned blue = (29 * (255-level) + 242 * w + 57 * a) / 255;
+        uint16_t color = ((min(255,red) >> 3) << 11) | ((min(255,green) >> 2) << 5) | (min(255,blue) >> 3);
+        box(u, (rect_t){ox+x*pitch,oy+y*pitch,cell,cell}, clip, 0, color);
+    }
+}
+static rect_t key_preview(vui_handle_t u)
+{
+    rect_t r = u->down.rect;
+    if (!valid(u, u->down.node) || u->down.event.arg < 33 || u->down.event.arg > 126)
+        return (rect_t){0};
+    int parent = u->nodes[u->down.node - 1].parent;
+    if (parent < 0 || !(u->nodes[parent].flags & VUI_KEY_MODE)) return (rect_t){0};
+    return (rect_t){max(4, min(414, r.x + r.w/2 - 31)), r.y - 78, 62, 72};
+}
 static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row, unsigned depth)
 {
     if (depth > 32 || u->values[i].hidden)
@@ -875,6 +1090,8 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
             outline(u, r, paint, n->radius, n->border_width, n->border);
         if (n->kind == VUI_DOTS)
             draw_dots(u, r, paint, v);
+        if (n->kind == VUI_MATRIX)
+            draw_matrix(u, r, paint, v);
         if (n->kind == VUI_PROGRESS) {
             rect_t bar = {r.x, r.y, r.w * v->value / 100, r.h};
             if (v->indeterminate) {
@@ -886,18 +1103,31 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
         }
         if (n->kind == VUI_IMAGE) {
             if (v->canvas)
-                bitmap(u, r, paint, v->canvas, n->w, n->h, true, v->stride);
-            else if (v->image)
-                bitmap(u, r, paint, v->image, v->width, v->height, false, v->width * 3);
+                bitmap(u, r, paint, v->canvas, n->w, n->h, true, v->stride, n->radius);
+            else if (v->image) {
+                rect_t image = r;
+                if (n->flags & VUI_MARQUEE) {
+                    /* Preserve aspect ratio. Never enlarge a short title to
+                     * fill its box; unusually tall fonts may shrink uniformly. */
+                    image.h = min(r.h, v->height);
+                    image.w = max(1, (int)v->width * image.h / v->height);
+                    image.y += (r.h - image.h) / 2;
+                    image.x -= marquee_layout(u, v, image.w, r.w);
+                }
+                bitmap(u, image, paint, v->image, v->width, v->height, false, v->width * 3, n->radius);
+            }
             else if (n->image) {
                 const vui_image_t *im = &u->images[n->image - 1];
                 bitmap(u, r, paint,
                        u->assets + im->data + (u->now / im->duration % im->frames) * im->w * im->h * 3,
-                       im->w, im->h, false, im->w * 3);
+                       im->w, im->h, false, im->w * 3, n->radius);
             }
         }
-        if (n->kind == VUI_LABEL || n->kind == VUI_BUTTON)
-            text(u, n, r, paint, v->text ? v->text : (const char *)u->assets + n->text, fg);
+        if (n->kind == VUI_LABEL || n->kind == VUI_BUTTON) {
+            const char *label = v->text ? v->text : (const char *)u->assets + n->text;
+            if (n->flags & VUI_MARQUEE) marquee_text(u, n, v, r, paint, label, fg);
+            else text(u, n, r, paint, label, fg);
+        }
     }
     if (n->kind == VUI_BUTTON)
         hit(u, r, clip, i + 1,
@@ -927,6 +1157,19 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
     int offset = (n->flags & VUI_SCROLL) ? v->scroll : 0;
     for (int c = u->child[i]; c >= 0; c = u->sibling[c])
         draw(u, c, r.x, r.y - offset, clip, row, depth + 1);
+    if (n->kind == VUI_BUTTON && !u->page_active && u->pressed && !u->moved && u->down.node == i + 1 &&
+        contains(u->down.rect, u->pointer_x, u->pointer_y)) {
+        if (n->flags & VUI_PRESS_RING) {
+            /* Grid presses keep the icon in place and only light its ring. */
+            int diameter = r.w - 8;
+            outline(u, (rect_t){r.x + 4, r.y + 4, diameter, diameter}, paint, diameter / 2, 2, 0xf79e);
+        } else {
+            /* A light overlay preserves the card geometry and all child labels. */
+            for (int yy = paint.y; yy < paint.y + paint.h; ++yy)
+                for (int xx = paint.x; xx < paint.x + paint.w; ++xx)
+                    pixel(u, xx, yy, 0xffff, coverage(r, n->radius ? n->radius : 18, xx, yy) * 10 / 255);
+        }
+    }
     if ((n->flags & VUI_SCROLL) && n->content_height > n->h) {
         int track = r.h - 8, thumb = max(20, track * r.h / n->content_height);
         int y = r.y + 4 + offset * (track - thumb) / (n->content_height - n->h);
@@ -934,14 +1177,58 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
         box(u, (rect_t){r.x + r.w - 12, y, 4, thumb}, paint, 2, 0x9cd3);
     }
 }
+vui_err_t vui_transition_begin(vui_handle_t u, vui_area_t viewport)
+{
+    if (!u || !u->retained || viewport.x < 0 || viewport.y < 0 || viewport.w <= 0 || viewport.h <= 0 ||
+        viewport.w > WIDTH || viewport.h > HEIGHT || viewport.x > WIDTH - viewport.w ||
+        viewport.y > HEIGHT - viewport.h || u->page_active)
+        return VUI_ERR_INVALID_STATE;
+    if (!u->page_cache) u->page_cache = vui_alloc(WIDTH * HEIGHT * sizeof(*u->page_cache));
+    if (!u->page_cache) return VUI_ERR_NO_MEM;
+    /* Retire the press highlight before freezing the outgoing page. This
+     * render is not submitted; the caller composes the drag in the same frame. */
+    vui_render(u, u->retained);
+    memcpy(u->page_cache, u->retained, WIDTH * HEIGHT * sizeof(*u->page_cache));
+    u->page_viewport = viewport;
+    u->page_offset = 0;
+    u->page_active = true;
+    u->page_incoming = false;
+    damage_add(u, viewport);
+    return VUI_OK;
+}
+void vui_transition_update(vui_handle_t u, int offset, bool incoming)
+{
+    if (!u || !u->page_active) return;
+    offset = max(-u->page_viewport.w, min(offset, u->page_viewport.w));
+    if (u->page_offset == offset && u->page_incoming == incoming) return;
+    u->page_offset = offset;
+    u->page_incoming = incoming;
+    damage_add(u, u->page_viewport);
+}
+void vui_transition_end(vui_handle_t u)
+{
+    if (!u || !u->page_active) return;
+    u->page_active = false;
+    /* Timers run before queued input. Retire translated hit regions until
+     * the next render rebuilds them at their final page coordinates. */
+    u->hit_count = 0;
+    vui_invalidate(u);
+}
 bool vui_render_changed(vui_handle_t u, uint16_t *pixels, vui_area_t *changed)
 {
     if (!u || !pixels) return false;
-    if (u->retained != pixels) vui_invalidate(u);
+    if (u->retained != pixels) {
+        if (u->page_active)
+            memcpy(pixels, u->page_cache, WIDTH * HEIGHT * sizeof(*pixels));
+        vui_invalidate(u);
+    }
     if (!u->dirty) return false;
+    /* Bind against the same ancestor clips used for drawing. Hidden/offscreen
+     * rows must not start IO or compete with the visible title working set. */
+    for (unsigned i = 0; i < LISTS; ++i) list_sync_visible(u, &u->lists[i]);
     u->pixels = u->retained = pixels;
-    u->paint_clip = u->damage;
-    if (changed) *changed = u->damage;
+    u->paint_clip = u->page_active ? u->page_viewport : u->damage;
+    if (changed) *changed = u->paint_clip;
     u->dirty = false;
     u->damage = (rect_t){0};
     u->hit_count = 0;
@@ -949,15 +1236,102 @@ bool vui_render_changed(vui_handle_t u, uint16_t *pixels, vui_area_t *changed)
         memset(pixels + y * WIDTH + u->paint_clip.x, 0, (size_t)u->paint_clip.w * 2);
     /* Rebuild all hit regions using geometry clips, independently of the
      * paint clip: a small animation update must not remove other buttons. */
-    for (unsigned i = 0; i < u->header->node_count; i++)
-        if (u->nodes[i].parent < 0 && !(u->nodes[i].flags & VUI_TEMPLATE))
-            draw(u, i, 0, 0, (rect_t){0, 0, WIDTH, HEIGHT}, NULL, 0);
+    if (!u->page_active || u->page_incoming) {
+        int x = !u->page_active ? 0 : u->page_offset < 0
+            ? u->page_offset + u->page_viewport.w : u->page_offset - u->page_viewport.w;
+        rect_t clip = u->page_active ? u->page_viewport : (rect_t){0, 0, WIDTH, HEIGHT};
+        for (unsigned i = 0; i < u->header->node_count; i++)
+            if (u->nodes[i].parent < 0 && !(u->nodes[i].flags & VUI_TEMPLATE))
+                draw(u, i, x, 0, clip, NULL, 0);
+    }
+    if (u->page_active) {
+        const rect_t r = u->page_viewport;
+        int left = max(r.x, r.x + u->page_offset);
+        int right = min(r.x + r.w, r.x + r.w + u->page_offset);
+        if (left < right)
+            for (int y = r.y; y < r.y + r.h; ++y)
+                memcpy(pixels + y * WIDTH + left,
+                       u->page_cache + y * WIDTH + left - u->page_offset,
+                       (size_t)(right - left) * sizeof(*pixels));
+    }
+    if (!u->page_active && u->pressed && !u->moved && valid(u, u->down.node) && visible(u, u->down.node-1) &&
+        contains(u->down.rect, u->pointer_x, u->pointer_y)) {
+        rect_t bubble = key_preview(u), clip = intersect(bubble, u->paint_clip);
+        if (bubble.w && clip.w && clip.h) {
+            box(u, bubble, clip, 10, 0xf79e);
+            vui_node_t key = u->nodes[u->down.node-1];
+            key.align = 1;
+            char value[2] = {(char)u->down.event.arg, 0};
+            text(u, &key, bubble, clip, value, 0x0841);
+        }
+    }
     u->pixels = NULL;
     return true;
 }
 bool vui_render(vui_handle_t u, uint16_t *pixels)
 {
     return vui_render_changed(u, pixels, NULL);
+}
+static void motion_sample(motion_t *motion, int position, uint64_t time_ms)
+{
+    if (motion->count) {
+        unsigned last = motion->count - 1;
+        if (time_ms <= motion->ms[last]) {
+            if (motion->count > 1) motion->position[last] = position;
+            return;
+        }
+        if (motion->position[last] == position) return;
+    }
+    if (motion->count == MOTION_SAMPLES) {
+        memmove(motion->position, motion->position + 1, (MOTION_SAMPLES - 1) * sizeof(*motion->position));
+        memmove(motion->ms, motion->ms + 1, (MOTION_SAMPLES - 1) * sizeof(*motion->ms));
+        --motion->count;
+    }
+    unsigned next = motion->count++;
+    motion->position[next] = position;
+    motion->ms[next] = time_ms;
+}
+static int motion_velocity(const motion_t *motion, uint64_t time_ms, bool reversal)
+{
+    if (motion->count < 2) return 0;
+    unsigned latest = motion->count - 1;
+    if (time_ms < motion->ms[latest] || time_ms - motion->ms[latest] >= RELEASE_GRACE_MS) return 0;
+    unsigned oldest = latest - 1;
+    while (oldest && motion->ms[latest] - motion->ms[oldest - 1] <= VELOCITY_WINDOW_MS) --oldest;
+    if (reversal && latest > oldest + 1) {
+        int tail = motion->position[latest] - motion->position[latest - 1];
+        unsigned turning = latest - 1;
+        while (turning > oldest) {
+            int delta = motion->position[turning] - motion->position[turning - 1];
+            if ((tail < 0 && delta >= 0) || (tail > 0 && delta <= 0)) break;
+            --turning;
+        }
+        if (turning > oldest && latest - turning >= 2 &&
+            abs(motion->position[latest] - motion->position[turning]) >= 4) oldest = turning;
+    }
+    int64_t distance = 0;
+    uint64_t elapsed = 0;
+    for (unsigned i = oldest + 1; i <= latest; ++i) {
+        uint64_t dt = motion->ms[i] - motion->ms[i - 1];
+        if (dt > 1000) return 0; /* A stale pair must not manufacture a fling. */
+        unsigned weight = i - oldest;
+        distance += ((int64_t)motion->position[i] - motion->position[i - 1]) * weight;
+        elapsed += dt * weight;
+    }
+    int64_t velocity = elapsed ? distance * 1000 / (int64_t)elapsed : 0;
+    if (velocity > MAX_FLING_SPEED) velocity = MAX_FLING_SPEED;
+    if (velocity < -MAX_FLING_SPEED) velocity = -MAX_FLING_SPEED;
+    return (int)velocity;
+}
+int vui_pointer_velocity_x(vui_handle_t u)
+{
+    return u ? motion_velocity(&u->motion_x, u->pointer_ms, true) : 0;
+}
+bool vui_pointer_target(vui_handle_t u, vui_event_t *event)
+{
+    if (!u || !event || !u->down.node) return false;
+    *event = u->down.event;
+    return true;
 }
 void vui_pointer(vui_handle_t u, int x, int y, bool pressed)
 {
@@ -967,6 +1341,9 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
 {
     if (!u)
         return;
+    if (u->pressed) { damage_node(u, u->down.node); damage_add(u, key_preview(u)); }
+    u->pointer_x = x; u->pointer_y = y;
+    u->pointer_ms = time_ms;
     if (pressed && !u->pressed) {
         memset(&u->down, 0, sizeof(u->down));
         u->start_x = x;
@@ -974,9 +1351,12 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
         u->last_y = y;
         uint16_t coasting = u->fling_node;
         u->moved = false;
+        u->scrolling = false;
         u->fling_node = 0;
-        u->velocity = u->scroll_fraction = 0;
-        u->last_move = time_ms;
+        u->velocity_q8 = u->scroll_fraction = 0;
+        u->motion_y.count = u->motion_x.count = 0;
+        motion_sample(&u->motion_y, y, time_ms);
+        motion_sample(&u->motion_x, x, time_ms);
         u->drag_node = 0;
         for (int i = (int)u->hit_count - 1; i >= 0; i--)
             if (contains(u->hits[i].rect, x, y)) {
@@ -993,34 +1373,41 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
         u->moved = coasting && coasting == u->drag_node;
     }
     if (u->pressed) {
-        if (abs(x - u->start_x) > 12 || abs(y - u->start_y) > 12)
+        int dx = x - u->start_x, dy = y - u->start_y;
+        if (abs(dx) > TAP_SLOP || abs(dy) > TAP_SLOP)
             u->moved = true;
+        motion_sample(&u->motion_y, y, time_ms);
+        motion_sample(&u->motion_x, x, time_ms);
         int limit;
         int *position = scroll_position(u, u->drag_node, &limit);
+        if (position && !u->scrolling && abs(dy) > TAP_SLOP && abs(dy) > abs(dx)) {
+            u->scrolling = true;
+            /* The tap tolerance is not visible content movement. Velocity
+             * still uses the complete, timestamped finger trajectory. */
+            u->last_y = u->start_y + (dy > 0 ? TAP_SLOP : -TAP_SLOP);
+        }
         int delta = u->last_y - y;
-        if (position && u->moved && delta) {
+        if (position && u->scrolling && delta) {
             int next = max(0, min(*position + delta, limit));
-            uint64_t elapsed_move = time_ms >= u->last_move ? time_ms - u->last_move : 0;
-            int dt = elapsed_move > 200 ? 200 : max(1, (int)elapsed_move);
-            u->velocity = max(-3000, min(3000, (next - *position) * 1000 / dt));
-            u->last_move = time_ms;
             if (next != *position) { *position = next; damage_node(u, u->drag_node); }
         }
         u->last_y = y;
     }
     bool clicked =
-        !pressed && u->pressed && !u->moved && u->down.node && contains(u->down.rect, x, y);
-    if (!pressed && u->pressed && u->drag_node && u->moved &&
-        time_ms >= u->last_move && time_ms - u->last_move < 120 && abs(u->velocity) >= 20)
-        u->fling_node = u->drag_node;
+        !u->page_active && !pressed && u->pressed && !u->moved && u->down.node && contains(u->down.rect, x, y);
+    if (!pressed && u->pressed && u->scrolling) {
+        int velocity = -motion_velocity(&u->motion_y, time_ms, false);
+        u->velocity_q8 = abs(velocity) > MIN_FLING_SPEED ? velocity * SCROLL_SUBPIXEL : 0;
+        if (u->velocity_q8) u->fling_node = u->drag_node;
+    }
     if (u->observer)
         u->observer(u, x, y, pressed, u->observer_ctx);
     if (clicked && visible(u, u->down.node - 1)) {
-        if (u->down.event.arg >= 0x100 && u->down.event.arg <= 0x102) {
+        if (u->down.event.arg >= 0x100 && u->down.event.arg <= 0x103) {
             int layer = u->nodes[u->down.node - 1].parent, keyboard = u->nodes[layer].parent,
                 mode = u->down.event.arg == 0x100   ? 1
                        : u->down.event.arg == 0x101 ? 0
-                                                    : 2;
+                       : u->down.event.arg == 0x102 ? 2 : 3;
             for (int c = u->child[keyboard], m = 0; c >= 0; c = u->sibling[c])
                 if (u->nodes[c].flags & VUI_KEY_MODE)
                     vui_set_visible(u, c + 1, m++ == mode);
@@ -1028,4 +1415,5 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
             u->event(u, &u->down.event, u->event_ctx);
     }
     u->pressed = pressed;
+    if (pressed) { damage_node(u, u->down.node); damage_add(u, key_preview(u)); }
 }

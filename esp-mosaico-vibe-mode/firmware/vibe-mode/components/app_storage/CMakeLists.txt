@@ -3,6 +3,7 @@ idf_component_register(
         "src/app_storage.c"
         "src/storage_metrics.c"
         "src/storage_blockdev.c"
+        "src/storage_volume.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "private"
     PRIV_REQUIRES esp-mosaico-bsp esp_lcd_touch esp_blockdev spi_nand_flash joltwallet__littlefs esp_driver_spi esp_driver_gpio esp_timer

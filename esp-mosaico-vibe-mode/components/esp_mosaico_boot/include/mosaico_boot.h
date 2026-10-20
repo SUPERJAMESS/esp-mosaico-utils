@@ -14,7 +14,8 @@ extern "C" {
  * and owns restart order; these are not ISR or panic-handler entry points. */
 esp_err_t mosaico_boot_request_recovery(void);
 esp_err_t mosaico_boot_select(uint32_t address);
-/* Call early in Vibe Mode, before peripherals and update services start. */
+/* Consume maintenance intent from Vibe Mode, normally early at startup.
+ * Boot selection may also clear it while owning the NOR transition. */
 esp_err_t mosaico_boot_consume_request(void);
 esp_err_t mosaico_boot_recovery_requested(bool *requested);
 

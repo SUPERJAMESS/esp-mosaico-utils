@@ -79,7 +79,7 @@ flowchart TB
         bridge["iris_bridge HTTPS 客户端"]
         local["NAND 扫描与安装源"]
         backend["factory_system_update<br/>来源仲裁、布局与镜像校验、提交"]
-        ui["GSP 九页 UI / Wi-Fi / 截图 / 输入"]
+        ui["Vibe 轻量 UI / Wi-Fi / 截图 / 输入"]
         meta["sysmeta 状态与更新结果"]
     end
     host <-->|"USB 或 TCP"| iris
@@ -104,7 +104,7 @@ flowchart TB
 | --- | --- | --- |
 | 启动与 ABI | Recovery 的 `bootloader_components/main`、`components/esp_mosaico_boot`、公共头文件 | 按键、启动意图、维护镜像定位、OTA 启动选择、启动画面 |
 | 正常应用适配 | `components/esp_mosaico_app_recovery` | 进入维护模式、健康确认、OTA 状态及只读 inventory；独立于 GSP 和业务 UI |
-| 维护应用 | `firmware/vibe-mode/main` | Wi-Fi、GSP UI、NAND、产品控制 RPC、系统 inventory 和更新策略 |
+| 维护应用 | `firmware/vibe-mode/main`、`firmware/vibe-mode/components` | Wi-Fi、Vibe 轻量 UI、NAND、产品控制 RPC、系统 inventory 和更新策略 |
 | 远程下载 | `firmware/vibe-mode/components/iris_bridge` | 会话注册、配对、清单获取、授权、HTTPS 下载、取消和结果上报 |
 | 通用设备协议 | 同仓库 `ESP-Iris/components/esp_iris` | 身份、控制与数据链路、RPC、任务、OTA 传输、文件、媒体、日志和崩溃记录 |
 | 主机产品流程 | `mosaico-tools` | 构建、制包、设备选择、更新编排、ROM 执行器及更新后验收 |
@@ -305,27 +305,35 @@ NAND 安装不要求互联网，也不要求主机把固件字节从 Iris 数据
 
 ### 4.9 设备界面、截图和输入
 
-UI 使用 ESP-GSP 1.4.0，设备与 PC 模拟器共享控制器；BSP 提供显示和触摸，当前 Vibe 不启动 LVGL。九个页面如下。
+当前源码使用 Vibe 自有轻量绘制器，不链接 GSP 或 LVGL。设备与原生 PC 模拟器共享
+C 控制器、绘制器和资源包；BSP 提供显示和触摸，PC 以模拟服务提供业务快照。
+模拟器用于页面与交互验证，不能替代真实联网、Flash 写入、面板及实体输入验收。
 
 | 页面 | 功能 |
 | --- | --- |
-| Home | 显示 USB／网络状态、地址，进入配网、Pairing、Download Ideas、NAND update |
+| Home / Ideas 网格 | 显示 USB／网络状态和应用数量；分页浏览本地 Idea，并进入开发、管理、设置及添加入口 |
 | Wi-Fi | 网络列表、信号、连接状态、重新扫描、忘记网络 |
 | Password | 原生键盘、大小写／符号、删除、确认、密码显示切换；输入最多 64 字节，离页清理 UI 密码 |
 | Pairing | 显示局域网 TCP 地址与配对令牌 |
-| Bridge | 网站二维码、设备码、期限、等待／配对状态与取消 |
-| NAND | 候选包列表、扫描状态、无包／错误信息与重新扫描 |
-| Confirm | 确认 NAND 包的 release、容量、组件数和路径 |
+| 下载与预览 | 输入六位编号，显示固定发布的展示资源；明确确认后保存 NAND，下载本身不写 NOR |
+| 管理与详情 | 本地 Idea 列表、容量、逐项或批量更新、预览、删除及撤销 |
+| 开发 | USB／Agent 状态、开发指引及保存当前开发版本；保存提交前可取消 |
+| 打开与操作确认 | 展示离开维护模式、未保存开发版本及低电量提示；批量更新和删除先确认 |
 | Update | 显示来源、组件、接收进度、传输速率以及校验／提交阶段 |
-| Result | 显示失败或终态并返回维护首页；接收完成后的提交失败仍显示失败 |
+| Result | 显示失败或终态，完成后返回管理页或首页；接收完成后的提交失败仍显示失败 |
+| 设置与共享信息 | 语言、显示与触感、共享键值、关于、帮助及恢复出厂；Wi-Fi 保留字段遵循配网边界 |
+| 息屏与 Boot 提示 | 唤醒或松开 Boot 后恢复原页；临时页面不丢弃共享信息编辑草稿 |
 
-页面资源、字形和图标嵌入维护镜像；GSPB 构建时压缩，启动解压至 PSRAM，因此 UI 不依赖用户应用资源区。当前只使用预烘焙字形，关闭运行时 JPEG 解码。状态由快照汇总，在渲染上下文更新；外部打开下载页通过调度接口交给 UI。
+页面描述由 `tools/build_vibe_ui.py` 生成，再经 `tools/compile_vui.py` 编译为
+`vui_assets.bin`。固定节点、预烘焙字形和图片无损压缩后嵌入维护镜像，启动解压至
+PSRAM，不依赖用户应用资源区。状态由快照汇总，在渲染任务更新；外部打开下载页
+通过调度接口交给 UI。动态标题只为可见列表行请求，隐藏或离屏行不占用标题工作集。
 
 画面输出为 480×480 RGB565，全帧 460,800 字节。支持按需截图和连续镜像；按需截图可走控制链路，连续镜像走数据链路。镜像占用期间的控制截图可返回忙，Workbench 可复用镜像帧完成截图。捕获等待完整已绘制画面，不把尚未绘制像素当作有效首帧。
 
 USB 会话可通过 `0x1001/1` 注入触摸按下、移动、抬起；使用 12 字节小端 pointer 契约并检查坐标范围。该 RPC 拒绝 TCP，不能把局域网画面查看等同于远程触控授权。触摸注入不等于通用键盘、鼠标或任意系统输入服务。
 
-实现依据：[UI 控制器](../firmware/vibe-mode/main/vibe_ui.c)、[服务适配](../firmware/vibe-mode/main/factory_ui.c)、[屏幕 provider](../firmware/vibe-mode/main/iris_screen_mirror.c)、[输入权限](../firmware/vibe-mode/main/factory_ui_input.c)。
+实现依据：[UI 控制器](../firmware/vibe-mode/components/app_ui/src/vibe_ui.c)、[服务适配](../firmware/vibe-mode/components/app_ui/src/ui_services.c)、[屏幕 provider](../firmware/vibe-mode/components/app_ui/src/iris_screen_mirror.c)、[输入权限](../firmware/vibe-mode/components/app_iris/src/factory_ui_input.c)。
 
 ### 4.10 系统清单、日志与故障诊断
 

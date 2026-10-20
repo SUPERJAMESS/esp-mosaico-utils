@@ -16,6 +16,7 @@
 #include "spi_nand_flash.h"
 #include "storage_metrics.h"
 #include "storage_blockdev.h"
+#include "storage_volume.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -64,7 +65,7 @@ static void nand_cleanup_partial(app_storage_context_t *ctx)
     }
 }
 
-static esp_err_t ensure_mounted(app_storage_context_t *ctx)
+static esp_err_t ensure_mounted(app_storage_context_t *ctx, bool format)
 {
     if (ctx->mounted) {
         return ESP_OK;
@@ -114,6 +115,16 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
         return err;
     }
     ESP_LOGI("boot_perf", "nand_driver_us=%lld", (long long)(esp_timer_get_time() - driver_started));
+    uint64_t volume_bytes = ctx->blockdev->geometry.disk_size;
+    if (!format) {
+        /* Preserve existing geometry during normal mounts. Explicit recovery
+         * must also work when the old superblock cannot be read. */
+        err = storage_volume_size(ctx->blockdev, &volume_bytes);
+        if (err != ESP_OK) {
+            nand_cleanup_partial(ctx);
+            return err;
+        }
+    }
     storage_metrics_bind(ctx->spi, ctx->blockdev->geometry.read_size);
     esp_blockdev_handle_t cached = NULL;
     err = storage_blockdev_wrap(ctx->blockdev, CONFIG_IRIS_FACTORY_NAND_READ_CACHE_KIB * 1024U, &cached);
@@ -122,6 +133,17 @@ static esp_err_t ensure_mounted(app_storage_context_t *ctx)
         return err;
     }
     ctx->blockdev = cached;
+    /* Dhara capacity can change as its bad-block estimate is restored. Keep
+     * existing geometry unless the user requested a new filesystem. */
+    ctx->blockdev->geometry.disk_size = volume_bytes;
+
+    if (format) {
+        err = esp_littlefs_format_blockdev(ctx->blockdev);
+        if (err != ESP_OK) {
+            nand_cleanup_partial(ctx);
+            return err;
+        }
+    }
 
     const esp_vfs_littlefs_conf_t mount_config = {
         .base_path = NAND_UPDATE_MOUNT_PATH,
@@ -151,7 +173,7 @@ esp_err_t app_storage_mount(void)
 {
     if (atomic_load(&s_mount_status) == ESP_OK) return ESP_OK;
     atomic_store(&s_mount_status, ESP_ERR_INVALID_STATE);
-    esp_err_t err = ensure_mounted(&s_storage);
+    esp_err_t err = ensure_mounted(&s_storage, false);
     /* INVALID_STATE is reserved for pending readiness, not a failed mount. */
     atomic_store(&s_mount_status, err == ESP_ERR_INVALID_STATE ? ESP_FAIL : err);
     return err;
@@ -159,6 +181,42 @@ esp_err_t app_storage_mount(void)
 esp_err_t app_storage_status(void)
 {
     return atomic_load(&s_mount_status);
+}
+esp_err_t app_storage_access_status(void)
+{
+    esp_err_t err = app_storage_status();
+    if (err != ESP_OK) return err;
+    app_storage_context_t *ctx = &s_storage;
+    taskENTER_CRITICAL(&ctx->lock);
+    bool busy = ctx->busy;
+    taskEXIT_CRITICAL(&ctx->lock);
+    return busy ? ESP_ERR_INVALID_STATE : ESP_OK;
+}
+esp_err_t app_storage_error(void)
+{
+    esp_err_t status = app_storage_status();
+    if (status != ESP_OK && status != ESP_ERR_INVALID_STATE && status != ESP_ERR_NOT_SUPPORTED)
+        return status;
+    return storage_blockdev_read_error();
+}
+esp_err_t app_storage_format(void)
+{
+    /* Caller owns the local reservation and has drained external VFS users. */
+    app_storage_context_t *ctx = &s_storage;
+    atomic_store(&s_mount_status, ESP_ERR_INVALID_STATE);
+    esp_err_t err = ESP_OK;
+    if (ctx->mounted) {
+        err = esp_vfs_littlefs_unregister_blockdev(ctx->blockdev);
+        if (err == ESP_OK) {
+            ctx->mounted = false;
+            ctx->blockdev = NULL; /* Unregister consumes the handle. */
+            nand_cleanup_partial(ctx);
+        }
+    }
+    if (err == ESP_OK) err = ensure_mounted(ctx, true);
+    if (err == ESP_OK) storage_blockdev_clear_error();
+    atomic_store(&s_mount_status, err == ESP_ERR_INVALID_STATE ? ESP_FAIL : err);
+    return err;
 }
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
 {
@@ -201,6 +259,9 @@ esp_err_t app_storage_acquire(void)
 }
 #else
 esp_err_t app_storage_status(void) { return ESP_ERR_NOT_SUPPORTED; }
+esp_err_t app_storage_access_status(void) { return ESP_ERR_NOT_SUPPORTED; }
+esp_err_t app_storage_error(void) { return ESP_OK; }
+esp_err_t app_storage_format(void) { return ESP_ERR_NOT_SUPPORTED; }
 esp_err_t app_storage_info(uint64_t *total, uint64_t *used)
 {
     (void)total; (void)used;

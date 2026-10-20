@@ -1,11 +1,59 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ideas_internal.h"
+#include "esp_iris.h"
+#include "factory_system_update.h"
 
 void ideas_message(ideas_context_t *ctx, const char *title, const char *detail) {
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     snprintf(ctx->state->title, sizeof(ctx->state->title), "%s", title);
     snprintf(ctx->state->detail, sizeof(ctx->state->detail), "%s", detail);
     xSemaphoreGive(ctx->lock);
+}
+
+static esp_err_t format_nand(ideas_context_t *ctx) {
+    esp_err_t err = app_storage_reserve();
+    if (err != ESP_OK) return err;
+    err = factory_system_update_read_acquire();
+    if (err != ESP_OK) { app_storage_release(); return err; }
+    /* Iris file handles outlive requests. Stop/drain the service before
+     * unmounting; a status callback alone cannot protect existing handles. */
+    /* Always drain, even after a previous stop timed out and cleared started. */
+    err = esp_iris_stop();
+    bool restart_iris = err != ESP_ERR_NOT_SUPPORTED;
+    if (!restart_iris) err = ESP_OK;
+    if (err == ESP_OK) {
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        for (size_t i = 0; i < IDEAS_MAX_ITEMS; ++i) {
+            free(ctx->icons[i].data);
+            ctx->icons[i] = (icon_t){0};
+        }
+        for (size_t i = 0; i < 8; ++i) {
+            free(ctx->titles[i].image.data);
+            memset(&ctx->titles[i], 0, sizeof(ctx->titles[i]));
+        }
+        memset(ctx->state->items, 0, sizeof(ctx->state->items));
+        ctx->state->count = ctx->state->invalid = 0;
+        ctx->state->storage_total = ctx->state->storage_used = 0;
+        ctx->state->development_saved = false;
+        ++ctx->state->generation;
+        xSemaphoreGive(ctx->lock);
+        err = app_storage_format();
+        if (err == ESP_OK) err = ideas_scan(ctx, false);
+        if (restart_iris) {
+            esp_err_t start_err = esp_iris_start();
+            if (err == ESP_OK) err = start_err;
+        }
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        ctx->state->scan_error = err;
+        xSemaphoreGive(ctx->lock);
+    }
+    factory_system_update_read_release();
+    app_storage_release();
+    if (err == ESP_OK) {
+        ideas_development_status(ctx);
+        ideas_message(ctx, "NAND formatted", "You can download Ideas again.");
+    }
+    return err;
 }
 
 static void run_job(job_t *job) {
@@ -22,7 +70,9 @@ static void run_job(job_t *job) {
     bool remote = job->command == IDEAS_RESOLVE || job->command == IDEAS_CHECK;
     bool preparing = remote || job->command == IDEAS_PREVIEW;
     esp_err_t err = ESP_OK;
-    if ((job->command == IDEAS_UPDATE_ALL || job->command == IDEAS_REFRESH_UPDATES))
+    if (job->command == IDEAS_FORMAT_NAND)
+        err = format_nand(ctx);
+    else if ((job->command == IDEAS_UPDATE_ALL || job->command == IDEAS_REFRESH_UPDATES))
         err = ideas_update_all(ctx, job);
     else if (job->command == IDEAS_RUN_DEVELOPMENT)
         err = ideas_run_development();
@@ -78,13 +128,15 @@ static void run_job(job_t *job) {
     else if (!stale && !ready && job->command != IDEAS_DISMISS && job->command != IDEAS_ROW &&
              (job->command != IDEAS_PREVIEW || err != ESP_OK)) {
         ctx->state->terminal = true;
+        ctx->state->terminal_command = job->command;
         ctx->state->failed = err != ESP_OK;
         ctx->state->error = err;
         if (preparing)
             ctx->state->preview_id = 0;
         if (err != ESP_OK) {
             snprintf(ctx->state->title, sizeof(ctx->state->title), "%s failed",
-                     preparing                       ? "App information"
+                     job->command == IDEAS_FORMAT_NAND ? "Format"
+                     : preparing                       ? "App information"
                      : job->command == IDEAS_INSTALL ? "Installation"
                      : job->command == IDEAS_OPEN    ? "Open"
                                                      : "Download");
@@ -96,7 +148,8 @@ static void run_job(job_t *job) {
             ctx->state->failed = false;
             ctx->state->cancelled = true;
             snprintf(ctx->state->title, sizeof(ctx->state->title), "Cancelled");
-            snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Previously saved Ideas are unchanged");
+            snprintf(ctx->state->detail, sizeof(ctx->state->detail), "%s",
+                     job->command == IDEAS_UPDATE_ALL ? "Completed updates are kept" : "Previously saved Ideas are unchanged");
         }
         if (err == FACTORY_IDEAS_ERR_NO_COMPATIBLE_RELEASE && !ctx->cancel_requested) {
             snprintf(ctx->state->title, sizeof(ctx->state->title), "%s",

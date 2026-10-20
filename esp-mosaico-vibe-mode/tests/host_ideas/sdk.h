@@ -14,6 +14,7 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_STATE 0x103
 #define ESP_ERR_INVALID_SIZE 0x104
 #define ESP_ERR_NOT_FOUND 0x105
+#define ESP_ERR_NVS_NOT_FOUND 0x1102
 #define ESP_ERR_NOT_SUPPORTED 0x106
 #define ESP_ERR_TIMEOUT 0x107
 #define ESP_ERR_INVALID_CRC 0x109
@@ -139,14 +140,21 @@ typedef struct {
         MOCK_CONFLICT,
         MOCK_ETAG
     } fault;
-    bool network, lease, storage_busy, fail_send, fail_commit, deny_new_tasks, read_lease, ota_busy, ota_missing, development, cancel_on_delay, no_space;
+    bool network, lease, storage_busy, storage_failure, fail_send, fail_commit, deny_new_tasks, read_lease, ota_busy, ota_missing, development, cancel_on_delay, no_space;
+    bool recovery_requested, fail_consume, fail_flash_read;
+    bool fail_boot_read;
+    const char *fail_file;
+    unsigned fail_file_remaining;
+    unsigned consume_requests, recovery_restarts, busy_restarts;
     unsigned fail_init_step, tasks_created, tasks_entered, jobs_finished, mutex_live, queue_live;
     unsigned writes, resolves, assets, firmware, http_live, installs, commits, restarts;
     unsigned cancels, requests_with_identity, fault_limit, fault_hits, firmware_reads, read_chunk;
     bool identity_unavailable;
     const char *device_id;
     uint64_t flash_read_bytes;
-    unsigned storage_info_calls, directory_reads;
+    unsigned storage_info_calls, directory_reads, formats, iris_stops, iris_starts;
+    bool iris_stopped, fail_stop, fail_format;
+    int storage_error;
     char flash_version;
     void (*observe)(void);
 } mock_environment_t;
@@ -175,3 +183,4 @@ void mock_development(void);
 void mock_change_resource(void);
 
 esp_err_t mosaico_boot_select(uint32_t address);
+esp_err_t mosaico_boot_consume_request(void);

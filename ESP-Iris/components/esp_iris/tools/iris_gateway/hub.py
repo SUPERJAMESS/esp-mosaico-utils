@@ -1063,10 +1063,16 @@ class IrisHub:
         offset: int = 0,
         length: int | None = None,
     ) -> AsyncIterator[bytes]:
-        async for chunk in self.get(device_id).files.read_chunks(
+        chunks = self.get(device_id).files.read_chunks(
             volume, path, offset=offset, length=length
-        ):
-            yield chunk
+        )
+        try:
+            async for chunk in chunks:
+                yield chunk
+        finally:
+            close = getattr(chunks, "aclose", None)
+            if close is not None:
+                await close()
 
     async def file_upload(
         self,

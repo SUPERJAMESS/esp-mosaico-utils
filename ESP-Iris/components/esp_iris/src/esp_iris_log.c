@@ -254,6 +254,7 @@ static void ring_reset(iris_runtime_t *runtime)
     runtime->log_tail = 0;
     runtime->log_used = 0;
     runtime->log_dropped_bytes = 0;
+    runtime->log_dropped_reported = 0;
 }
 
 static ssize_t log_write(void *ctx, int fd, const void *data, size_t size)
@@ -332,6 +333,41 @@ esp_err_t iris_log_vfs_init(iris_runtime_t *runtime)
 esp_err_t iris_log_vfs_deinit(void)
 {
     return esp_vfs_unregister_fs(IRIS_LOG_VFS_PATH);
+}
+
+esp_err_t iris_log_capture_start(iris_runtime_t *runtime)
+{
+    if (runtime == NULL) return ESP_ERR_INVALID_ARG;
+    if (runtime->stdio_redirected) return ESP_OK;
+    esp_err_t err = ESP_OK;
+    if (!runtime->vfs_registered) {
+        err = iris_log_vfs_init(runtime);
+        runtime->vfs_registered = err == ESP_OK;
+    }
+    if (err == ESP_OK) {
+        err = iris_log_redirect_stdio();
+        runtime->stdio_redirected = err == ESP_OK;
+    }
+    if (err != ESP_OK && runtime->vfs_registered) {
+        (void)iris_log_vfs_deinit();
+        runtime->vfs_registered = false;
+    }
+    return err;
+}
+
+esp_err_t iris_log_capture_stop(iris_runtime_t *runtime)
+{
+    esp_err_t result = ESP_OK;
+    if (runtime->stdio_redirected) {
+        result = iris_log_restore_stdio();
+        runtime->stdio_redirected = false;
+    }
+    if (runtime->vfs_registered) {
+        const esp_err_t err = iris_log_vfs_deinit();
+        if (result == ESP_OK) result = err;
+        runtime->vfs_registered = false;
+    }
+    return result;
 }
 
 esp_err_t iris_log_redirect_stdio(void)

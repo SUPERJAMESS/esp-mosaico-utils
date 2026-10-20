@@ -18,11 +18,17 @@ static const esp_blockdev_ops_t ops={read_media,write_media,erase_media,sync_med
 static void check_read(esp_blockdev_handle_t d,unsigned p){uint8_t b[4096];assert(d->ops->read(d,b,page,p*page,page)==0);assert(!memcmp(b,media+p*page,page));}
 static void *reader(void *arg){for(int i=0;i<1000;i++)check_read(arg,i%3);return NULL;}
 static void check(size_t p){
+ storage_blockdev_clear_error();assert(storage_blockdev_read_error()==ESP_OK);
  page=p;reads=releases=writes=0;memset(media,0xa5,sizeof(media));
  esp_blockdev_t source={.geometry={sizeof(media),p,p,p},.ops=&ops};esp_blockdev_handle_t d;
  assert(storage_blockdev_wrap(&source,2*p,&d)==0);assert(d->geometry.disk_size==source.geometry.disk_size);
  check_read(d,0);check_read(d,1);check_read(d,0);assert(reads==2);check_read(d,2);check_read(d,0);assert(reads==3);check_read(d,1);assert(reads==4);
  uint8_t b[8192];assert(d->ops->read(d,b,sizeof(b),0,2*p)==0);assert(!memcmp(b,media,2*p));
+ d->geometry.disk_size=4*p;unsigned limited_writes=writes;
+ assert(d->ops->read(d,b,p,4*p,p)==ESP_ERR_INVALID_ARG);
+ assert(d->ops->write(d,b,4*p,p)==ESP_ERR_INVALID_ARG && writes==limited_writes);
+ assert(d->ops->erase(d,4*p,p)==ESP_ERR_INVALID_ARG);
+ assert(source.geometry.disk_size==sizeof(media));d->geometry.disk_size=sizeof(media);
  assert(d->ops->read(d,b,p,0,2*p)==ESP_ERR_INVALID_ARG);
  assert(d->ops->read(d,b,sizeof(b),UINT64_MAX-p,p)==ESP_ERR_INVALID_ARG);
  assert(d->ops->read(d,b,p,1,p)==ESP_ERR_INVALID_ARG);
@@ -33,6 +39,7 @@ static void check(size_t p){
  assert(d->ops->ioctl(d,0,NULL)==0);n=reads;check_read(d,0);assert(reads==n+1);
  fail_sync=true;assert(d->ops->sync(d)==ESP_FAIL);fail_sync=false;n=reads;check_read(d,0);assert(reads==n+1);
  fail_read=true;assert(d->ops->read(d,b,p,8*p,p)==ESP_FAIL);fail_read=false;n=reads;check_read(d,0);check_read(d,8);assert(reads==n+2);
+ assert(storage_blockdev_read_error()==ESP_FAIL); /* Success cannot hide the fault. */
  pthread_t a,c;assert(!pthread_create(&a,NULL,reader,d));assert(!pthread_create(&c,NULL,reader,d));pthread_join(a,NULL);pthread_join(c,NULL);
  assert(d->ops->release(d)==0);assert(releases==1);
  for(int i=1;i<=3;i++){

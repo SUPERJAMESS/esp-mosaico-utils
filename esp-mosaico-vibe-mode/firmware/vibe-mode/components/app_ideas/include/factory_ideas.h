@@ -26,7 +26,8 @@ typedef enum {
     IDEAS_UPDATE_ALL,
     IDEAS_RUN_DEVELOPMENT,
     IDEAS_REFRESH_UPDATES,
-    IDEAS_STORAGE_INFO
+    IDEAS_STORAGE_INFO,
+    IDEAS_FORMAT_NAND
 } factory_ideas_command_t;
 /* Local UI state; never serialized into the Iris protocol. */
 typedef enum {
@@ -48,7 +49,9 @@ typedef struct {
     uint32_t generation, revision;
     bool busy, terminal, failed, scanning, cancelled;
     factory_ideas_command_t command;
-    esp_err_t error, scan_error;
+    /* Owns terminal/title/detail/revision even when background work changes command. */
+    factory_ideas_command_t terminal_command;
+    esp_err_t error, scan_error, storage_error;
     char title[48], detail[160];
     uint64_t total, received;
     factory_ideas_phase_t phase;
@@ -67,12 +70,14 @@ typedef struct {
 } factory_ideas_snapshot_t;
 
 /* Reserve one 16 KiB HP SRAM worker stack and queue background NAND mount
- * and NOR app-description discovery. Library scans are requested on demand.
+ * and NOR app-description discovery. Library scans are requested on demand;
+ * the first save also loads the directory before enforcing its item limit.
  * Call during serialized startup, after network initialization. Idempotent;
  * failure releases partial resources and permits retry. No RTC/PSRAM fallback. */
 esp_err_t factory_ideas_init(void);
 /* Queue command, copying the six-digit code when the command needs one.
- * Scan/relocalize accept NULL; preview/check/install require code. Returns busy or error.
+ * FORMAT_NAND destroys all NAND files and requires explicit user confirmation.
+ * Scan/relocalize/format accept NULL; preview/check/install require code. Returns busy or error.
  */
 esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *code);
 /* Confirm or dismiss the current immutable preview identified by request_id.
@@ -93,7 +98,7 @@ void *factory_ideas_copy_icon(const char *code, size_t *size);
  * next generation refresh supplies QOI bytes rendered from the name block. */
 void *factory_ideas_copy_title(const char *code, size_t *size);
 
-/* Copy request_id preview slot (0 title RGB565, 1 body RGB565, 2 PNG).
+/* Copy request_id preview slot (0 single-line title QOI, 1 body RGB565, 2 PNG).
  * Sets required size; caller frees the result. May wait for the snapshot lock.
  */
 void *factory_ideas_copy_preview(uint32_t request_id, unsigned slot, size_t *size);

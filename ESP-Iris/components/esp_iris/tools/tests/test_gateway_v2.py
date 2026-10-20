@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from aiohttp import FormData
+from aiohttp import ClientPayloadError, FormData
 from aiohttp.test_utils import TestClient, TestServer, make_mocked_request
 
 import iris_gateway.cli as cli_module
@@ -17,7 +17,9 @@ import iris_gateway.crashes as crashes_module
 from iris_gateway import __version__
 from iris_gateway.cli import _client_ssl, _listen_is_loopback, build_parser
 from iris_gateway.demo import DemoHub
+from iris_gateway.files import FileServiceError
 from iris_gateway.gateway import GATEWAY_CLIENT_MAX_SIZE, GatewayService, create_app
+from iris_gateway.protocol import FileStatus
 from iris_gateway.security import Actor
 from iris_gateway.store import GatewayStore
 from iris_gateway.system_update import SYSTEM_UPDATE_SCHEMA, build_system_update_bundle
@@ -1279,6 +1281,50 @@ def test_console_reset_uses_adapter_identity_and_deduplicates(tmp_path, bound):
                     device["device_id"] if bound else endpoint
                 )
             hub.hardware_reset.assert_awaited_once_with(endpoint, "run")
+        finally:
+            await client.close()
+            await hub.close()
+            store.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("failure", ["open", "read", "short"])
+def test_file_download_errors_never_become_file_content(tmp_path, failure):
+    async def scenario():
+        store = GatewayStore(tmp_path)
+        service = GatewayService(store, instance_id="test", demo=True)
+        hub = DemoHub(service.on_device_event)
+        service.attach_hub(hub)
+        await hub.start()
+        closed = False
+
+        async def broken_download(*args, **kwargs):
+            nonlocal closed
+            try:
+                if failure != "open":
+                    yield b"part"
+                if failure != "short":
+                    raise FileServiceError(FileStatus.BUSY, "read")
+            finally:
+                closed = True
+
+        hub.file_download = broken_download
+        client = TestClient(TestServer(create_app(service)))
+        await client.start_server()
+        try:
+            response = await client.get(
+                "/v2/devices/demo-a1b2c3d4/file",
+                params={"volume": "cfg", "path": "app.json"},
+            )
+            if failure != "open":
+                assert response.status == 200
+                with pytest.raises(ClientPayloadError):
+                    await asyncio.wait_for(response.read(), timeout=2)
+            else:
+                assert response.status == 409
+                assert (await response.json())["error"]["code"] == "file_busy"
+            assert closed
         finally:
             await client.close()
             await hub.close()

@@ -2,6 +2,7 @@
 #include "vibe_settings.h"
 #include "factory_locale.h"
 #include "factory_network.h"
+#include "factory_network_credentials.h"
 #include "factory_system_metadata.h"
 #include "mosaico_boot.h"
 #include "factory_system_update.h"
@@ -217,6 +218,10 @@ esp_err_t vibe_settings_request(vibe_settings_command_t command, const char *key
     if (command == VIBE_SETTINGS_SHARED_SET || command == VIBE_SETTINGS_SHARED_DELETE) {
         if (!vibe_shared_key_valid(key) || (command == VIBE_SETTINGS_SHARED_SET &&
             (!value || strlen(value) >= VIBE_SHARED_VALUE_BYTES))) return ESP_ERR_INVALID_ARG;
+        if (command == VIBE_SETTINGS_SHARED_SET &&
+            ((!strcmp(key, "wifi_ssid") && !factory_network_ssid_valid(value)) ||
+             (!strcmp(key, "wifi_password") && !factory_network_password_valid(value))))
+            return ESP_ERR_INVALID_ARG;
     } else if (command != VIBE_SETTINGS_RESET) {
         if (!value || !*value || strlen(value) > 3 || strspn(value, "0123456789") != strlen(value))
             return ESP_ERR_INVALID_ARG;

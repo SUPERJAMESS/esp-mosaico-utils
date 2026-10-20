@@ -6,6 +6,7 @@
 #include "driver/gpio.h"
 #include "esp_attr.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -22,9 +23,10 @@ static bool s_asleep, s_rotate_allowed = true;
 static unsigned s_pattern;
 static esp_timer_handle_t s_motor_timer;
 static SemaphoreHandle_t s_motor_lock;
+static bool s_motor_shutdown; /* Protected by s_motor_lock, including timer callbacks. */
 /* Publish each peripheral only after its driver and handles are usable. */
 static unsigned s_ready;
-enum { READY_HAPTICS = 1, READY_IMU = 2, READY_BATTERY = 4 };
+enum { READY_HAPTICS = 1, READY_IMU = 2, READY_BATTERY = 4, READY_PERIPHERALS = 8 };
 
 static void peripheral_ready(unsigned mask)
 {
@@ -38,10 +40,23 @@ static const unsigned s_patterns[][3] = {
     {16, 0, 0}, {16, 45, 16}, {48, 0, 0}, {28, 70, 44}, {80, 60, 80},
 };
 static unsigned s_motor_pattern, s_motor_step;
+static void motor_shutdown(void)
+{
+    /* App launches, OTA and explicit restarts all pass through esp_restart().
+     * A stopped timer may already have a callback waiting on this lock, and
+     * the UI worker can still hold a queued pulse. Neither may re-enable PWM. */
+    xSemaphoreTake(s_motor_lock, portMAX_DELAY);
+    s_motor_shutdown = true;
+    if (s_motor_timer) (void)esp_timer_stop(s_motor_timer);
+    const esp_err_t err = bsp_motor_set(false);
+    if (err != ESP_OK) ESP_LOGW("vibe_device", "Motor shutdown failed: %s", esp_err_to_name(err));
+    xSemaphoreGive(s_motor_lock);
+}
 static void motor_step(void *ctx)
 {
     (void)ctx;
     xSemaphoreTake(s_motor_lock, portMAX_DELAY);
+    if (s_motor_shutdown) { xSemaphoreGive(s_motor_lock); return; }
     unsigned step = ++s_motor_step;
     unsigned duration = step < 3 ? s_patterns[s_motor_pattern][step] : 0;
     (void)bsp_motor_set(duration && !(step & 1));
@@ -51,6 +66,7 @@ static void motor_step(void *ctx)
 static void motor_play(unsigned pattern)
 {
     xSemaphoreTake(s_motor_lock, portMAX_DELAY);
+    if (s_motor_shutdown) { xSemaphoreGive(s_motor_lock); return; }
     (void)esp_timer_stop(s_motor_timer);
     s_motor_pattern = pattern >= 1 && pattern <= 5 ? pattern - 1 : 0;
     s_motor_step = 0;
@@ -91,16 +107,32 @@ static void peripheral_task(void *unused)
     (void)unused;
     s_motor_lock = xSemaphoreCreateMutex();
     const esp_timer_create_args_t motor_timer = {.callback = motor_step, .name = "vibe_haptic"};
-    if (s_motor_lock && bsp_motor_init() == ESP_OK &&
-        esp_timer_create(&motor_timer, &s_motor_timer) == ESP_OK)
-        peripheral_ready(READY_HAPTICS);
+    if (s_motor_lock && bsp_motor_init() == ESP_OK) {
+        xSemaphoreTake(s_motor_lock, portMAX_DELAY);
+        /* Publish haptics only once restart cleanup is guaranteed. The lock
+         * also lets shutdown safely race timer creation during startup. */
+        esp_err_t err = esp_register_shutdown_handler(motor_shutdown);
+        if (err == ESP_OK) err = esp_timer_create(&motor_timer, &s_motor_timer);
+        if (err == ESP_OK) peripheral_ready(READY_HAPTICS);
+        else ESP_LOGW("vibe_device", "Haptics unavailable: %s", esp_err_to_name(err));
+        xSemaphoreGive(s_motor_lock);
+    }
     const bsp_imu_config_t imu_config = BSP_IMU_CONFIG_DEFAULT();
-    if (bsp_imu_init() == ESP_OK && bsp_imu_start(&imu_config) == ESP_OK)
-        peripheral_ready(READY_IMU);
+    for (unsigned attempt = 0; attempt < 3; ++attempt) {
+        if (bsp_imu_init() == ESP_OK) {
+            if (bsp_imu_start(&imu_config) == ESP_OK) {
+                peripheral_ready(READY_IMU);
+                break;
+            }
+            (void)bsp_imu_deinit();
+        }
+        if (attempt < 2) vTaskDelay(pdMS_TO_TICKS(100));
+    }
     /* Battery profile verification and sealing may take seconds. Neither
      * physical keys nor display preferences depend on this work. */
     if (bsp_battery_init() == ESP_OK)
         peripheral_ready(READY_BATTERY);
+    peripheral_ready(READY_PERIPHERALS);
     ESP_LOGI("boot_perf", "peripherals_ready_at_us=%lld", (long long)esp_timer_get_time());
     vTaskDelete(NULL);
 }
@@ -119,11 +151,14 @@ static void sample_task(void *unused)
         (void)gpio_config(&cfg);
     }
     ESP_LOGI("boot_perf", "keys_ready_at_us=%lld", (long long)esp_timer_get_time());
-    if (xTaskCreate(peripheral_task, "vibe_peripherals", 6144, NULL, 1, NULL) != pdPASS)
+    if (xTaskCreate(peripheral_task, "vibe_peripherals", 6144, NULL, 1, NULL) != pdPASS) {
+        peripheral_ready(READY_PERIPHERALS);
         ESP_LOGW("vibe_device", "Optional peripheral initialization unavailable");
+    }
     int64_t next_battery = 0, candidate_since = 0;
     unsigned candidate = 0, brightness = 0;
-    bool sleeping = false;
+    bool sleeping = false, network_retry = false;
+    int64_t next_network = 0;
     float last_x = 0, last_y = 0, last_z = 0;
     while (true) {
         int64_t now = esp_timer_get_time();
@@ -134,9 +169,10 @@ static void sample_task(void *unused)
         unsigned pattern = s_pattern;
         s_pattern = 0;
         taskEXIT_CRITICAL(&s_lock);
-        if (asleep != sleeping) {
-            (void)factory_network_suspend(asleep);
-            sleeping = asleep;
+        if ((asleep != sleeping || network_retry) && now >= next_network) {
+            network_retry = factory_network_suspend(asleep) != ESP_OK;
+            if (!network_retry) sleeping = asleep;
+            next_network = network_retry ? now + 1000000 : 0;
         }
         unsigned level = asleep ? 10 : s_preferences.brightness ? s_preferences.brightness : 80;
         if (level != brightness && s_brightness && s_brightness(level) == ESP_OK) {
@@ -144,9 +180,13 @@ static void sample_task(void *unused)
                 ESP_LOGI("boot_perf", "brightness_ready_at_us=%lld", (long long)esp_timer_get_time());
             brightness = level;
         }
-        snapshot.usb_connected = tud_mounted();
+        /* On battery power without VBUS sensing, unplug may suspend the bus
+         * while TinyUSB retains its configuration. Show an active data link,
+         * including no Agent owner, rather than a stale enumeration flag. */
+        snapshot.usb_connected = tud_ready();
         snapshot.haptics_available = (ready & READY_HAPTICS) != 0;
         snapshot.imu_available = (ready & READY_IMU) != 0;
+        snapshot.peripherals_ready = (ready & READY_PERIPHERALS) != 0;
         if ((ready & READY_BATTERY) && now >= next_battery) {
             bsp_battery_status_t status;
             snapshot.battery_valid = bsp_battery_read(&status) == ESP_OK;
@@ -158,24 +198,24 @@ static void sample_task(void *unused)
         }
         if (snapshot.haptics_available && (!s_preferences.haptics || pattern))
             motor_play(s_preferences.haptics ? pattern : 0);
+        /* A fixed upright preference does not depend on live IMU readings. */
+        unsigned wanted = s_preferences.auto_rotate ? snapshot.orientation : 0;
         if (snapshot.imu_available) {
             float x, y, z;
             if (bsp_imu_get_accel(&x, &y, &z) == ESP_OK) {
                 float change = fabsf(x - last_x) + fabsf(y - last_y) + fabsf(z - last_z);
                 if (asleep && change > 0.25f) ++snapshot.motion_revision;
                 last_x = x; last_y = y; last_z = z;
-                unsigned wanted = snapshot.orientation;
-                if (!s_preferences.auto_rotate) wanted = 0;
-                else if (fabsf(z) < 0.8f) {
+                if (s_preferences.auto_rotate && fabsf(z) < 0.8f) {
                     /* Dominant-axis threshold provides angular hysteresis. */
                     if (fabsf(x) > fabsf(y) * 1.7f) wanted = x > 0 ? 90 : 270;
                     else if (fabsf(y) > fabsf(x) * 1.7f) wanted = y > 0 ? 0 : 180;
                 }
-                if (wanted != candidate) { candidate = wanted; candidate_since = now; }
-                if (allowed && !asleep && candidate != snapshot.orientation && now - candidate_since >= 300000) {
-                    if (s_rotate && s_rotate(candidate) == ESP_OK) snapshot.orientation = candidate;
-                }
             }
+        }
+        if (wanted != candidate) { candidate = wanted; candidate_since = now; }
+        if (allowed && !asleep && candidate != snapshot.orientation && now - candidate_since >= 300000) {
+            if (s_rotate && s_rotate(candidate) == ESP_OK) snapshot.orientation = candidate;
         }
         for (unsigned i = 0; i < 2; ++i) {
             bool down = gpio_get_level(pins[i]) == BSP_BUTTON_ACTIVE_LEVEL;

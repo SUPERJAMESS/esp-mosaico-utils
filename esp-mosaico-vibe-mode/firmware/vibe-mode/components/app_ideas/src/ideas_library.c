@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ideas_internal.h"
 #include "factory_system_update.h"
+#include "mosaico_boot.h"
 
 void ideas_hex(const uint8_t digest[32], char out[65]) {
     static const char digits[] = "0123456789abcdef";
@@ -161,22 +162,28 @@ esp_err_t ideas_verify_installed(const ideas_package_t *package, ideas_context_t
     return err;
 }
 
-bool ideas_boot_record(boot_record_t *record, bool verify) {
+esp_err_t ideas_read_boot_record(boot_record_t *record) {
+    if (!record) return ESP_ERR_INVALID_ARG;
     nvs_handle_t nvs;
-    if (nvs_open_from_partition(FACTORY_SYSTEM_METADATA_PARTITION, "ideas", NVS_READONLY, &nvs) !=
-        ESP_OK)
-        return false;
+    esp_err_t err = nvs_open_from_partition(FACTORY_SYSTEM_METADATA_PARTITION, "ideas", NVS_READONLY, &nvs);
+    if (err != ESP_OK) return err == ESP_ERR_NVS_NOT_FOUND ? ESP_ERR_NOT_FOUND : err;
     size_t size = sizeof(*record);
-    esp_err_t err = nvs_get_blob(nvs, "boot", record, &size);
+    err = nvs_get_blob(nvs, "boot", record, &size);
     nvs_close(nvs);
+    if (err != ESP_OK) return err == ESP_ERR_NVS_NOT_FOUND ? ESP_ERR_NOT_FOUND : err;
     const esp_partition_t *boot = esp_ota_get_boot_partition();
-    if (err != ESP_OK || size != sizeof(*record) || record->schema != 1 ||
+    if (size != sizeof(*record) || record->schema != 1 ||
         !memchr(record->code, 0, sizeof(record->code)) || !ideas_local_code_valid(record->code) ||
         !memchr(record->application_id, 0, sizeof(record->application_id)) ||
         !memchr(record->release_id, 0, sizeof(record->release_id)) || record->image[64] ||
         record->layout[64] || !boot || boot->address != record->offset ||
         record->offset != 0x210000 || !record->size || record->size > 16U * 1024U * 1024U)
-        return false;
+        return ESP_ERR_NOT_FOUND;
+    return ESP_OK;
+}
+
+bool ideas_boot_record(boot_record_t *record, bool verify) {
+    if (ideas_read_boot_record(record) != ESP_OK) return false;
     return !verify || (ideas_flash_hash(0x8000, 4096, record->layout) == ESP_OK &&
            ideas_flash_hash(record->offset, record->size, record->image) == ESP_OK);
 }
@@ -203,6 +210,7 @@ esp_err_t ideas_save_boot(void *ctx) {
 }
 
 esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development) {
+    ctx->library_loaded = false;
     factory_io_metrics_t metrics = {.started = factory_io_now()};
     DIR *dir = opendir(ROOT);
     if (!dir && errno != ENOENT)
@@ -224,7 +232,11 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development) {
     icon_t icons[IDEAS_MAX_ITEMS] = {0};
     struct dirent *entry;
     size_t count = 0, invalid = 0, examined = 0;
-    while (dir && examined++ < 64 && (entry = readdir(dir))) {
+    esp_err_t scan_error = ESP_OK;
+    while (dir && examined++ < 64) {
+        errno = 0;
+        entry = readdir(dir);
+        if (!entry) { if (errno) scan_error = ESP_FAIL; break; }
         if (!ideas_local_code_valid(entry->d_name))
             continue;
         esp_err_t refresh = ideas_store_refresh(ROOT, entry->d_name, p);
@@ -234,8 +246,12 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development) {
             struct stat st;
             if (stat(base, &st) && errno == ENOENT) continue;
         }
-        if (refresh != ESP_OK ||
-            ideas_store_select(ROOT, p, factory_locale_get()) != ESP_OK) {
+        if (refresh == ESP_OK) refresh = ideas_store_select(ROOT, p, factory_locale_get());
+        if (refresh != ESP_OK) {
+            /* Keep the old snapshot when metadata cannot be read. A partial
+             * list must not be cached as a complete library for save admission. */
+            if (refresh != ESP_ERR_NOT_FOUND && refresh != ESP_ERR_INVALID_SIZE &&
+                refresh != ESP_ERR_INVALID_CRC) { scan_error = refresh; break; }
             invalid++;
             continue;
         }
@@ -288,8 +304,15 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development) {
             break;
         }
     }
-    if (dir)
-        closedir(dir);
+    if (dir && closedir(dir) && scan_error == ESP_OK) scan_error = ESP_FAIL;
+    if (examined > 64 && scan_error == ESP_OK) scan_error = ESP_ERR_INVALID_SIZE;
+    if (scan_error != ESP_OK) {
+        for (size_t i = 0; i < IDEAS_MAX_ITEMS; ++i) free(icons[i].data);
+        free(items);
+        free(p);
+        factory_io_report("scan", "metadata", &metrics, NULL, 0, scan_error);
+        return scan_error;
+    }
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     for (size_t i = 0; i < count; ++i)
         for (size_t n = 0; n < ctx->state->count; ++n)
@@ -325,11 +348,17 @@ esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development) {
     ctx->state->storage_total = ctx->state->storage_used = 0;
     ++ctx->state->generation;
     xSemaphoreGive(ctx->lock);
+    ctx->library_loaded = true;
     if (refresh_development) ideas_development_status(ctx);
     free(items);
     free(p);
     factory_io_report("scan", "metadata", &metrics, NULL, 0, ESP_OK);
     return ESP_OK;
+}
+
+esp_err_t ideas_load_library(ideas_context_t *ctx) {
+    if (ideas_job_cancelled(ctx)) return ESP_ERR_INVALID_STATE;
+    return ctx->library_loaded ? ESP_OK : ideas_scan(ctx, false);
 }
 
 esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
@@ -360,7 +389,17 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
     if (job->command == IDEAS_DOWNLOAD) {
         pending_t *p = job->pending;
         ideas_message(ctx, "Downloading Idea", "Transferring files");
-        esp_err_t err = ideas_check_space(p->package.total_size);
+        /* Preview stays independent of library discovery. Before a save, load
+         * the real directory once so a cold boot cannot admit a hidden 17th copy. */
+        esp_err_t err = ideas_load_library(ctx);
+        xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        bool replacing = false;
+        for (size_t i = 0; i < ctx->state->count; ++i)
+            replacing |= !strcmp(ctx->state->items[i].code, p->package.code);
+        if (err == ESP_OK && !replacing && ctx->state->count >= IDEAS_MAX_ITEMS)
+            err = ESP_ERR_NO_MEM;
+        xSemaphoreGive(ctx->lock);
+        if (err == ESP_OK) err = ideas_check_space(p->package.total_size);
         if (err == ESP_OK) err = ideas_store_download_gated(ROOT, p->json, p->json_size, &p->package,
                                              ideas_fetch_file, verify_download_file, p, download_stage, ideas_commit_download);
         if (err == ESP_OK)
@@ -401,7 +440,7 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
         char path[IDEAS_PATH_BYTES];
         if (err == ESP_OK)
             err = ideas_store_path(ROOT, job->code, "firmware/manifest.json", path);
-        bool current = false;
+        bool current = false, read_held = false;
         if (err == ESP_OK && job->command == IDEAS_OPEN) {
             xSemaphoreTake(ctx->lock, portMAX_DELAY);
             if (ctx->cancel_requested) err = ESP_ERR_INVALID_STATE;
@@ -415,6 +454,7 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
         if (err == ESP_OK && job->command == IDEAS_OPEN) {
             err = factory_system_update_read_acquire();
             if (err == ESP_OK) {
+                read_held = true;
                 boot_record_t boot;
                 /* The local manifest covers the layout, application and resources.
                  * Verify it once, with cancellation between NOR read blocks. */
@@ -423,9 +463,17 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
                 if (current) {
                     esp_err_t verified = ideas_verify_installed(local, ctx);
                     current = verified == ESP_OK;
-                    if (verified == ESP_ERR_INVALID_STATE) err = verified;
+                    /* Only a digest mismatch justifies reinstalling. An I/O,
+                     * allocation or cancellation failure must not start NOR writes. */
+                    if (verified != ESP_OK && verified != ESP_ERR_INVALID_CRC) err = verified;
                 }
-                factory_system_update_read_release();
+                /* A verified fast open keeps ownership through restart. A
+                 * writer admitted after this hash could otherwise erase the
+                 * selected app before we restart into it. */
+                if (!current || err != ESP_OK) {
+                    factory_system_update_read_release();
+                    read_held = false;
+                }
             }
         }
         /* Serialize the final cancellation check with disabling cancellation.
@@ -453,11 +501,16 @@ esp_err_t ideas_run_local(ideas_context_t *ctx, job_t *job) {
                 xSemaphoreGive(ctx->lock);
             }
         }
+        /* Failed maintenance operations can leave a Recovery intent even
+         * though the selected application still matches. Clear it under the
+         * same NOR lease; a storage failure must prevent the restart. */
+        if (err == ESP_OK && current) err = mosaico_boot_consume_request();
         if (err == ESP_OK)
             ideas_message(ctx, "Boot application ready",
                           "Starts on next power-on.\nRestart to run it now.");
         if (err == ESP_OK) (void)ideas_scan(ctx, false);
         if (err == ESP_OK && job->command == IDEAS_OPEN) esp_restart();
+        if (read_held) factory_system_update_read_release();
     }
     free(local);
     return err;
@@ -470,8 +523,9 @@ esp_err_t ideas_prepare_row(ideas_context_t *ctx, job_t *job) {
     esp_err_t err = ideas_store_metadata(ROOT, job->code, &pending->package);
     if (err == ESP_OK)
         err = ideas_prepare_assets(ctx, job, pending, true);
-    size_t size = 0;
-    void *image = err == ESP_OK ? ideas_title_qoi(pending->pixels[0].data, &size) : NULL;
+    size_t size = err == ESP_OK ? pending->pixels[0].size : 0;
+    void *image = err == ESP_OK ? pending->pixels[0].data : NULL;
+    if (err == ESP_OK) pending->pixels[0] = (icon_t){0};
     if (err == ESP_OK && !image)
         err = ESP_ERR_NO_MEM;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);

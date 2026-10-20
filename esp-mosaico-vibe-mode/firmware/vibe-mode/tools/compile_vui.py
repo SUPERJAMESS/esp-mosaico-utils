@@ -27,6 +27,7 @@ TYPES = [
     "progress",
     "keyboard",
     "dots",
+    "matrix",
 ]
 NODE = "<5h15HI"
 
@@ -73,9 +74,10 @@ def compile_assets():
         name = o["name"]
         for mode, rows in enumerate(
             [
-                "qwertyuiop|asdfghjkl|zxcvbnm",
-                "QWERTYUIOP|ASDFGHJKL|ZXCVBNM",
-                "1234567890|@#$%&*-+=|!?.,:/;",
+                ("qwertyuiop", "asdfghjkl", "zxcvbnm"),
+                ("QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"),
+                ("1234567890", "@#$%&*-+=", "!?.,:/;"),
+                ("1234567890", "_\\|~^[]{}", "<>*!+=-"),
             ]
         ):
             parent = len(objects)
@@ -87,7 +89,7 @@ def compile_assets():
                     "y": 0,
                     "w": 480,
                     "h": 233,
-                    "name": name + ["_lower", "_upper", "_sym"][mode],
+                    "name": name + ["_lower", "_upper", "_sym", "_sym2"][mode],
                     "hidden": mode != 0,
                     "key_mode": True,
                 }
@@ -106,23 +108,23 @@ def compile_assets():
                         "font": "fonts/VibeMedium.otf",
                         "font_size": 22 if len(text) == 1 else 18,
                         "font_charset": "".join(chr(c) for c in range(32, 127)),
-                        "bg_color": "#F2F2F2" if arg == 13 else "#292829",
+                        "bg_color": "#F3F4F2" if arg == 13 else "#272A2D",
                         "fg_color": "#000000" if arg == 13 else "#ECECF0",
                         "radius": 8,
                         "events": [{"target_name": name + "_key", "arg": arg}],
                     }
                 )
 
-            for r, row in enumerate(rows.split("|")):
+            for r, row in enumerate(rows):
                 x0 = [12, 35, 81][r]
                 for c, ch in enumerate(row):
                     key(x0 + c * 46, r * 59, 42, ch, ord(ch))
             for x, icon, arg in [
-                (12, o["shift_icon"], 0x100 if mode != 1 else 0x101),
+                (12, o["shift_icon"], 0x103 if mode == 2 else 0x102 if mode == 3 else 0x100 if mode != 1 else 0x101),
                 (408, o["delete_icon"], 8),
             ]:
-                key(x, 118, 60, "", arg)
-                objects.append(
+                key(x, 118, 60, "#+=" if x == 12 and mode == 2 else "123" if x == 12 and mode == 3 else "", arg)
+                if x != 12 or mode < 2: objects.append(
                     {
                         "type": "image",
                         "parent": parent,
@@ -137,10 +139,11 @@ def compile_assets():
                 12,
                 177,
                 76,
-                "ABC" if mode == 2 else "123",
-                0x101 if mode == 2 else 0x102,
+                "ABC" if mode >= 2 else "123",
+                0x101 if mode >= 2 else 0x102,
             )
-            key(96, 177, 288, "_", 32)
+            key(96, 177, 288, "space", 32)
+            objects[-1]["name"] = name + "_space_" + str(mode)
             key(392, 177, 76, "GO", 13)
     actions = {"none": 0}
     for o in objects:
@@ -195,6 +198,8 @@ def compile_assets():
             | (8 if o.get("overflow") == "ellipsis" else 0)
             | (16 if o.get("key_mode") else 0)
             | (32 if o.get("scroll") else 0)
+            | (64 if o.get("press_ring") else 0)
+            | (128 if o.get("overflow") == "marquee" else 0)
         )
         e = o.get("events", [{}])[0]
         values = [
@@ -321,7 +326,8 @@ def compile_assets():
         )
     (OUT.parent / "private/vui_ids.h").write_text("\n".join(lines) + "\n")
     inputs = (
-        ["tools/compile_vui.py", "ui/main.json"]
+        ["tools/compile_vui.py", "tools/build_vibe_ui.py", "tools/vibe_design.py",
+         "ui/core.json", "ui/main.json", "ui/translations.json"]
         + ["ui/" + p for p, _ in fonts]
         + ["ui/" + p for p in images]
     )

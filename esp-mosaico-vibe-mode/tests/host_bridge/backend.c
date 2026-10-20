@@ -341,6 +341,19 @@ static esp_err_t prepare_bridge(char *json, bool allow_bootloader)
 static bool ota_active;
 static esp_err_t ota_status_error;
 esp_err_t esp_iris_ota_get_status(esp_iris_ota_status_t *status) { status->active = ota_active; return ota_status_error; }
+static esp_iris_system_update_component_t altered_descriptor(
+    esp_iris_system_update_component_t component, unsigned field)
+{
+    switch (field) {
+    case 0: ++component.size; break;
+    case 1: ++component.id; break;
+    case 2: component.kind = ESP_IRIS_SYSTEM_UPDATE_COMPONENT_PARTITION_TABLE; break;
+    case 3: component.flags ^= 1; break;
+    case 4: component.target_offset ^= 4096; break;
+    default: component.sha256[0] ^= 1; break;
+    }
+    return component;
+}
 int main(void)
 {
     ota_active = true;
@@ -627,7 +640,25 @@ int main(void)
                    recovery_manifest(image)) == 0);
     c = s_backend.transaction.plan[0].descriptor;
     assert(update_begin_component(&c, &s_backend) == 0);
+    /* Every receive/end descriptor must stay bound to the accepted plan,
+     * including the PSRAM allocation size. Reject mutations without consuming
+     * progress, so the original descriptor can still finish normally. */
+    uint8_t *oversized = calloc(c.size + 1, 1);
+    assert(oversized);
+    for (unsigned field = 0; field < 6; ++field) {
+        esp_iris_system_update_component_t changed = altered_descriptor(c, field);
+        assert(factory_system_update_source_write_component(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
+                   &changed, 0, oversized, field ? 1 : c.size + 1) != ESP_OK);
+        assert(s_backend.transaction.received == 0 && s_backend.status.received_size == 0);
+    }
+    free(oversized);
     assert(update_write_component(&c, 0, image, c.size, &s_backend) == 0);
+    for (unsigned field = 0; field < 6; ++field) {
+        esp_iris_system_update_component_t changed = altered_descriptor(c, field);
+        assert(factory_system_update_source_end_component(FACTORY_SYSTEM_UPDATE_OWNER_BRIDGE,
+                   &changed, c.sha256) != ESP_OK);
+        assert(s_backend.transaction.active_index == 0 && !s_backend.transaction.plan[0].completed);
+    }
     assert(update_end_component(&c, c.sha256, &s_backend) == 0);
     assert(!erased);
     mock_commit_error = ESP_FAIL;

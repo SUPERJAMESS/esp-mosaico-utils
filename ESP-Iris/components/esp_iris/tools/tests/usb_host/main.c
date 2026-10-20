@@ -1,6 +1,71 @@
 #include "sdk.h"
 #include USB_SOURCE
 
+static void monitor_open(void)
+{
+    /* The stock monitor ends open_serial() with both lines deasserted. */
+    cdcacm_event_t event = {.line_state_changed_data = {.dtr = true, .rts = true}};
+    cdc_line_state_callback(0, &event);
+    event.line_state_changed_data.dtr = false;
+    event.line_state_changed_data.rts = false;
+    cdc_line_state_callback(0, &event);
+    delay_hook = NULL;
+}
+
+static void test_console_startup(iris_runtime_t *control, iris_runtime_t *data,
+                                 iris_transport_state_t *c, iris_transport_state_t *d)
+{
+    assert(usb_start(control, c) == ESP_OK);
+    assert(usb_start(data, d) == ESP_OK);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_NONE);
+    assert(!usb_console_ready()); /* Enumeration is not a terminal open. */
+    TickType_t start = ticks;
+    iris_usb_console_wait();
+    assert(ticks - start == pdMS_TO_TICKS(CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS));
+    /* Opening the independent data interface must not consume console logs. */
+    cdcacm_event_t event = {.line_state_changed_data = {.dtr = true, .rts = true}};
+    cdc_line_state_callback(1, &event);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_NONE);
+
+    start = ticks;
+    delay_hook = monitor_open;
+#if CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS > 0
+    iris_usb_console_wait();
+    assert(ticks - start < pdMS_TO_TICKS(CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS));
+    assert(usb_console_ready() && !atomic_load(&c->host_open));
+#else
+    iris_usb_console_wait();
+    assert(ticks == start);
+    monitor_open();
+    assert(!usb_console_ready());
+    ticks += pdMS_TO_TICKS(IRIS_USB_CONSOLE_SETTLE_MS);
+#endif
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
+    assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
+    /* Detach removes the open latch; the same tty name alone is not enough. */
+    fake_mounted = false;
+    tinyusb_event_t detached = {.id = TINYUSB_EVENT_DETACHED};
+    usb_device_event_callback(&detached, NULL);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
+    fake_mounted = true;
+    tinyusb_event_t attached = {.id = TINYUSB_EVENT_ATTACHED};
+    usb_device_event_callback(&attached, NULL);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_NONE);
+    /* RX is also explicit evidence of a reader, even with no DTR assertion. */
+    cdc_rx_callback(0, NULL);
+    ticks += pdMS_TO_TICKS(IRIS_USB_CONSOLE_SETTLE_MS);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
+    /* Tick wrap must not turn a bounded startup wait into a hang. */
+    usb_device_event_callback(&detached, NULL);
+    ticks = UINT32_MAX - pdMS_TO_TICKS(20);
+    start = ticks;
+    iris_usb_console_wait();
+    assert((TickType_t)(ticks - start) == pdMS_TO_TICKS(CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS));
+    usb_stop(control, c);
+    usb_stop(data, d);
+}
+
 #if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
 static void lines(unsigned itf, bool dtr, bool rts, unsigned elapsed_ms)
 {
@@ -88,6 +153,7 @@ static void dtr(unsigned itf, bool open)
     line_states[itf] = open;
     cdcacm_event_t event = {.line_state_changed_data = {.dtr = open}};
     cdc_line_state_callback(itf, &event);
+    ticks += pdMS_TO_TICKS(IRIS_USB_CONSOLE_SETTLE_MS);
 }
 
 static void suspend_during_io(void)
@@ -107,7 +173,8 @@ static void test_sessions(iris_runtime_t *control, iris_runtime_t *data,
                           iris_transport_state_t *c, iris_transport_state_t *d)
 {
     bus_event(TINYUSB_EVENT_ATTACHED);
-    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED); /* No DTR needed. */
+    dtr(0, true);
+    assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
     dtr(1, true);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
@@ -120,6 +187,7 @@ static void test_sessions(iris_runtime_t *control, iris_runtime_t *data,
     bus_event(TINYUSB_EVENT_SUSPENDED);
     assert(s_link[1].generation == gen);
     bus_event(TINYUSB_EVENT_RESUMED); /* Entire DOWN/UP between worker polls. */
+    ticks += pdMS_TO_TICKS(IRIS_USB_CONSOLE_SETTLE_MS);
     assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
     assert(!rx_bytes[0] && !rx_bytes[1] && !tx_bytes[0] && !tx_bytes[1]);
@@ -128,6 +196,7 @@ static void test_sessions(iris_runtime_t *control, iris_runtime_t *data,
     /* Reset/reconfigure without physical DETACHED must release both sessions
      * and must not trust a cached DTR from the prior configuration. */
     bus_event(TINYUSB_EVENT_ATTACHED);
+    dtr(0, true);
     assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
     assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
@@ -147,6 +216,7 @@ static void test_sessions(iris_runtime_t *control, iris_runtime_t *data,
     assert(usb_read(data, d, &byte, 1) == -ENOTCONN);
     line_states[1] = 0; /* Resume must refresh DTR, not keep its cached true. */
     bus_event(TINYUSB_EVENT_RESUMED);
+    dtr(0, true);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
     assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
@@ -156,6 +226,7 @@ static void test_sessions(iris_runtime_t *control, iris_runtime_t *data,
     io_hook = suspend_during_io;
     assert(usb_write(data, d, &byte, 1) == -ENOTCONN);
     bus_event(TINYUSB_EVENT_RESUMED);
+    dtr(0, true);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
     assert(!tx_bytes[1]);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_CONNECTED);
@@ -163,6 +234,7 @@ static void test_sessions(iris_runtime_t *control, iris_runtime_t *data,
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_DISCONNECTED);
     assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
     bus_event(TINYUSB_EVENT_ATTACHED);
+    dtr(0, true);
     (void)usb_poll(control, c);
     (void)usb_poll(control, c);
     assert(c->reported_link_up);
@@ -171,6 +243,7 @@ static void test_sessions(iris_runtime_t *control, iris_runtime_t *data,
     assert(usb_poll(control, c) == IRIS_LINK_EVENT_DISCONNECTED);
     assert(s_link[0].cleaned_generation != s_link[0].generation);
     assert(usb_write(control, c, &byte, 1) == -ENOTCONN);
+    ticks += pdMS_TO_TICKS(IRIS_USB_CONSOLE_SETTLE_MS);
     assert(usb_poll(control, c) == IRIS_LINK_EVENT_CONNECTED);
     assert(s_link[0].cleaned_generation == s_link[0].generation);
     io_calls = 0; /* Remaining shutdown regression expects no successful I/O. */
@@ -194,12 +267,18 @@ static void test_install_events(iris_runtime_t *control, iris_runtime_t *data,
         assert(usb_start(data, d) == ESP_OK);
         if (scenario == 4) bus_event(TINYUSB_EVENT_ATTACHED); /* First late configuration. */
         rx_bytes[0] = 1; /* First native console command, sent before poll. */
+        cdc_rx_callback(0, NULL);
+        ticks += pdMS_TO_TICKS(IRIS_USB_CONSOLE_SETTLE_MS);
         const unsigned clears = rx_clear[0];
         const bool suspended = scenario == 0 || scenario == 2;
         assert(usb_poll(control, c) == (suspended ? IRIS_LINK_EVENT_NONE : IRIS_LINK_EVENT_CONNECTED));
         assert(rx_bytes[0] == 1 && rx_clear[0] == clears);
         assert(usb_poll(data, d) == IRIS_LINK_EVENT_NONE);
-        if (suspended) bus_event(TINYUSB_EVENT_RESUMED);
+        if (suspended) {
+            bus_event(TINYUSB_EVENT_RESUMED);
+            cdc_rx_callback(0, NULL);
+            ticks += pdMS_TO_TICKS(IRIS_USB_CONSOLE_SETTLE_MS);
+        }
         (void)usb_poll(control, c);
         uint8_t byte;
         assert(usb_read(control, c, &byte, 1) == 1);
@@ -250,6 +329,8 @@ int main(void)
     usb_stop(&data, &d);
     assert(!s_users && !shutdown_handler && uninstalls == 3 && removals == 2);
     test_install_events(&control, &data, &c, &d);
+
+    test_console_startup(&control, &data, &c, &d);
 
 #if CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD
     test_download(&control, &data, &c, &d);

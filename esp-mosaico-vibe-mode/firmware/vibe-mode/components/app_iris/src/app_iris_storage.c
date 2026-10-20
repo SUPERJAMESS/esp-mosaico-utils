@@ -35,13 +35,14 @@ static esp_err_t nand_update_rpc(const esp_iris_rpc_request_t *request, uint8_t 
 static esp_err_t nand_status(void *ctx)
 {
     (void)ctx;
-    return app_storage_status();
+    return app_storage_access_status();
 }
 
 esp_err_t app_iris_storage_register(void)
 {
     /* Advertise the descriptor now; the Ideas worker mounts NAND after USB
-     * and UI startup. File requests return BUSY until that mount completes. */
+     * and UI startup. New file requests return BUSY until mounting completes
+     * and while a local job owns NAND, rather than waiting in LittleFS. */
     const esp_iris_file_volume_config_t volume = {
         .id = APP_STORAGE_VOLUME_ID,
         .base_path = APP_STORAGE_MOUNT_PATH,

@@ -1,6 +1,7 @@
 #include "esp_iris_internal.h"
 #include "esp_iris_memory.h"
 
+#include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -435,6 +436,8 @@ static void begin_session(iris_runtime_t *runtime)
     if (!transition_session(runtime, IRIS_SESSION_EVENT_LINK_UP)) {
         return;
     }
+    runtime->retain_usb_logs = !runtime->data_link &&
+        iris_runtime_transport_kind(runtime) == ESP_IRIS_TRANSPORT_KIND_USB;
     const iris_runtime_t *peer = iris_peer_runtime(runtime);
     do {
         runtime->session_id = esp_random();
@@ -465,7 +468,7 @@ static void begin_session(iris_runtime_t *runtime)
 static void end_session(iris_runtime_t *runtime)
 {
     iris_log_console_frame_end(runtime);
-    if (!runtime->data_link) {
+    if (!runtime->data_link && (!runtime->retain_usb_logs || !runtime->running)) {
         iris_log_record_t record;
         while (iris_log_pop(runtime, UINT32_MAX, &record))
             iris_log_forward_deferred(&record);
@@ -518,6 +521,20 @@ static void queue_next_log(iris_runtime_t *runtime)
 {
     if (runtime->data_link && runtime->log_credit < IRIS_LOG_PAYLOAD_HEADER_SIZE) {
         return;
+    }
+    if (!runtime->data_link && !iris_log_uses_native_console(runtime)) {
+        taskENTER_CRITICAL(&runtime->log_lock);
+        const uint32_t dropped = runtime->log_dropped_bytes;
+        taskEXIT_CRITICAL(&runtime->log_lock);
+        if (dropped != runtime->log_dropped_reported) {
+            runtime->tx_wire_length = (size_t)snprintf(
+                (char *)runtime->tx_wire, IRIS_CONSOLE_RECORD_BYTES,
+                "\nESP-Iris: log buffer overflow; %" PRIu32 " bytes lost\n",
+                dropped - runtime->log_dropped_reported);
+            runtime->tx_wire_offset = 0;
+            runtime->log_dropped_reported = dropped;
+            return;
+        }
     }
     iris_log_record_t record;
     if (!iris_log_pop(runtime, runtime->data_link ? runtime->log_credit
@@ -706,12 +723,17 @@ esp_err_t esp_iris_start(void)
     const uint32_t heap_before =
         heap_caps_get_free_size(MALLOC_CAP_INTERNAL) + services_before;
     esp_err_t err = ESP_OK;
+#if CONFIG_ESP_IRIS_REDIRECT_STDIO
+    /* Reuse the pre-app_main tap without clearing its startup records. For
+     * explicit-only startup, capture identity/USB initialization too. */
+    err = iris_log_capture_start(&g_iris);
+#endif
     if (!g_iris.crash_loop_initialized) {
         /* Crash-state persistence is best effort for service availability.
          * The exact failure remains visible through status/crash metadata. */
         (void)esp_iris_boot_probe();
     }
-    if (!g_iris.identity_ready) {
+    if (err == ESP_OK && !g_iris.identity_ready) {
         err = iris_identity_load_or_create(&g_iris);
         if (err == ESP_OK) {
             g_iris.identity_ready = true;
@@ -735,16 +757,6 @@ esp_err_t esp_iris_start(void)
         if (err == ESP_OK) err = iris_transport_start(&g_iris_data);
     }
 #endif
-#if CONFIG_ESP_IRIS_REDIRECT_STDIO
-    if (err == ESP_OK) {
-        err = iris_log_vfs_init(&g_iris);
-        g_iris.vfs_registered = err == ESP_OK;
-    }
-    if (err == ESP_OK) {
-        err = iris_log_redirect_stdio();
-        g_iris.stdio_redirected = err == ESP_OK;
-    }
-#endif
     if (err == ESP_OK) {
         g_iris.running = true;
         g_iris.task_stack_free_min_bytes = UINT32_MAX;
@@ -757,14 +769,7 @@ esp_err_t esp_iris_start(void)
     }
     if (err != ESP_OK) {
         iris_services_deinit(&g_iris);
-        if (g_iris.stdio_redirected) {
-            (void)iris_log_restore_stdio();
-            g_iris.stdio_redirected = false;
-        }
-        if (g_iris.vfs_registered) {
-            (void)iris_log_vfs_deinit();
-            g_iris.vfs_registered = false;
-        }
+        (void)iris_log_capture_stop(&g_iris);
 #if CONFIG_ESP_IRIS_DATA_LINK
         iris_transport_stop(&g_iris_data);
         iris_runtime_wire_deinit(&g_iris_data);
@@ -772,6 +777,10 @@ esp_err_t esp_iris_start(void)
         iris_transport_stop(&g_iris);
         iris_runtime_wire_deinit(&g_iris);
     }
+
+#if CONFIG_ESP_IRIS_TRANSPORT_USB && CONFIG_ESP_IRIS_REDIRECT_STDIO
+    if (err == ESP_OK) iris_usb_console_wait();
+#endif
 
     taskENTER_CRITICAL(&s_start_lock);
     g_iris.started = err == ESP_OK;
@@ -793,8 +802,22 @@ esp_err_t esp_iris_stop(void)
 {
     taskENTER_CRITICAL(&s_start_lock);
     if (g_iris.lifecycle == ESP_IRIS_LIFECYCLE_STOPPED) {
+        if (g_iris.initializing) {
+            taskEXIT_CRITICAL(&s_start_lock);
+            return ESP_ERR_INVALID_STATE;
+        }
+        /* The early tap can exist before the first esp_iris_start(). */
+        if (!g_iris.vfs_registered) {
+            taskEXIT_CRITICAL(&s_start_lock);
+            return ESP_OK;
+        }
+        g_iris.initializing = true;
         taskEXIT_CRITICAL(&s_start_lock);
-        return ESP_OK;
+        const esp_err_t err = iris_log_capture_stop(&g_iris);
+        taskENTER_CRITICAL(&s_start_lock);
+        g_iris.initializing = false;
+        taskEXIT_CRITICAL(&s_start_lock);
+        return err;
     }
     if (g_iris.initializing ||
             g_iris.lifecycle == ESP_IRIS_LIFECYCLE_STOPPING) {
@@ -842,18 +865,7 @@ esp_err_t esp_iris_stop(void)
         return ESP_ERR_TIMEOUT;
     }
 
-    esp_err_t result = ESP_OK;
-    if (g_iris.stdio_redirected) {
-        result = iris_log_restore_stdio();
-        g_iris.stdio_redirected = false;
-    }
-    if (g_iris.vfs_registered) {
-        esp_err_t vfs_err = iris_log_vfs_deinit();
-        if (result == ESP_OK) {
-            result = vfs_err;
-        }
-        g_iris.vfs_registered = false;
-    }
+    esp_err_t result = iris_log_capture_stop(&g_iris);
     taskENTER_CRITICAL(&g_iris.log_lock);
     g_iris.log_tail = 0;
     g_iris.log_used = 0;

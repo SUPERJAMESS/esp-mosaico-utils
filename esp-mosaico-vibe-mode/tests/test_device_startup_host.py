@@ -1,4 +1,4 @@
-"""Keys and brightness must remain usable while optional drivers block/fail."""
+"""Optional drivers must not block controls or leave the motor on at restart."""
 import os
 import shutil
 import subprocess
@@ -8,13 +8,17 @@ import pytest
 
 SANITIZERS = [] if os.name == "nt" else ["-fsanitize=address,undefined"]
 
-@pytest.mark.parametrize("scenario", ["blocked", "sensor-failure", "task-failure", "retry"])
+@pytest.mark.parametrize("scenario", ["blocked", "sensor-failure", "task-failure", "retry", "imu-retry",
+                                      "shutdown-active", "shutdown-paused",
+                                      "shutdown-registration-failure", "motor-timer-failure",
+                                      "wifi-sleep-retry", "wifi-wake-retry", "usb-lifecycle",
+                                      "rotation-retry", "rotation-off-after-read-error"])
 def test_device_startup(tmp_path, scenario):
     root = Path(__file__).resolve().parents[1]
     component = root / "firmware/vibe-mode/components/app_device"
     fixture = root / "tests/host_device"
     for name in ("esp_err.h", "vibe_settings.h", "factory_network.h", "bsp/esp_mosaico.h",
-                 "driver/gpio.h", "esp_attr.h", "esp_log.h", "esp_timer.h", "tusb.h",
+                 "driver/gpio.h", "esp_attr.h", "esp_log.h", "esp_timer.h", "esp_system.h", "tusb.h",
                  "freertos/FreeRTOS.h", "freertos/queue.h", "freertos/semphr.h", "freertos/task.h"):
         header = tmp_path / name
         header.parent.mkdir(parents=True, exist_ok=True)

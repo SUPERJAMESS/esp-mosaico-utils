@@ -155,6 +155,11 @@ typedef struct {
 } esp_iris_mdns_config_t;
 
 /* Idempotent. Configuration comes exclusively from Kconfig and NVS. */
+/* Start the transports/worker and adopt any pre-app_main log capture. With
+ * USB stdio enabled, starting a stopped instance waits up to
+ * CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS for a console host (default 1500 ms).
+ * Timeout is not an error; pending logs remain bounded by the configured ring.
+ * Calling again while already started returns immediately. */
 esp_err_t esp_iris_start(void);
 esp_err_t esp_iris_stop(void);
 bool esp_iris_is_started(void);

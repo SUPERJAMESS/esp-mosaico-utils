@@ -19,7 +19,7 @@ static unsigned bridge_prefetch_calls;
 static unsigned prepare_calls, cancel_calls, preview_ticks;
 static unsigned download_calls, install_calls, check_calls, restart_calls;
 static unsigned save_calls, delete_calls, reset_calls, next_key, scan_calls, cancel_ticks;
-static unsigned scan_ticks;
+static unsigned scan_ticks, format_calls;
 static unsigned ui_sample;
 static vibe_command_t current_job;
 static char last_code[7];
@@ -60,6 +60,33 @@ static void trace_state(vui_handle_t ui, void *ctx)
             (void)sscanf(command, "release-available %31s", model.release_version);
         }
         if (!strcmp(command, "ideas-refresh-busy")) model.idea_busy = true;
+        if (!strcmp(command, "peripherals-ready")) {
+            model.device.imu_available = model.device.haptics_available = model.device.peripherals_ready = true;
+            vibe_ui_poll(state);
+        }
+        if (!strcmp(command, "nand-error")) {
+            model.nand_error = -1;
+            model.nand_needs_format = true;
+        }
+        if (!strcmp(command, "nand-idle")) model.idea_busy = false;
+        if (!strcmp(command, "nand-recovered")) {
+            model.nand_error = 0;
+            model.nand_needs_format = false;
+        }
+        if (!strcmp(command, "nand-format-complete") || !strcmp(command, "nand-format-fail")) {
+            bool failed = !strcmp(command, "nand-format-fail");
+            model.updating = model.idea_busy = false;
+            model.update_terminal = true;
+            model.update_failed = model.nand_needs_format = failed;
+            model.nand_error = failed ? -1 : 0;
+            model.bundle_count = 0;
+            model.storage_total = 512ULL * 1024 * 1024;
+            model.storage_used = 0;
+            ++model.nand_generation;
+            ++model.update_revision;
+            snprintf(model.update_title, sizeof(model.update_title), "%s", failed ? "Format failed" : "NAND formatted");
+            snprintf(model.update_detail, sizeof(model.update_detail), "%s", failed ? "Please retry" : "You can download Ideas again.");
+        }
         if (!strcmp(command, "firmware-fail")) {
             model.updating = false;
             model.update_terminal = model.update_failed = true;
@@ -130,6 +157,7 @@ static void trace_state(vui_handle_t ui, void *ctx)
         }
         if (!strcmp(command, "ai")) next_key = 1;
         if (!strcmp(command, "boot")) next_key = 3;
+        if (!strcmp(command, "boot-release")) next_key = 4;
         if (!strcmp(command, "motion")) ++model.device.motion_revision;
         unsigned battery;
         if (sscanf(command, "battery %u", &battery) == 1) model.device.battery_percent = battery;
@@ -142,6 +170,19 @@ static void trace_state(vui_handle_t ui, void *ctx)
         if (sscanf(command, "usb %u %u", &usb_connected, &usb_owner) == 2) {
             model.device.usb_connected = usb_connected != 0;
             model.usb_owner = usb_owner != 0;
+            vibe_ui_poll(state);
+        }
+        unsigned network_state;
+        if (sscanf(command, "wifi %u", &network_state) == 1 && network_state <= VIBE_NET_FAILED) {
+            model.network = network_state;
+            vibe_ui_poll(state);
+        }
+        unsigned battery_valid, battery_percent, charging;
+        if (sscanf(command, "power %u %u %u", &battery_valid, &battery_percent, &charging) == 3 &&
+            battery_valid <= 1 && battery_percent <= 100 && charging <= 1) {
+            model.device.battery_valid = battery_valid != 0;
+            model.device.battery_percent = battery_percent;
+            model.device.charging = charging != 0;
             vibe_ui_poll(state);
         }
         unsigned long long ms, received, total;
@@ -216,11 +257,15 @@ static void trace_state(vui_handle_t ui, void *ctx)
             install_calls, check_calls, restart_calls, prepare_calls, cancel_calls,
             model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
             model.bundles[0].boot ? "true" : "false");
-    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,",
+    fprintf(file, "\"format_calls\":%u,", format_calls);
+    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,\"about_offset\":%d,\"licenses_offset\":%d,\"idea_description_offset\":%d,",
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT),
-            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT));
-    fprintf(file, "\"scan_calls\":%u,\"cancellable\":%s,\"cancelled\":%s,",
-            scan_calls, model.cancellable ? "true" : "false", model.update_cancelled ? "true" : "false");
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_ABOUT_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_LICENSES_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_IDEA_DESCRIPTION_VIEWPORT));
+    fprintf(file, "\"open_confirm\":%s,\"scan_calls\":%u,\"cancellable\":%s,\"cancelled\":%s,",
+            model.settings.open_confirm ? "true" : "false", scan_calls, model.cancellable ? "true" : "false", model.update_cancelled ? "true" : "false");
     fprintf(file, "\"grid_page\":%u,\"language\":%u,\"asleep\":%s,\"pending_delete\":%s,"
             "\"bundle_count\":%u,\"shared_count\":%u,\"save_calls\":%u,\"delete_calls\":%u,\"reset_calls\":%u,"
             "\"development_saved\":%s,\"brightness\":%u,\"screen_off_seconds\":%u,\"rotate\":%s,\"haptics\":%s,\"batch\":%s,\"nand_scanning\":%s}\n",
@@ -291,7 +336,7 @@ static void snapshot(void *ctx, vibe_snapshot_t *out) {
             ++model.update_revision;
             snprintf(model.update_title, sizeof(model.update_title), "%s",
                      (current_job == VIBE_INSTALL_NAND || current_job == VIBE_OPEN_IDEA) ? "Boot application ready"
-                                                      : "Download complete");
+                                                      : current_job == VIBE_SAVE_DEVELOPMENT ? "Development Idea saved" : "Download complete");
             snprintf(model.update_detail, sizeof(model.update_detail), "%s",
                      (current_job == VIBE_INSTALL_NAND || current_job == VIBE_OPEN_IDEA) ? "Starts on next power-on"
                                                       : "Saved in My Ideas");
@@ -385,11 +430,39 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
             memmove(&model.bundles[i], &model.bundles[i + 1], (--model.bundle_count - i) * sizeof(model.bundles[0]));
             ++delete_calls;
             ++model.nand_generation;
+            if (scenario("delete-terminal")) {
+                model.update_terminal = true;
+                model.update_failed = model.update_cancelled = false;
+                ++model.update_revision;
+                snprintf(model.update_title, sizeof(model.update_title), "Idea deleted");
+                snprintf(model.update_detail, sizeof(model.update_detail), "Removed from this device");
+            }
             break;
         }
         break;
+    case VIBE_STORAGE_INFO:
+        break; /* The PC model already supplies its capacity snapshot. */
+    case VIBE_FORMAT_NAND:
+        if (model.idea_busy || model.updating) return 0x103;
+        ++format_calls;
+        model.nand_error = 0;
+        model.nand_needs_format = false; /* Pending status during reinitialization. */
+        model.updating = model.idea_busy = true;
+        model.update_terminal = model.update_failed = model.update_cancelled = false;
+        model.cancellable = false;
+        memset(&model.transfer, 0, sizeof(model.transfer));
+        model.transfer.phase = VIBE_TRANSFER_SAVE;
+        ++model.update_revision;
+        snprintf(model.update_title, sizeof(model.update_title), "Formatting NAND");
+        snprintf(model.update_detail, sizeof(model.update_detail), "Please wait");
+        snprintf(model.update_owner, sizeof(model.update_owner), "NAND");
+        break;
     case VIBE_SCAN_NAND:
         ++scan_calls;
+        if (scenario("storage-failed") && scan_calls >= 2) {
+            model.nand_error = 0;
+            model.bundle_count = 2;
+        }
         if (scenario("scan-busy") || scenario("scan-open")) {
             model.nand_scanning = model.idea_busy = true;
             scan_ticks = 0;
@@ -402,7 +475,8 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         break;
     case VIBE_CANCEL_IDEA:
         ++cancel_calls;
-        if (model.cancellable) {
+        if (model.cancellable || model.batch) {
+            bool batch = model.batch;
             if (scenario("open-check") && current_job == VIBE_OPEN_IDEA) {
                 installing = model.cancellable = model.transfer.receiving = false;
                 cancel_ticks = 8;
@@ -414,6 +488,8 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
             model.update_terminal = model.update_cancelled = true;
             ++model.update_revision;
             snprintf(model.update_title, sizeof(model.update_title), "Cancelled");
+            snprintf(model.update_detail, sizeof(model.update_detail), "%s",
+                     batch ? "Completed updates are kept" : "Previously saved Ideas are unchanged");
         }
         model.idea_loading = model.idea_ready = model.idea_busy = false;
         break;
@@ -430,7 +506,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         snprintf(last_code, sizeof(last_code), "%s", a);
         model.idea_loading = model.idea_busy = true;
         model.idea_ready = false;
-        model.idea_custom = scenario("custom-preview") || scenario("custom-preview-fail");
+        model.idea_custom = scenario("custom-preview") || scenario("custom-preview-fail") || scenario("marquee-preview");
         model.idea_view_only = cmd == VIBE_PREVIEW_IDEA;
         model.idea_return_library = false;
         model.update_terminal = false;
@@ -460,7 +536,7 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
         else if (cmd == VIBE_SAVE_DEVELOPMENT) ++save_calls;
         else if (cmd == VIBE_UPDATE_ALL) ++check_calls;
         else ++install_calls;
-        model.cancellable = cmd == VIBE_DOWNLOAD_IDEA || cmd == VIBE_UPDATE_ALL;
+        model.cancellable = cmd == VIBE_DOWNLOAD_IDEA || cmd == VIBE_UPDATE_ALL || cmd == VIBE_SAVE_DEVELOPMENT;
         model.batch = cmd == VIBE_UPDATE_ALL;
         model.batch_total = (unsigned)model.bundle_count;
         model.batch_index = 1;
@@ -483,10 +559,12 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
                                            .component_id = 1,
                                            .receiving = true};
         model.transfer.job[0] = (uint8_t)model.update_revision;
-        snprintf(model.update_title, sizeof(model.update_title), "Updating system");
+        snprintf(model.update_title, sizeof(model.update_title), "%s",
+                 cmd == VIBE_SAVE_DEVELOPMENT ? "Saving development Idea" : "Updating system");
         snprintf(model.update_detail, sizeof(model.update_detail),
                  "Reading simulated NAND component");
-        snprintf(model.update_owner, sizeof(model.update_owner), "NAND");
+        snprintf(model.update_owner, sizeof(model.update_owner), "%s",
+                 cmd == VIBE_SAVE_DEVELOPMENT ? "Device" : "NAND");
         snprintf(model.update_verified, sizeof(model.update_verified), "Unsigned");
         if (cmd == VIBE_OPEN_IDEA && scenario("open-check")) {
             installing = false;
@@ -504,19 +582,36 @@ static int command(void *ctx, vibe_command_t cmd, const char *a, const char *b) 
 }
 /* Synthetic pixels exercise the production adapter without font/UI coupling.
  * The portable font reader has separate byte-level publication roundtrips. */
+static void *title(void *ctx, const char *code, size_t *size) {
+    (void)ctx; (void)code;
+    if (!scenario("marquee-preview")) return NULL;
+    unsigned width = 640, height = 28;
+    uint16_t *pixels = calloc(width * height, 2);
+    if (!pixels) return NULL;
+    for (unsigned y = 0; y < height; ++y)
+        for (unsigned x = 0; x < width; ++x)
+            pixels[y * width + x] = x % 32 < 20 ? (x < 320 ? 0xf800 : 0x001f) : 0;
+    void *data = ideas_title_qoi(pixels, width, height, size);
+    free(pixels);
+    return data;
+}
 static void *preview(void *ctx, uint32_t request, unsigned slot, size_t *size) {
-    (void)ctx;
     *size = 0;
     if (request != model.idea_request || slot > 1 || scenario("custom-preview-fail"))
         return NULL;
-    size_t count = slot ? IDEAS_DESCRIPTION_WIDTH * IDEAS_DESCRIPTION_HEIGHT
-                        : IDEAS_TITLE_WIDTH * IDEAS_TITLE_HEIGHT;
+    if (!slot && scenario("marquee-preview")) return title(ctx, "", size);
+    unsigned width = slot ? IDEAS_DESCRIPTION_WIDTH : 328;
+    unsigned height = slot ? IDEAS_DESCRIPTION_HEIGHT : 28;
+    size_t count = width * height;
     uint16_t *pixels = malloc(count * 2);
-    if (pixels) {
-        for (size_t i = 0; i < count; ++i)
-            pixels[i] = slot ? 0x07e0 : 0xf800;
-        *size = count * 2;
+    if (!pixels) return NULL;
+    for (size_t i = 0; i < count; ++i) pixels[i] = slot ? 0x07e0 : 0xf800;
+    if (!slot) {
+        void *data = ideas_title_qoi(pixels, width, height, size);
+        free(pixels);
+        return data;
     }
+    *size = count * 2;
     return pixels;
 }
 static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, const char *value)
@@ -568,6 +663,11 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
     model.settings = (vibe_settings_snapshot_t){.language = 1,
         .brightness = 80, .screen_off_seconds = 180, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
     model.device.battery_valid = true;
+    model.device.imu_available = model.device.haptics_available = model.device.peripherals_ready = true;
+    if (scenario("peripherals-pending") || scenario("peripherals-failed")) {
+        model.device.imu_available = model.device.haptics_available = false;
+        model.device.peripherals_ready = scenario("peripherals-failed");
+    }
     model.device.battery_percent = scenario("low-battery") ? 15 : 80;
     model.development_available = scenario("unsaved") || scenario("development");
     snprintf(model.development_name, sizeof(model.development_name), "My development Idea");
@@ -600,6 +700,10 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
     model.nand_scanning = model.idea_busy = scenario("scan-busy") || scenario("scan-open");
     if (scenario("empty"))
         model.bundle_count = 0;
+    if (scenario("storage-failed")) {
+        model.nand_error = -1;
+        model.bundle_count = 0;
+    }
     if (scenario("pager-five")) model.bundle_count = 5;
     if (scenario("pager-six") || scenario("manage-states")) model.bundle_count = 6;
     if (scenario("pager-max")) model.bundle_count = VIBE_BUNDLE_MAX;
@@ -622,7 +726,12 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
         model.bundles[i].bytes = 1024 * 1024;
         model.bundles[i].components = 2;
     }
-    const vibe_services_t services = {.snapshot = snapshot, .command = command, .preview = preview, .setting = setting, .key = key};
+    if (scenario("marquee-preview"))
+        snprintf(model.bundles[0].release, sizeof(model.bundles[0].release), "长标题像素测试");
+    if (scenario("marquee-text"))
+        snprintf(model.bundles[0].release, sizeof(model.bundles[0].release),
+                 "A long Idea title that must scroll horizontally without shrinking its letters");
+    const vibe_services_t services = {.snapshot = snapshot, .command = command, .title = title, .preview = preview, .setting = setting, .key = key};
     vui_err_t err = vibe_ui_create(ui, &services, &state);
     if (err == VUI_OK && state_path[0])
         trace_timer = vui_timer_create(ui, 50, trace_state, NULL);
