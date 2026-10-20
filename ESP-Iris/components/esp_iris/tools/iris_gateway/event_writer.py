@@ -155,8 +155,14 @@ class EventWriter:
             store._pending_loss += self.pending_loss
             store._lost_events += self.pending_loss
             for capture, (start, end) in self.lost_captures.items():
-                old = store._lost_captures.get(capture)
-                store._lost_captures[capture] = (min(old[0], start), max(old[1], end)) if old else (start, end)
+                previous = store._lost_captures.get(capture)
+                store._lost_captures[capture] = (
+                    min(start, previous[0]) if previous else start,
+                    max(end, previous[1]) if previous else end,
+                )
+                store._lost_captures.move_to_end(capture)
+            while len(store._lost_captures) > 1024:
+                store._lost_captures.popitem(last=False)
             self.pending_loss = 0
             self.lost_captures.clear()
 

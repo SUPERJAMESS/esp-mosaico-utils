@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import contextlib
+import contextvars
 import errno
 import hashlib
 import os
@@ -173,7 +174,7 @@ class SerialLink(Link):
                 if self._closing or not self._serial.is_open:
                     return b""
                 read_task = asyncio.get_running_loop().run_in_executor(
-                    self._read_executor, self._read_batch, size
+                    self._read_executor, contextvars.copy_context().run, self._read_batch, size
                 )
                 self.reader_started.set()
                 try:

@@ -89,12 +89,13 @@ class EventStore:
             row = self.db.execute("SELECT bytes_received FROM console_captures WHERE capture_id=?", (capture_id,)).fetchone()
             expected = int(row[0]) if row else 0
             lost = self._lost_captures.get(str(capture_id))
-            if offset != expected and not (lost and lost[0] <= expected < offset <= lost[1]):
+            known_gap = bool(lost and lost[0] <= expected < offset <= lost[1])
+            if offset != expected and not known_gap:
                 raise ValueError("raw console capture contains an offset gap")
-            if offset > expected:
-                # Queue overflow can drop several ranges with accepted bytes
-                # between them. Record only the missing prefix before this
-                # row, retaining the bound for later queued rows.
+            if known_gap:
+                # Queue overflow can lose more bytes after an intervening
+                # chunk was accepted. Consume only the gap before this chunk;
+                # the remaining known loss is still needed for later chunks.
                 gap = dict(payload, kind="console_gap", offset=expected, end_offset=offset,
                            reason="event storage unavailable")
                 gap.pop("data_base64", None)

@@ -1394,3 +1394,57 @@ def test_rpc_jobs_screenshot_media_ota_and_restart() -> None:
             await task
 
     asyncio.run(scenario())
+
+
+def test_update_waits_for_delayed_data_handshake_without_replaying_write() -> None:
+    async def scenario() -> None:
+        async def discard(value):
+            pass
+        control = DeviceSession(FakeLink(), discard, discard)
+        data = DeviceSession(FakeLink(), discard, discard)
+        control._console = True
+        data._console = False
+        data.owner_id = control.owner_id
+        control.info = SimpleNamespace(device_id="device-1", boot_id=42)
+        data.info = SimpleNamespace(device_id="device-1", boot_id=42)
+        control._ready.set()
+        submitted = []
+        async def update(bundle, **kwargs):
+            submitted.append(bundle)
+            return {"accepted": True}
+        data.system_update = update
+        pending = asyncio.create_task(control.system_update("bundle", timeout=0.5))
+        await asyncio.sleep(0.03)
+        assert submitted == []
+        control.data_session = data
+        await asyncio.sleep(0.03)
+        assert submitted == []
+        data._ready.set()
+        assert await pending == {"accepted": True}
+        assert submitted == ["bundle"]
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("change", ["boot", "owner", "missing", "closed"])
+def test_data_wait_rejects_changed_binding_or_times_out_before_write(change) -> None:
+    async def scenario() -> None:
+        async def discard(value):
+            pass
+        control = DeviceSession(FakeLink(), discard, discard)
+        control.info = SimpleNamespace(device_id="device-1", boot_id=42)
+        control._ready.set()
+        pending = asyncio.create_task(control._wait_data_link(0.08))
+        await asyncio.sleep(0.02)
+        expected = ProtocolError
+        if change == "boot":
+            control.info.boot_id = 43
+        elif change == "owner":
+            control.owner_id = "another-owner"
+        elif change == "closed":
+            control._closed = True
+            expected = ConnectionError
+        else:
+            expected = TimeoutError
+        with pytest.raises(expected):
+            await pending
+    asyncio.run(scenario())

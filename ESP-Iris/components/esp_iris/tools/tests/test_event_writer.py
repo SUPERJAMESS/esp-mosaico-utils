@@ -268,3 +268,63 @@ asyncio.run(run())
         store.close()
 
     asyncio.run(scenario())
+
+
+def test_interleaved_console_overflow_recovers_and_preserves_healthy(tmp_path, monkeypatch):
+    async def scenario():
+        store = GatewayStore(tmp_path)
+        store.create_operation({"operation_id": "update", "device_id": "device", "actor_type": "local",
+                                "actor_name": "test", "action": "firmware.system_update",
+                                "status": "outcome_unknown", "created_ns": 1})
+        service = GatewayService(store, instance_id="interleaved",
+                                 limits=GatewayLimits(writer_items=2, writer_bytes=16 * 1024))
+        entered = [threading.Event(), threading.Event()]
+        release = [threading.Event(), threading.Event()]
+        append = EventSegments.append
+        calls = 0
+        def delayed(self, rows):
+            nonlocal calls
+            index = calls
+            calls += 1
+            if index < 2:
+                entered[index].set()
+                assert release[index].wait(timeout=5)
+            return append(self, rows)
+        monkeypatch.setattr(EventSegments, "append", delayed)
+        raw = {"kind": "console_raw", "capture_id": "b" * 32, "endpoint": "uart:test",
+               "data_base64": base64.b64encode(b"data").decode()}
+        async def send(offset):
+            await service.on_device_event({**raw, "offset": offset})
+        async def wait_entered(index):
+            for _ in range(1000):
+                if entered[index].is_set():
+                    return
+                await asyncio.sleep(0.001)
+            raise AssertionError("writer did not enter the expected batch")
+        try:
+            await send(0)
+            await wait_entered(0)
+            for offset in [4, 8, 12]:
+                await send(offset)  # 12 is dropped while 4 and 8 are queued.
+            release[0].set()
+            await wait_entered(1)
+            for offset in [16, 20, 24]:
+                await send(offset)  # Accepted bytes separate two lost ranges.
+            release[1].set()
+            await service.flush_events()
+            assert service._event_writer.snapshot()["status"] == "ok"
+            await send(28)
+            await service.on_device_event({"kind": "device_event", "device_id": "device",
+                                           "event_name": "healthy", "boot_id": 7})
+            await service.flush_events()
+            history = store.latest_events()
+            assert [e["offset"] for e in history if e["kind"] == "console_raw"] == [0, 4, 8, 16, 20, 28]
+            assert [(e["offset"], e["end_offset"]) for e in history if e["kind"] == "console_gap"] == [(12, 16), (24, 28)]
+            assert store.healthy_evidence("update", 7)["boot_id"] == 7
+            assert service._event_writer.snapshot()["dropped_events"] == 2
+        finally:
+            for gate in release:
+                gate.set()
+            await service.close_events()
+            store.close()
+    asyncio.run(scenario())
