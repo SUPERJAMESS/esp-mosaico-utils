@@ -202,3 +202,59 @@ def test_usb_serial_jtag_disables_hangup_on_close(monkeypatch) -> None:
         await link.close()
 
     asyncio.run(scenario())
+
+
+def test_many_idle_serial_readers_do_not_starve_writes_or_close() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    class IdleSerial(FakeSerial):
+        def __init__(self) -> None:
+            super().__init__([])
+            self.read_started = threading.Event()
+            self.release_read = threading.Event()
+
+        def read(self, size: int) -> bytes:
+            self.read_started.set()
+            self.release_read.wait(2)
+            return b""
+
+        def cancel_read(self) -> None:
+            self.release_read.set()
+
+    async def scenario() -> None:
+        # Model 18 CDC readers on a host with a smaller default executor.
+        asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(max_workers=2))
+        serials = [IdleSerial() for _ in range(6)]
+        links = [SerialLink(f"/dev/fake-{i}", serial) for i, serial in enumerate(serials)]
+        reads = [asyncio.create_task(link.read()) for link in links]
+        try:
+            for _ in range(100):
+                if all(serial.read_started.is_set() for serial in serials):
+                    break
+                await asyncio.sleep(0.005)
+            assert all(serial.read_started.is_set() for serial in serials)
+            await asyncio.wait_for(links[0].write(b"request"), 0.2)
+            await asyncio.wait_for(asyncio.gather(*(link.close() for link in links)), 0.5)
+            assert await asyncio.gather(*reads) == [b""] * len(reads)
+        finally:
+            for serial in serials:
+                serial.release_read.set()
+            await asyncio.gather(*(link.close() for link in links))
+            await asyncio.gather(*reads, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
+def test_serial_reader_preserves_caller_context() -> None:
+    value = contextvars.ContextVar("serial-reader-context", default="missing")
+    class ContextSerial(FakeSerial):
+        def read(self, size: int) -> bytes:
+            return value.get().encode()
+    async def scenario() -> None:
+        value.set("caller")
+        link = SerialLink("/dev/fake-context", ContextSerial([]))
+        try:
+            assert await link.read() == b"caller"
+        finally:
+            await link.close()
+    asyncio.run(scenario())

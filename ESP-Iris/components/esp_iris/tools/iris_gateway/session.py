@@ -372,6 +372,29 @@ class DeviceSession:
             raise ProtocolError("data link identity/session binding changed")
         return data
 
+    async def _wait_data_link(self, timeout: float) -> DeviceSession:
+        """Wait for this boot's independent data handshake before a write."""
+        info = await self.wait_ready(timeout)
+        identity = (info.device_id, info.boot_id, self.owner_id)
+        deadline = asyncio.get_running_loop().time() + timeout
+        while True:
+            if self._closed:
+                raise ConnectionError("ESP-Iris control session closed before data handshake")
+            if self.info is None or (
+                self.info.device_id, self.info.boot_id, self.owner_id
+            ) != identity:
+                raise ProtocolError("control identity changed before data handshake")
+            data = self.data_session
+            if data is not None and data.info is not None and data._ready.is_set():
+                if data._closed:
+                    data = None
+                else:
+                    return self._require_data_link()
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise TimeoutError("independent Iris data link did not become ready")
+            await asyncio.sleep(min(0.02, remaining))
+
     async def _request(
         self,
         channel: int,
@@ -1064,7 +1087,8 @@ class DeviceSession:
         progress_callback: ProgressCallback | None = None,
     ) -> dict[str, Any]:
         if self._console:
-            return await self._require_data_link().ota_update(image,
+            data = await self._wait_data_link(timeout)
+            return await data.ota_update(image,
                 expected_sha256=expected_sha256, project_name=project_name,
                 version=version, timeout=timeout, progress_callback=progress_callback)
         return await ota_transport.perform_ota_update(
@@ -1101,7 +1125,8 @@ class DeviceSession:
         progress_callback: ProgressCallback | None = None,
     ) -> dict[str, Any]:
         if self._console:
-            return await self._require_data_link().system_update(bundle,
+            data = await self._wait_data_link(timeout)
+            return await data.system_update(bundle,
                 operation_id=operation_id, timeout=timeout, progress_callback=progress_callback)
         return await system_update_transport.perform_system_update(
             self.wait_ready,

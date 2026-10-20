@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import concurrent.futures
 import contextlib
+import contextvars
 import hashlib
 import os
 import pathlib
@@ -93,6 +95,12 @@ class SerialLink(Link):
         self._close_lock = asyncio.Lock()
         self._closing = False
         self._release_dtr = False
+        # Each CDC endpoint keeps a blocking read pending. A multi-device
+        # Gateway can have more readers than asyncio's default pool has
+        # workers; those reads must not starve writes or cancel_read/close.
+        self._reader_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="iris-serial-reader"
+        )
 
     @classmethod
     async def open(
@@ -165,8 +173,11 @@ class SerialLink(Link):
             async with self._read_lock:
                 if self._closing or not self._serial.is_open:
                     return b""
-                read_task = asyncio.create_task(
-                    to_thread(self._read_batch, size)
+                read_task = asyncio.ensure_future(
+                    asyncio.get_running_loop().run_in_executor(
+                        self._reader_executor,
+                        contextvars.copy_context().run, self._read_batch, size
+                    )
                 )
                 self.reader_started.set()
                 try:
@@ -209,6 +220,7 @@ class SerialLink(Link):
     async def close(self) -> None:
         async with self._close_lock:
             if not self._serial.is_open:
+                self._reader_executor.shutdown(wait=False)
                 return
             self._closing = True
             cancel_read = getattr(self._serial, "cancel_read", None)
@@ -225,6 +237,7 @@ class SerialLink(Link):
                             await to_thread(setattr, self._serial, "dtr", False)
                     finally:
                         await to_thread(self._serial.close)
+                        self._reader_executor.shutdown(wait=False)
 
 
 class EndpointLock:

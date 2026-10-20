@@ -91,7 +91,8 @@ uint32_t iris_system_update_static_bytes(void) { return 0; }
 esp_err_t esp_iris_platform_mark_planned_restart(void) { return ESP_OK; }
 esp_err_t esp_iris_platform_mark_healthy(void) { return ESP_OK; }
 
-static uint8_t incoming[256], outgoing[1024];
+static uint8_t incoming[ESP_IRIS_MAX_WIRE_FRAME_SIZE * 2],
+               outgoing[ESP_IRIS_MAX_WIRE_FRAME_SIZE * 2];
 static size_t incoming_size, incoming_offset, read_limit = 256;
 static size_t outgoing_size, write_limit = 1024;
 static bool candidate;

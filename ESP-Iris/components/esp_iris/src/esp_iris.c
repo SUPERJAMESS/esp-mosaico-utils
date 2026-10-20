@@ -636,7 +636,14 @@ static bool service_link(iris_runtime_t *runtime)
     if (event == IRIS_LINK_EVENT_CONNECTED) begin_session(runtime);
     else if (event == IRIS_LINK_EVENT_DISCONNECTED) end_session(runtime);
     bool progressed = false;
-    for (size_t burst = 0; runtime->link_connected && burst < 8; ++burst) {
+    /* Drain at least one complete maximum-size record already buffered by
+     * the transport. Eight 256-byte reads used to yield halfway through a
+     * firmware DATA frame, adding a scheduler turn to every chunk. The
+     * worker's active-time budget still bounds continuous traffic. */
+    const size_t burst_limit =
+        (IRIS_CONSOLE_RECORD_BYTES + sizeof(runtime->rx_pending) - 1) /
+        sizeof(runtime->rx_pending);
+    for (size_t burst = 0; runtime->link_connected && burst < burst_limit; ++burst) {
         const bool step = pump_link(runtime);
         progressed |= step;
         if (!step || runtime->tx_wire_length != 0) break;
@@ -649,7 +656,7 @@ static void iris_worker(void *argument)
     iris_runtime_t *runtime = argument;
     const TickType_t idle_ticks = pdMS_TO_TICKS(10) > 0
         ? pdMS_TO_TICKS(10) : 1;
-    int64_t yield_deadline_us = esp_timer_get_time() + IRIS_WORKER_RUN_BUDGET_US;
+    int64_t active_budget_us = 0;
     while (runtime->running) {
         const int64_t active_start_us = esp_timer_get_time();
         iris_crash_recovery_poll(runtime, active_start_us);
@@ -660,6 +667,7 @@ static void iris_worker(void *argument)
         progressed |= service_link(&g_iris_data);
 #endif
         const int64_t active_time_us = esp_timer_get_time() - active_start_us;
+        if (active_time_us > 0) active_budget_us += active_time_us;
         if (active_time_us > 0 &&
                 (uint64_t)active_time_us > runtime->worker_active_max_us) {
             runtime->worker_active_max_us = active_time_us > UINT32_MAX
@@ -671,20 +679,21 @@ static void iris_worker(void *argument)
         }
         const bool tx_blocked = runtime->link_connected &&
             runtime->tx_wire_length != 0 && !progressed;
-        if (tx_blocked || esp_timer_get_time() >= yield_deadline_us) {
+        if (tx_blocked || active_budget_us >= IRIS_WORKER_RUN_BUDGET_US) {
             /* taskYIELD() cannot schedule lower-priority tasks, including
              * Idle. Really block on TX backpressure and periodically during
              * continuous traffic. Use a tick, since pdMS_TO_TICKS(1) can be
              * zero; notifications must not bypass this fairness interval. */
             vTaskDelay(1);
-            yield_deadline_us = esp_timer_get_time() + IRIS_WORKER_RUN_BUDGET_US;
+            active_budget_us = 0;
         } else if (runtime->link_connected && progressed) {
             (void)ulTaskNotifyTake(pdTRUE, 0);
             taskYIELD();
         } else if (ulTaskNotifyTake(pdTRUE, idle_ticks) == 0) {
-            /* A timeout guarantees we blocked. An already-pending
-             * notification does not, so keep the deadline in that case. */
-            yield_deadline_us = esp_timer_get_time() + IRIS_WORKER_RUN_BUDGET_US;
+            /* Charge active processing, not the time blocked waiting for a
+             * service/USB notification. Dense pending notifications still
+             * exhaust the budget and must yield to lower-priority tasks. */
+            active_budget_us = 0;
         }
     }
 #if CONFIG_ESP_IRIS_DATA_LINK

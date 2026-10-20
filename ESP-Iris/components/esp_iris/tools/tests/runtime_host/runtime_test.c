@@ -223,7 +223,32 @@ static void test_coalesced_frames(void) {
     }
 }
 
-enum worker_load { WORKER_TX_BLOCKED, WORKER_CONTINUOUS, WORKER_NOTIFICATIONS, WORKER_IDLE };
+static void test_full_buffered_frame_does_not_require_an_extra_worker_turn(void)
+{
+    iris_runtime_t rt = {.data_link = true, .session_id = 123, .hello_acked = true,
+        .link_connected = true, .session_state = IRIS_SESSION_READY,
+        .next_hello_us = INT64_MAX};
+    rt.transport.active_ops = &g_iris_tcp_transport_ops;
+    rt.transport.active_state = &rt.transport.tcp;
+    rt.transport.committed = true;
+    incoming_size = incoming_offset = outgoing_size = 0;
+    read_limit = sizeof(rt.rx_pending);
+    write_limit = sizeof(outgoing);
+    candidate = false;
+    uint8_t payload[ESP_IRIS_MAX_PAYLOAD_SIZE];
+    memset(payload, 0xa5, sizeof(payload));
+    append_control(ESP_IRIS_CONTROL_PING, 1, payload, sizeof(payload));
+    assert(service_link(&rt));
+    assert(rt.rx_frames == 1 && rt.tx_frames == 1);
+    iris_decoded_frame_t response;
+    assert(iris_frame_decode_in_place(outgoing, outgoing_size - 1, &response) == ESP_OK);
+    assert(response.header.type == ESP_IRIS_CONTROL_PONG);
+    assert(response.header.payload_size == sizeof(payload));
+    assert(memcmp(response.payload, payload, sizeof(payload)) == 0);
+}
+
+enum worker_load { WORKER_TX_BLOCKED, WORKER_CONTINUOUS, WORKER_NOTIFICATIONS,
+                   WORKER_BLOCKING_NOTIFICATIONS, WORKER_IDLE };
 static enum worker_load worker_load;
 static iris_runtime_t *worker_runtime;
 static unsigned worker_polls, worker_delays, worker_waits;
@@ -261,6 +286,11 @@ static unsigned worker_notify_take(unsigned ticks)
     if (ticks == 0) return 1;
     ++worker_waits;
     if (worker_load == WORKER_NOTIFICATIONS) return 1;
+    if (worker_load == WORKER_BLOCKING_NOTIFICATIONS) {
+        now_us += 15000; /* Slow service completes and wakes the protocol task. */
+        worker_last_block_us = now_us;
+        return 1;
+    }
     if (worker_load == WORKER_TX_BLOCKED) {
         assert(worker_runtime->tx_frames == 1);
         worker_runtime->running = false;
@@ -319,6 +349,8 @@ static void test_worker_scheduling(void)
             assert(rt.rx_frames == 65 * 4 && rt.tx_frames == 65 * 4);
         } else if (worker_load == WORKER_NOTIFICATIONS) {
             assert(worker_delays >= 3 && worker_waits > 0);
+        } else if (worker_load == WORKER_BLOCKING_NOTIFICATIONS) {
+            assert(worker_delays == 3 && worker_waits > 0);
         } else {
             assert(worker_delays == 0 && worker_waits == 4);
         }
@@ -1295,7 +1327,9 @@ static void test_pending_console_logs(void)
 
 int main(void) {
     test_runtime_start_stop_preserves_state();
-    test_rpc_lengths(); test_coalesced_frames(); test_worker_scheduling(); test_replay_and_reopen();
+    test_rpc_lengths(); test_coalesced_frames();
+    test_full_buffered_frame_does_not_require_an_extra_worker_turn();
+    test_worker_scheduling(); test_replay_and_reopen();
     test_claim_timeout(); test_executor_rpc(); test_fragmented_malformed_corpus();
 #if CONFIG_ESP_IRIS_OTA
     test_executor_ota();
