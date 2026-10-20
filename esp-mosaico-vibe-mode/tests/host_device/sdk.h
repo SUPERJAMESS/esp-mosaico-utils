@@ -53,6 +53,7 @@ esp_err_t esp_register_shutdown_handler(shutdown_handler_t);
 esp_err_t vibe_settings_snapshot(vibe_settings_snapshot_t *);
 esp_err_t factory_network_suspend(bool);
 bool tud_mounted(void);
+bool tud_ready(void);
 esp_err_t bsp_motor_init(void);
 esp_err_t bsp_motor_set(bool);
 esp_err_t bsp_imu_init(void);

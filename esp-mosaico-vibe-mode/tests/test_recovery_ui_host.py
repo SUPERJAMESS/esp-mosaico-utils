@@ -1,4 +1,5 @@
 """Exercise the production lightweight UI and C controller through native input."""
+import ctypes
 import json
 import os
 from pathlib import Path
@@ -924,6 +925,42 @@ def test_delete_requires_hold_and_supports_undo(sim):
     sim.wait(page=0, pending_delete=False, delete_calls=1, bundle_count=1)
 
 
+@pytest.mark.parametrize("cadence_ms", [50, 100, 250])
+def test_screen_off_timeout_survives_slow_ui_cadence(tmp_path, native_build, monkeypatch, cadence_ms):
+    state_file = tmp_path / "idle-state.json"
+    monkeypatch.setenv("VIBE_SIM_STATE_FILE", str(state_file))
+    monkeypatch.setenv("VIBE_SIM_SCENARIO", "")
+    monkeypatch.setenv("VIBE_SIM_CONTROL_FILE", "")
+    lib = ctypes.CDLL(str(native_build[0]))
+    lib.vui_create.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    lib.vibe_pc_init.argtypes = [ctypes.c_void_p]
+    lib.vibe_pc_deinit.argtypes = [ctypes.c_void_p]
+    lib.vui_destroy.argtypes = [ctypes.c_void_p]
+    lib.vui_tick.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    lib.vui_pointer.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_bool]
+    ui = ctypes.c_void_p()
+    assert lib.vui_create(ctypes.byref(ui)) == 0
+    try:
+        # Controller creation may follow renderer startup on an advanced clock.
+        lib.vui_tick(ui, 600000)
+        assert lib.vibe_pc_init(ui) == 0
+        def advance(milliseconds):
+            assert milliseconds % cadence_ms == 0
+            for _ in range(milliseconds // cadence_ms):
+                lib.vui_tick(ui, cadence_ms)
+        for _ in range(2):
+            # The actual default is 180 s. Timer callbacks need not run at 20 Hz.
+            advance(179000)
+            assert not json.loads(state_file.read_text())["asleep"]
+            advance(2000)
+            assert json.loads(state_file.read_text())["asleep"]
+            lib.vui_pointer(ui, 240, 60, True)
+            lib.vui_pointer(ui, 240, 60, False)
+    finally:
+        lib.vibe_pc_deinit(ui)
+        lib.vui_destroy(ui)
+
+
 def test_language_display_and_ai_does_not_sleep(sim):
     sim.tap(390, 360); sim.wait(page=11)
     sim.tap_ui("button_settings_top_display"); sim.wait(page=12)
@@ -1510,3 +1547,47 @@ def test_nand_format_failure_can_retry_and_busy_work_defers_prompt(sim):
 def test_unrelated_failure_does_not_offer_nand_format(sim):
     sim.control("ideas-fail")
     sim.wait(page=8, format_calls=0)
+
+
+@pytest.mark.parametrize("page", ["home", "grid"])
+def test_connection_icons_follow_live_snapshots(sim, page):
+    if page == "grid":
+        sim.swipe(420, 280, 60, 280)
+        sim.wait(page=19)
+    objects = json.loads((RECOVERY / "ui/main.json").read_text())["objects"]
+    prefix = "grid_" if page == "grid" else ""
+    regions = {}
+    for name in ("wifi", "usb"):
+        parent = next(i for i, obj in enumerate(objects) if obj.get("name") == prefix + "status_" + name)
+        icon = next(obj for obj in objects if obj.get("parent") == parent and obj.get("image"))
+        regions[name] = (icon["x"], icon["y"], icon["x"] + icon["w"], icon["y"] + icon["h"])
+    for index, (usb, wifi) in enumerate(((1, 2), (0, 2), (0, 1), (1, 0), (1, 2))):
+        sim.control("usb %u 1" % usb)  # A stale Agent owner cannot keep USB visible.
+        sim.control("wifi %u" % wifi)
+        sim.wait(page=19 if page == "grid" else 0, network=wifi)
+        name = "connections-%s-%u" % (page, index)
+        sim.capture(name)
+        with Image.open(sim.directory / (name + ".png")) as frame:
+            for link, online in (("usb", usb != 0), ("wifi", wifi == 2)):
+                painted = any(max(pixel[:3]) > 120 for pixel in frame.crop(regions[link]).getdata())
+                assert painted == online, (link, page, usb, wifi)
+
+
+@pytest.mark.parametrize("page", ["home", "grid"])
+def test_battery_icons_invalidate_on_read_failure_and_recover(sim, page):
+    if page == "grid":
+        sim.swipe(420, 280, 60, 280); sim.wait(page=19)
+    objects = json.loads((RECOVERY / "ui/main.json").read_text())["objects"]
+    prefix = "grid_" if page == "grid" else ""
+    parent = next(i for i, obj in enumerate(objects) if obj.get("name") == prefix + "status_battery")
+    icon = next(obj for obj in objects if obj.get("parent") == parent and obj.get("image"))
+    box = (icon["x"], icon["y"], icon["x"] + icon["w"], icon["y"] + icon["h"])
+    crops = []
+    for index, (valid, percent, charging) in enumerate(((1, 80, 1), (1, 80, 0), (1, 10, 0), (0, 10, 1), (1, 45, 0))):
+        sim.control("power %u %u %u" % (valid, percent, charging))
+        name = "power-%s-%u" % (page, index); sim.capture(name)
+        with Image.open(sim.directory / (name + ".png")) as frame:
+            crop = frame.crop(box)
+            assert any(max(pixel[:3]) > 120 for pixel in crop.getdata()) == bool(valid)
+            crops.append(crop.tobytes())
+    assert len(set(crops)) == 5  # Full, charging, low, unknown and recovered-mid are distinct.

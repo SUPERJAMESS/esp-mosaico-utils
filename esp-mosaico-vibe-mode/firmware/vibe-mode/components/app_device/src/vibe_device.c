@@ -180,7 +180,10 @@ static void sample_task(void *unused)
                 ESP_LOGI("boot_perf", "brightness_ready_at_us=%lld", (long long)esp_timer_get_time());
             brightness = level;
         }
-        snapshot.usb_connected = tud_mounted();
+        /* On battery power without VBUS sensing, unplug may suspend the bus
+         * while TinyUSB retains its configuration. Show an active data link,
+         * including no Agent owner, rather than a stale enumeration flag. */
+        snapshot.usb_connected = tud_ready();
         snapshot.haptics_available = (ready & READY_HAPTICS) != 0;
         snapshot.imu_available = (ready & READY_IMU) != 0;
         snapshot.peripherals_ready = (ready & READY_PERIPHERALS) != 0;
@@ -195,24 +198,24 @@ static void sample_task(void *unused)
         }
         if (snapshot.haptics_available && (!s_preferences.haptics || pattern))
             motor_play(s_preferences.haptics ? pattern : 0);
+        /* A fixed upright preference does not depend on live IMU readings. */
+        unsigned wanted = s_preferences.auto_rotate ? snapshot.orientation : 0;
         if (snapshot.imu_available) {
             float x, y, z;
             if (bsp_imu_get_accel(&x, &y, &z) == ESP_OK) {
                 float change = fabsf(x - last_x) + fabsf(y - last_y) + fabsf(z - last_z);
                 if (asleep && change > 0.25f) ++snapshot.motion_revision;
                 last_x = x; last_y = y; last_z = z;
-                unsigned wanted = snapshot.orientation;
-                if (!s_preferences.auto_rotate) wanted = 0;
-                else if (fabsf(z) < 0.8f) {
+                if (s_preferences.auto_rotate && fabsf(z) < 0.8f) {
                     /* Dominant-axis threshold provides angular hysteresis. */
                     if (fabsf(x) > fabsf(y) * 1.7f) wanted = x > 0 ? 90 : 270;
                     else if (fabsf(y) > fabsf(x) * 1.7f) wanted = y > 0 ? 0 : 180;
                 }
-                if (wanted != candidate) { candidate = wanted; candidate_since = now; }
-                if (allowed && !asleep && candidate != snapshot.orientation && now - candidate_since >= 300000) {
-                    if (s_rotate && s_rotate(candidate) == ESP_OK) snapshot.orientation = candidate;
-                }
             }
+        }
+        if (wanted != candidate) { candidate = wanted; candidate_since = now; }
+        if (allowed && !asleep && candidate != snapshot.orientation && now - candidate_since >= 300000) {
+            if (s_rotate && s_rotate(candidate) == ESP_OK) snapshot.orientation = candidate;
         }
         for (unsigned i = 0; i < 2; ++i) {
             bool down = gpio_get_level(pins[i]) == BSP_BUTTON_ACTIVE_LEVEL;
