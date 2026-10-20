@@ -195,7 +195,7 @@ def sim(tmp_path, native_build, request):
         instance.close()
 
 
-def test_home_maker_animation_captures_gestures(sim):
+def test_home_maker_animation_hands_horizontal_drag_to_pager(sim):
     sim.capture("maker-start")
     sim.rpc("wait", frames=180)
     sim.capture("maker-later")
@@ -204,7 +204,9 @@ def test_home_maker_animation_captures_gestures(sim):
         assert changed and 280 <= changed[0] < changed[2] <= 452
         assert 64 <= changed[1] < changed[3] <= 236
     sim.swipe(400, 120, 90, 120)
-    sim.wait(page=0, install_calls=0)
+    sim.wait(page=19, install_calls=0)
+    sim.swipe(90, 250, 400, 250)
+    sim.wait(page=0)
     sim.swipe(420, 250, 60, 250)
     sim.wait(page=19)
     sim.swipe(90, 250, 400, 250)
@@ -771,6 +773,48 @@ def test_home_grid_swipe_and_current_idea(sim):
     sim.wait(page=19, install_calls=0)
     sim.swipe(60, 250, 420, 250)
     sim.wait(page=0)
+
+
+def test_horizontal_drag_previews_without_committing_and_slow_release_returns(sim):
+    sim.capture("horizontal-home")
+    sim.rpc("feed_pointer", x=420, y=250, pressed=True)
+    sim.rpc("feed_pointer", x=300, y=250, pressed=True)
+    sim.wait(page=0, install_calls=0)
+    sim.capture("horizontal-held")
+    with Image.open(sim.directory / "horizontal-home.png") as home, \
+         Image.open(sim.directory / "horizontal-held.png") as held:
+        assert home.crop((0,0,480,56)).tobytes() == held.crop((0,0,480,56)).tobytes()
+        assert home.crop((0,448,480,480)).tobytes() == held.crop((0,448,480,480)).tobytes()
+        assert home.crop((108,280,480,448)).tobytes() == held.crop((0,280,372,448)).tobytes()
+    sim.rpc("feed_pointer", x=300, y=250, pressed=False)
+    time.sleep(.3)
+    sim.wait(page=0, install_calls=0)
+    sim.capture("horizontal-returned")
+    with Image.open(sim.directory / "horizontal-home.png") as home, \
+         Image.open(sim.directory / "horizontal-returned.png") as returned:
+        assert home.crop((0,280,480,448)).tobytes() == returned.crop((0,280,480,448)).tobytes()
+    sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+
+
+def test_horizontal_short_flick_commits_and_reverse_drag_cancels(sim):
+    sim.rpc("feed_pointer", x=420, y=250, pressed=True)
+    time.sleep(.02)
+    sim.rpc("feed_pointer", x=400, y=250, pressed=True)
+    time.sleep(.02)
+    sim.rpc("feed_pointer", x=380, y=250, pressed=True)
+    sim.rpc("feed_pointer", x=380, y=250, pressed=False)
+    sim.wait(page=19, grid_page=0, install_calls=0)
+    sim.swipe(60,250,420,250); sim.wait(page=0)
+    sim.rpc("feed_pointer", x=420, y=250, pressed=True)
+    time.sleep(.03)
+    sim.rpc("feed_pointer", x=180, y=250, pressed=True)
+    time.sleep(.025)
+    sim.rpc("feed_pointer", x=220, y=250, pressed=True)
+    time.sleep(.025)
+    sim.rpc("feed_pointer", x=260, y=250, pressed=True)
+    sim.rpc("feed_pointer", x=260, y=250, pressed=False)
+    time.sleep(.3)
+    sim.wait(page=0, install_calls=0)
 
 
 @pytest.mark.parametrize("sim", ["unsaved"], indirect=True)
