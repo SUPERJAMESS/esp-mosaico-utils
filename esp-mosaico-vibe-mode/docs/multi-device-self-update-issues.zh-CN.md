@@ -180,7 +180,21 @@ D05 单台重测相同 A 再次失败，操作 `888545d3-59c5-44d1-a650-df047dfe
 
 软件检查记录：Iris 最终全量 **804 passed、1 skipped**，包括完整帧修改后的原生 57 项、串口线程上下文和日志队列溢出回归。修改的 Python 文件通过 Ruff 检查（保留 Python 3.8 所需的既有 UP006/UP035/UP041 写法）及 Python 3.8 语法解析。产品测试首次因本机 CMake 路径和 OpenSSL 头文件缺失失败；使用既有隔离依赖重跑 146 项通过，剩余 5 项均为此前已存在的 `libraqm` 显示资源依赖失败。合并这两次产品结果为 911 passed、149 skipped、5 failed、120 subtests passed。原始两份日志都保留，不将缺失依赖项记为通过。四个普通应用样本均按修改后的源码重新构建，旧 ELF/map/sdkconfig 另存供故障归档。
 
-最后还以完整帧源码重新编译 A/A2/B/C，四个 ESP32-S31 构建及包检查均通过，另存于 `final-app-build/`；未覆盖实机验收使用的冻结包及其调试产物。这四个末次重建包仅用于编译回归，不计入实机验收次数。
+最后还以完整帧源码重新编译 A/A2/B/C，四个 ESP32-S31 构建及包检查均通过，另存于 `final-app-build/`；未覆盖此前实机验收使用的冻结包及其调试产物。这四个末次重建包当时仅完成编译回归，随后实机补验见下节。
+
+### 正常消费入口与末次应用构建实机补验
+
+用户要求完成上述两项补验，运行目录为消费工程 `.codex-runs/flash-repro/20261020T113930Z-consumer-app-validation`。使用 `final-app-build/` 中冻结的四个源码构建包，逐包重新校验包 SHA、应用 ELF、布局、组件范围及固定 SDK revision，并归档匹配的 ELF/bin/map/配置；未使用发布预编译固件。
+
+消费工程 utils 从 `0c56456` 快进到 `cee63c9`，版本引用单独提交为消费工程 `6fd4cfe`。原有未提交工作保留；旧 macOS USB 识别补丁与新版实现重叠的部分采用已有 `usb_descriptors` 入口，原始补丁及文件另行备份，旧本地测试按新版 CDC 函数键适配。本地模板及 `operation-status --reconcile` 改动继续保留。消费副本的相关主机测试为 Iris 63 项、Tools 32 项，**95/95 通过**；首次测试的目录导入问题和旧端点断言失败日志亦保留。
+
+所有设备操作直接运行消费工程原 `/Users/ts/lsh/esp-mosaico-vibe/mosaico.py`，工作目录选定既有 `projects/hello_world`，使用 `system-update --bundle` 安装；未修改 launcher、`.mosaico.json`、默认工程或应用源码，未使用独立 launcher 或路径覆盖。运行中 Gateway 源码指纹与消费 utils 工作树一致，修复核心文件与 `cee63c9` 对应源码相同。
+
+先九台并发 A2→B→C→A，**36/36 完整验收通过**；随后仅 D05 一轮相同四步，**4/4 通过**，其余八台 Boot ID 不变。四个末次构建包均实际安装于九台设备，验证正常应用/Vibe Mode 切换、目标 ELF、新 Boot ID、健康状态、完整载荷及资源摘要、L1/L2 往返、原 `ui_apps` 和 bootloader 保留。最终九台均为新构建 A（ELF `7c0a231c…f6c2e88d`）、崩溃计数为零、设备队列为空；经正常 CLI 再次查询的 40 条持久化操作均为成功，40 条目标 Boot ID 的 HEALTHY 证据也已持久化。正常入口单台大固件的连续传输为 **244,979 B/s**，不含擦除、校验和重启；本轮日志写入器无错误、丢弃计数为零、队列已排空。
+
+释放本次唯一前台客户端后，正常 `iris status --all` 确认 Gateway 已空闲退出；随后不指定 endpoint，直接由正常入口按 D05 Device ID 执行 `device-status --inventory`，自动重建 Gateway 并重新连接，仍为相同 Boot ID、新 A 镜像及正常崩溃状态，未额外重启或写入设备。
+
+证据包括 `validated-package-plans.json`、`application-debug-artifacts/`、`normal-entry-source-verification.json`、`merge-preservation.json`、`validation-results.json`、`final-device-states.json`、`persisted-operation-checks.json`、`durable-healthy-evidence.json`、`normal-idle-restart-verification.json` 和完整 CLI 原始输出。本轮闭环末次应用包实机与正常消费入口两项；不替代原 720 次压力矩阵，也不将未再次复现的历史 D05 看门狗判为根治。
 
 ## 证据位置
 
