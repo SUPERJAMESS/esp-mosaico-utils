@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Use `https://mosaico-ideas.espressif.com` as the default Ideas origin.
+- Use `https://mosaico.ai` as the default Ideas origin.
   Accept trailing JSON whitespace in firmware manifests without changing the
   bytes used for integrity checks; continue rejecting trailing values and
   non-JSON control bytes. This fixes error `0x102` when opening Idea `200019`.

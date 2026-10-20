@@ -17,7 +17,7 @@ from .errors import OperationError, SelectionError
 from .host import state_root
 
 
-DEFAULT_SERVER = "https://mosaico-ideas.espressif.com"
+DEFAULT_SERVER = "https://mosaico.ai"
 
 
 class PlatformError(OperationError):

@@ -194,13 +194,13 @@ class PlatformTests(unittest.TestCase):
             ["account", "logout"],
         )
         cases = (
-            (None, None, None, "https://mosaico-ideas.espressif.com"),
+            (None, None, None, "https://mosaico.ai"),
             (None, None, "https://legacy.test/", "https://legacy.test"),
             (None, "https://new.test/", None, "https://new.test"),
             (None, "https://new.test", "https://legacy.test", "https://new.test"),
             ("https://explicit.test/", "https://new.test", "https://legacy.test", "https://explicit.test"),
             (None, "", "https://legacy.test", "https://legacy.test"),
-            (None, "", "", "https://mosaico-ideas.espressif.com"),
+            (None, "", "", "https://mosaico.ai"),
         )
         for command in commands:
             for explicit, current, legacy, expected in cases:
