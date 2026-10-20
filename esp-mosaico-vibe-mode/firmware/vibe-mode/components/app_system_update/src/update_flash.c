@@ -58,6 +58,57 @@ esp_err_t update_hash_memory(const uint8_t *data, size_t size, uint8_t output[32
                : ESP_FAIL;
 }
 
+/* Keep 64 KiB block alignment so the SDK can use block erase. Chunking at
+ * sector size would make large images substantially slower. Raw reads are
+ * required: decrypted 0xff data does not establish that NOR is erased. */
+static esp_err_t update_erase_partition(update_context_t *ctx,
+                                         const esp_iris_system_update_component_t *component,
+                                         size_t size)
+{
+    const esp_partition_t *partition = ctx->transaction.active_partition;
+    update_status_component(ctx, component->id, 0, component->size,
+                            ESP_IRIS_SYSTEM_UPDATE_PHASE_PREPARED);
+    taskENTER_CRITICAL(&ctx->lock);
+    ctx->status.erasing = true;
+    ctx->status.erase_done = 0;
+    ctx->status.erase_total = (uint32_t)size;
+    taskEXIT_CRITICAL(&ctx->lock);
+    const int64_t started = factory_io_now();
+    size_t skipped = 0;
+    esp_err_t err = ESP_OK;
+    uint8_t buffer[FACTORY_SYSTEM_HASH_CHUNK_BYTES];
+    for (size_t offset = 0; offset < size;) {
+        size_t chunk = FACTORY_SYSTEM_ERASE_CHUNK_BYTES -
+            (partition->address + offset) % FACTORY_SYSTEM_ERASE_CHUNK_BYTES;
+        if (chunk > size - offset) chunk = size - offset;
+        bool blank = true;
+        for (size_t checked = 0; blank && checked < chunk;) {
+            size_t count = chunk - checked;
+            if (count > sizeof(buffer)) count = sizeof(buffer);
+            err = esp_partition_read_raw(partition, offset + checked, buffer, count);
+            if (err != ESP_OK) break;
+            for (size_t i = 0; i < count; ++i) {
+                if (buffer[i] != 0xff) { blank = false; break; }
+            }
+            checked += count;
+        }
+        if (err != ESP_OK) break;
+        if (blank) skipped += chunk;
+        else err = esp_partition_erase_range(partition, offset, chunk);
+        if (err != ESP_OK) break;
+        offset += chunk;
+        taskENTER_CRITICAL(&ctx->lock);
+        ctx->status.erase_done = (uint32_t)offset;
+        taskEXIT_CRITICAL(&ctx->lock);
+    }
+    taskENTER_CRITICAL(&ctx->lock);
+    ctx->status.erasing = false;
+    taskEXIT_CRITICAL(&ctx->lock);
+    ESP_LOGI(TAG, "preparation complete: bytes=%u blank_skipped=%u elapsed_us=%lld result=0x%x",
+             (unsigned)size, (unsigned)skipped, (long long)(factory_io_now() - started), (unsigned)err);
+    return err;
+}
+
 esp_err_t update_begin_component(const esp_iris_system_update_component_t *component,
                                  void *user_ctx)
 {
@@ -80,7 +131,7 @@ esp_err_t update_begin_component(const esp_iris_system_update_component_t *compo
         ESP_LOGI(TAG, "erasing application before receive: offset=0x%08" PRIx32 " size=%u",
                  ctx->transaction.active_partition->address, (unsigned)erase_size);
         ESP_RETURN_ON_ERROR(
-            esp_partition_erase_range(ctx->transaction.active_partition, 0, erase_size), TAG,
+            update_erase_partition(ctx, component, erase_size), TAG,
             "erase application");
         ESP_LOGI(TAG, "application erase complete");
     } else if (component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_DATA) {
@@ -93,8 +144,7 @@ esp_err_t update_begin_component(const esp_iris_system_update_component_t *compo
                  ctx->transaction.active_partition->label,
                  ctx->transaction.active_partition->address,
                  ctx->transaction.active_partition->size);
-        ESP_RETURN_ON_ERROR(esp_partition_erase_range(ctx->transaction.active_partition, 0,
-                                                      ctx->transaction.active_partition->size),
+        ESP_RETURN_ON_ERROR(update_erase_partition(ctx, component, ctx->transaction.active_partition->size),
                             TAG, "erase data partition");
         ESP_LOGI(TAG, "data partition erase complete: label=%s",
                  ctx->transaction.active_partition->label);

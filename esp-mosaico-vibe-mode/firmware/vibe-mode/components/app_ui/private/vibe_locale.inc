@@ -392,6 +392,7 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"NAND formatted", "NAND 格式化完成"},
     {"Format failed", "格式化失败"},
     {"You can download Ideas again.", "现在可以重新下载 Ideas。"},
+    {"Preparing storage for writing", "正在准备写入空间"},
 };
 static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {
     {VUI_VIBE_BIND_PAIRING_ENDPOINT, "Connect Wi-Fi first"},

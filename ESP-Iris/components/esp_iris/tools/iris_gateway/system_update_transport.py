@@ -178,6 +178,7 @@ async def perform_system_update(
 
     total_bundle_bytes = sum(item.size for item in bundle.components)
     transferred = 0
+    device_progress = 50
     completion_evidence = "commit_response"
     try:
         for component_index, component in enumerate(bundle.components):
@@ -189,6 +190,21 @@ async def perform_system_update(
                 )
                 + component.sha256
             )
+            if progress_callback is not None:
+                await progress_callback({
+                    "stage": "erasing" if component.kind.name in {"APPLICATION", "DATA"}
+                             else "validating_plan",
+                    "phase_indeterminate": True,
+                    "job_id": job_id,
+                    "operation_id": identifier.hex(),
+                    "component_id": component.id,
+                    "component_kind": component.kind.name.lower(),
+                    "component_index": component_index,
+                    "component_count": component_count,
+                    "bytes_received": transferred,
+                    "bytes_total": total_bundle_bytes,
+                    "progress_permille": device_progress,
+                })
             opened = await request(
                 Channel.SYSTEM_UPDATE,
                 SystemUpdateType.COMPONENT_BEGIN,
@@ -258,10 +274,12 @@ async def perform_system_update(
                 if received != offset + len(chunk):
                     raise ProtocolError("invalid system-update committed offset")
                 offset = received
+                device_progress = progress
                 if progress_callback is not None:
                     await progress_callback(
                         {
                             "stage": "transferring",
+                            "phase_indeterminate": False,
                             "job_id": job_id,
                             "operation_id": identifier.hex(),
                             "component_id": component.id,
@@ -273,6 +291,20 @@ async def perform_system_update(
                             "progress_permille": progress,
                         }
                     )
+            if progress_callback is not None:
+                await progress_callback({
+                    "stage": "verifying",
+                    "phase_indeterminate": True,
+                    "job_id": job_id,
+                    "operation_id": identifier.hex(),
+                    "component_id": component.id,
+                    "component_kind": component.kind.name.lower(),
+                    "component_index": component_index,
+                    "component_count": component_count,
+                    "bytes_received": transferred + component.size,
+                    "bytes_total": total_bundle_bytes,
+                    "progress_permille": device_progress,
+                })
             ended = await request(
                 Channel.SYSTEM_UPDATE,
                 SystemUpdateType.COMPONENT_END,
@@ -293,6 +325,7 @@ async def perform_system_update(
             await progress_callback(
                 {
                     "stage": "committing",
+                    "phase_indeterminate": True,
                     "job_id": job_id,
                     "operation_id": identifier.hex(),
                     "bytes_received": transferred,

@@ -88,7 +88,8 @@ def collect_evidence(arguments: Any, context: RunContext) -> dict[str, Any]:
                 "operation": operation, "restart": restart}
 
     output = arguments.output.expanduser().resolve()
-    capture = gateway_json(context, session, "screenshot", device_id, str(output), timeout=60)
+    capture = gateway_json(context, session, "screenshot", device_id, str(output),
+                           "--path", arguments.path, timeout=60)
     if (not isinstance(capture, dict) or capture.get("device_id") != device_id
             or capture.get("path") != str(output) or not capture.get("operation_id")
             or capture.get("content_type") not in {"image/png", "image/jpeg"}):

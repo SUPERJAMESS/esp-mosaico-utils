@@ -61,7 +61,8 @@ static void transfer_text(vibe_ui_t *s)
                            ? T(s, "Download")
                        : (!strcmp(v->update_owner, "NAND") || !strcmp(v->update_owner, "Device"))
                            ? T(s, "Write") : T(s, "Receive");
-    if (t->phase == VIBE_TRANSFER_VERIFY_FILES || t->phase == VIBE_TRANSFER_CHECK_IMAGE)
+    if (t->phase == VIBE_TRANSFER_VERIFY_FILES || t->phase == VIBE_TRANSFER_CHECK_IMAGE ||
+        t->phase == VIBE_TRANSFER_ERASE)
         TEXT(s, UPDATE_RATE, "");
     else if (!s->rate.valid)
         FORMAT(s, UPDATE_RATE, "%s: --", verb);

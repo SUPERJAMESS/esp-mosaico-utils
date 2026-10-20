@@ -62,6 +62,11 @@ export type Operation = {
     stage: string;
     progress_permille: number;
     device_progress_permille?: number;
+    phase_indeterminate?: boolean;
+    component_id?: number;
+    component_index?: number;
+    component_count?: number;
+    component_kind?: string;
     job_id?: number;
     bytes_received?: number;
     bytes_total?: number;
