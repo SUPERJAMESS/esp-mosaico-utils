@@ -499,6 +499,13 @@ def _wait_gateway_operation(
     operation_id = str(operation.get("operation_id") or "")
     status = operation.get("status")
     if result.returncode:
+        if (isinstance(value, dict) and value.get("submission_state") == "rejected"
+                and value.get("write_started") is False):
+            error = value.get("error") or {}
+            raise OperationError(
+                f"{action} was not accepted: {error.get('message', 'Gateway admission rejected')}",
+                details={"result": value, "write_started": False, "log": str(context.log_path)},
+            )
         if status in {"outcome_unknown", "unknown"} or status is None:
             raise OutcomeUnknownError(
                 f"The {action.lower()} submission outcome is unknown; the write "

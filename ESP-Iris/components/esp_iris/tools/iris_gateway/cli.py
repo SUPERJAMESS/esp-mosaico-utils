@@ -58,6 +58,7 @@ from .system_update import (
     load_system_update_bundle,
 )
 from .tls import ensure_certificate, ssl_context
+from .update_submission import GatewayHTTPError, submit_system_update
 
 
 def _default_state_dir(instance_id: str) -> pathlib.Path:
@@ -442,7 +443,7 @@ async def _response_json(response: ClientResponse) -> Any:
         body = {"error": {"code": "http_error", "message": await response.text()}}
     if response.status >= 400:
         error = body.get("error", body) if isinstance(body, dict) else body
-        raise RuntimeError(f"HTTP {response.status}: {json.dumps(error, ensure_ascii=False)}")
+        raise GatewayHTTPError(response.status, error, response.headers.get("Retry-After"))
     return body
 
 
@@ -763,17 +764,13 @@ async def _ctl(args: argparse.Namespace) -> int:
                     raise ValueError(f"system-update bundle does not exist: {bundle_path}")
                 operation_id = str(uuid.uuid4())
                 url = base + f"/v2/devices/{args.device}/system-update"
-                try:
-                    accepted = await _post_update_upload(
-                        session, url, ssl_value, bundle_path.read_bytes(), {
-                            "Content-Type": "application/vnd.esp-iris.system-update+zip",
-                            "X-Iris-Compatibility": json.dumps(args.compatibility),
-                            "X-Operation-ID": operation_id,
-                        })
-                except SystemUpdateAdmissionRejected as exc:
-                    _output({"operation_id": operation_id, "status": "rejected",
-                             "write_started": False, "error": exc.error}, args.json)
-                    return 2
+                accepted = await submit_system_update(
+                    session, url, bundle_path.read_bytes(), {
+                        "Content-Type": "application/vnd.esp-iris.system-update+zip",
+                        "X-Iris-Compatibility": json.dumps(args.compatibility),
+                        "X-Operation-ID": operation_id,
+                    }, ssl_value, _response_json,
+                )
                 if args.wait:
                     operation = await _operation_watch(
                         session,
@@ -1257,6 +1254,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             asyncio.run(_web(args))
     except KeyboardInterrupt:
         return 130
+    except GatewayHTTPError as exc:
+        if getattr(args, "json", False):
+            _output(exc.as_dict(), True)
+        else:
+            print(f"esp_iris.py: error: {exc}", file=sys.stderr)
+        return 2
     except (OSError, sqlite3.Error, RuntimeError, TypeError, ValueError, json.JSONDecodeError) as exc:
         print(f"esp_iris.py: error: {exc}", file=sys.stderr)
         return 2

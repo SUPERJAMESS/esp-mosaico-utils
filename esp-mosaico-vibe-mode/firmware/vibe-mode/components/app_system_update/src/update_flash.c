@@ -325,13 +325,6 @@ update_plan_for_kind(update_context_t *ctx, esp_iris_system_update_component_kin
     return NULL;
 }
 
-void update_restart_task(void *arg)
-{
-    (void)arg;
-    vTaskDelay(pdMS_TO_TICKS(FACTORY_SYSTEM_RESTART_DELAY_MS));
-    esp_restart();
-}
-
 esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES],
                                void *user_ctx)
 {
@@ -464,10 +457,13 @@ esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERAT
     }
     ESP_RETURN_ON_ERROR(update_persist_result(operation_id, ESP_OK), TAG,
                         "persist system update result");
-    ESP_RETURN_ON_FALSE(
-        ctx->transaction.remote_bridge || ctx->transaction.defer_restart ||
-            xTaskCreate(update_restart_task, "factory_restart", 2048, NULL, 5, NULL) == pdPASS,
-        ESP_ERR_NO_MEM, TAG, "schedule restart");
+    if (!ctx->transaction.remote_bridge && !ctx->transaction.defer_restart) {
+        /* The host may also request a restart after receiving the commit receipt.
+         * Share Iris's single deadline so both requests cannot enter esp_restart()
+         * concurrently while shutdown handlers are still running. */
+        ESP_RETURN_ON_ERROR(esp_iris_schedule_restart(FACTORY_SYSTEM_RESTART_DELAY_MS),
+                            TAG, "schedule restart");
+    }
     update_status_finish(ctx, ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED, ESP_OK);
     ESP_LOGI(TAG, "system update committed; restart %s",
              ctx->transaction.defer_restart ? "deferred" : "scheduled");
