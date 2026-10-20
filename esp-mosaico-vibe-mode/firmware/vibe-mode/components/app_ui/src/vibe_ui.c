@@ -824,6 +824,7 @@ vui_err_t vibe_ui_create(vui_handle_t ui, const vibe_services_t *services, vibe_
     *out = s;
     memset(s, 0, sizeof(*s));
     s->ui = ui;
+    s->activity_ms = vui_now_ms(ui);
     s->services = *services;
     s->last_language = 3;
     s->networks = vui_list_bind_component(ui, VUI_VIBE_OBJ_KEY_NETWORKS, network_row, s);

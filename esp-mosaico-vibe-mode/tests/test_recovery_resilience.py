@@ -17,7 +17,14 @@ FIXTURE = ROOT / "tests/host_resilience"
     ("network", "factory_network.c", None),
     *[("network", "factory_network.c", scenario) for scenario in
       ("pending", "missing", "start-failure", "stop-failure", "read-failure",
-       "config-failure", "connect-failure")],
+       "config-failure", "connect-failure", "status-ip-subscription", "status-lost-ip",
+       "status-stopped", "status-forgotten", "status-reconnect", "status-retry-failed",
+       "transition-config-failure", "transition-connect-failure", "transition-stopped-retry",
+       "transition-late-scan", "transition-scan-stop-during-read", "transition-old-ap-ip",
+       "transition-same-ssid-ip", "transition-request-during-ip-read", "transition-stop-pending",
+       "transition-ip-during-disconnect", "transition-setup-busy", "transition-scan-stop-during-success",
+       "transition-ap-probe-failure", "transition-netif-probe-failure", "transition-ip-identity",
+       "transition-disconnect-during-setup", "transition-disconnect-during-config")],
     ("ota", "recovery_ota_support.c", None),
 ])
 def test_recovery_resilience(tmp_path, kind, source, scenario):

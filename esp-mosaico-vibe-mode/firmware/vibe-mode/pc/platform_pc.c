@@ -171,6 +171,19 @@ static void trace_state(vui_handle_t ui, void *ctx)
             model.usb_owner = usb_owner != 0;
             vibe_ui_poll(state);
         }
+        unsigned network_state;
+        if (sscanf(command, "wifi %u", &network_state) == 1 && network_state <= VIBE_NET_FAILED) {
+            model.network = network_state;
+            vibe_ui_poll(state);
+        }
+        unsigned battery_valid, battery_percent, charging;
+        if (sscanf(command, "power %u %u %u", &battery_valid, &battery_percent, &charging) == 3 &&
+            battery_valid <= 1 && battery_percent <= 100 && charging <= 1) {
+            model.device.battery_valid = battery_valid != 0;
+            model.device.battery_percent = battery_percent;
+            model.device.charging = charging != 0;
+            vibe_ui_poll(state);
+        }
         unsigned long long ms, received, total;
         unsigned component, count, completed, receiving, job, component_received, component_size,
             terminal;

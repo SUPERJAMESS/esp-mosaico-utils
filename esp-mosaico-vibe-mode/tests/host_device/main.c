@@ -18,6 +18,9 @@ static atomic_int key_level = 1;
 static atomic_uint brightness;
 static atomic_uint network_calls;
 static atomic_bool network_fail, network_sleeping;
+static atomic_bool usb_mounted = true, usb_suspended;
+static atomic_bool auto_rotate, imu_read_failure, rotation_failure;
+static atomic_uint sensor_orientation, rotation_calls;
 static bool sensor_failure, task_failure, sample_failure, registration_failure, timer_failure;
 static bool imu_retry;
 static unsigned imu_attempts;
@@ -72,13 +75,16 @@ esp_err_t esp_timer_start_once(esp_timer_handle_t h, uint64_t us) {
 esp_err_t esp_timer_stop(esp_timer_handle_t h) {
     assert(h == &motor_lock); atomic_store(&timer_active, false); return ESP_OK;
 }
-esp_err_t vibe_settings_snapshot(vibe_settings_snapshot_t *s) { *s = (vibe_settings_snapshot_t){.brightness = 37, .haptics = true}; return 0; }
+esp_err_t vibe_settings_snapshot(vibe_settings_snapshot_t *s) {
+    *s = (vibe_settings_snapshot_t){.brightness = 37, .haptics = true, .auto_rotate = atomic_load(&auto_rotate)}; return 0;
+}
 esp_err_t factory_network_suspend(bool s) {
     atomic_fetch_add(&network_calls, 1);
     if (atomic_exchange(&network_fail, false)) return ESP_FAIL;
     atomic_store(&network_sleeping, s); return ESP_OK;
 }
-bool tud_mounted(void) { return true; }
+bool tud_mounted(void) { return atomic_load(&usb_mounted); }
+bool tud_ready(void) { return tud_mounted() && !atomic_load(&usb_suspended); }
 esp_err_t bsp_motor_init(void) { return sensor_failure ? ESP_FAIL : ESP_OK; }
 esp_err_t bsp_motor_set(bool on) {
     assert(!sensor_failure);
@@ -89,7 +95,10 @@ esp_err_t bsp_motor_set(bool on) {
 esp_err_t bsp_imu_init(void) { return sensor_failure || (imu_retry && imu_attempts++ == 0) ? ESP_FAIL : ESP_OK; }
 esp_err_t bsp_imu_deinit(void) { return ESP_OK; }
 esp_err_t bsp_imu_start(const bsp_imu_config_t *c) { return 0; }
-esp_err_t bsp_imu_get_accel(float *x, float *y, float *z) { *x = *y = 0; *z = 1; return 0; }
+esp_err_t bsp_imu_get_accel(float *x, float *y, float *z) {
+    if (atomic_load(&imu_read_failure)) return ESP_FAIL;
+    *x = atomic_load(&sensor_orientation) == 90 ? 1 : 0; *y = 0; *z = *x ? 0 : 1; return 0;
+}
 esp_err_t bsp_battery_init(void) {
     atomic_store(&battery_entered, true);
     while (!atomic_load(&release_battery)) usleep(1000);
@@ -101,7 +110,10 @@ esp_err_t bsp_battery_read(bsp_battery_status_t *s) {
 }
 esp_err_t gpio_config(const gpio_config_t *c) { return 0; }
 int gpio_get_level(gpio_num_t pin) { return pin == BSP_BUTTON_AI_GPIO ? atomic_load(&key_level) : 1; }
-static esp_err_t rotate(unsigned degrees) { return 0; }
+static esp_err_t rotate(unsigned degrees) {
+    atomic_fetch_add(&rotation_calls, 1);
+    return atomic_load(&rotation_failure) ? ESP_FAIL : ESP_OK;
+}
 static esp_err_t set_brightness(unsigned value) { atomic_store(&brightness, value); return 0; }
 static void expect_key(unsigned key) {
     for (int i = 0; i < 200; ++i) {
@@ -110,6 +122,23 @@ static void expect_key(unsigned key) {
         usleep(1000);
     }
     assert(!"key blocked by optional driver initialization");
+}
+static void expect_usb(bool connected) {
+    for (unsigned i = 0; i < 200; ++i) {
+        vibe_device_snapshot_t snapshot;
+        assert(vibe_device_snapshot(&snapshot) == ESP_OK);
+        if (snapshot.usb_connected == connected) return;
+        usleep(1000);
+    }
+    assert(!"USB snapshot did not follow the live bus state");
+}
+static void expect_orientation(unsigned orientation) {
+    for (unsigned i = 0; i < 1500; ++i) {
+        vibe_device_snapshot_t value; vibe_device_snapshot(&value);
+        if (value.orientation == orientation) return;
+        usleep(1000);
+    }
+    assert(!"orientation did not follow policy");
 }
 int main(int argc, char **argv) {
     assert(argc == 2);
@@ -133,6 +162,23 @@ int main(int argc, char **argv) {
     assert(atomic_load(&brightness) == 37);
     vibe_device_snapshot_t s; vibe_device_snapshot(&s);
     assert(s.usb_connected && !s.battery_valid);
+    if (!strcmp(argv[1], "usb-lifecycle")) {
+        for (unsigned i = 0; i < 3; ++i) {
+            /* Battery-backed unplug can suspend the bus without unmounting. */
+            atomic_store(&usb_suspended, true);
+            expect_usb(false);
+            atomic_store(&usb_mounted, false);
+            atomic_store(&usb_suspended, false);
+            expect_usb(false);
+            atomic_store(&usb_mounted, true);
+            expect_usb(true);
+        }
+        /* Keys remain responsive while USB is suspended and sensors start. */
+        atomic_store(&usb_suspended, true); expect_usb(false);
+        atomic_store(&key_level, 0); expect_key(1);
+        atomic_store(&key_level, 1); expect_key(2);
+        atomic_store(&usb_suspended, false); expect_usb(true);
+    }
     bool sleep_retry = !strcmp(argv[1], "wifi-sleep-retry"),
          wake_retry = !strcmp(argv[1], "wifi-wake-retry");
     atomic_store(&network_fail, sleep_retry);
@@ -168,6 +214,23 @@ int main(int argc, char **argv) {
         assert(s.haptics_available == (!registration_failure && !timer_failure));
     }
     else assert(!s.imu_available && !s.haptics_available);
+    if (!strcmp(argv[1], "rotation-retry") || !strcmp(argv[1], "rotation-off-after-read-error")) {
+        vibe_device_policy(false, true);
+        atomic_store(&sensor_orientation, 90); atomic_store(&auto_rotate, true);
+        bool retry = !strcmp(argv[1], "rotation-retry");
+        atomic_store(&rotation_failure, retry);
+        if (retry) {
+            for (unsigned i = 0; i < 1000 && !atomic_load(&rotation_calls); ++i) usleep(1000);
+            assert(atomic_load(&rotation_calls));
+            vibe_device_snapshot(&s); assert(s.orientation == 0);
+            atomic_store(&rotation_failure, false);
+        }
+        expect_orientation(90);
+        atomic_store(&imu_read_failure, !retry); atomic_store(&auto_rotate, false);
+        expect_orientation(0);
+        atomic_store(&key_level, 0); expect_key(1);
+        atomic_store(&key_level, 1); expect_key(2);
+    }
     assert((shutdown_handler != NULL) == (!sensor_failure && !task_failure && !registration_failure));
     if (!strcmp(argv[1], "shutdown-active") || !strcmp(argv[1], "shutdown-paused")) {
         vibe_device_haptic(5);

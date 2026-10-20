@@ -18,6 +18,7 @@ typedef int esp_err_t;
 #define ESP_ERR_TIMEOUT 0x107
 #define ESP_ERR_NVS_NOT_FOUND 0x1102
 #define ESP_ERR_WIFI_BASE 0x3000
+#define ESP_ERR_WIFI_NOT_CONNECT (ESP_ERR_WIFI_BASE + 15)
 #define ESP_ERROR_CHECK(e) assert((e) == ESP_OK)
 #define ESP_RETURN_ON_ERROR(e, tag, ...) do { (void)(tag); int code = (e); if (code) return code; } while (0)
 #define ESP_RETURN_ON_FALSE(c, e, tag, ...) do { (void)(tag); if (!(c)) return (e); } while (0)
@@ -66,6 +67,9 @@ typedef struct cJSON cJSON;
 #define WIFI_EVENT_SCAN_DONE 1
 #define WIFI_EVENT_STA_DISCONNECTED 2
 #define IP_EVENT_STA_GOT_IP 3
+#define WIFI_EVENT_STA_STOP 4
+#define WIFI_EVENT_STA_START 5
+#define IP_EVENT_STA_LOST_IP 6
 #define WIFI_ALL_CHANNEL_SCAN 1
 #define WIFI_CONNECT_AP_BY_SIGNAL 1
 #define WIFI_AUTH_OPEN 0
@@ -78,6 +82,8 @@ typedef int esp_event_base_t;
 typedef void *esp_event_handler_instance_t;
 typedef void (*mock_event_callback_t)(void *, esp_event_base_t, int32_t, void *);
 typedef struct { int dummy; } esp_netif_t;
+typedef struct { uint32_t addr; } esp_ip4_addr_t;
+typedef struct { esp_ip4_addr_t ip, netmask, gw; } esp_netif_ip_info_t;
 typedef struct { int dummy; } wifi_init_config_t;
 #define WIFI_INIT_CONFIG_DEFAULT() ((wifi_init_config_t){0})
 typedef struct {
@@ -90,7 +96,7 @@ typedef struct {
 } wifi_config_t;
 typedef struct { uint8_t ssid[33]; int8_t rssi; int authmode; } wifi_ap_record_t;
 typedef struct { int reason; } wifi_event_sta_disconnected_t;
-typedef struct { struct { int ip; } ip_info; } ip_event_got_ip_t;
+typedef struct { esp_netif_t *esp_netif; esp_netif_ip_info_t ip_info; } ip_event_got_ip_t;
 typedef struct { const char *key, *value; } mdns_txt_item_t;
 esp_err_t esp_netif_init(void);
 esp_err_t esp_event_loop_create_default(void);
@@ -106,6 +112,8 @@ esp_err_t esp_wifi_set_ps(int);
 esp_err_t esp_wifi_set_config(int, const wifi_config_t *);
 esp_err_t esp_wifi_connect(void);
 esp_err_t esp_wifi_disconnect(void);
+esp_err_t esp_wifi_sta_get_ap_info(wifi_ap_record_t *);
+esp_err_t esp_netif_get_ip_info(esp_netif_t *, esp_netif_ip_info_t *);
 esp_err_t esp_wifi_scan_start(const void *, bool);
 esp_err_t esp_wifi_scan_get_ap_num(uint16_t *);
 esp_err_t esp_wifi_scan_get_ap_records(uint16_t *, wifi_ap_record_t *);
@@ -113,7 +121,7 @@ esp_err_t esp_event_handler_instance_register(esp_event_base_t, int32_t,
     mock_event_callback_t, void *, esp_event_handler_instance_t *);
 esp_err_t esp_event_handler_instance_unregister(esp_event_base_t, int32_t,
     esp_event_handler_instance_t);
-void esp_ip4addr_ntoa(const int *, char *, size_t);
+void esp_ip4addr_ntoa(const esp_ip4_addr_t *, char *, size_t);
 esp_err_t esp_read_mac(uint8_t *, int);
 esp_err_t esp_iris_format_device_id(char *);
 esp_err_t mdns_init(void);

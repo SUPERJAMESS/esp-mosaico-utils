@@ -53,14 +53,16 @@ esp_err_t factory_network_request_scan(void);
  * Validates lengths; saves credentials only after obtaining IP. Task context. */
 esp_err_t factory_network_connect(const char *ssid, const char *password);
 /* Forget saved Wi-Fi credentials and disconnect the station.
- * Affects only the Wi-Fi namespace; returns the storage/disconnect result. */
+ * Preserves other shared values; returns the storage/disconnect result. */
 esp_err_t factory_network_forget(void);
 /* Task-context suspend/resume, preserving credentials. Suspended event handlers
  * cannot reconnect or persist a late connection. Suspend discards unconfirmed
  * provisioning; wake reloads saved credentials. Failed driver transitions may
  * be retried. Used by sleep and reset. */
 esp_err_t factory_network_suspend(bool suspended);
-/* Copy a lock-consistent status and scan results into required snapshot.
+/* CONNECTED requires a station IPv4 address. Disconnect, stop and lost-IP
+ * events clear it; unrelated IP events cannot establish connectivity.
+ * Copy a lock-consistent status and scan results into required snapshot.
  * May wait for the short snapshot mutex; performs no network or filesystem IO. */
 esp_err_t factory_network_get_snapshot(factory_network_snapshot_t *snapshot);
 /* Changes when Wi-Fi migrates/saves/forgets shared credentials. No IO. */
