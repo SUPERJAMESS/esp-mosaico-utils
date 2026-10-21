@@ -424,7 +424,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         s->acknowledged_update = s->snapshot.update_revision;
         if (e->action_id == VUI_VIBE_ACT_ID_BACK_NAND && s->fix_return_active) {
             s->fix_return_active = false;
-            s->help_mode = 2;
+            s->help_mode = 1;
             show(s, VIBE_HELP);
         } else {
             show(s, VIBE_HOME);

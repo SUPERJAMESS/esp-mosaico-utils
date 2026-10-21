@@ -38,7 +38,7 @@ esp_err_t ideas_prepare_assets(ideas_context_t *ctx, const job_t *job, pending_t
     pending->owner = ctx;
     ideas_package_t *p = &pending->package;
     if (local && !ideas_code_valid(p->code)) return ESP_OK;
-    unsigned language = factory_locale_get();
+    unsigned language = job->command == IDEAS_ROW ? job->title_language : factory_locale_get();
     unsigned display_index = p->display_index[language];
     esp_err_t err = ideas_fetch_asset(ctx, job, pending, display_index, local);
     if (err != ESP_OK)

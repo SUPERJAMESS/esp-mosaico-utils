@@ -110,8 +110,50 @@ static void confirm_nand_format(vibe_ui_t *s)
     s->format_return = s->page;
     vibe_show(s, VIBE_FORMAT_NAND_CONFIRM);
 }
+static void project_open_name(vibe_ui_t *s)
+{
+    if (s->open_title_language != s->snapshot.settings.language) {
+        s->open_title_ready = false;
+        s->open_title_language = s->snapshot.settings.language;
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_OPEN_NAME_PIXELS, false);
+        (void)vui_set_image_owned(s->ui, VUI_VIBE_BIND_OPEN_NAME_PIXELS, NULL, 0);
+    }
+    /* Metadata may finish loading or change locale while this dialog is open. */
+    for (size_t i = 0; !s->run_development_pending && i < s->snapshot.bundle_count; ++i) {
+        const vibe_bundle_t *item = &s->snapshot.bundles[i];
+        if (!strcmp(item->code, s->selected_bundle.code) &&
+            strcmp(item->release, s->selected_bundle.release)) {
+            snprintf(s->selected_bundle.release, sizeof(s->selected_bundle.release), "%s", item->release);
+            s->open_title_ready = false;
+            (void)vui_set_visible(s->ui, VUI_VIBE_BIND_OPEN_NAME_PIXELS, false);
+            (void)vui_set_image_owned(s->ui, VUI_VIBE_BIND_OPEN_NAME_PIXELS, NULL, 0);
+        }
+    }
+    if (s->open_title_ready) return;
+    const char *name = s->selected_bundle.release;
+    bool ascii = true;
+    for (const unsigned char *p = (const unsigned char *)name; *p; ++p)
+        if (*p < 32 || *p > 126) { ascii = false; break; }
+    if (!ascii && s->services.title) {
+        size_t size = 0;
+        void *image = s->services.title(s->services.ctx, s->selected_bundle.code, &size);
+        if (image) {
+            if (vui_set_image_owned(s->ui, VUI_VIBE_BIND_OPEN_NAME_PIXELS, image, size) == VUI_OK) {
+                (void)vui_set_text(s->ui, VUI_VIBE_BIND_OPEN_NAME, "");
+                (void)vui_set_visible(s->ui, VUI_VIBE_BIND_OPEN_NAME_PIXELS, true);
+                s->open_title_ready = true;
+                return;
+            }
+            free(image);
+        }
+    }
+    if (!*name) FORMAT(s, OPEN_NAME, "Idea %s", s->selected_bundle.code);
+    else (void)vui_set_text(s->ui, VUI_VIBE_BIND_OPEN_NAME, ascii ? name : "...");
+    s->open_title_ready = ascii && *name;
+}
 static void project_open_confirm(vibe_ui_t *s)
 {
+    project_open_name(s);
     s->open_waiting = s->snapshot.idea_busy;
     s->open_unsaved = !s->run_development_pending && s->snapshot.development_available && !s->snapshot.development_saved;
     bool low = s->snapshot.device.battery_valid && s->snapshot.device.battery_percent <= 20 &&
@@ -154,14 +196,11 @@ static void open_confirm(vibe_ui_t *s)
 {
     if (!s->selected_bundle.code[0]) return;
     s->return_page = s->page;
+    s->open_title_ready = false;
+    s->open_title_language = s->snapshot.settings.language;
+    (void)vui_set_image_owned(s->ui, VUI_VIBE_BIND_OPEN_NAME_PIXELS, NULL, 0);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_OPEN_NAME_PIXELS, false);
     vibe_show(s, VIBE_OPEN_CONFIRM);
-    /* Compact controls use the bundled font; arbitrary cloud names have
-     * their own MIFF glyphs only on the details page. */
-    bool ascii = true;
-    for (const unsigned char *p = (const unsigned char *)s->selected_bundle.release; *p; ++p)
-        if (*p < 32 || *p > 126) { ascii = false; break; }
-    if (ascii) TEXT(s, OPEN_NAME, s->selected_bundle.release);
-    else FORMAT(s, OPEN_NAME, "Idea %s", s->selected_bundle.code);
     project_open_confirm(s);
     if (!s->open_waiting && !s->open_unsaved && !s->snapshot.settings.open_confirm) accept_open(s);
 }
@@ -290,7 +329,7 @@ static void shared_submit(vibe_ui_t *s)
 static void project_help(vibe_ui_t *s)
 {
     static const char *const titles[] = {
-        "Getting started", "Develop Ideas", "Idea IDs & Sharing", "Troubleshooting", "Return to Vibe Mode"
+        "Getting started", "Develop Ideas", "Idea IDs & Sharing", "Troubleshooting", "Return to Vibe Mode", "Wi-Fi Connection", "Storage Is Full"
     };
     static const char *const steps[][3] = {
         {
@@ -314,12 +353,18 @@ static void project_help(vibe_ui_t *s)
             "Hold AI and turn the device on.",
             "Release AI when Vibe Mode appears.",
         },
+        {"Open Wi-Fi Settings and check\nthat Wi-Fi is on.", "Select your network and enter\nthe correct password.", "If connection fails, check the\npassword and scan again."},
+        {"Open Manage Storage to check\nyour Ideas and storage usage.", "Delete an Idea you no longer need\nto free space.", "The current Idea cannot be deleted.\nRun another Idea first."},
     };
-    unsigned idx = s->help_topic_index < 5 ? s->help_topic_index : 0;
+    unsigned idx = s->help_topic_index < 7 ? s->help_topic_index : 0;
     TEXT(s, HELP_HEADING, s->help_mode == 0 ? "Help" : s->help_mode == 2 ? "Troubleshooting" : titles[idx]);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HELP_ROOT_LAYER_VISIBLE, s->help_mode == 0);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HELP_STEPS_LAYER_VISIBLE, s->help_mode == 1);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HELP_FIX_LAYER_VISIBLE, s->help_mode == 2);
+    TEXT(s, HELP_QR_CAPTION, idx == 5 ? "Wi-Fi Settings" : idx == 6 ? "Manage Storage" : "Full guide on your phone");
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HELP_ACTION_QR_VISIBLE, idx < 5);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HELP_ACTION_WIFI_VISIBLE, idx == 5);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HELP_ACTION_STORAGE_VISIBLE, idx == 6);
     if (s->help_mode == 1) {
         TEXT(s, HELP_STEP_BODY_1, steps[idx][0]);
         TEXT(s, HELP_STEP_BODY_2, steps[idx][1]);
@@ -352,6 +397,7 @@ static const char *pointer_key(vibe_ui_t *s, const vui_event_t *e)
     }
     return NULL;
 }
+static bool pointer_actionable(vibe_ui_t *s, const vui_event_t *e, const char *key);
 bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
 {
     if (s->gesture_consumed || vui_now_ms(s->ui) < s->suppress_until || s->snapshot.settings.busy) return true;
@@ -366,6 +412,9 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         s->pointer_network_open != s->snapshot.aps[e->item].open) return true;
     unsigned action = e->action_id;
     if (s->snapshot.updating && !s->snapshot.batch && action != VUI_VIBE_ACT_ID_CANCEL_DOWNLOAD) return true;
+    /* A touch-down may become a scroll. Feedback belongs to the accepted
+     * click, after movement, page and identity guards have all passed. */
+    if (!s->hold_consumed && pointer_actionable(s, e, key)) haptic(s, 1);
     switch (action) {
     case VUI_VIBE_ACT_ID_HOME_IDEAS:
         s->grid_page = 0; vibe_show(s, VIBE_GRID);
@@ -472,6 +521,14 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     case VUI_VIBE_ACT_ID_HELP_TOPIC_3:
         s->help_topic_index = 3; s->help_mode = 2; project_help(s); break;
     case VUI_VIBE_ACT_ID_HELP_OPEN_QR:
+        if (s->help_mode == 1 && s->help_topic_index == 5) {
+            s->fix_return_active = true; s->wifi_return = VIBE_HELP;
+            vibe_show(s, VIBE_WIFI); break;
+        }
+        if (s->help_mode == 1 && s->help_topic_index == 6) {
+            s->fix_return_active = true; s->nand_prompt_dismissed = false;
+            vibe_show(s, VIBE_NAND); break;
+        }
         s->guide_topic = s->help_topic_index == 0 ? 1
                        : s->help_topic_index == 1 ? 0
                        : s->help_topic_index == 2 ? 2 : 3;
@@ -479,9 +536,9 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     case VUI_VIBE_ACT_ID_FIX_OPEN_QR:
         s->guide_topic = 3; s->return_page = VIBE_HELP; vibe_show(s, VIBE_GUIDE); break;
     case VUI_VIBE_ACT_ID_FIX_WIFI:
-        s->fix_return_active = true; s->wifi_return = VIBE_HELP; vibe_show(s, VIBE_WIFI); break;
+        s->help_topic_index = 5; s->help_mode = 1; project_help(s); break;
     case VUI_VIBE_ACT_ID_FIX_STORAGE:
-        s->fix_return_active = true; s->nand_prompt_dismissed = false; vibe_show(s, VIBE_NAND); break;
+        s->help_topic_index = 6; s->help_mode = 1; project_help(s); break;
     case VUI_VIBE_ACT_ID_FIX_RETURN:
         s->help_topic_index = 4; s->help_mode = 1; project_help(s); break;
     case VUI_VIBE_ACT_ID_SHOW_GUIDE: s->guide_topic = 0; s->return_page = s->page; vibe_show(s, VIBE_GUIDE); break;
@@ -503,7 +560,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     case VUI_VIBE_ACT_ID_PRODUCT_BACK:
         if (s->page == VIBE_WELCOME) break;
         if (s->page == VIBE_HELP && s->help_mode != 0) {
-            if (s->help_mode == 1 && s->help_topic_index == 4) s->help_mode = 2;
+            if (s->help_mode == 1 && s->help_topic_index >= 4) s->help_mode = 2;
             else s->help_mode = 0;
             project_help(s);
             break;
@@ -537,7 +594,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_BACK_WIFI:
         if (s->first_run) { s->first_run = false; vibe_show(s, VIBE_HOME); }
-        else if (s->fix_return_active) { s->fix_return_active = false; s->help_mode = 2; vibe_show(s, VIBE_HELP); project_help(s); }
+        else if (s->fix_return_active) { s->fix_return_active = false; s->help_mode = 1; vibe_show(s, VIBE_HELP); project_help(s); }
         else vibe_show(s, s->wifi_return);
         break;
     case VUI_VIBE_ACT_ID_SET_LANGUAGE: number_setting(s, VIBE_SETTINGS_LANGUAGE, e->arg); break;
@@ -728,12 +785,49 @@ static void render_pager(vibe_ui_t *s)
             (void)vui_set_visible(s->ui, grid[index++], total == pages && current == active);
     }
 }
+/* Provider titles preserve arbitrary downloaded glyphs without adding them to
+ * the built-in UI font. Retry transient cache misses only on the visible page. */
+static void render_grid_titles(vibe_ui_t *s, unsigned page)
+{
+    static const uint16_t names[] = {VUI_VIBE_BIND_CELL_NAME_0, VUI_VIBE_BIND_CELL_NAME_1, VUI_VIBE_BIND_CELL_NAME_2, VUI_VIBE_BIND_CELL_NAME_3, VUI_VIBE_BIND_CELL_NAME_4, VUI_VIBE_BIND_CELL_NAME_5};
+    static const uint16_t titles[] = {VUI_VIBE_BIND_CELL_TITLE_0, VUI_VIBE_BIND_CELL_TITLE_1, VUI_VIBE_BIND_CELL_TITLE_2, VUI_VIBE_BIND_CELL_TITLE_3, VUI_VIBE_BIND_CELL_TITLE_4, VUI_VIBE_BIND_CELL_TITLE_5};
+    s->grid_titles_pending = false;
+    size_t count = vibe_bundle_count(s);
+    for (unsigned cell = 0; cell < 6; ++cell) {
+        size_t i = vibe_bundle_index(s, page * 6 + cell);
+        const vibe_bundle_t *idea = i < s->snapshot.bundle_count ? &s->snapshot.bundles[i] : NULL;
+        const char *name = idea ? idea->release :
+            count && page * 6 + cell == count ? vibe_translate(s, "Add Idea") : "";
+        bool ascii = true;
+        for (const unsigned char *c = (const unsigned char *)name; idea && *c; ++c)
+            if (*c < 32 || *c > 126) { ascii = false; break; }
+        bool has_title = (s->grid_title_ready_mask & (1u << cell)) != 0;
+        if (idea && !ascii && s->services.title && !has_title) {
+            size_t size = 0;
+            void *image = s->services.title(s->services.ctx, idea->code, &size);
+            if (image) {
+                has_title = vui_set_image_owned(s->ui, titles[cell], image, size) == VUI_OK;
+                if (!has_title) free(image);
+                else s->grid_title_ready_mask |= 1u << cell;
+            }
+            s->grid_titles_pending |= !has_title;
+        }
+        char fallback[24] = "";
+        if (idea && !*name) snprintf(fallback, sizeof(fallback), "Idea %s", idea->code);
+        /* A pending non-ASCII name has a neutral placeholder, never its ID.
+         * Do not send unsupported UTF-8 to the fixed firmware font. */
+        (void)vui_set_text(s->ui, names[cell], has_title ? "" :
+            !ascii ? "..." : *name ? name : fallback);
+        (void)vui_set_visible(s->ui, titles[cell], has_title);
+        if (!has_title) (void)vui_set_image_owned(s->ui, titles[cell], NULL, 0);
+    }
+}
 static void render_grid(vibe_ui_t *s, unsigned page)
 {
+    s->grid_title_ready_mask = 0;
     static const uint16_t updates[] = {VUI_VIBE_BIND_CELL_UPDATE_0_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_1_VISIBLE,
         VUI_VIBE_BIND_CELL_UPDATE_2_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_3_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_4_VISIBLE, VUI_VIBE_BIND_CELL_UPDATE_5_VISIBLE};
     static const uint16_t icons[] = {VUI_VIBE_BIND_CELL_ICON_0, VUI_VIBE_BIND_CELL_ICON_1, VUI_VIBE_BIND_CELL_ICON_2, VUI_VIBE_BIND_CELL_ICON_3, VUI_VIBE_BIND_CELL_ICON_4, VUI_VIBE_BIND_CELL_ICON_5};
-    static const uint16_t names[] = {VUI_VIBE_BIND_CELL_NAME_0, VUI_VIBE_BIND_CELL_NAME_1, VUI_VIBE_BIND_CELL_NAME_2, VUI_VIBE_BIND_CELL_NAME_3, VUI_VIBE_BIND_CELL_NAME_4, VUI_VIBE_BIND_CELL_NAME_5};
     static const uint16_t icon_objects[] = {VUI_VIBE_BIND_CELL_ICON_0_VISIBLE, VUI_VIBE_BIND_CELL_ICON_1_VISIBLE, VUI_VIBE_BIND_CELL_ICON_2_VISIBLE, VUI_VIBE_BIND_CELL_ICON_3_VISIBLE, VUI_VIBE_BIND_CELL_ICON_4_VISIBLE, VUI_VIBE_BIND_CELL_ICON_5_VISIBLE};
     static const uint16_t defaults[] = {VUI_VIBE_BIND_CELL_DEFAULT_0_VISIBLE, VUI_VIBE_BIND_CELL_DEFAULT_1_VISIBLE, VUI_VIBE_BIND_CELL_DEFAULT_2_VISIBLE, VUI_VIBE_BIND_CELL_DEFAULT_3_VISIBLE, VUI_VIBE_BIND_CELL_DEFAULT_4_VISIBLE, VUI_VIBE_BIND_CELL_DEFAULT_5_VISIBLE};
     static const uint16_t current[] = {VUI_VIBE_BIND_CELL_CURRENT_0_VISIBLE, VUI_VIBE_BIND_CELL_CURRENT_1_VISIBLE, VUI_VIBE_BIND_CELL_CURRENT_2_VISIBLE, VUI_VIBE_BIND_CELL_CURRENT_3_VISIBLE, VUI_VIBE_BIND_CELL_CURRENT_4_VISIBLE, VUI_VIBE_BIND_CELL_CURRENT_5_VISIBLE};
@@ -747,15 +841,7 @@ static void render_grid(vibe_ui_t *s, unsigned page)
         size_t i = vibe_bundle_index(s, page * 6 + cell);
         bool present = i < s->snapshot.bundle_count;
         const vibe_bundle_t *idea = present ? &s->snapshot.bundles[i] : NULL;
-        char name[80] = "";
         bool add_cell = visible && page * 6 + cell == visible;
-        if (add_cell) snprintf(name, sizeof(name), "%s", vibe_translate(s, "Add Idea"));
-        if (idea) {
-            bool ascii = strspn(idea->release, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_.,!?()") == strlen(idea->release);
-            const char *title = ascii ? idea->release : idea->code;
-            snprintf(name, sizeof(name), "%.60s", title);
-        }
-        (void)vui_set_text(s->ui, names[cell], name);
         size_t size = 0;
         void *data = idea && s->services.icon ? s->services.icon(s->services.ctx, idea->code, &size) : NULL;
         bool has_icon = data != NULL;
@@ -767,6 +853,7 @@ static void render_grid(vibe_ui_t *s, unsigned page)
         (void)vui_set_visible(s->ui, cards[cell], visible ? present || add_cell : cell == 1);
         (void)vui_set_visible(s->ui, add[cell], add_cell);
     }
+    render_grid_titles(s, page);
     if (visible && s->nav_badge_until && vui_now_ms(s->ui) < s->nav_badge_until)
         FORMAT(s, GRID_TITLE_TOP, "Ideas %u/%u", page + 1, (unsigned)visible / 6 + 1);
     else TEXT(s, GRID_TITLE_TOP, "");
@@ -1164,6 +1251,7 @@ void vibe_product_poll(vibe_ui_t *s)
         if (s->grid_page > vibe_bundle_count(s) / 6) s->grid_page = (unsigned)vibe_bundle_count(s) / 6;
         if (s->grid_generation != v->nand_generation + 1 || s->grid_rendered_page != s->grid_page)
             render_grid(s, s->grid_page);
+        else if (s->grid_titles_pending) render_grid_titles(s, s->grid_page);
     } else if (s->page == VIBE_DEVELOP) {
         TEXT(s, DEVELOP_USB, v->device.usb_connected ? "Device connected" : "USB not connected");
         TEXT(s, DEVELOP_AGENT, !v->device.usb_connected ? "Connect USB to develop" : v->usb_owner ? "Agent ready" : "Waiting for Agent");
@@ -1365,10 +1453,9 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
             now - s->last_release_ms >= 150 || abs(x - s->last_release_x) > 24 ||
             abs(y - s->last_release_y) > 24;
         s->pointer_x = x; s->pointer_y = y;
-        if (has_target && now >= s->suppress_until && pointer_actionable(s, &target, key))
-            haptic(s, 1);
+
     }
-    if (pressed && s->pointer_down && (abs(x - s->pointer_x) > 24 || abs(y - s->pointer_y) > 24)) s->gesture_consumed = true;
+    if (vui_pointer_moved(ui)) s->gesture_consumed = true;
     if (pressed && !s->pointer_down) {
         s->home_capture = s->page == VIBE_HOME && s->pointer_page_ready && now >= s->suppress_until &&
             x >= VIBE_HOME_DOTS_X && x < VIBE_HOME_DOTS_X + VIBE_HOME_DOTS_SIZE &&
@@ -1386,7 +1473,7 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
         bool inside = x >= 24 && x < 456 && y >= 348 && y < 444;
         bool started_inside = s->pointer_x >= 24 && s->pointer_x < 456 &&
                               s->pointer_y >= 348 && s->pointer_y < 444;
-        if (pressed && inside && started_inside && s->pointer_page == s->page &&
+        if (pressed && !s->gesture_consumed && inside && started_inside && s->pointer_page == s->page &&
             s->pointer_page_ready && !s->snapshot.settings.busy) {
             if (!s->hold_started_ms && !s->hold_consumed) s->hold_started_ms = now + 1;
         } else {
