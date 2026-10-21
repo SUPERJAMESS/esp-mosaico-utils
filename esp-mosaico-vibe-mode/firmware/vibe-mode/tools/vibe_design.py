@@ -594,6 +594,12 @@ def apply(scene):
     p=index['open_confirm']
     for o in objects:
         if o.get('parent')==p: o['hidden']=True
+    rect(p,330,6,24,24,TEXT,6)
+    text(p,'open_key_ai_num','2',330,5,24,24,18,'medium',BG,'center')
+    icon(p,'arrow_up-24-orange',360,6,24)
+    rect(p,330,450,24,24,ORANGE,6)
+    text(p,'open_key_pwr_num','1',330,449,24,24,18,'medium',BG,'center')
+    icon(p,'arrow_down-24-white',360,450,24)
     rect(p,24,34,432,410,CARD,24,border_color=LINE,border_width=1)
     text(p,'open_question','Running Leaves Vibe Mode',48,48,384,34,24,'title')
     text(p,'open_name','',48,84,384,28,20,overflow='marquee')
