@@ -120,6 +120,19 @@ static void clear_secret(char *text, size_t size) {
     while (size--)
         *p++ = 0;
 }
+static bool ascii_text(const char *text);
+static void clear_inline_intro(vibe_ui_t *s)
+{
+    if (s->inline_intro_pending) (void)command(s, VIBE_CANCEL_IDEA, NULL, NULL);
+    s->inline_intro_pending = s->inline_intro_ready = false;
+    (void)vui_canvas_stop(s->ui, VUI_VIBE_BIND_LOCAL_BODY_PIXELS);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_LOCAL_BODY_PIXELS, false);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RELEASE_PATH, true);
+    (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT, 0);
+    (void)vui_set_text(s->ui, VUI_VIBE_BIND_RELEASE_PATH,
+        ascii_text(s->selected_bundle.description) ? s->selected_bundle.description :
+        T(s, "View info for name and description"));
+}
 static void clear_preview(vibe_ui_t *s)
 {
     (void)vui_set_image_owned(s->ui, VUI_VIBE_BIND_IDEA_TITLE_PIXELS, NULL, 0);
@@ -192,6 +205,8 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
     }
     if (previous == VIBE_IDEA_INFO && page != VIBE_IDEA_INFO)
         clear_preview(s);
+    if (previous == VIBE_CONFIRM && page != VIBE_CONFIRM)
+        clear_inline_intro(s);
     if (previous == VIBE_PASSWORD && page != VIBE_PASSWORD) {
         clear_secret(s->password, sizeof(s->password));
         TEXT(s, PASSWORD_DISPLAY, T(s, "Enter password"));
@@ -393,6 +408,53 @@ static void submit_password(vibe_ui_t *s) {
         TEXT(s, PASSWORD_ERROR, T(s, "Check password and try again"));
     else
         show(s, s->download_pending || s->first_run ? VIBE_WIFI : VIBE_HOME);
+}
+static void open_inline_intro(vibe_ui_t *s)
+{
+    if (s->inline_intro_ready) {
+        (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT, 0);
+        return;
+    }
+    s->services.snapshot(s->services.ctx, &s->snapshot);
+    if (s->inline_intro_pending || s->snapshot.idea_busy || s->snapshot.idea_ready) return;
+    int err = command(s, VIBE_PREVIEW_IDEA, s->selected_bundle.code, NULL);
+    if (err) { TEXT(s, RELEASE_PATH, "App information failed"); return; }
+    s->inline_intro_pending = true;
+    TEXT(s, RELEASE_PATH, "Reading downloaded resources");
+}
+static void poll_inline_intro(vibe_ui_t *s)
+{
+    if (!s->inline_intro_pending) return;
+    const vibe_snapshot_t *v = &s->snapshot;
+    if (!v->idea_ready && v->idea_loading) return;
+    if (!v->idea_ready) {
+        s->inline_intro_pending = false;
+        s->acknowledged_update = v->update_revision;
+        TEXT(s, RELEASE_PATH, "App information failed");
+        return;
+    }
+    int err = VUI_OK;
+    if (v->idea_custom) {
+        size_t size = 0;
+        void *body = s->services.preview ? s->services.preview(s->services.ctx, v->idea_request, 1, &size) : NULL;
+        if (!body) err = VUI_ERR_NO_MEM;
+        else {
+            err = size == IDEAS_DESCRIPTION_WIDTH * IDEAS_DESCRIPTION_HEIGHT * 2
+                ? vui_canvas_push(s->ui, VUI_VIBE_BIND_LOCAL_BODY_PIXELS, body,
+                                  IDEAS_DESCRIPTION_WIDTH * 2, free, body)
+                : VUI_ERR_INVALID_ARG;
+            if (err) free(body);
+        }
+    }
+    if (!err) {
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_LOCAL_BODY_PIXELS, v->idea_custom);
+        (void)vui_set_text(s->ui, VUI_VIBE_BIND_RELEASE_PATH, v->idea_custom ? "" : v->idea.description);
+        s->inline_intro_ready = true;
+    } else TEXT(s, RELEASE_PATH, "App information failed");
+    s->inline_intro_pending = false;
+    /* The UI owns its copied canvas. Release the backend preview immediately,
+     * so Check updates keeps using its original independent preview flow. */
+    (void)command(s, VIBE_CANCEL_IDEA, NULL, NULL);
 }
 static void prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code) {
     s->services.snapshot(s->services.ctx, &s->snapshot);
@@ -634,10 +696,12 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
     case VUI_VIBE_ACT_ID_PREVIEW_IDEA:
         if (s->page != VIBE_CONFIRM)
             break;
+        if (e->action_id == VUI_VIBE_ACT_ID_PREVIEW_IDEA) {
+            open_inline_intro(s);
+            break;
+        }
         prepare_idea(s,
-                     e->action_id == VUI_VIBE_ACT_ID_PREVIEW_IDEA ? VIBE_PREVIEW_IDEA
-                     : e->action_id == VUI_VIBE_ACT_ID_CHECK_IDEA ? VIBE_CHECK_IDEA
-                                                                  : VIBE_RESOLVE_IDEA,
+                     e->action_id == VUI_VIBE_ACT_ID_CHECK_IDEA ? VIBE_CHECK_IDEA : VIBE_RESOLVE_IDEA,
                      s->selected_bundle.code);
         break;
     case VUI_VIBE_ACT_ID_CANCEL_IDEA:
@@ -692,6 +756,7 @@ void vibe_ui_poll(vibe_ui_t *s) {
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, false);
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, s->page == VIBE_NAND && !s->snapshot.nand_needs_format);
     }
+    poll_inline_intro(s);
     if (s->preview_active && !v->idea_loading && !v->idea_ready) {
         s->preview_active = false;
         show(s, v->idea_return_library ? VIBE_NAND : s->preview_return);

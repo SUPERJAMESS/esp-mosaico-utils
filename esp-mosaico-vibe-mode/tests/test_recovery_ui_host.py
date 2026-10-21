@@ -632,28 +632,47 @@ def test_preview_failure_never_starts_download(sim):
 def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
     sim.manage(); sim.wait(page=5)
     sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_preview_idea")  # offline information
-    sim.wait(page=9, idea_ready=True, download_calls=0)
-    sim.capture("custom-offline")
-    with Image.open(sim.directory / "custom-offline.png") as image:
+    sim.tap_ui("button_preview_idea")
+    sim.wait(page=6, idea_ready=False, idea_loading=False, cancel_calls=1, download_calls=0)
+    sim.capture("custom-inline")
+    with Image.open(sim.directory / "custom-inline.png") as image:
+        r, g, b = image.convert("RGB").getpixel((40, 195))
+        assert g > 200 and r < 20 and b < 20
+    sim.swipe(220, 290, 220, 200)
+    sim.wait(page=6, local_description_offset=56, download_calls=0, install_calls=0)
+    sim.capture("custom-inline-scrolled")
+    with Image.open(sim.directory / "custom-inline.png") as before, Image.open(sim.directory / "custom-inline-scrolled.png") as after:
+        for bounds in ((0, 0, 480, 184), (0, 314, 480, 480)):
+            assert before.crop(bounds).tobytes() == after.crop(bounds).tobytes()
+    sim.tap_ui("button_preview_idea")  # Already copied: no new backend request.
+    sim.wait(page=6, local_description_offset=0, prepare_calls=1, cancel_calls=1)
+    # Check updates still opens the original remote preview and download flow.
+    sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, check_calls=1, idea_description_offset=0)
+    sim.capture("custom-update-preview")
+    with Image.open(sim.directory / "custom-update-preview.png") as image:
         r, g, b = image.convert("RGB").getpixel((100, 40))
         assert r > 200 and g < 20 and b < 20
-        r, g, b = image.convert("RGB").getpixel((40, 205))
-        assert g > 200 and r < 20 and b < 20
-    sim.swipe(220, 345, 220, 250)
-    sim.wait(page=9, idea_description_offset=8, download_calls=0, install_calls=0)
-    sim.capture("custom-offline-scrolled")
-    with Image.open(sim.directory / "custom-offline.png") as before, Image.open(sim.directory / "custom-offline-scrolled.png") as after:
-        # Only the description moves; the native title pixels, metadata and
-        # action buttons retain their positions and remain unobscured.
-        for bounds in ((0, 0, 480, 196), (0, 380, 480, 480)):
-            assert before.crop(bounds).tobytes() == after.crop(bounds).tobytes()
-    sim.tap(350, 436)  # no download from read-only view
-    sim.wait(page=9, download_calls=0, install_calls=0)
-    sim.tap(120, 436); sim.wait(page=6)
-    sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, check_calls=1, idea_description_offset=0)
     sim.tap(350, 436)
     sim.wait(timeout=45, page=8, download_calls=1, install_calls=0)
+
+
+@pytest.mark.parametrize("sim", ["slow-preview"], indirect=True)
+def test_inline_intro_back_cancels_without_late_navigation(sim):
+    sim.manage(); sim.tap(150, 170); sim.wait(page=6)
+    sim.tap_ui("button_preview_idea"); sim.wait(page=6, idea_loading=True, prepare_calls=1)
+    sim.tap(38, 36); sim.wait(page=5, cancel_calls=1)
+    time.sleep(3)
+    sim.wait(page=5, idea_loading=False, idea_ready=False, download_calls=0)
+    sim.tap(150, 258); sim.wait(page=6, local_description_offset=0)
+
+
+@pytest.mark.parametrize("sim", ["preview-fail"], indirect=True)
+def test_inline_intro_failure_stays_in_details_and_check_keeps_its_error_flow(sim):
+    sim.manage(); sim.tap(150, 170); sim.wait(page=6)
+    sim.tap_ui("button_preview_idea")
+    sim.wait(page=6, idea_loading=False, idea_ready=False, prepare_calls=1, download_calls=0)
+    sim.tap_ui("button_check_idea")
+    sim.wait(page=8, check_calls=1, download_calls=0)
 
 
 @pytest.mark.parametrize("sim", ["custom-preview-fail"], indirect=True)
@@ -1356,7 +1375,7 @@ def test_long_titles_scroll_in_library_details_and_preview_without_moving_contro
     moves("library-marquee", (100, 156, 412, 190))
     sim.tap(150, 170); sim.wait(page=6)
     moves("details-marquee", (88, 29, 456, 69))
-    sim.tap_ui("button_preview_idea"); sim.wait(page=9, idea_ready=True, download_calls=0)
+    sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, download_calls=0)
     moves("preview-marquee", (88, 29, 456, 69))
     sim.tap_ui("button_cancel_idea"); sim.wait(page=6, download_calls=0, install_calls=0)
     sim.capture("details-marquee-return")
