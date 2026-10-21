@@ -635,12 +635,12 @@ def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
     sim.wait(page=9, idea_ready=True, download_calls=0)
     sim.capture("custom-offline")
     with Image.open(sim.directory / "custom-offline.png") as image:
-        r, g, b = image.convert("RGB").getpixel((100, 40))
+        r, g, b = image.convert("RGB").getpixel((44, 100))
         assert r > 200 and g < 20 and b < 20
         r, g, b = image.convert("RGB").getpixel((40, 245))
         assert g > 200 and r < 20 and b < 20
     sim.swipe(220, 345, 220, 250)
-    sim.wait(page=9, idea_description_offset=40, download_calls=0, install_calls=0)
+    sim.wait(page=9, idea_description_offset=48, download_calls=0, install_calls=0)
     sim.capture("custom-offline-scrolled")
     with Image.open(sim.directory / "custom-offline.png") as before, Image.open(sim.directory / "custom-offline-scrolled.png") as after:
         # Only the description moves; the native title pixels, metadata and
@@ -1350,13 +1350,13 @@ def test_long_titles_scroll_in_library_details_and_preview_without_moving_contro
     sim.manage(); sim.wait(page=5)
     moves("library-marquee", (100, 156, 412, 190))
     sim.tap(150, 170); sim.wait(page=6)
-    moves("details-marquee", (88, 29, 456, 69))
+    moves("details-marquee", (32, 84, 448, 124))
     sim.tap_ui("button_preview_idea"); sim.wait(page=9, idea_ready=True, download_calls=0)
-    moves("preview-marquee", (88, 29, 456, 69))
+    moves("preview-marquee", (32, 84, 448, 124))
     sim.tap_ui("button_cancel_idea"); sim.wait(page=6, download_calls=0, install_calls=0)
     sim.capture("details-marquee-return")
     with Image.open(sim.directory / "details-marquee-start.png") as a, Image.open(sim.directory / "details-marquee-return.png") as b:
-        assert a.crop((88, 29, 456, 69)).tobytes() == b.crop((88, 29, 456, 69)).tobytes()
+        assert a.crop((32, 84, 448, 124)).tobytes() == b.crop((32, 84, 448, 124)).tobytes()
 
 
 def assert_wide_done(sim, name):

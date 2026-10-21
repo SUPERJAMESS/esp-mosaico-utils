@@ -158,7 +158,7 @@ static void project_open_confirm(vibe_ui_t *s)
     s->open_unsaved = !s->run_development_pending && s->snapshot.development_available && !s->snapshot.development_saved;
     bool low = s->snapshot.device.battery_valid && s->snapshot.device.battery_percent <= 20 &&
                !s->snapshot.device.usb_connected && !s->snapshot.device.charging;
-    TEXT(s, OPEN_WARNING, s->open_waiting ? (s->snapshot.nand_scanning ? "Scanning NAND..." : "Finishing previous request...")
+    TEXT(s, OPEN_WARNING, s->open_waiting ? (s->snapshot.nand_scanning ? "Checking apps and storage..." : "Finishing previous request...")
                                          : low ? "Charge above 20% or connect USB." : s->open_unsaved ? "Unsaved development will be replaced." : "");
     TEXT(s, OPEN_ACCEPT_CAPTION, s->open_waiting ? "Please wait" : "Run");
     (void)vui_set_text(s->ui, VUI_VIBE_BIND_OPEN_ACCEPT_LABEL, "");
@@ -1148,9 +1148,9 @@ void vibe_product_poll(vibe_ui_t *s)
         !v->storage_total && !v->idea_busy && !v->nand_error)
         (void)vibe_command(s, VIBE_STORAGE_INFO, NULL, NULL);
     if (s->page == VIBE_NAND) {
-        if (v->nand_scanning) TEXT(s, NAND_SCAN, "Scanning NAND...");
+        if (v->nand_scanning) TEXT(s, NAND_SCAN, "Checking apps and storage...");
         else if (v->nand_error) FORMAT(s, NAND_SCAN, "NAND unavailable: 0x%x", (unsigned)v->nand_error);
-        else if (!v->storage_total) TEXT(s, NAND_SCAN, "Scanning NAND...");
+        else if (!v->storage_total) TEXT(s, NAND_SCAN, "Checking apps and storage...");
         else FORMAT(s, NAND_SCAN, "%u Ideas · %llu.%u of %llu MB used", (unsigned)vibe_bundle_count(s),
                (unsigned long long)(v->storage_used / 1000000), (unsigned)(v->storage_used / 100000 % 10),
                (unsigned long long)(v->storage_total / 1000000));

@@ -76,7 +76,6 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"Receive", "接收"},
     {"Saved in My Ideas", "已保存在我的 Idea"},
     {"Scan error 0x%x", "扫描失败 0x%x"},
-    {"Scanning NAND...", "正在扫描 NAND…"},
     {"Scanning...", "正在扫描…"},
     {"Secured", "加密"},
     {"Setting boot application", "正在准备打开 Idea"},
@@ -484,6 +483,7 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"The current Idea cannot be deleted.\nRun another Idea first.", "当前应用无法删除，请先运行其他 Idea。"},
     {"Wi-Fi Settings", "Wi-Fi 设置"},
     {"Manage Storage", "管理存储空间"},
+    {"Checking apps and storage...", "正在检查应用和存储空间…"},
 };
 static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {
     {VUI_VIBE_BIND_PAIRING_ENDPOINT, "Connect Wi-Fi first"},
