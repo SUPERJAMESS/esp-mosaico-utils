@@ -15,7 +15,7 @@ typedef struct {
 } vibe_shared_entry_t;
 typedef struct {
     /* 1 = English (persisted default), 2 = Simplified Chinese. */
-    unsigned language, brightness, screen_off_seconds;
+    unsigned language, brightness, screen_off_seconds, open_confirm_count;
     bool auto_rotate, haptics, open_confirm;
     uint32_t revision;
     bool busy;

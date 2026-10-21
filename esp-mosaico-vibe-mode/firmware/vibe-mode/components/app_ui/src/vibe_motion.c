@@ -50,6 +50,11 @@ static void assembly(frame_t f, float p)
     static const int center[5][2] = {{7,6},{6,7},{7,7},{8,7},{7,8}};
     if (p >= .86f) for (int i = 0; i < 5; ++i) put(f, center[i][0], center[i][1], 1, true, false);
 }
+void vibe_motion_assembly(float *white, float *accent, uint32_t ms)
+{
+    assembly((frame_t){VIBE_MOTION_GRID, white, accent},
+             ms < 900U ? ms / 900.0f : 1.0f);
+}
 static void word(frame_t f, float p)
 {
     /* M O S A I C O, five columns with one blank column between letters. */

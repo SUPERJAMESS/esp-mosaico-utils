@@ -24,6 +24,7 @@ SCENARIOS = [
     "format-nand", "format-failure", "format-admission",
     "device-identity", "identity-unavailable", "no-compatible-en", "no-compatible-zh", "file-conflict",
     "download-stages", "retry-manifest", "retry-read", "retry-limit", "bilingual-offline",
+    "read-idle-resume", "read-idle-cancel", "read-idle-deadline",
     "preview", "preview-zh", "preview-single-byte", "preview-storage-failure", "cancel-queued", "cancel-resolve", "cancel-asset", "fixed-release",
     "queue-failure", "init-retry", "worker-reuse", "worker-handoff", "reject-bad-font", "reject-bad-display", "reject-bad-icon",
     "reject-hash", "reject-etag", "reject-truncated", "reject-missing", "reject-redirect",

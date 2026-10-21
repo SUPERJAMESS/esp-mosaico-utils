@@ -157,19 +157,21 @@ def register_file_routes(app: web.Application, service: Any) -> None:
             # OPEN and the first READ can fail with BUSY. Resolve them before
             # committing HTTP headers so the error remains an HTTP response.
             try:
-                first = await chunks.__anext__()
+                pending = await chunks.__anext__()
             except StopAsyncIteration:
-                first = None
+                pending = None
             await response.prepare(request)
             sent = 0
-            if first is not None:
-                await response.write(first)
-                sent += len(first)
+            # Complete device CLOSE before satisfying HTTP Content-Length.
             async for chunk in chunks:
-                await response.write(chunk)
-                sent += len(chunk)
-            if sent != length:
+                if pending is not None:
+                    await response.write(pending)
+                    sent += len(pending)
+                pending = chunk
+            if sent + (len(pending) if pending is not None else 0) != length:
                 raise RuntimeError("file length changed during download")
+            if pending is not None:
+                await response.write(pending)
             await response.write_eof()
         except BaseException:
             if response.prepared:

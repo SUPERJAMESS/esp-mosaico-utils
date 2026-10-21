@@ -215,6 +215,18 @@ int main(void)
     execute(VIBE_SETTINGS_SHARED_SET, "wifi_password", ""); /* Open network. */
     memset(value, 'v', sizeof(value) - 1); value[sizeof(value) - 1] = 0;
     execute(VIBE_SETTINGS_SHARED_SET, "custom0", value); /* Ordinary values retain 256 bytes. */
+    assert(s_settings.open_confirm && s_settings.open_confirm_count == 0);
+    execute(VIBE_SETTINGS_OPEN_CONFIRM, NULL, "2");
+    assert(s_settings.open_confirm && s_settings.open_confirm_count == 1);
+    execute(VIBE_SETTINGS_OPEN_CONFIRM, NULL, "2");
+    assert(s_settings.open_confirm && s_settings.open_confirm_count == 2);
+    execute(VIBE_SETTINGS_OPEN_CONFIRM, NULL, "2");
+    assert(!s_settings.open_confirm && s_settings.open_confirm_count == 3);
+    reboot();
+    assert(!s_settings.open_confirm && s_settings.open_confirm_count == 3);
+    execute(VIBE_SETTINGS_OPEN_CONFIRM, NULL, "1");
+    assert(s_settings.open_confirm && s_settings.open_confirm_count == 0);
+    assert(vibe_shared_key_secret("API_KEY") && vibe_shared_key_secret("MyToken"));
     puts("preferences, shared application API and interrupted reset passed");
     return 0;
 }

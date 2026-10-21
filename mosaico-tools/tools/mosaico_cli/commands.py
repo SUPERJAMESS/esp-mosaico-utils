@@ -37,6 +37,7 @@ from .gateway import (
     run_ota,
     run_system_update_bundle,
     select_device,
+    wait_for_data_link,
 )
 from .project import discover_artifacts, partition_table_flash_sha256, resolve_project
 from .recovery import (
@@ -576,6 +577,8 @@ def start_system_update(arguments: Any, context: RunContext) -> dict[str, Any]:
     session = ensure_gateway(context, arguments.gateway_profile)
     device = select_device(connected_devices(context, session), arguments.device_id)
     device_id = str(device.get("device_id"))
+    if not external_source:
+        wait_for_data_link(context, session, device, timeout=timeout)
     status = _device_status(
         gateway_json(context, session, "status", device_id)
     )

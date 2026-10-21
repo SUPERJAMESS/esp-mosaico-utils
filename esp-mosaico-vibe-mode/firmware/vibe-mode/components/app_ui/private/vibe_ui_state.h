@@ -39,8 +39,10 @@ struct vibe_ui {
     vibe_rate_t rate;
     uint64_t page_enter_ms, next_poll_ms, activity_ms, hold_started_ms, suppress_until, undo_until;
     uint64_t last_release_ms;
-    bool open_waiting, open_unsaved;
-    unsigned grid_page, grid_rendered_page, pager_state, shared_page;
+    bool open_waiting, open_unsaved, run_development_pending, code_submitted, shared_detail_reveal, shared_system_entry;
+    unsigned guide_topic, help_mode, help_topic_index;
+    bool fix_return_active;
+    unsigned grid_page, grid_rendered_page, pager_state, shared_page, last_shared_user_count;
     vibe_pager_t pager;
     unsigned haptic_revision, last_language, grid_generation, settings_revision, motion_revision;
     bool gesture_consumed, pointer_page_ready, hold_consumed;

@@ -639,7 +639,15 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
     case VIBE_SETTINGS_TIMEOUT: model.settings.screen_off_seconds = n; break;
     case VIBE_SETTINGS_ROTATE: model.settings.auto_rotate = n; break;
     case VIBE_SETTINGS_HAPTICS: model.settings.haptics = n; break;
-    case VIBE_SETTINGS_OPEN_CONFIRM: model.settings.open_confirm = n; break;
+    case VIBE_SETTINGS_OPEN_CONFIRM:
+        if (n == 2) {
+            if (model.settings.open_confirm_count < 3) ++model.settings.open_confirm_count;
+            if (model.settings.open_confirm_count >= 3) model.settings.open_confirm = false;
+        } else {
+            model.settings.open_confirm = n != 0;
+            model.settings.open_confirm_count = n ? 0 : 3;
+        }
+        break;
     case VIBE_SETTINGS_SHARED_SET:
     case VIBE_SETTINGS_SHARED_DELETE: {
         size_t i;
@@ -660,6 +668,8 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
         ++reset_calls;
         ++restart_calls;
         model.settings.language = 1;
+        model.settings.open_confirm = true;
+        model.settings.open_confirm_count = 0;
         model.settings.shared_count = 0;
         memset(model.settings.shared, 0, sizeof(model.settings.shared));
         model.credentials_saved = false;

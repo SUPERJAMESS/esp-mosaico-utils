@@ -36,6 +36,7 @@ void vibe_companion_input(vibe_companion_t *s, float x, float y, bool pressed, b
 void vibe_companion_frame(const vibe_companion_t *s, float *white, float *accent, bool reduced);
 
 bool vibe_motion_inside(int n, int x, int y);
+void vibe_motion_assembly(float *white, float *accent, uint32_t ms);
 void vibe_motion_home(float *white, float *accent, uint32_t ms, bool reduced);
 void vibe_motion_ripple(float *white, float *accent, const vibe_ripple_t *ripples,
                         unsigned count, const vibe_ripple_t *press);

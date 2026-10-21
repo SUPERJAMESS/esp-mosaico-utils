@@ -17,6 +17,7 @@ typedef int esp_err_t;
 #define ESP_ERR_NVS_NOT_FOUND 0x1102
 #define ESP_ERR_NOT_SUPPORTED 0x106
 #define ESP_ERR_TIMEOUT 0x107
+#define ESP_ERR_HTTP_EAGAIN 0x7007
 #define ESP_ERR_INVALID_CRC 0x109
 #define EXT_RAM_BSS_ATTR
 #define CONFIG_IRIS_FACTORY_BRIDGE_SERVER_URL "https://ideas.test"
@@ -149,6 +150,9 @@ typedef struct {
     unsigned fail_init_step, tasks_created, tasks_entered, jobs_finished, mutex_live, queue_live;
     unsigned writes, resolves, assets, firmware, http_live, installs, commits, restarts;
     unsigned cancels, requests_with_identity, fault_limit, fault_hits, firmware_reads, read_chunk;
+    const char *idle_file;
+    unsigned idle_reads, idle_hits, idle_max_wait_ms;
+    bool idle_forever, cancel_on_idle;
     bool identity_unavailable;
     const char *device_id;
     uint64_t flash_read_bytes;

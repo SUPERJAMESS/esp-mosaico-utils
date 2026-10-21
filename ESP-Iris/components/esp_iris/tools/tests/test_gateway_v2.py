@@ -1331,3 +1331,51 @@ def test_file_download_errors_never_become_file_content(tmp_path, failure):
             store.close()
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("chunks", [1, 3])
+def test_file_download_finishes_after_device_stream_close(tmp_path, chunks):
+    async def scenario():
+        store = GatewayStore(tmp_path)
+        service = GatewayService(store, instance_id="test", demo=True)
+        hub = DemoHub(service.on_device_event)
+        service.attach_hub(hub)
+        await hub.start()
+        metadata = await hub.file_stat("demo-a1b2c3d4", "cfg", "app.json")
+        data = b"x" * metadata["size"]
+        permit_close = asyncio.Event()
+        closed = asyncio.Event()
+
+        async def delayed_close(*args, **kwargs):
+            try:
+                for index in range(chunks):
+                    yield data[len(data) * index // chunks:len(data) * (index + 1) // chunks]
+            finally:
+                await permit_close.wait()
+                closed.set()
+
+        hub.file_download = delayed_close
+        client = TestClient(TestServer(create_app(service)))
+        await client.start_server()
+        body = None
+        try:
+            response = await client.get(
+                "/v2/devices/demo-a1b2c3d4/file",
+                params={"volume": "cfg", "path": "app.json"},
+            )
+            assert response.status == 200
+            body = asyncio.create_task(response.read())
+            await asyncio.sleep(0.02)
+            assert not body.done(), "HTTP completed while the device file handle was still busy"
+            permit_close.set()
+            assert await asyncio.wait_for(body, timeout=2) == data
+            assert closed.is_set()
+        finally:
+            permit_close.set()
+            if body is not None:
+                await asyncio.gather(body, return_exceptions=True)
+            await client.close()
+            await hub.close()
+            store.close()
+
+    asyncio.run(scenario())

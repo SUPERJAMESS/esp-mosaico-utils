@@ -25,6 +25,7 @@ endif()
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(vibe-mode)
 
+include(cmake/bq27220_profile_read_guard.cmake)
 include(cmake/usb_dma_bss.cmake)
 include(cmake/bsp_display_timing.cmake)
 

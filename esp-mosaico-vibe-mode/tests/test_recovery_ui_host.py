@@ -1611,3 +1611,33 @@ def test_flash_preparation_progress_has_no_receive_rate_and_transitions_to_paylo
     sim.wait(page=7, progress=0, rate_valid=False)
     sim.control("transfer 5000 1048576 12582912 2 2 1 1 1 1048576 12582912 0")
     sim.wait(page=7, rate_valid=True, rate_bps=1048576)
+
+
+@pytest.mark.parametrize("sim", ["development"], indirect=True)
+def test_three_time_open_confirm_and_run_current_build_and_code_replace(sim):
+    # 1. Confirming Run Current Build 3 times automatically disables the prompt on the 4th run.
+    for count in (1, 2, 3):
+        sim.tap_ui("button_nav_develop")
+        sim.wait(page=10)
+        sim.tap_ui("button_develop_run")
+        sim.wait(page=20, open_confirm=True)
+        sim.tap_ui("button_open_accept")
+        sim.wait(page=0, restart_calls=count, open_confirm=count < 3)
+    # 2. The 4th Run Current Build skips the prompt directly.
+    sim.tap_ui("button_nav_develop")
+    sim.wait(page=10)
+    sim.tap_ui("button_develop_run")
+    sim.wait(page=0, restart_calls=4, open_confirm=False)
+    # 3. After submitting a 6-digit code and returning to Download, typing a digit replaces it.
+    sim.open_bridge()
+    sim.wait(page=4, idea_code="")
+    for d in (1, 2, 3, 4, 5, 6):
+        sim.tap_ui("button_code_" + str(d))
+    sim.wait(idea_code="123456")
+    sim.tap_ui("button_download_code")
+    sim.wait(page=9, idea_ready=True)
+    sim.tap(120, 436)
+    sim.wait(page=4, idea_code="123456")
+    sim.tap_ui("button_code_9")
+    sim.wait(page=4, idea_code="9")
+

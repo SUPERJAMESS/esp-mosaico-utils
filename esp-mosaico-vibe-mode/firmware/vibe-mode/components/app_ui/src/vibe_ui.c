@@ -35,8 +35,9 @@ static void transfer_text(vibe_ui_t *s)
                    (t->phase == VIBE_TRANSFER_CHECK_IMAGE && !t->total) ||
                    (!strcmp(v->update_owner, "Device") && !t->received);
     (void)vui_set_indeterminate(s->ui, VUI_VIBE_BIND_PROGRESS, (waiting || !t->total) && v->updating);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_UPDATE_WAIT_DOTS_VISIBLE, waiting);
     if (waiting) {
-        TEXT(s, UPDATE_PERCENT, "--");
+        TEXT(s, UPDATE_PERCENT, "");
         TEXT(s, UPDATE_BYTES, "");
         TEXT(s, UPDATE_RATE, "");
         TEXT(s, UPDATE_COMPONENT, ""); /* The phase detail already explains the wait. */
@@ -196,6 +197,8 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         clear_secret(s->password_projection, sizeof(s->password_projection));
         s->password_visible = false;
         TEXT(s, PASSWORD_TOGGLE, T(s, "Show"));
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_PASSWORD_EYE_ON_VISIBLE, false);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_PASSWORD_EYE_OFF_VISIBLE, true);
     }
     if (page != VIBE_WIFI && page != VIBE_PASSWORD)
         s->download_pending = false;
@@ -217,6 +220,18 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         bool success = !s->result_failed && !s->result_cancelled;
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_HERO_VISIBLE, success);
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_FAILURE_VISIBLE, !success);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_BAR_OK_VISIBLE, success);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_BAR_FAIL_VISIBLE, !success);
+    }
+    if (page == VIBE_SLEEP && previous != page) {
+        float white[225] = {0}, accent[225] = {0};
+        vui_matrix_t frame = {0};
+        vibe_motion_assembly(white, accent, 0);
+        for (unsigned i = 0; i < 225; ++i) {
+            frame.white[i] = (uint8_t)(white[i] * 255);
+            frame.accent[i] = (uint8_t)(accent[i] * 255);
+        }
+        (void)vui_set_matrix(s->ui, VUI_VIBE_OBJ_KEY_SLEEP_MATRIX, &frame);
     }
     if (page == VIBE_HOME && (previous != page || !s->home_timer)) {
         vibe_home_motion_enter(&s->home_motion, vui_now_ms(s->ui));
@@ -249,6 +264,7 @@ int vibe_ui_open_bridge(vibe_ui_t *s) {
         s->snapshot.updating)
         return VUI_ERR_INVALID_STATE;
     memset(s->idea_code, 0, sizeof(s->idea_code));
+    s->code_submitted = false;
     show(s, VIBE_BRIDGE);
     vibe_ui_poll(s);
     return 0;
@@ -327,6 +343,8 @@ static void project_password(vibe_ui_t *s) {
         memcpy(display, password, n);
     else
         memset(display, '*', n);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_PASSWORD_EYE_ON_VISIBLE, s->password_visible);
+    (void)vui_set_visible(s->ui, VUI_VIBE_BIND_PASSWORD_EYE_OFF_VISIBLE, !s->password_visible);
     if (strcmp(display, s->password_projection) != 0) {
         memcpy(s->password_projection, display, sizeof(display));
         /* Keep the tail visible when a long password exceeds the field. */
@@ -404,7 +422,13 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
     case VUI_VIBE_ACT_ID_BACK_NAND:
     case VUI_VIBE_ACT_ID_BACK_BRIDGE:
         s->acknowledged_update = s->snapshot.update_revision;
-        show(s, VIBE_HOME);
+        if (e->action_id == VUI_VIBE_ACT_ID_BACK_NAND && s->fix_return_active) {
+            s->fix_return_active = false;
+            s->help_mode = 2;
+            show(s, VIBE_HELP);
+        } else {
+            show(s, VIBE_HOME);
+        }
         break;
     case VUI_VIBE_ACT_ID_SCAN:
         err = command(s, VIBE_SCAN_WIFI, NULL, NULL);
@@ -536,7 +560,11 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
     case VUI_VIBE_ACT_ID_CODE_7:
     case VUI_VIBE_ACT_ID_CODE_8:
     case VUI_VIBE_ACT_ID_CODE_9:
-        if (s->page == VIBE_BRIDGE && strlen(s->idea_code) < 6) {
+        if (s->page == VIBE_BRIDGE && (strlen(s->idea_code) < 6 || s->code_submitted)) {
+            if (s->code_submitted) {
+                memset(s->idea_code, 0, sizeof(s->idea_code));
+                s->code_submitted = false;
+            }
             const uint16_t ids[] = {VUI_VIBE_ACT_ID_CODE_0, VUI_VIBE_ACT_ID_CODE_1,
                                     VUI_VIBE_ACT_ID_CODE_2, VUI_VIBE_ACT_ID_CODE_3,
                                     VUI_VIBE_ACT_ID_CODE_4, VUI_VIBE_ACT_ID_CODE_5,
@@ -554,6 +582,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         break;
     case VUI_VIBE_ACT_ID_CODE_DELETE:
         if (s->page == VIBE_BRIDGE && s->idea_code[0]) {
+            s->code_submitted = false;
             s->idea_code[strlen(s->idea_code) - 1] = 0;
             vibe_ui_poll(s);
         }
@@ -565,6 +594,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
             TEXT(s, BRIDGE_DETAIL, T(s, "Enter all six digits"));
             break;
         }
+        s->code_submitted = true;
         prepare_idea(s, VIBE_RESOLVE_IDEA, s->idea_code);
         break;
     case VUI_VIBE_ACT_ID_CHECK_IDEA:
@@ -645,6 +675,12 @@ void vibe_ui_poll(vibe_ui_t *s) {
         TEXT(s, UPDATE_DETAIL, T(s, v->update_detail));
         TEXT(s, UPDATE_OWNER, v->update_owner);
         TEXT(s, UPDATE_VERIFIED, T(s, v->update_verified));
+        bool is_storage = !strcmp(v->update_owner, "Device") || !strcmp(v->update_title, "Formatting NAND");
+        bool is_chip = !is_storage && (v->firmware_update || !strcmp(v->update_title, "Updating system") || !strcmp(v->update_title, "Updating firmware"));
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_UPDATE_ICON_STORAGE_VISIBLE, is_storage);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_UPDATE_ICON_CHIP_VISIBLE, is_chip);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_UPDATE_ICON_APP_DEFAULT_VISIBLE, !is_storage && !is_chip);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_UPDATE_POWER_NOTE_VISIBLE, !v->cancellable);
         transfer_text(s);
     } else if (!v->updating && v->update_terminal && v->update_revision != s->acknowledged_update) {
         s->acknowledged_update = v->update_revision;
@@ -782,6 +818,18 @@ void vibe_ui_poll(vibe_ui_t *s) {
 static void home_tick(vui_handle_t ui, void *ctx)
 {
     vibe_ui_t *s = ctx;
+    if (s->page == VIBE_SLEEP) {
+        uint64_t elapsed = vui_now_ms(ui) >= s->page_enter_ms ? vui_now_ms(ui) - s->page_enter_ms : 900;
+        float white[225] = {0}, accent[225] = {0};
+        vui_matrix_t frame = {0};
+        vibe_motion_assembly(white, accent, (uint32_t)(elapsed > 900 ? 900 : elapsed));
+        for (unsigned i = 0; i < 225; ++i) {
+            frame.white[i] = (uint8_t)(white[i] * 255);
+            frame.accent[i] = (uint8_t)(accent[i] * 255);
+        }
+        (void)vui_set_matrix(ui, VUI_VIBE_OBJ_KEY_SLEEP_MATRIX, &frame);
+        return;
+    }
     if (s->page == VIBE_DEVELOP) {
         float white[225] = {0}, accent[225] = {0};
         vui_matrix_t frame = {0};

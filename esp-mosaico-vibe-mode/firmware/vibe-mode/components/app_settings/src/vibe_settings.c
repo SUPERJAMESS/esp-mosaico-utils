@@ -40,8 +40,14 @@ bool vibe_shared_key_valid(const char *key)
 }
 bool vibe_shared_key_secret(const char *key)
 {
-    return key && (strstr(key, "key") || strstr(key, "token") || strstr(key, "secret") ||
-                   strstr(key, "pass") || strstr(key, "pwd"));
+    if (!key) return false;
+    char lower[64];
+    size_t i = 0;
+    for (; key[i] && i + 1 < sizeof(lower); ++i)
+        lower[i] = (key[i] >= 'A' && key[i] <= 'Z') ? (char)(key[i] - 'A' + 'a') : key[i];
+    lower[i] = 0;
+    return strstr(lower, "key") || strstr(lower, "token") || strstr(lower, "secret") ||
+           strstr(lower, "pass") || strstr(lower, "pwd");
 }
 static esp_err_t open_namespace(const char *name, nvs_open_mode_t mode, nvs_handle_t *handle)
 {
@@ -123,7 +129,9 @@ static void load(vibe_settings_snapshot_t *out)
         if (out->screen_off_seconds > 600) out->screen_off_seconds = 180;
         out->auto_rotate = read_number(h, "rotate", 1) != 0;
         out->haptics = read_number(h, "haptics", 1) != 0;
-        out->open_confirm = read_number(h, "open_confirm", 1) != 0;
+        out->open_confirm_count = read_number(h, "confirm_cnt", 0);
+        if (out->open_confirm_count > 3) out->open_confirm_count = 3;
+        out->open_confirm = read_number(h, "open_confirm", 1) != 0 && out->open_confirm_count < 3;
         nvs_close(h);
     }
     /* Adopt main's earlier language preference until the user saves a
@@ -183,6 +191,17 @@ static esp_err_t apply(const request_t *request)
                   ? nvs_erase_key(h, request->key) : nvs_set_str(h, request->key, request->value);
         if (err == ESP_ERR_NVS_NOT_FOUND && request->command == VIBE_SETTINGS_SHARED_DELETE)
             err = ESP_OK;
+    } else if (request->command == VIBE_SETTINGS_OPEN_CONFIRM) {
+        uint32_t mode = (uint32_t)strtoul(request->value, NULL, 10);
+        if (mode == 2) {
+            unsigned cnt = read_number(h, "confirm_cnt", 0);
+            if (cnt < 3) ++cnt;
+            err = nvs_set_u32(h, "confirm_cnt", cnt);
+            if (err == ESP_OK && cnt >= 3) err = nvs_set_u32(h, "open_confirm", 0);
+        } else {
+            err = nvs_set_u32(h, "open_confirm", mode ? 1 : 0);
+            if (err == ESP_OK) err = nvs_set_u32(h, "confirm_cnt", mode ? 0 : 3);
+        }
     } else {
         static const char *const keys[] = {"lang", "brightness", "timeout", "rotate", "haptics", "open_confirm"};
         err = nvs_set_u32(h, keys[request->command], (uint32_t)strtoul(request->value, NULL, 10));
@@ -229,7 +248,7 @@ esp_err_t vibe_settings_request(vibe_settings_command_t command, const char *key
         if ((command == VIBE_SETTINGS_LANGUAGE && (n < 1 || n > 2)) ||
             (command == VIBE_SETTINGS_BRIGHTNESS && (n < 20 || n > 100 || n % 20)) ||
             (command == VIBE_SETTINGS_TIMEOUT && n != 0 && n != 60 && n != 180 && n != 300 && n != 600) ||
-            (command >= VIBE_SETTINGS_ROTATE && n > 1)) return ESP_ERR_INVALID_ARG;
+            (command == VIBE_SETTINGS_OPEN_CONFIRM ? n > 2 : command >= VIBE_SETTINGS_ROTATE && n > 1)) return ESP_ERR_INVALID_ARG;
     }
     request_t *request = calloc(1, sizeof(*request));
     if (!request) return ESP_ERR_NO_MEM;

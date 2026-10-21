@@ -882,6 +882,25 @@ int main(int argc, char **argv) {
         env->storage_busy = false;
         download();
         library("1.0");
+    } else if (!strncmp(scenario, "read-idle-", 10)) {
+        uint32_t id = preview();
+        env->idle_file = "app.bin";
+        env->idle_reads = 3;
+        env->idle_forever = !strcmp(scenario, "read-idle-deadline");
+        env->cancel_on_idle = !strcmp(scenario, "read-idle-cancel");
+        confirm(id);
+        assert(env->idle_hits && env->idle_max_wait_ms <= 1000);
+        if (!strcmp(scenario, "read-idle-resume")) {
+            library("1.0");
+            assert(env->idle_hits == 3 && env->firmware == 2);
+        } else if (!strcmp(scenario, "read-idle-cancel")) {
+            assert(!snapshot().failed && !strcmp(snapshot().title, "Cancelled") && !snapshot().count);
+            assert(env->cancels == 1 && env->idle_hits == 1);
+        } else {
+            assert(snapshot().failed && snapshot().error == ESP_ERR_TIMEOUT && !snapshot().count);
+            assert(env->idle_hits >= 500);
+        }
+        assert(!env->installs && !env->restarts);
     } else
         assert(false);
     mock_assert_idle();
