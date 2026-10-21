@@ -646,8 +646,12 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         if (s->page == VIBE_RESULT && s->result_can_open && !s->result_failed && !s->result_cancelled) { s->run_development_pending = false; open_confirm(s); }
         break;
     case VUI_VIBE_ACT_ID_RESULT_DONE:
-        if (s->page == VIBE_RESULT)
-            vibe_show(s, s->result_cancelled ? VIBE_HOME : VIBE_NAND);
+        if (s->page == VIBE_RESULT) {
+            vibe_page_t target = s->result_return_detail && s->selected_bundle.code[0]
+                ? VIBE_CONFIRM : s->result_cancelled ? VIBE_HOME : VIBE_NAND;
+            s->result_return_detail = false;
+            vibe_show(s, target);
+        }
         break;
     case VUI_VIBE_ACT_ID_WAIT_MODAL_CLOSE:
         set_wait_modal(s, false);
@@ -1265,6 +1269,9 @@ void vibe_product_poll(vibe_ui_t *s)
     }
     if (s->page == VIBE_HELP) project_help(s);
     if (s->page == VIBE_RESET) {
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESET_STATUS_PANEL, v->settings.reset_phase != VIBE_RESET_IDLE);
+        TEXT(s, RESET_STATUS, v->settings.reset_phase == VIBE_RESET_RESTARTING
+            ? "Factory reset complete.\nRestarting..." : "Restoring factory settings...");
         TEXT(s, RESET_VAL_1, v->network == VIBE_NET_CONNECTED && v->ssid[0] ? v->ssid : "Not connected");
         FORMAT(s, RESET_VAL_2, "%u entries", (unsigned)v->settings.shared_count);
     }
@@ -1560,8 +1567,6 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
             s->hold_started_ms = 0;
             (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, 0);
             (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, 0);
-            if (s->page == VIBE_DELETE_CONFIRM)
-                TEXT(s, DELETE_PROGRESS, "Hold for 3 seconds to delete");
         }
     }
     if (!pressed && s->pointer_down && !s->gesture_consumed) {
@@ -1584,10 +1589,7 @@ void vibe_product_tick(vibe_ui_t *s)
     if (s->hold_started_ms && now + 1 >= s->hold_started_ms) {
         unsigned elapsed = (unsigned)(now + 1 - s->hold_started_ms);
         if (s->page == VIBE_RESET) (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, elapsed >= 3000 ? 100 : elapsed / 30);
-        else if (s->page == VIBE_DELETE_CONFIRM) {
-            (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, elapsed >= 3000 ? 100 : elapsed / 30);
-            FORMAT(s, DELETE_PROGRESS, "Hold · %u s", elapsed >= 3000 ? 0 : (3000 - elapsed + 999) / 1000);
-        }
+        else if (s->page == VIBE_DELETE_CONFIRM) (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, elapsed >= 3000 ? 100 : elapsed / 30);
         if (elapsed >= 3000) {
             s->hold_started_ms = 0;
             s->hold_consumed = true;
@@ -1604,6 +1606,7 @@ void vibe_product_tick(vibe_ui_t *s)
     if (s->services.key) {
         unsigned key;
         while ((key = s->services.key(s->services.ctx)) != 0) {
+            if (s->snapshot.settings.busy && s->snapshot.settings.reset_phase != VIBE_RESET_IDLE) continue;
             s->activity_ms = now;
             vibe_product_cancel_pager(s);
             if (key == 1) {

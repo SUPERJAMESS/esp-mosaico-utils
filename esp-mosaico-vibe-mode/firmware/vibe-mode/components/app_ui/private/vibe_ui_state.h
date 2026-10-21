@@ -36,6 +36,11 @@ struct vibe_ui {
     char idea_code[7];
     vibe_bundle_t selected_bundle;
     uint32_t acknowledged_update, rendered_preview;
+    bool preview_loading_title_ready;
+    bool preview_check_updates, result_return_detail;
+    bool inline_intro_due, inline_intro_pending, inline_intro_ready;
+    bool detail_followup_due;
+    vibe_command_t detail_followup;
     vibe_rate_t rate;
     uint64_t page_enter_ms, next_poll_ms, activity_ms, hold_started_ms, suppress_until, undo_until;
     uint64_t last_release_ms, nav_badge_until, ai_feedback_until;

@@ -613,6 +613,8 @@ def test_complete_release_opens_library_without_downloading(sim):
     sim.wait(page=6)
     sim.tap_ui("button_check_idea")
     sim.wait(page=8, check_calls=1, download_calls=0)
+    sim.tap_ui("button_result_done")
+    sim.wait(page=6, last_code="042731", check_calls=1, download_calls=0)
 
 
 @pytest.mark.parametrize("sim", ["preview-fail"], indirect=True)
@@ -632,28 +634,64 @@ def test_preview_failure_never_starts_download(sim):
 def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
     sim.manage(); sim.wait(page=5)
     sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_preview_idea")  # offline information
-    sim.wait(page=9, idea_ready=True, download_calls=0)
-    sim.capture("custom-offline")
-    with Image.open(sim.directory / "custom-offline.png") as image:
+    sim.wait(page=6, idea_ready=False, idea_loading=False, cancel_calls=1, download_calls=0)
+    sim.capture("custom-inline")
+    with Image.open(sim.directory / "custom-inline.png") as image:
+        r, g, b = image.convert("RGB").getpixel((40, 195))
+        assert g > 200 and r < 20 and b < 20
+    sim.swipe(220, 290, 220, 200)
+    sim.wait(page=6, local_description_offset=20, download_calls=0, install_calls=0)
+    sim.capture("custom-inline-scrolled")
+    with Image.open(sim.directory / "custom-inline.png") as before, Image.open(sim.directory / "custom-inline-scrolled.png") as after:
+        for bounds in ((0, 0, 480, 184), (0, 348, 480, 480)):
+            assert before.crop(bounds).tobytes() == after.crop(bounds).tobytes()
+    sim.tap(350,330)  # The removed View info button has no hit target.
+    sim.wait(page=6, local_description_offset=20, prepare_calls=1, cancel_calls=1)
+    # Check updates still opens the original remote preview and download flow.
+    sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, check_calls=1, idea_description_offset=0)
+    sim.capture("custom-update-preview")
+    with Image.open(sim.directory / "custom-update-preview.png") as image:
         r, g, b = image.convert("RGB").getpixel((100, 40))
         assert r > 200 and g < 20 and b < 20
-        r, g, b = image.convert("RGB").getpixel((40, 245))
-        assert g > 200 and r < 20 and b < 20
-    sim.swipe(220, 345, 220, 250)
-    sim.wait(page=9, idea_description_offset=48, download_calls=0, install_calls=0)
-    sim.capture("custom-offline-scrolled")
-    with Image.open(sim.directory / "custom-offline.png") as before, Image.open(sim.directory / "custom-offline-scrolled.png") as after:
-        # Only the description moves; the native title pixels, metadata and
-        # action buttons retain their positions and remain unobscured.
-        for bounds in ((0, 0, 480, 228), (0, 380, 480, 480)):
-            assert before.crop(bounds).tobytes() == after.crop(bounds).tobytes()
-    sim.tap(350, 436)  # no download from read-only view
-    sim.wait(page=9, download_calls=0, install_calls=0)
-    sim.tap(120, 436); sim.wait(page=6)
-    sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, check_calls=1, idea_description_offset=0)
     sim.tap(350, 436)
     sim.wait(timeout=45, page=8, download_calls=1, install_calls=0)
+    sim.tap_ui("button_result_library")
+    sim.wait(page=6, check_calls=1, download_calls=1)
+
+
+@pytest.mark.parametrize("sim", ["slow-preview"], indirect=True)
+def test_inline_intro_back_cancels_without_late_navigation(sim):
+    sim.manage(); sim.tap(150, 170); sim.wait(page=6)
+    sim.wait(page=6, idea_loading=True, prepare_calls=1)
+    sim.tap(38, 36); sim.wait(page=5, cancel_calls=1)
+    time.sleep(3)
+    sim.wait(page=5, idea_loading=False, idea_ready=False, download_calls=0)
+    sim.tap(150, 258); sim.wait(page=6, local_description_offset=0)
+
+
+@pytest.mark.parametrize("sim", ["preview-fail"], indirect=True)
+def test_inline_intro_failure_stays_in_details_and_check_keeps_its_error_flow(sim):
+    sim.manage(); sim.tap(150, 170); sim.wait(page=6)
+    sim.wait(page=6, idea_loading=False, idea_ready=False, prepare_calls=1, download_calls=0)
+    sim.tap_ui("button_check_idea")
+    sim.wait(page=8, check_calls=1, download_calls=0)
+    sim.tap_ui("button_result_done"); sim.wait(page=6, check_calls=1)
+
+
+@pytest.mark.parametrize("sim", ["slow-preview"], indirect=True)
+@pytest.mark.parametrize("language", [1,2])
+def test_update_check_loading_uses_its_own_message(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(page=13, language=2)
+        sim.tap(38,36); sim.wait(page=11)
+        sim.tap(38,36); sim.wait(page=0)
+    sim.manage(); sim.tap(150,170); sim.wait(page=6)
+    sim.tap_ui("button_check_idea")
+    sim.wait(page=9, idea_loading=True, check_calls=1)
+    sim.capture("check-updates-loading")
+    sim.tap_ui("button_cancel_idea"); sim.wait(page=6, check_calls=1, download_calls=0)
 
 
 @pytest.mark.parametrize("sim", ["custom-preview-fail"], indirect=True)
@@ -911,10 +949,33 @@ def hold(sim, x=240, y=396, **expected):
         sim.rpc("feed_pointer", x=x, y=y, pressed=False)
 
 
-def test_delete_requires_hold_and_supports_undo(sim):
+@pytest.mark.parametrize("language", [1, 2])
+def test_delete_requires_hold_and_supports_undo(sim, language):
+    if language == 2:
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
     sim.manage(); sim.tap(150, 170); sim.wait(page=6)
     sim.tap_ui("button_local_delete"); sim.wait(page=23)
     sim.tap(240, 396); sim.wait(page=23, delete_calls=0)
+    sim.capture("delete-idle")
+    with Image.open(sim.directory / "delete-idle.png") as frame:
+        idle = frame.copy()
+        assert all(max(rgb[:3]) < 20 for rgb in idle.crop((24, 280, 456, 340)).getdata())
+    sim.rpc("feed_pointer", x=240, y=396, pressed=True)
+    time.sleep(1)
+    sim.capture("delete-holding")
+    with Image.open(sim.directory / "delete-holding.png") as frame:
+        r, g, b = frame.getpixel((80, 370))[:3]
+        assert r > 240 and 85 < g < 125 and 40 < b < 80
+        assert not ImageChops.difference(frame, idle).crop((0, 0, 480, 348)).getbbox()
+    sim.rpc("feed_pointer", x=240, y=396, pressed=False)
+    sim.wait(page=23, pending_delete=False, delete_calls=0)
+    sim.capture("delete-released")
+    with Image.open(sim.directory / "delete-released.png") as frame:
+        assert not ImageChops.difference(frame, idle).getbbox()
     hold(sim, page=5, pending_delete=True, delete_calls=0)
     sim.capture("undo-idea")
     sim.tap(390, 435)
@@ -1025,7 +1086,8 @@ def test_factory_reset_requires_hold_and_preserves_nand(sim, language):
     time.sleep(1)
     sim.capture("factory-reset-holding")
     with Image.open(sim.directory / "factory-reset-holding.png") as frame:
-        assert frame.getpixel((80, 370)) != idle.getpixel((80, 370))
+        r, g, b = frame.getpixel((80, 370))[:3]
+        assert r > 240 and 85 < g < 125 and 40 < b < 80  # Product orange fill.
         # The unfilled end receives only the 4% press highlight.
         assert max(abs(a-b) for a, b in zip(frame.getpixel((430, 370)), idle.getpixel((430, 370)))) <= 12
         assert not ImageChops.difference(frame, idle).crop((0, 0, 480, 348)).getbbox()
@@ -1359,14 +1421,15 @@ def test_long_titles_scroll_in_library_details_and_preview_without_moving_contro
 
     sim.manage(); sim.wait(page=5)
     moves("library-marquee", (100, 156, 412, 190))
-    sim.tap(150, 170); sim.wait(page=6)
+    sim.tap(150, 170); sim.wait(page=6, idea_loading=False, cancel_calls=1)
     moves("details-marquee", (88, 29, 456, 69))
-    sim.tap_ui("button_preview_idea"); sim.wait(page=9, idea_ready=True, download_calls=0)
+    sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, download_calls=0)
     moves("preview-marquee", (88, 29, 456, 69))
-    sim.tap_ui("button_cancel_idea"); sim.wait(page=6, download_calls=0, install_calls=0)
-    sim.capture("details-marquee-return")
-    with Image.open(sim.directory / "details-marquee-start.png") as a, Image.open(sim.directory / "details-marquee-return.png") as b:
-        assert a.crop((88, 29, 456, 69)).tobytes() == b.crop((88, 29, 456, 69)).tobytes()
+    sim.tap_ui("button_cancel_idea")
+    sim.wait(page=6, idea_loading=False, cancel_calls=3, download_calls=0, install_calls=0)
+    # Automatic description loading can outlast the title's initial reading
+    # pause. Verify restored scrolling instead of comparing different phases.
+    moves("details-return-marquee", (88, 29, 456, 69))
 
 
 def assert_wide_done(sim, name):

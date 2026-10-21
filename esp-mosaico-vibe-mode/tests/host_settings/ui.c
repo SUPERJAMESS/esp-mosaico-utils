@@ -4,11 +4,13 @@
 #include "main.c"
 #undef main
 #include "vibe_ui.h"
+#include "vibe_ui_state.h"
 
 static vui_handle_t ui;
 static vibe_ui_t *controller;
 static uint16_t frame[480 * 480];
 static unsigned key_pending, saves;
+static const char *feedback_directory;
 static void ui_snapshot(void *ctx, vibe_snapshot_t *out)
 {
     (void)ctx;
@@ -69,6 +71,16 @@ static void capture(const char *directory, const char *name)
     }
     fclose(file);
 }
+static void reset_feedback(void)
+{
+    assert(page() == VIBE_RESET && !restarts);
+    advance(300, true);
+    assert(controller->snapshot.settings.reset_phase == VIBE_RESET_RESTARTING);
+    capture(feedback_directory, "reset-success");
+    /* A key or second hold cannot interrupt the committed reset. */
+    press_key(1, 300);
+    assert(page() == VIBE_RESET);
+}
 static void open_editor(void)
 {
     tap(390, 360); assert(page() == VIBE_SETTINGS);
@@ -102,7 +114,25 @@ int main(int argc, char **argv)
                                       .setting = ui_setting, .key = ui_key};
     assert(vui_create(&ui) == VUI_OK);
     assert(vibe_ui_create(ui, &services, &controller) == VUI_OK);
-    advance(300, true); open_editor();
+    advance(300, true);
+    if (!strncmp(scenario, "reset-", 6)) {
+        bool zh = !strcmp(scenario, "reset-zh");
+        if (zh) { execute(VIBE_SETTINGS_LANGUAGE, NULL, "2"); advance(300, true); }
+        vibe_show(controller, VIBE_RESET); advance(300, true);
+        vui_pointer(ui, 240, 396, true); advance(3100, true);
+        assert(task && !restarts && s_settings.reset_phase == VIBE_RESET_CLEARING);
+        advance(300, true);
+        assert(controller->snapshot.settings.reset_phase == VIBE_RESET_CLEARING);
+        capture(argv[2], "reset-clearing");
+        vui_pointer(ui, 240, 396, false);
+        feedback_directory = argv[2]; reset_feedback_hook = reset_feedback;
+        void (*next)(void *) = task; task = NULL; next(task_arg);
+        assert(restarts == 1 && reset_feedbacks == 1 && !s_settings.error);
+        assert(!s_settings.shared_count && s_settings.language == 1);
+        vibe_ui_deinit(controller); vui_destroy(ui); free(s_lock); s_lock = NULL;
+        return 0;
+    }
+    open_editor();
     tap(35, 250);
     capture(argv[2], "before");
     if (!strcmp(scenario, "boot") || !strcmp(scenario, "boot-sleep") || !strcmp(scenario, "boot-cancel")) {

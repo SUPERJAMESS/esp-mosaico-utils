@@ -383,15 +383,17 @@ def apply(scene):
     hide('heading_69');hide('button_cancel_install')
     text(69,'release','',88,29,368,40,30,'title',overflow='marquee')
     add('image',69,88,29,368,40,name='release_pixels',bind='release_pixels',bind_target='resource',dynamic_image=True,hidden=True,overflow='marquee')
-    add('image',69,24,132,80,80,name='local_icon',bind='local_icon',image='assets/idea-default.svg',dynamic_image=True,radius=18)
-    text(69,'local_status','On this device',124,133,332,32,22,'medium')
-    text(69,'release_detail','',124,169,332,40,20,color=MUTED)
-    rect(69,24,214,432,1,LINE,0);rect(69,24,232,4,76,ORANGE,0)
-    text(69,'release_path','',32,228,416,80,22,color=MUTED)
-    button(69,'button_check_idea','Check updates',24,314,208,36)
-    named['button_check_idea'].update(font=FONT['sans'],font_size=18)
-    button(69,'button_preview_idea','View info',248,314,208,36)
-    named['button_preview_idea'].update(font=FONT['sans'],font_size=18)
+    add('image',69,24,92,80,80,name='local_icon',bind='local_icon',image='assets/idea-default.svg',dynamic_image=True,radius=18)
+    text(69,'local_status','On this device',124,93,268,32,22,'medium')
+    text(69,'release_detail','',124,129,268,40,20,color=MUTED)
+    rect(69,24,174,432,1,LINE,0);rect(69,24,192,4,152,ORANGE,0)
+    local_description=add('container',69,24,188,432,156,name='local_description_viewport',scroll=True,content_height=176)
+    text(local_description,'release_path','',8,0,416,176,22,color=MUTED)
+    add('image',local_description,8,0,416,176,name='local_body_pixels',bind='local_body_pixels',dynamic_image=True,hidden=True)
+    button(69,'button_check_idea','',400,100,56,56)
+    named['button_check_idea'].update(radius=28)
+    icon(index['button_check_idea'],'refresh-32-white',12,12,32)
+    hide('button_preview_idea')
     button(69,'button_update_idea','Update',24,360,136,96)
     button(69,'button_install','Run',172,360,136,96,primary=True)
     named['button_install']['bg_color']=ORANGE
@@ -419,14 +421,14 @@ def apply(scene):
     # clips and scrolls it without stretching. The body keeps display/1 geometry.
     text(117,'idea_name','Loading app information...',88,29,368,40,24,'medium',overflow='marquee')
     move('idea_title_pixels',88,29,368,40,hidden=True,overflow='marquee')
-    move('idea_icon',24,132,80,80,radius=18)
-    text(117,'idea_status','',124,132,332,30,20,overflow='ellipsis')
-    text(117,'idea_loading_status','Please wait',32,132,416,30,20,color=MUTED)
-    text(117,'idea_version','',124,166,332,24,20,color=MUTED,overflow='ellipsis')
-    text(117,'idea_summary','',124,194,332,24,20,color=MUTED,overflow='ellipsis')
-    rect(117,24,226,432,1,LINE,0)
-    viewport=add('container',117,24,240,432,128,name='idea_description_viewport',scroll=True,content_height=176)
-    text(viewport,'idea_description','Fetching details from the cloud',8,0,416,176,22)
+    move('idea_icon',24,92,80,80,radius=18)
+    text(117,'idea_status','',124,92,332,30,20,overflow='ellipsis')
+    text(117,'idea_loading_status','Please wait',32,92,416,30,20,color=MUTED)
+    text(117,'idea_version','',124,126,332,24,20,color=MUTED,overflow='ellipsis')
+    text(117,'idea_summary','',124,154,332,24,20,color=MUTED,overflow='ellipsis')
+    rect(117,24,186,432,1,LINE,0)
+    viewport=add('container',117,24,200,432,168,name='idea_description_viewport',scroll=True,content_height=176)
+    text(viewport,'idea_description','Loading...',8,0,416,176,22)
     move('idea_body_pixels',8,0,416,176,parent=viewport,hidden=True)
     button(117,'button_cancel_idea','Cancel',24,380,208,84)
     button(117,'button_accept_idea','Download',248,380,208,84,primary=True)
@@ -597,12 +599,12 @@ def apply(scene):
     p=index['open_confirm']
     for o in objects:
         if o.get('parent')==p: o['hidden']=True
-    rect(p,330,6,24,24,TEXT,6)
+    rect(p,330,6,24,24,ORANGE,6)
     text(p,'open_key_ai_num','2',330,5,24,24,18,'medium',BG,'center')
-    icon(p,'arrow_up-24-orange',360,6,24)
-    rect(p,330,450,24,24,ORANGE,6)
+    text(p,'open_key_ai_arrow','↑',360,4,24,28,24,'medium',ORANGE,'center')
+    rect(p,330,450,24,24,TEXT,6)
     text(p,'open_key_pwr_num','1',330,449,24,24,18,'medium',BG,'center')
-    icon(p,'arrow_down-24-white',360,450,24)
+    text(p,'open_key_pwr_arrow','↓',360,448,24,28,24,'medium',TEXT,'center')
     rect(p,24,34,432,410,CARD,24,border_color=LINE,border_width=1)
     text(p,'open_question','Running Leaves Vibe Mode',48,48,384,34,24,'medium')
     text(p,'open_name','',48,84,384,28,20,overflow='marquee')
@@ -698,6 +700,7 @@ def apply(scene):
     rect(bar_fail,32,264,4,68,RED,2)
     text(91,'result_detail','',52,256,396,96,22,color=MUTED)
     button(91,'button_result_library','Done',24,380,208,84)
+    named['button_result_library']['events']=[dict(event='click',action='call',target_name='result_done')]
     button(91,'button_result_open','',248,380,208,84,primary=True)
     named['button_result_open'].update(bg_color=ORANGE,fg_color=BG,text='')
     icon(index['button_result_open'],'play-32-black',52,26,32)
@@ -738,12 +741,18 @@ def apply(scene):
                 vx, vw = (152, 292) if r_idx == 3 else (184, 260)
                 text(p,f'reset_key_{r_idx}',r_key,36,ry+8,kw,28,20,color=MUTED)
                 text(p,f'reset_val_{r_idx}',r_val,vx,ry+8,vw,28,20,color=TEXT,align='right',overflow='ellipsis')
-        prog_name = 'reset_hold_progress' if name=='reset' else 'delete_hold_progress'
-        add('progress',p,24,348,432,96,name=prog_name,bind=prog_name,
-            bind_target='value',bg_color=RAISED,fg_color='#612629',radius=20)
-        btn_name = 'button_reset_hold' if name=='reset' else 'button_delete_hold'
-        button(p,btn_name,'Hold to reset' if name=='reset' else 'Hold to delete',24,348,432,96,danger=True)
-        named[btn_name]['bg_color']='#00000001'
+        else:
+            hide('delete_progress')
+        progress_name='reset_hold_progress' if name=='reset' else 'delete_hold_progress'
+        add('progress',p,24,348,432,96,name=progress_name,bind=progress_name,
+            bind_target='value',bg_color=RAISED,fg_color=ORANGE,radius=20)
+        button(p,'button_reset_hold' if name=='reset' else 'button_delete_hold','Hold to reset' if name=='reset' else 'Hold to delete',24,348,432,96,danger=True)
+        named['button_reset_hold' if name=='reset' else 'button_delete_hold'].update(bg_color='#00000001',fg_color=TEXT)
+
+    reset_status=add('container',index['reset'],0,80,480,400,name='reset_status_panel',
+        bind='reset_status_panel',bind_target='visible',hidden=True,bg_color=BG)
+    text(reset_status,'reset_status','Restoring factory settings...',24,112,432,112,24,
+        color=TEXT,align='center')
 
     # Display only: keep the product's existing timeout, brightness and wake policy.
     p=index['sleep']

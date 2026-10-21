@@ -7,6 +7,8 @@ static int32_t ip_subscription;
 static bool saved_credentials, saved_connect_fails;
 static bool fail_shared_commit;
 static bool fail_wifi_stop;
+static bool reject_stopped_disconnect;
+static unsigned disconnects;
 static bool fail_saved_read, fail_station_config;
 static bool fail_scan_results;
 static unsigned scan_result_reads;
@@ -81,6 +83,8 @@ esp_err_t esp_wifi_set_config(int i, const wifi_config_t *c)
 }
 esp_err_t esp_wifi_connect(void) { ++connects; return saved_connect_fails ? ESP_FAIL : ESP_OK; }
 esp_err_t esp_wifi_disconnect(void) {
+    ++disconnects;
+    if (reject_stopped_disconnect && !s_network.wifi_running) return ESP_FAIL;
     if (disconnect_during_setup) {
         disconnect_during_setup = false;
         wifi_event_sta_disconnected_t event = {.reason = 1};
@@ -468,6 +472,21 @@ int main(int argc, char **argv)
     assert(factory_network_forget() == ESP_OK && !shared.has_ssid && !shared.has_password);
     ssid[0] = password[0] = 0;
     assert(credentials_load(ssid, password) == ESP_ERR_NVS_NOT_FOUND);
+    reset();
+    /* Reset stops the driver before forgetting credentials. A stopped driver
+     * rejects disconnect; clearing settings must still succeed without it. */
+    saved_credentials = true;
+    assert(factory_network_start() == ESP_OK && shared.has_ssid);
+    assert(factory_network_suspend(true) == ESP_OK);
+    unsigned before_disconnects = disconnects, before_scans = scans;
+    reject_stopped_disconnect = true;
+    assert(factory_network_forget() == ESP_OK);
+    assert(disconnects == before_disconnects && scans == before_scans);
+    assert(!shared.has_ssid && !shared.has_password);
+    assert(!s_network.snapshot.credentials_saved && !s_network.snapshot.ssid[0]);
+    assert(s_network.snapshot.last_error == ESP_OK && s_network.suspended);
+    assert(factory_network_forget() == ESP_OK); /* Idempotent before reboot. */
+    reject_stopped_disconnect = false;
     reset();
     /* Migration failure retains the old credentials for a later retry. */
     saved_credentials = fail_shared_commit = true;
