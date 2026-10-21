@@ -25,7 +25,7 @@ ROM 身份不符、端口不唯一或重枚举超时会停止，不尝试其它�
 `vibe-mode`，新构建产物为 `vibe-mode.bin`、`vibe-mode.elf`，候选包的
 manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 已于 2026-10-16 更新为
 源码提交 `ca0ecf7` 的 `vibe-mode.bin`，版本保持 0.2.0，镜像大小为 1,488,608 字节。
-默认 Ideas 地址为 `https://mosaico-ideas.espressif.com`，包含固件清单尾部 JSON
+默认 Ideas 地址为 `https://mosaico.ai`，包含固件清单尾部 JSON
 空白解析修复及“打开失败”提示。主程序与 ESP32-S31 实机自更新、重启后 ELF 哈希
 核对及用户手动验收通过的镜像字节一致；bootloader、分区表及初始 OTA 数据保持原评审包
 字节不变。完整包通过 manifest、布局、大小和 SHA-256 校验，S31 产品统一使用 QIO。
@@ -162,7 +162,7 @@ Ideas 可继续使用经过验证的新分区表描述重新安装。
 不支持旧 download/1 或 V0.1，不调用 POST resolve。
 
 设备使用 CONFIG_IRIS_FACTORY_IDEAS_SERVER_URL 配置的 HTTPS origin，默认值为
-`https://mosaico-ideas.espressif.com`（不带末尾 `/`），独立于 Bridge 地址。验证 TLS，
+`https://mosaico.ai`（不带末尾 `/`），独立于 Bridge 地址。验证 TLS，
 直接 GET `/api/v1/ideas/{code}/manifest.json`，携带 profile、chip_id、flash_size、
 recovery_version、当前系统 locale，以及 `Accept: multipart/related`。服务器一次
 返回最新兼容发布的根清单、固件清单及当前语言 display、字体、图标的原始字节。
@@ -429,7 +429,7 @@ Vibe Mode 主动通过 HTTPS 连接 Bridge 服务，支持 `partitions`、`layou
 Origin）和 `CONFIG_IRIS_FACTORY_BRIDGE_BOARD_ID` 覆盖这两个值；任一值为空都不注册。
 
 首页主按钮为 **Download Ideas**，引导用户访问
-<https://mosaico-ideas.espressif.com/> 并选择适合设备的应用。没有保存 Wi-Fi
+<https://mosaico.ai/> 并选择适合设备的应用。没有保存 Wi-Fi
 配置时，点击主按钮先进入配网页；连接取得 IP 后自动继续下载流程。返回首页
 会取消这次续接。普通 **Wi-Fi** 入口不会自动开启下载。
 

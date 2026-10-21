@@ -8,7 +8,7 @@ from pathlib import Path
 
 import qrcode
 
-URL = "https://mosaico-ideas.espressif.com/"
+URL = "https://mosaico.ai/"
 OUTPUT = Path(__file__).resolve().parents[1] / "ui/assets/ideas-qr.png"
 
 

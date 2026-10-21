@@ -16,7 +16,7 @@ python mosaico.py account login --server "$IDEAS_SERVER" --open-browser
 写入命令行、源码、manifest、README、提交或答复，不打印整个环境。
 
 服务器依次取首个非空值：`--server`、`MOSAICO_IDEAS_SERVER`、兼容旧配置的
-`MAKER_SPARK_SERVER`，最后使用默认值 `https://mosaico-ideas.espressif.com`。
+`MAKER_SPARK_SERVER`，最后使用默认值 `https://mosaico.ai`。
 新配置优先使用 `MOSAICO_IDEAS_SERVER`；使用默认站点且未设置环境覆盖时，
 可省略示例中的 `--server "$IDEAS_SERVER"`。服务器只填写 Origin，不带 `/api/v1`。
 token 环境变量仍为 `MAKER_SPARK_TOKEN`。
