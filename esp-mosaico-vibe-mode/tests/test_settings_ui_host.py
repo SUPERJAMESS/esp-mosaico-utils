@@ -1,5 +1,6 @@
 """Exercise transient editor pages and reserved credentials with the real settings service."""
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -45,6 +46,8 @@ def settings_ui(tmp_path_factory, native_build):
             command += ["-no-pie"]
     result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
+    if os.name == "nt":
+        shutil.copy2(library, build / library.name)
     return executable
 
 
