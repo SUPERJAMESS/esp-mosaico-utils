@@ -246,6 +246,7 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
     (void)vui_set_visible(s->ui, visibility[page], true);
     if (page == VIBE_RESULT) {
         bool success = !s->result_failed && !s->result_cancelled;
+        TEXT(s, RESULT_DONE_LABEL, s->result_edit_code ? "Edit code" : "Done");
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_HERO_VISIBLE, success);
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_FAILURE_VISIBLE, !success);
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESULT_BAR_OK_VISIBLE, success);
@@ -277,23 +278,32 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
     if (page == VIBE_NAND)
         (void)vui_list_refresh(s->ui, s->bundles);
 }
-static void error_result(vibe_ui_t *s, const char *title, int error) {
+static void error_result(vibe_ui_t *s, const char *title, int error, bool edit_code) {
     s->result_cancelled = false;
     s->result_failed = true;
+    s->result_edit_code = edit_code;
     TEXT(s, RESULT_TITLE, title);
-    FORMAT(s, RESULT_DETAIL, T(s, "Error 0x%08x\nReturn home and retry"), (unsigned)error);
+    if (edit_code)
+        TEXT(s, RESULT_DETAIL, "Check the Idea code and try again.");
+    else
+        FORMAT(s, RESULT_DETAIL, T(s, "Error 0x%08x\nReturn home and retry"), (unsigned)error);
     show(s, VIBE_RESULT);
 }
 int vibe_ui_open_bridge(vibe_ui_t *s) {
     if (!s || !s->ui)
         return VUI_ERR_INVALID_ARG;
     s->services.snapshot(s->services.ctx, &s->snapshot);
-    if (s->preview_active || s->snapshot.idea_busy || s->snapshot.idea_ready ||
+    if (s->preview_active || s->snapshot.idea_ready ||
         s->snapshot.updating)
         return VUI_ERR_INVALID_STATE;
-    memset(s->idea_code, 0, sizeof(s->idea_code));
-    s->code_submitted = false;
-    s->bridge_error = false;
+    /* Typing does not acquire the Ideas worker. Keep it available during a
+     * background scan; submission still observes the worker's busy state. */
+    if (s->page != VIBE_BRIDGE) {
+        if (!s->download_pending) s->download_return = s->page;
+        memset(s->idea_code, 0, sizeof(s->idea_code));
+        s->code_submitted = false;
+        s->code_incomplete = false;
+    }
     show(s, VIBE_BRIDGE);
     vibe_ui_poll(s);
     return 0;
@@ -482,17 +492,17 @@ static void poll_inline_intro(vibe_ui_t *s)
      * so Check updates keeps using its original independent preview flow. */
     (void)command(s, VIBE_CANCEL_IDEA, NULL, NULL);
 }
-static void prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code) {
+static bool prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code) {
     s->services.snapshot(s->services.ctx, &s->snapshot);
     if (s->snapshot.idea_busy)
-        return;
+        return false;
     s->preview_check_updates = cmd == VIBE_CHECK_IDEA;
     s->result_return_detail = s->page == VIBE_CONFIRM;
     s->result_can_open = false;
     int err = command(s, cmd, code, NULL);
     if (err) {
-        error_result(s, T(s, "App information failed"), err);
-        return;
+        error_result(s, T(s, "App information failed"), err, s->page == VIBE_BRIDGE);
+        return false;
     }
     clear_preview(s);
     s->preview_return = s->page;
@@ -500,6 +510,7 @@ static void prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code) {
     (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_IDEA_DESCRIPTION_VIEWPORT, 0);
     show(s, VIBE_IDEA_INFO);
     vibe_ui_poll(s);
+    return true;
 }
 static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
 {
@@ -521,6 +532,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         if (s->snapshot.credentials_saved || s->snapshot.network == VIBE_NET_CONNECTED) {
             (void)vibe_ui_open_bridge(s);
         } else {
+            s->download_return = s->page;
             s->download_pending = true;
             show(s, VIBE_WIFI);
         }
@@ -543,7 +555,6 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
     case VUI_VIBE_ACT_ID_BACK_WIFI:
     case VUI_VIBE_ACT_ID_BACK_PAIRING:
     case VUI_VIBE_ACT_ID_BACK_NAND:
-    case VUI_VIBE_ACT_ID_BACK_BRIDGE:
         s->acknowledged_update = s->snapshot.update_revision;
         if (e->action_id == VUI_VIBE_ACT_ID_BACK_NAND && s->fix_return_active) {
             s->fix_return_active = false;
@@ -552,6 +563,9 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         } else {
             show(s, VIBE_HOME);
         }
+        break;
+    case VUI_VIBE_ACT_ID_BACK_BRIDGE:
+        show(s, s->download_return);
         break;
     case VUI_VIBE_ACT_ID_SCAN:
         err = command(s, VIBE_SCAN_WIFI, NULL, NULL);
@@ -578,7 +592,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         snprintf(s->selected_ssid, sizeof(s->selected_ssid), "%s", s->snapshot.aps[e->item].ssid);
         if (s->snapshot.aps[e->item].open) {
             err = command(s, VIBE_CONNECT_WIFI, s->selected_ssid, "");
-            if (err) error_result(s, "Connection failed", err);
+            if (err) error_result(s, "Connection failed", err, false);
             break;
         }
         TEXT(s, SSID, s->selected_ssid);
@@ -662,7 +676,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
             break;
         err = command(s, VIBE_INSTALL_NAND, s->selected_bundle.code, NULL);
         if (err)
-            error_result(s, T(s, "Installation failed"), err);
+            error_result(s, T(s, "Installation failed"), err, false);
         else {
             TEXT(s, UPDATE_TITLE, T(s, "Setting boot application"));
             TEXT(s, UPDATE_DETAIL, T(s, "Verifying downloaded files"));
@@ -684,7 +698,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
     case VUI_VIBE_ACT_ID_CODE_8:
     case VUI_VIBE_ACT_ID_CODE_9:
         if (s->page == VIBE_BRIDGE && (strlen(s->idea_code) < 6 || s->code_submitted)) {
-            s->bridge_error = false;
+            s->code_incomplete = false;
             if (s->code_submitted) {
                 memset(s->idea_code, 0, sizeof(s->idea_code));
                 s->code_submitted = false;
@@ -706,7 +720,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         break;
     case VUI_VIBE_ACT_ID_CODE_DELETE:
         if (s->page == VIBE_BRIDGE) {
-            s->bridge_error = false;
+            s->code_incomplete = false;
             if (s->idea_code[0]) {
                 s->code_submitted = false;
                 s->idea_code[strlen(s->idea_code) - 1] = 0;
@@ -718,14 +732,13 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         if (s->page != VIBE_BRIDGE)
             break;
         if (strlen(s->idea_code) != 6) {
-            s->bridge_error = true;
+            s->code_incomplete = true;
             TEXT(s, BRIDGE_DETAIL, T(s, "Enter all six digits"));
             (void)vui_set_color(s->ui, VUI_VIBE_BIND_BRIDGE_DETAIL, 0xFA08);
             break;
         }
-        s->bridge_error = false;
-        s->code_submitted = true;
-        prepare_idea(s, VIBE_RESOLVE_IDEA, s->idea_code);
+        s->code_incomplete = false;
+        s->code_submitted = prepare_idea(s, VIBE_RESOLVE_IDEA, s->idea_code);
         break;
     case VUI_VIBE_ACT_ID_CHECK_IDEA:
     case VUI_VIBE_ACT_ID_UPDATE_IDEA:
@@ -799,8 +812,11 @@ void vibe_ui_poll(vibe_ui_t *s) {
     if (s->page == VIBE_CONFIRM && s->detail_followup_due && !v->idea_busy && !v->idea_ready) {
         vibe_command_t followup = s->detail_followup;
         s->detail_followup_due = false;
-        prepare_idea(s, followup, s->selected_bundle.code);
+        (void)prepare_idea(s, followup, s->selected_bundle.code);
     }
+    const bool code_failure = s->preview_active && s->preview_return == VIBE_BRIDGE &&
+        !v->idea_loading && !v->idea_ready && v->update_terminal && v->update_failed &&
+        !v->update_cancelled;
     if (s->preview_active && !v->idea_loading && !v->idea_ready) {
         s->preview_active = false;
         show(s, v->idea_return_library ? VIBE_NAND : s->preview_return);
@@ -827,8 +843,11 @@ void vibe_ui_poll(vibe_ui_t *s) {
         s->acknowledged_update = v->update_revision;
         s->result_cancelled = v->update_cancelled;
         s->result_failed = v->update_failed;
+        s->result_edit_code = code_failure;
         TEXT(s, RESULT_TITLE, T(s, v->update_title));
-        if (v->update_failed && v->transfer.total)
+        if (s->result_edit_code)
+            TEXT(s, RESULT_DETAIL, "Check the Idea code and try again.");
+        else if (v->update_failed && v->transfer.total)
             FORMAT(s, RESULT_DETAIL, T(s, (v->transfer.phase == VIBE_TRANSFER_VERIFY_FILES ||
                                           v->transfer.phase == VIBE_TRANSFER_READ_FILES)
                                                ? "%s\nVerified: %u%%"
@@ -909,8 +928,8 @@ void vibe_ui_poll(vibe_ui_t *s) {
         memcpy(display, s->idea_code, strlen(s->idea_code));
         TEXT(s, BRIDGE_CODE, display);
         TEXT(s, BRIDGE_DETAIL,
-             s->bridge_error ? T(s, "Enter all six digits")
-             : v->network == VIBE_NET_CONNECTED
+             s->code_incomplete ? T(s, "Enter all six digits") :
+             v->network == VIBE_NET_CONNECTED
                  ? (v->idea_busy ? T(s, "Finishing previous request...")
                                  : T(s, "Enter the six-digit Idea code"))
                  : T(s, "Wi-Fi is not connected"));
@@ -922,7 +941,7 @@ void vibe_ui_poll(vibe_ui_t *s) {
             if (err) {
                 (void)command(s, VIBE_CANCEL_IDEA, NULL, NULL);
                 s->preview_active = false;
-                error_result(s, T(s, "App information failed"), err);
+                error_result(s, T(s, "App information failed"), err, s->preview_return == VIBE_BRIDGE);
                 break;
             }
         }
@@ -1079,4 +1098,4 @@ void vibe_ui_get_status(const vibe_ui_t *s, vibe_ui_status_t *out) {
 
 void vibe_show(vibe_ui_t *s, vibe_page_t page) { show(s, page); }
 int vibe_command(vibe_ui_t *s, vibe_command_t cmd, const char *a, const char *b) { return command(s, cmd, a, b); }
-void vibe_error(vibe_ui_t *s, const char *title, int error) { error_result(s, title, error); }
+void vibe_error(vibe_ui_t *s, const char *title, int error) { error_result(s, title, error, false); }

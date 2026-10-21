@@ -5,6 +5,7 @@
 #undef main
 #include "vibe_ui.h"
 #include "vibe_ui_state.h"
+#include "vui_ids.h"
 
 static vui_handle_t ui;
 static vibe_ui_t *controller;
@@ -132,6 +133,31 @@ int main(int argc, char **argv)
         vibe_ui_deinit(controller); vui_destroy(ui); free(s_lock); s_lock = NULL;
         return 0;
     }
+    if (ssid || hex || short_password) {
+        /* Reserved credentials are read-only rows; edits belong to Wi-Fi. */
+        tap(390, 360); assert(page() == VIBE_SETTINGS);
+        tap(240, 376); assert(page() == VIBE_SHARED);
+        if (!ssid) {
+            vui_pointer(ui,440,340,true);
+            for (unsigned step=1;step<=16;++step) {
+                advance(100,true);
+                vui_pointer(ui,440,340-(int)step*10,true);
+                vui_render(ui,frame);
+            }
+            vui_pointer(ui,440,180,false);
+            advance(250,true);
+        }
+        capture(argv[2], "reserved-list");
+        int row_y = (ssid ? 372 : 452) - vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT);
+        tap(240,row_y); assert(page() == VIBE_SHARED_DETAIL);
+        tap(240,220); assert(page() == VIBE_WIFI && !task && !saves);
+        char saved[257];
+        assert(mosaico_shared_get(key,saved,sizeof(saved)) == ESP_OK && !strcmp(saved,initial));
+        tap(44,48); assert(page() == VIBE_SHARED);
+        vibe_ui_deinit(controller); vui_destroy(ui);
+        free(s_lock); s_lock = NULL;
+        return 0;
+    }
     open_editor();
     tap(35, 250);
     capture(argv[2], "before");
@@ -148,19 +174,12 @@ int main(int argc, char **argv)
     } else if (!strcmp(scenario, "sleep")) {
         advance(62000, false); assert(page() == VIBE_SLEEP);
         press_key(1, 600); assert(page() == VIBE_SHARED_EDITOR);
-    } else if (short_password) {
-        tap(430, 430);
-        assert(page() == VIBE_SHARED_EDITOR && !task && !saves);
-        for (unsigned i = 0; i < 7; ++i) tap(35, 250);
-    } else assert(ssid || hex);
+    }
     capture(argv[2], "returned");
     tap(430, 430); finish_save();
     char saved[257];
     assert(mosaico_shared_get(key, saved, sizeof(saved)) == ESP_OK);
-    if (ssid) assert(strlen(saved) == 32 && !strcmp(saved, initial));
-    else if (hex) assert(strlen(saved) == 64 && !strcmp(saved, initial));
-    else if (short_password) assert(!strcmp(saved, "qqqqqqqq"));
-    else assert(!strcmp(saved, !strcmp(scenario, "boot-cancel") ? "Paris" : "Parisq"));
+    assert(!strcmp(saved, !strcmp(scenario, "boot-cancel") ? "Paris" : "Parisq"));
     capture(argv[2], "saved");
     printf("scenario=%s saved_length=%zu page=%u\n", scenario, strlen(saved), page());
     vibe_ui_deinit(controller); vui_destroy(ui);

@@ -84,8 +84,12 @@ static bool shared_context(vibe_ui_t *s, vibe_page_t page)
 }
 bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
 {
+    if (next == VIBE_HOME) {
+        s->fix_return_active = false;
+        if (s->wifi_return == VIBE_HELP) s->wifi_return = VIBE_SETTINGS;
+    }
     if (next != s->page) vibe_product_cancel_pager(s);
-    if (next != s->page && s->page == VIBE_BRIDGE) s->bridge_error = false;
+    if (next != s->page && s->page == VIBE_BRIDGE) s->code_incomplete = false;
     if (next != s->page && s->wait_modal) {
         s->wait_modal = false;
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_WAIT_MODAL_VISIBLE, false);
@@ -225,11 +229,12 @@ static void open_add_idea(vibe_ui_t *s)
         (void)vibe_command(s, VIBE_SCAN_NAND, NULL, NULL);
         s->services.snapshot(s->services.ctx, &s->snapshot);
     }
-    if (s->snapshot.nand_scanning || s->snapshot.idea_busy) {
+    if (s->snapshot.nand_scanning) {
         set_wait_modal(s, true);
         return;
     }
     if (s->page == VIBE_NAND && !s->snapshot.credentials_saved && s->snapshot.network != VIBE_NET_CONNECTED) {
+        s->download_return = s->page;
         s->download_pending = true;
         vibe_show(s, VIBE_WIFI);
         return;
@@ -627,6 +632,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_BACK_WIFI:
         if (s->first_run) { s->first_run = false; vibe_show(s, VIBE_HOME); }
+        else if (s->download_pending) vibe_show(s, s->download_return);
         else if (s->fix_return_active) { s->fix_return_active = false; s->help_mode = 1; vibe_show(s, VIBE_HELP); project_help(s); }
         else vibe_show(s, s->wifi_return);
         break;
@@ -647,17 +653,24 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_RESULT_DONE:
         if (s->page == VIBE_RESULT) {
-            vibe_page_t target = s->result_return_detail && s->selected_bundle.code[0]
-                ? VIBE_CONFIRM : s->result_cancelled ? VIBE_HOME : VIBE_NAND;
-            s->result_return_detail = false;
-            vibe_show(s, target);
+            if (s->result_edit_code) {
+                s->result_edit_code = false;
+                s->result_return_detail = false;
+                s->code_submitted = s->code_incomplete = false;
+                vibe_show(s, VIBE_BRIDGE);
+            } else {
+                vibe_page_t target = s->result_return_detail && s->selected_bundle.code[0]
+                    ? VIBE_CONFIRM : s->result_cancelled ? VIBE_HOME : VIBE_NAND;
+                s->result_return_detail = false;
+                vibe_show(s, target);
+            }
         }
         break;
     case VUI_VIBE_ACT_ID_WAIT_MODAL_CLOSE:
         set_wait_modal(s, false);
         break;
     case VUI_VIBE_ACT_ID_DOWNLOAD:
-        if (s->page == VIBE_NAND && (s->snapshot.nand_scanning || s->snapshot.idea_busy)) {
+        if (s->page == VIBE_NAND && s->snapshot.nand_scanning) {
             set_wait_modal(s, true);
             break;
         }
@@ -1112,12 +1125,12 @@ void vibe_product_poll(vibe_ui_t *s)
     if (s->wait_modal) {
         if (s->page != VIBE_GRID && s->page != VIBE_NAND) {
             set_wait_modal(s, false);
-        } else if (!v->nand_scanning && !v->idea_busy) {
+        } else if (!v->nand_scanning) {
             set_wait_modal(s, false);
             open_add_idea(s);
             return;
         } else {
-            TEXT(s, WAIT_MODAL_BODY, v->nand_scanning ? "Checking apps and storage..." : "Finishing previous request...");
+            TEXT(s, WAIT_MODAL_BODY, "Checking apps and storage...");
         }
     }
     if (s->page == VIBE_OPEN_CONFIRM) project_open_confirm(s);
@@ -1159,6 +1172,7 @@ void vibe_product_poll(vibe_ui_t *s)
     }
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_CANCEL_DOWNLOAD_VISIBLE, v->cancellable);
     bool result_open = s->result_can_open && !s->result_failed && !s->result_cancelled && s->selected_bundle.code[0];
+    TEXT(s, RESULT_DONE_LABEL, s->result_edit_code ? "Edit code" : "Done");
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_OPEN_VISIBLE, result_open);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_LIBRARY_VISIBLE, result_open);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_DONE_VISIBLE, !result_open);
@@ -1230,7 +1244,7 @@ void vibe_product_poll(vibe_ui_t *s)
             (void)vui_set_visible(s->ui, focuses[i], i == len);
         }
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_DOWNLOAD_GO_READY_VISIBLE, len == 6);
-        if (s->bridge_error) {
+        if (s->code_incomplete) {
             TEXT(s, BRIDGE_DETAIL, "Enter all six digits");
             (void)vui_set_color(s->ui, VUI_VIBE_BIND_BRIDGE_DETAIL, 0xFA08);
         } else {

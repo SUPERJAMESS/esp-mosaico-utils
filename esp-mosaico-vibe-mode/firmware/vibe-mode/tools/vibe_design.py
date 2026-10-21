@@ -706,6 +706,7 @@ def apply(scene):
     icon(index['button_result_open'],'play-32-black',52,26,32)
     text(index['button_result_open'],'result_open_caption','Run',92,25,88,34,24,'medium',BG,'left')
     button(91,'button_result_done','Done',24,380,432,84,primary=True,action='result_done')
+    named['button_result_done']['bind']='result_done_label'
     hide('button_home')
 
     p=add('layer',-1,0,0,480,480,name='update_confirm',bind='update_confirm_visible',

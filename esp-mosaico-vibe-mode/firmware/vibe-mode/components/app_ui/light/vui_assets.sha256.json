@@ -1,17 +1,9 @@
 {
-<<<<<<< HEAD
-  "components/app_ui/light/vui_assets.bin": "c9d9b448a7fc408b0545c0ecefd15069f941cf22cc1b5e1c645bafa36b10f193",
-  "components/app_ui/private/vui_ids.h": "8ad34249fe369983d1128b8b0fc5305410ca7fa61fce9edbc027c9cf38019757",
+  "components/app_ui/light/vui_assets.bin": "9556d6a112e6800baef1741bee9a3daeea14fa542968cbdc7ce891bca265076f",
+  "components/app_ui/private/vui_ids.h": "cf4b036c6b1a958a08d10a50b2e7fe7bb3c55e05bd5229f936e7bf733b362159",
   "tools/build_vibe_ui.py": "77ed42a6b14a1832abb8bc65370e375ea1af6c2f8784e6282996af99d89c2d30",
   "tools/compile_vui.py": "85d192ec4827c7466cca144d7e4a7d4dfa8d340856e1a91ad726ea3c1b8c255f",
-  "tools/vibe_design.py": "79ae808a163dcbbbec830933da2523cc333e24b91b0c747a0ea2d8b678a0fd23",
-=======
-  "components/app_ui/light/vui_assets.bin": "4f43dc6ee1f167e4b80c7560303de7e36f750d975119231cdf30edfbd39054af",
-  "components/app_ui/private/vui_ids.h": "2edc43ee6a4c5b2c3b53941cec801d6cc248b358c7a7e05f404e0689f691559d",
-  "tools/build_vibe_ui.py": "0e45e37415de4b86be3c8b24ffa0f54b938a3ac30d78e050fb5259b0cd1bed4d",
-  "tools/compile_vui.py": "85d192ec4827c7466cca144d7e4a7d4dfa8d340856e1a91ad726ea3c1b8c255f",
-  "tools/vibe_design.py": "ca0742150b06e647f4b4d3b63066211e5d36d2d51f53a29517289540d545918d",
->>>>>>> 9947559
+  "tools/vibe_design.py": "0a3e496a1f22627d855af2bf56147266e21929df405ce646e11b3d7ceeaa2636",
   "ui/assets/icons/arrow-28-orange.png": "4b4df4c7fd4d4f63a9e0fbb18dbf4af2a9c51698c2daa8077aef70e01be25a8b",
   "ui/assets/icons/arrow_down-24-orange.png": "4b77f56a6c11a43e08b150cb126c1d15355e9bd55d32b4ba2631021900a6401a",
   "ui/assets/icons/arrow_down-24-white.png": "bfa507e952456b9b9d3b60bfbcf03d97a9166b2e1ad5b3c59078fc51cfcc78b8",
@@ -85,15 +77,8 @@
   "ui/fonts/VibeDisplay.otf": "e903cb1aca42573bd7a85098dd21c5c28ef63e6bf977699c543f5286322d83d4",
   "ui/fonts/VibeInter.otf": "661a1551574f35ce28ad1af334ddde8115e2889629ca9a5df34dd4bba45482a3",
   "ui/fonts/VibeMedium.otf": "b2d2b5a925e62fab93c3118303c6bf9d897a1aaf15e68c16a8ba6d6107e0d83d",
-<<<<<<< HEAD
-  "ui/main.json": "982f31bbc97daaaf701298781f360d6e83e1b452fbace288f0db825c91aeeda4",
+  "ui/main.json": "988b608a8e6a473e8ba1d302a0ce6ef9b81ae9b2657ed5b8b131d3756366fd4b",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3",
-  "ui/translations.json": "65abdb5c176ef1b5f2521b7318291e2cd30a074ce0f714fed70dd43e1a7e5f43"
-=======
-  "ui/main.json": "becd693e1edd93cc2d3e16a4654da371a32e5c376308cfd3f0a96cdcdd09b96c",
-  "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
-  "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3",
-  "ui/translations.json": "b13eea0a9cab757cff660017e665febab69fe66ad9f48397e277a0e5dab31db3"
->>>>>>> 9947559
+  "ui/translations.json": "2944f5ff458ef3c85abc86382d2f9c64b1e348aad31f6fedb9a895d9007d7eee"
 }

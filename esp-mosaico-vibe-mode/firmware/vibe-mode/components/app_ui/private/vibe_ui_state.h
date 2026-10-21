@@ -25,9 +25,9 @@ struct vibe_ui {
     void *home_timer;
     vibe_home_motion_t home_motion;
     bool download_pending, password_visible, preview_active, batch_cancel_pending, result_cancelled, result_failed, result_can_open;
-    vibe_page_t preview_return, format_return;
+    vibe_page_t preview_return, format_return, download_return;
     bool nand_prompt_dismissed;
-    bool prefetch_attempted;
+    bool prefetch_attempted, code_incomplete, result_edit_code;
     bool rendered_release;
     char notified_firmware[32];
     enum { CHECK_IDLE, CHECK_PENDING, CHECK_CURRENT, CHECK_FAILED, CHECK_OFFLINE } firmware_check;
@@ -44,7 +44,7 @@ struct vibe_ui {
     vibe_rate_t rate;
     uint64_t page_enter_ms, next_poll_ms, activity_ms, hold_started_ms, suppress_until, undo_until;
     uint64_t last_release_ms, nav_badge_until, ai_feedback_until;
-    bool open_waiting, open_unsaved, run_development_pending, code_submitted, bridge_error, shared_detail_reveal, shared_system_entry, shared_rename_mode;
+    bool open_waiting, open_unsaved, run_development_pending, code_submitted, shared_detail_reveal, shared_system_entry, shared_rename_mode;
     bool wait_modal;
     unsigned guide_topic, help_mode, help_topic_index;
     bool fix_return_active, shared_settings_return;
