@@ -7592,7 +7592,7 @@
       "text_align": "left",
       "bind": "networks_detail",
       "name": "networks_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文 OScdeeeeknnoprrtuw加密开放",
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "overflow": "ellipsis"
