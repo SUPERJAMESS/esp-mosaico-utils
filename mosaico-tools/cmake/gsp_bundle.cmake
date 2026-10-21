@@ -17,6 +17,26 @@ function(mosaico_gsp_add_ui_bundle component scene)
         "${gsp_bundle_dir}/${gsp_bundle_symbol}.gspb")
     set(gsp_embed_source
         "${gsp_bundle_dir}/${gsp_bundle_symbol}_embed.S")
+    if(CMAKE_HOST_WIN32)
+        # Run before CMake's automatic DEPFILE transformation. gspc 0.6.1
+        # emits escaped \\?\ paths which otherwise become invalid /D:/ deps.
+        idf_build_get_property(build_python PYTHON)
+        set(depfile_normalizer "${_mosaico_gsp_tools}/normalize_gsp_depfile.py")
+        if(EXISTS "${gsp_bundle_dir}/${gsp_bundle_symbol}.d")
+            execute_process(COMMAND "${build_python}" "${depfile_normalizer}"
+                "${gsp_bundle_dir}/${gsp_bundle_symbol}.d"
+                --repair-ninja-cache "${CMAKE_BINARY_DIR}"
+                RESULT_VARIABLE depfile_result)
+            if(NOT depfile_result EQUAL 0)
+                message(FATAL_ERROR "Could not repair Windows GSP dependency paths")
+            endif()
+        endif()
+        add_custom_command(OUTPUT "${gsp_bundle_path}" APPEND
+            COMMAND "${build_python}" "${depfile_normalizer}"
+                "${gsp_bundle_dir}/${gsp_bundle_symbol}.d"
+            DEPENDS "${depfile_normalizer}"
+            VERBATIM)
+    endif()
     if(NOT EXISTS "${gsp_embed_source}")
         message(FATAL_ERROR
             "ESP-GSP did not generate the expected embed source: "
