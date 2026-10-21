@@ -86,3 +86,19 @@ def test_another_writer_invalidates_cached_capture_bounds(tmp_path):
     finally:
         other.close()
         store.close()
+
+
+def test_capture_continuing_after_eviction_still_includes_earlier_boot_bytes(tmp_path, monkeypatch):
+    store = GatewayStore(tmp_path)
+    monkeypatch.setattr(store.events.segments, "CAPTURE_RANGE_LIMIT", 1)
+    capture = "a" * 32
+    try:
+        first = append_capture(store, capture)
+        append_capture(store, "b" * 32)
+        last = store.append_event("console", {"kind": "console_raw", "capture_id": capture,
+            "endpoint": "uart:test", "offset": 3, "data_base64": base64.b64encode(b"more").decode()})
+        binding = bind(store, capture)
+        assert binding["history_start_event_id"] == first["event_id"]
+        assert binding["history_end_event_id"] == last["event_id"]
+    finally:
+        store.close()

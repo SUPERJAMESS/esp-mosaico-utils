@@ -125,6 +125,12 @@ class EventSegments:
             capture = item.get("capture_id")
             if capture and row[2] is None:
                 event_id, host_ns = item["event_id"], item["host_receive_ns"]
+                # A continued capture after restart/eviction may have older
+                # retained rows. Only byte offset zero proves its beginning.
+                if capture not in self._capture_ranges and not (
+                    item.get("kind") == "console_raw" and item.get("offset") == 0
+                ):
+                    continue
                 previous = self._capture_ranges.get(capture, (event_id, host_ns, start, event_id, host_ns, start))
                 self._capture_ranges[capture] = (previous[0], previous[1], previous[2], event_id, host_ns, start)
                 self._capture_ranges.move_to_end(capture)
