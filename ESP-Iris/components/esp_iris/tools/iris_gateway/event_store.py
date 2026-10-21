@@ -107,16 +107,15 @@ class EventStore:
                 "device_id=COALESCE(excluded.device_id, console_captures.device_id)",
                 (capture_id, payload["endpoint"], device_id, host_ns, host_ns, offset + len(raw)))
         elif payload.get("kind") == "console_binding" and device_id:
-            first, _ = self.segments.query(capture_id=str(capture_id), limit=1, unresolved=True)
-            last, _ = self.segments.query(capture_id=str(capture_id), descending=True, limit=1, unresolved=True)
-            if first:
-                payload = dict(payload, history_start_event_id=first[0]["event_id"], history_end_event_id=last[-1]["event_id"])
+            first, last = self.segments.capture_range(str(capture_id))
+            if first is not None and last is not None:
+                payload = dict(payload, history_start_event_id=first["event_id"], history_end_event_id=last["event_id"])
             self.db.execute(
                 "INSERT INTO console_captures(capture_id,endpoint,device_id,first_ns,last_ns,bytes_received,binding_offset) "
                 "VALUES(?,?,?,?,?,?,?) ON CONFLICT(capture_id) DO UPDATE SET "
                 "device_id=excluded.device_id, binding_offset=excluded.binding_offset",
                 (capture_id, payload.get("endpoint", ""), device_id,
-                 first[0]["host_receive_ns"] if first else host_ns, host_ns,
+                 first["host_receive_ns"] if first else host_ns, host_ns,
                  int(payload["offset"]), int(payload["offset"])))
         self.state.preserve_event_evidence(dict(payload, host_receive_ns=host_ns), device_id)
         rows.append((category, payload, device_id, host_ns))
