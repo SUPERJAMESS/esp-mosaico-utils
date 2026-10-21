@@ -485,6 +485,8 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"Wi-Fi Settings", "Wi-Fi 设置"},
     {"Manage Storage", "管理存储空间"},
     {"Checking apps and storage...", "正在检查应用和存储空间…"},
+    {"Check the Idea code and try again.", "请检查 Idea 编号后重试。"},
+    {"Edit code", "修改编号"},
 };
 static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {
     {VUI_VIBE_BIND_PAIRING_ENDPOINT, "Connect Wi-Fi first"},
@@ -708,7 +710,7 @@ static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = 
     {VUI_VIBE_BIND_CANCEL_DOWNLOAD_LABEL, "Cancel"},
     {VUI_VIBE_BIND_RESULT_LIBRARY_LABEL, "Done"},
     {VUI_VIBE_BIND_RESULT_OPEN_CAPTION, "Run"},
-    {VUI_VIBE_BIND_STATIC_1236, "Done"},
+    {VUI_VIBE_BIND_RESULT_DONE_LABEL, "Done"},
     {VUI_VIBE_BIND_HEADING_1242, "Update all"},
     {VUI_VIBE_BIND_UPDATE_CONFIRM_QUESTION, "Update all saved Ideas?"},
     {VUI_VIBE_BIND_UPDATE_CONFIRM_NOTE, "Download available updates to My Ideas."},

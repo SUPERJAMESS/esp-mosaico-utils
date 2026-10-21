@@ -461,11 +461,11 @@ def apply(scene):
     text(gate,'timeout_title','SCREEN OFF AFTER',32,116,424,28,20,'medium',color=MUTED)
     for i in range(5):
         move('button_brightness_'+str(i),24+i*88,32,80,72,parent=gate,font_size=22,font=FONT['medium'],bg_color=RAISED,radius=24)
-        move('button_timeout_'+str(i),24+i*88,148,80,72,parent=gate,font_size=22,font=FONT['medium'],bg_color=RAISED,radius=24)
+        move('button_timeout_'+str(i),24+i*88,148,80,72,parent=gate,font_size=18 if i==4 else 22,font=FONT['medium'],bg_color=RAISED,radius=24)
         for kind,y in (('brightness',32),('timeout',148)):
             selected=add('layer',gate,0,0,480,412,name=f'{kind}_selected_{i}',bind=f'{kind}_selected_{i}_visible',bind_target='visible',hidden=True)
             rect(selected,24+i*88,y,80,72,TEXT,24)
-            text(selected,f'{kind}_selected_{i}_label',named[f'button_{kind}_{i}']['text'],24+i*88,y+20,80,32,22,'medium',BG,'center')
+            text(selected,f'{kind}_selected_{i}_label',named[f'button_{kind}_{i}']['text'],24+i*88,y+20,80,32,18 if kind=='timeout' and i==4 else 22,'medium',BG,'center')
     for j,(name,title,sub,glyph) in enumerate((('rotate','Auto rotate','Follows how you hold it','rotate'),('haptics','Haptics','Touch feedback','haptic'))):
         y=236+j*88
         row(gate,'display_0_'+name,title,sub,glyph+'-32-cream',y,'toggle_'+name,'display_'+name+'_sub')
@@ -699,6 +699,7 @@ def apply(scene):
     icon(index['button_result_open'],'play-32-black',52,26,32)
     text(index['button_result_open'],'result_open_caption','Run',92,25,88,34,24,'medium',BG,'left')
     button(91,'button_result_done','Done',24,380,432,84,primary=True,action='result_done')
+    named['button_result_done']['bind']='result_done_label'
     hide('button_home')
 
     p=add('layer',-1,0,0,480,480,name='update_confirm',bind='update_confirm_visible',

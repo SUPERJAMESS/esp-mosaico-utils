@@ -25,9 +25,9 @@ struct vibe_ui {
     void *home_timer;
     vibe_home_motion_t home_motion;
     bool download_pending, password_visible, preview_active, batch_cancel_pending, result_cancelled, result_failed, result_can_open;
-    vibe_page_t preview_return, format_return;
+    vibe_page_t preview_return, format_return, download_return;
     bool nand_prompt_dismissed;
-    bool prefetch_attempted;
+    bool prefetch_attempted, code_incomplete, result_edit_code;
     bool rendered_release;
     char notified_firmware[32];
     enum { CHECK_IDLE, CHECK_PENDING, CHECK_CURRENT, CHECK_FAILED, CHECK_OFFLINE } firmware_check;

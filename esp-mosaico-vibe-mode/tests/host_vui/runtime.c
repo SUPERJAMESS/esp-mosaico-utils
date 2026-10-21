@@ -98,9 +98,9 @@ static void gesture_feedback_contract(void)
     assert(frame && before && !vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
     advance_clock(ui,frame,200,16);
     vui_pointer(ui,400,398,true);
-    assert(!model.haptics); /* Pressing is not yet a click. */
+    assert(model.haptics==1); /* Product contract: one pulse per press/release. */
     vui_pointer(ui,400,398,false); vui_render(ui,frame);
-    assert(state->page==VIBE_SETTINGS && model.haptics==1);
+    assert(state->page==VIBE_SETTINGS && model.haptics==2);
     advance_clock(ui,frame,200,16);
     memcpy(before,frame,480*480*2);
     vui_pointer(ui,240,410,true); vui_render(ui,frame);
@@ -108,12 +108,12 @@ static void gesture_feedback_contract(void)
     vui_pointer(ui,240,380,true);
     vui_pointer(ui,240,410,true); /* Returning to the start must not rearm a click. */
     vui_pointer(ui,240,410,false); vui_render(ui,frame);
-    assert(state->page==VIBE_SETTINGS && model.haptics==1);
+    assert(state->page==VIBE_SETTINGS && model.haptics==4);
     vibe_show(state,VIBE_RESET); advance_clock(ui,frame,200,16);
     vui_pointer(ui,240,396,true); advance_clock(ui,frame,1000,16);
     vui_pointer(ui,254,396,true); /* Still inside the button, but beyond tap slop. */
     vui_pointer(ui,240,396,true); advance_clock(ui,frame,3500,16);
-    assert(!model.resets && !state->hold_started_ms && model.haptics==1);
+    assert(!model.resets && !state->hold_started_ms && model.haptics==5);
     vui_pointer(ui,240,396,false);
     vibe_ui_deinit(state); vui_destroy(ui); free(before); free(frame);
 }

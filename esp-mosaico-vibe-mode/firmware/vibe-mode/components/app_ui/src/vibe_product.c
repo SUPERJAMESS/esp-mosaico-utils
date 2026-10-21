@@ -84,6 +84,10 @@ static bool shared_context(vibe_ui_t *s, vibe_page_t page)
 }
 bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
 {
+    if (next == VIBE_HOME) {
+        s->fix_return_active = false;
+        if (s->wifi_return == VIBE_HELP) s->wifi_return = VIBE_SETTINGS;
+    }
     if (next != s->page) vibe_product_cancel_pager(s);
     if (next != s->page && (s->page == VIBE_RESET || s->page == VIBE_DELETE_CONFIRM)) {
         s->hold_started_ms = 0;
@@ -595,6 +599,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         break;
     case VUI_VIBE_ACT_ID_BACK_WIFI:
         if (s->first_run) { s->first_run = false; vibe_show(s, VIBE_HOME); }
+        else if (s->download_pending) vibe_show(s, s->download_return);
         else if (s->fix_return_active) { s->fix_return_active = false; s->help_mode = 1; vibe_show(s, VIBE_HELP); project_help(s); }
         else vibe_show(s, s->wifi_return);
         break;
@@ -614,8 +619,14 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         if (s->page == VIBE_RESULT && s->result_can_open && !s->result_failed && !s->result_cancelled) { s->run_development_pending = false; open_confirm(s); }
         break;
     case VUI_VIBE_ACT_ID_RESULT_DONE:
-        if (s->page == VIBE_RESULT)
-            vibe_show(s, s->result_cancelled ? VIBE_HOME : VIBE_NAND);
+        if (s->page == VIBE_RESULT) {
+            if (s->result_edit_code) {
+                s->result_edit_code = false;
+                s->code_submitted = s->code_incomplete = false;
+                vibe_show(s, VIBE_BRIDGE);
+            } else
+                vibe_show(s, s->result_cancelled ? VIBE_HOME : VIBE_NAND);
+        }
         break;
     case VUI_VIBE_ACT_ID_OPEN_CELL: {
         if (s->page != VIBE_GRID || e->arg >= 6) break;
@@ -1103,6 +1114,7 @@ void vibe_product_poll(vibe_ui_t *s)
     }
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_CANCEL_DOWNLOAD_VISIBLE, v->cancellable);
     bool result_open = s->result_can_open && !s->result_failed && !s->result_cancelled && s->selected_bundle.code[0];
+    TEXT(s, RESULT_DONE_LABEL, s->result_edit_code ? "Edit code" : "Done");
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_OPEN_VISIBLE, result_open);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_LIBRARY_VISIBLE, result_open);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_RESULT_DONE_VISIBLE, !result_open);

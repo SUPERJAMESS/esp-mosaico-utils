@@ -31,6 +31,7 @@ def settings_ui(tmp_path_factory, native_build):
                '-DSOURCE="' + (components / "app_settings/src/vibe_settings.c").as_posix() + '"',
                '-DLOCALE_SOURCE="' + (components / "app_system/src/factory_locale.c").as_posix() + '"',
                "-I" + str(build), "-I" + str(fixture),
+               "-I" + str(components / "app_ui/private"),
                *["-I" + str(components / name / "include")
                  for name in ("app_ui", "app_settings", "app_device", "app_network")],
                "-I" + str(ROOT / "components/esp_mosaico_app_recovery/include"),

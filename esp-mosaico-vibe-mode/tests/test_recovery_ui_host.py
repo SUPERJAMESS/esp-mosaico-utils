@@ -121,6 +121,14 @@ class Simulator:
         self.rpc("wait", frames=3)
         self.rpc("feed_pointer", x=x2, y=y2, pressed=False)
 
+    def slow_drag(self, x1, y1, x2, y2):
+        self.rpc("feed_pointer", x=x1, y=y1, pressed=True)
+        for step in range(1, 17):
+            self.rpc("wait", frames=10)
+            self.rpc("feed_pointer", x=round(x1 + (x2 - x1) * step / 16),
+                     y=round(y1 + (y2 - y1) * step / 16), pressed=True)
+        self.rpc("feed_pointer", x=x2, y=y2, pressed=False)
+
     def manage(self):
         self.tap(240, 360)
         self.wait(page=5)
@@ -224,6 +232,57 @@ def test_home_maker_animation_hands_horizontal_drag_to_pager(sim):
     sim.rpc("wait", frames=100)
     sim.capture("settings-later")
     assert (sim.directory / "settings-still.png").read_bytes() == (sim.directory / "settings-later.png").read_bytes()
+
+
+@pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
+def test_download_returns_to_its_origin_and_clears_abandoned_faq(sim):
+    sim.download(); sim.wait(page=4)
+    sim.tap(44, 48); sim.wait(page=5)
+    sim.tap(44, 48); sim.wait(page=0)
+    sim.swipe(420, 250, 60, 250); sim.wait(page=19)
+    sim.tap_ui("button_cell_2"); sim.wait(page=4)
+    sim.tap(44, 48); sim.wait(page=19, grid_page=0)
+    sim.swipe(60, 250, 420, 250); sim.wait(page=0)
+    sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+    sim.swipe(240, 410, 240, 100); sim.wait(settings_offset=280)
+    sim.tap_ui("button_settings_bottom_help"); sim.wait(page=24)
+    sim.tap_ui("button_help_3"); sim.tap_ui("button_fix_1")
+    sim.tap_ui("button_help_qr"); sim.wait(page=5)
+    sim.tap_ui("manage_download"); sim.wait(page=4)
+    sim.tap(44, 48); sim.wait(page=5)
+    sim.tap(44, 48); sim.wait(page=24)
+    sim.tap_ui("button_help_qr"); sim.wait(page=5)
+    sim.tap_ui("manage_download"); sim.wait(page=4)
+    sim.control("ai"); sim.wait(page=0)
+    sim.manage(); sim.tap(44, 48); sim.wait(page=0)
+
+
+@pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
+@pytest.mark.parametrize("language", [1, 2])
+def test_code_validation_persists_and_busy_worker_allows_typing(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(44,48); sim.wait(page=11)
+        sim.tap(44,48); sim.wait(page=0)
+    sim.control("ideas-refresh-busy")
+    sim.download(); sim.wait(page=4, prepare_calls=0)
+    sim.capture("code-before-validation")
+    sim.tap_ui("button_download_code"); sim.wait(page=4, prepare_calls=0)
+    sim.capture("code-validation")
+    sim.rpc("wait", frames=100)
+    sim.capture("code-validation-persistent")
+    box = (24,151,456,181)
+    with Image.open(sim.directory/"code-before-validation.png") as before, \
+         Image.open(sim.directory/"code-validation.png") as warning, \
+         Image.open(sim.directory/"code-validation-persistent.png") as later:
+        assert ImageChops.difference(before,warning).crop(box).getbbox()
+        assert not ImageChops.difference(warning,later).crop(box).getbbox()
+    for _ in range(6): sim.tap_ui("button_code_0")
+    sim.tap_ui("button_download_code")
+    sim.wait(page=4, idea_code="000000", prepare_calls=0, download_calls=0)
+    sim.tap(44,48); sim.wait(page=5)
 
 
 def test_fresh_gesture_on_another_control_does_not_wait_for_navigation_guard(sim):
@@ -346,7 +405,8 @@ def test_keyboard_limits_masking_and_cancel(sim):
     sim.wait(password_visible=True)
     sim.tap(38, 36)
     sim.wait(page=1, password_length=0, password_visible=False, pending=True)
-    sim.wifi_back()
+    sim.tap(38, 36); sim.wait(page=5, pending=False)
+    sim.tap(38, 36)
     sim.wait(page=0, pending=False, bridge_running=False)
 
 
@@ -366,7 +426,8 @@ def test_download_wifi_continuation_and_cancel(sim):
     sim.open_bridge()
     sim.wait(page=4, bridge_running=False, bridge_open_calls=0)
     sim.tap(38, 36)
-    sim.wait(page=0, bridge_running=False)
+    sim.wait(page=5, bridge_running=False)
+    sim.tap(38, 36); sim.wait(page=0)
     sim.wifi()  # ordinary Wi-Fi entry never starts a download
     sim.wait(page=1, pending=False, bridge_running=False)
 
@@ -622,8 +683,14 @@ def test_preview_failure_never_starts_download(sim):
         sim.tap_ui("button_code_0")
     sim.tap_ui("button_download_code")
     sim.wait(page=8, idea_ready=False, download_calls=0, install_calls=0)
-    sim.tap_ui("button_result_library")
-    sim.wait(page=5)
+    sim.capture("lookup-error-edit-code")
+    sim.tap_ui("button_result_done")
+    sim.wait(page=4, idea_code="000000", download_calls=0, install_calls=0)
+    sim.tap_ui("button_code_delete"); sim.tap_ui("button_code_1")
+    sim.wait(idea_code="000001")
+    sim.tap_ui("button_download_code")
+    sim.wait(page=8, prepare_calls=2, last_code="000001", download_calls=0, install_calls=0)
+    sim.tap_ui("button_result_done"); sim.wait(page=4, idea_code="000001")
     sim.tap(38, 36)
     sim.wait(page=0)
 
@@ -1057,7 +1124,7 @@ def test_status_bar_brand_and_version_updates(sim, language):
         assert frame.crop((128, 20, 192, 44)).getbbox()  # Version follows the brand.
     sim.swipe(420, 250, 60, 250)
     sim.wait(page=19)
-    sim.rpc("wait", frames=45)  # Let the 2-second centered page badge clear.
+    sim.rpc("wait", frames=220)  # Simulator frames are 10 ms; badge lasts 2 seconds.
     sim.capture("grid-version")
     with Image.open(sim.directory / "grid-version.png") as frame:
         assert not ImageChops.difference(header, frame.crop((0, 0, 480, 56))).crop((30, 20, 238, 44)).getbbox()
@@ -1452,7 +1519,7 @@ def test_shared_info_delete_clamps_the_last_page(sim):
         sim.tap(x, 250); sim.tap(430, 430)
         sim.tap(35, 250); sim.tap(430, 430)
         sim.wait(page=14, shared_count=count)
-    sim.swipe(240, 410, 240, 180); sim.wait(page=14)
+    sim.slow_drag(240, 410, 240, 180); sim.wait(page=14)
     assert sim.wait()["shared_offset"] > 0
     sim.tap_ui("button_shared_row_4"); sim.wait(page=30)
     sim.tap_ui("button_shared_detail_delete"); sim.wait(page=23)
@@ -1651,4 +1718,3 @@ def test_three_time_open_confirm_and_run_current_build_and_code_replace(sim):
     sim.wait(page=4, idea_code="123456")
     sim.tap_ui("button_code_9")
     sim.wait(page=4, idea_code="9")
-
