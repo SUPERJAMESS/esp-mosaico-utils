@@ -124,7 +124,8 @@ static bool ascii_text(const char *text);
 static void clear_inline_intro(vibe_ui_t *s)
 {
     if (s->inline_intro_pending) (void)command(s, VIBE_CANCEL_IDEA, NULL, NULL);
-    s->inline_intro_pending = s->inline_intro_ready = false;
+    s->inline_intro_due = s->inline_intro_pending = s->inline_intro_ready = false;
+    s->detail_followup_due = false;
     (void)vui_canvas_stop(s->ui, VUI_VIBE_BIND_LOCAL_BODY_PIXELS);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_LOCAL_BODY_PIXELS, false);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RELEASE_PATH, true);
@@ -220,6 +221,10 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         s->download_pending = false;
     if (previous != page) s->page_enter_ms = vui_now_ms(s->ui);
     s->page = page;
+    if (page == VIBE_CONFIRM && previous != page) {
+        s->inline_intro_due = true;
+        s->inline_intro_ready = false;
+    }
     if (page == VIBE_DELETE_CONFIRM && previous != page) {
         TEXT(s, DELETE_CONFIRM_TITLE, s->delete_code[0] ? "Delete Idea" : "Shared information");
         TEXT(s, DELETE_NOTE, s->delete_code[0]
@@ -411,6 +416,7 @@ static void submit_password(vibe_ui_t *s) {
 }
 static void open_inline_intro(vibe_ui_t *s)
 {
+    if (!s->selected_bundle.code[0]) { s->inline_intro_due = false; return; }
     if (s->inline_intro_ready) {
         (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT, 0);
         return;
@@ -418,13 +424,24 @@ static void open_inline_intro(vibe_ui_t *s)
     s->services.snapshot(s->services.ctx, &s->snapshot);
     if (s->inline_intro_pending || s->snapshot.idea_busy || s->snapshot.idea_ready) return;
     int err = command(s, VIBE_PREVIEW_IDEA, s->selected_bundle.code, NULL);
-    if (err) { TEXT(s, RELEASE_PATH, "App information failed"); return; }
+    if (err) {
+        s->services.snapshot(s->services.ctx, &s->snapshot);
+        if (s->snapshot.idea_busy || s->snapshot.idea_ready) return;
+        s->inline_intro_due = false;
+        TEXT(s, RELEASE_PATH, "App information failed");
+        return;
+    }
+    s->inline_intro_due = false;
     s->inline_intro_pending = true;
     TEXT(s, RELEASE_PATH, "Reading downloaded resources");
 }
 static void poll_inline_intro(vibe_ui_t *s)
 {
-    if (!s->inline_intro_pending) return;
+    if (s->page != VIBE_CONFIRM) return;
+    if (!s->inline_intro_pending) {
+        if (s->inline_intro_due && !s->detail_followup_due) open_inline_intro(s);
+        return;
+    }
     const vibe_snapshot_t *v = &s->snapshot;
     if (!v->idea_ready && v->idea_loading) return;
     if (!v->idea_ready) {
@@ -696,13 +713,15 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
     case VUI_VIBE_ACT_ID_PREVIEW_IDEA:
         if (s->page != VIBE_CONFIRM)
             break;
-        if (e->action_id == VUI_VIBE_ACT_ID_PREVIEW_IDEA) {
-            open_inline_intro(s);
-            break;
+        if (e->action_id == VUI_VIBE_ACT_ID_PREVIEW_IDEA) break; /* Removed from the UI. */
+        s->detail_followup = e->action_id == VUI_VIBE_ACT_ID_CHECK_IDEA ? VIBE_CHECK_IDEA : VIBE_RESOLVE_IDEA;
+        s->detail_followup_due = true;
+        s->inline_intro_due = false;
+        if (s->inline_intro_pending) {
+            (void)command(s, VIBE_CANCEL_IDEA, NULL, NULL);
+            s->inline_intro_pending = false;
         }
-        prepare_idea(s,
-                     e->action_id == VUI_VIBE_ACT_ID_CHECK_IDEA ? VIBE_CHECK_IDEA : VIBE_RESOLVE_IDEA,
-                     s->selected_bundle.code);
+        vibe_ui_poll(s);
         break;
     case VUI_VIBE_ACT_ID_CANCEL_IDEA:
         if (s->page != VIBE_IDEA_INFO || !s->preview_active)
@@ -757,6 +776,11 @@ void vibe_ui_poll(vibe_ui_t *s) {
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUNDLES_VISIBLE, s->page == VIBE_NAND && !s->snapshot.nand_needs_format);
     }
     poll_inline_intro(s);
+    if (s->page == VIBE_CONFIRM && s->detail_followup_due && !v->idea_busy && !v->idea_ready) {
+        vibe_command_t followup = s->detail_followup;
+        s->detail_followup_due = false;
+        prepare_idea(s, followup, s->selected_bundle.code);
+    }
     if (s->preview_active && !v->idea_loading && !v->idea_ready) {
         s->preview_active = false;
         show(s, v->idea_return_library ? VIBE_NAND : s->preview_return);

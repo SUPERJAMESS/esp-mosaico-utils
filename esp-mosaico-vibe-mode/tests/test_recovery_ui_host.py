@@ -632,7 +632,6 @@ def test_preview_failure_never_starts_download(sim):
 def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
     sim.manage(); sim.wait(page=5)
     sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_preview_idea")
     sim.wait(page=6, idea_ready=False, idea_loading=False, cancel_calls=1, download_calls=0)
     sim.capture("custom-inline")
     with Image.open(sim.directory / "custom-inline.png") as image:
@@ -644,8 +643,8 @@ def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
     with Image.open(sim.directory / "custom-inline.png") as before, Image.open(sim.directory / "custom-inline-scrolled.png") as after:
         for bounds in ((0, 0, 480, 184), (0, 314, 480, 480)):
             assert before.crop(bounds).tobytes() == after.crop(bounds).tobytes()
-    sim.tap_ui("button_preview_idea")  # Already copied: no new backend request.
-    sim.wait(page=6, local_description_offset=0, prepare_calls=1, cancel_calls=1)
+    sim.tap(350,330)  # The removed View info button has no hit target.
+    sim.wait(page=6, local_description_offset=56, prepare_calls=1, cancel_calls=1)
     # Check updates still opens the original remote preview and download flow.
     sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, check_calls=1, idea_description_offset=0)
     sim.capture("custom-update-preview")
@@ -659,7 +658,7 @@ def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
 @pytest.mark.parametrize("sim", ["slow-preview"], indirect=True)
 def test_inline_intro_back_cancels_without_late_navigation(sim):
     sim.manage(); sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_preview_idea"); sim.wait(page=6, idea_loading=True, prepare_calls=1)
+    sim.wait(page=6, idea_loading=True, prepare_calls=1)
     sim.tap(38, 36); sim.wait(page=5, cancel_calls=1)
     time.sleep(3)
     sim.wait(page=5, idea_loading=False, idea_ready=False, download_calls=0)
@@ -669,7 +668,6 @@ def test_inline_intro_back_cancels_without_late_navigation(sim):
 @pytest.mark.parametrize("sim", ["preview-fail"], indirect=True)
 def test_inline_intro_failure_stays_in_details_and_check_keeps_its_error_flow(sim):
     sim.manage(); sim.tap(150, 170); sim.wait(page=6)
-    sim.tap_ui("button_preview_idea")
     sim.wait(page=6, idea_loading=False, idea_ready=False, prepare_calls=1, download_calls=0)
     sim.tap_ui("button_check_idea")
     sim.wait(page=8, check_calls=1, download_calls=0)
@@ -1373,14 +1371,15 @@ def test_long_titles_scroll_in_library_details_and_preview_without_moving_contro
 
     sim.manage(); sim.wait(page=5)
     moves("library-marquee", (100, 156, 412, 190))
-    sim.tap(150, 170); sim.wait(page=6)
+    sim.tap(150, 170); sim.wait(page=6, idea_loading=False, cancel_calls=1)
     moves("details-marquee", (88, 29, 456, 69))
     sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, download_calls=0)
     moves("preview-marquee", (88, 29, 456, 69))
-    sim.tap_ui("button_cancel_idea"); sim.wait(page=6, download_calls=0, install_calls=0)
-    sim.capture("details-marquee-return")
-    with Image.open(sim.directory / "details-marquee-start.png") as a, Image.open(sim.directory / "details-marquee-return.png") as b:
-        assert a.crop((88, 29, 456, 69)).tobytes() == b.crop((88, 29, 456, 69)).tobytes()
+    sim.tap_ui("button_cancel_idea")
+    sim.wait(page=6, idea_loading=False, cancel_calls=3, download_calls=0, install_calls=0)
+    # Automatic description loading can outlast the title's initial reading
+    # pause. Verify restored scrolling instead of comparing different phases.
+    moves("details-return-marquee", (88, 29, 456, 69))
 
 
 def assert_wide_done(sim, name):

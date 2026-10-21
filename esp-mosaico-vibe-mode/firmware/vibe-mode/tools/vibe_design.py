@@ -389,8 +389,7 @@ def apply(scene):
     add('image',local_description,8,0,416,176,name='local_body_pixels',bind='local_body_pixels',dynamic_image=True,hidden=True)
     button(69,'button_check_idea','Check updates',24,314,208,36)
     named['button_check_idea'].update(font=FONT['sans'],font_size=18)
-    button(69,'button_preview_idea','View info',248,314,208,36)
-    named['button_preview_idea'].update(font=FONT['sans'],font_size=18)
+    hide('button_preview_idea')
     button(69,'button_update_idea','Update',24,360,136,96)
     button(69,'button_install','Run',172,360,136,96,primary=True)
     named['button_install']['bg_color']=ORANGE

@@ -1,9 +1,9 @@
 {
-  "components/app_ui/light/vui_assets.bin": "c45c0b90fbf743596047a44602967e74a1cb99b3378345f0c93d39e64871b835",
-  "components/app_ui/private/vui_ids.h": "0ac46f92163b13378480a65992da1152b5d1be38ab7f1307d033c02a0397a63a",
+  "components/app_ui/light/vui_assets.bin": "244ba1dc99a80c5cc05fa66ecaefc6fef3bb124d71323e64983122f9a4da1982",
+  "components/app_ui/private/vui_ids.h": "979c9e81a6105a456a24fea7f2afb9b5682296d2925edd4e648d71839060b7af",
   "tools/build_vibe_ui.py": "0e45e37415de4b86be3c8b24ffa0f54b938a3ac30d78e050fb5259b0cd1bed4d",
   "tools/compile_vui.py": "85d192ec4827c7466cca144d7e4a7d4dfa8d340856e1a91ad726ea3c1b8c255f",
-  "tools/vibe_design.py": "4b32fc62846ac4fbb93b1357fbf6b6f4b3c6baadbacea00090e1697320c2c7f5",
+  "tools/vibe_design.py": "2639a537a4140a80e49d974ef746e9f049bf31bcde1420df62169734f71549b2",
   "ui/assets/icons/arrow-28-orange.png": "4b4df4c7fd4d4f63a9e0fbb18dbf4af2a9c51698c2daa8077aef70e01be25a8b",
   "ui/assets/icons/arrow_down-24-orange.png": "4b77f56a6c11a43e08b150cb126c1d15355e9bd55d32b4ba2631021900a6401a",
   "ui/assets/icons/arrow_down-24-white.png": "bfa507e952456b9b9d3b60bfbcf03d97a9166b2e1ad5b3c59078fc51cfcc78b8",
@@ -78,7 +78,7 @@
   "ui/fonts/VibeDisplay.otf": "e903cb1aca42573bd7a85098dd21c5c28ef63e6bf977699c543f5286322d83d4",
   "ui/fonts/VibeInter.otf": "661a1551574f35ce28ad1af334ddde8115e2889629ca9a5df34dd4bba45482a3",
   "ui/fonts/VibeMedium.otf": "b2d2b5a925e62fab93c3118303c6bf9d897a1aaf15e68c16a8ba6d6107e0d83d",
-  "ui/main.json": "57c8b4da7da8eed17da8723cba58da9d3a2a3e6829fed30f593dee49f792e2ed",
+  "ui/main.json": "82795406e969d5a5c6f553ece110a243c4d2123252a48d1c1621d17751cca18f",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3",
   "ui/translations.json": "313a5158cefeb9b2be41c0fc3a30c34e5d39d1de9a06a0934d4774a929d18ffb"

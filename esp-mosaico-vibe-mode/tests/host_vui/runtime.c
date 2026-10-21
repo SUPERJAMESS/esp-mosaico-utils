@@ -701,9 +701,12 @@ static void inline_intro_contract(uint16_t *frame)
     assert(!vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
     vibe_show(state,VIBE_NAND); advance_clock(ui,frame,200,16);
     vui_pointer(ui,150,170,true); vui_pointer(ui,150,170,false);
+    model.value.idea_busy = true; /* A background title job owns the backend. */
     advance_clock(ui,frame,200,16);
-    vui_pointer(ui,350,330,true); vui_pointer(ui,350,330,false);
-    assert(state->page == VIBE_CONFIRM && state->inline_intro_pending);
+    assert(state->page == VIBE_CONFIRM && state->inline_intro_due && !state->inline_intro_pending);
+    model.value.idea_busy = false;
+    vibe_ui_poll(state);
+    assert(state->inline_intro_pending && !state->inline_intro_due);
     model.value.idea_loading = model.value.idea_busy = false;
     model.value.idea_ready = model.value.idea_custom = true;
     vibe_ui_poll(state); vui_render(ui,frame);
@@ -720,8 +723,7 @@ static void inline_intro_contract(uint16_t *frame)
     vui_pointer(ui,100,430,true); vui_pointer(ui,100,430,false);
     assert(state->page == VIBE_CONFIRM);
     advance_clock(ui,frame,200,16);
-    vui_pointer(ui,350,330,true); vui_pointer(ui,350,330,false);
-    assert(state->inline_intro_pending);
+    assert(state->inline_intro_pending); /* Re-entering details loads automatically. */
     advance_clock(ui,frame,200,16);
     vui_pointer(ui,38,36,true); vui_pointer(ui,38,36,false);
     assert(state->page == VIBE_NAND && !state->inline_intro_pending && !model.value.idea_loading);
