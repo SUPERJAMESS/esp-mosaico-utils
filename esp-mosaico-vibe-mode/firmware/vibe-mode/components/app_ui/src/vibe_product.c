@@ -89,6 +89,7 @@ bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
         s->hold_started_ms = 0;
         s->hold_consumed = true;
         (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, 0);
+        (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, 0);
     }
     if (shared_context(s, s->page) && next != s->page) {
         (void)vui_set_text(s->ui, VUI_VIBE_BIND_SHARED_VALUE, "");
@@ -1489,8 +1490,7 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
         } else {
             s->hold_started_ms = 0;
             (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, 0);
-            if (s->page == VIBE_DELETE_CONFIRM)
-                TEXT(s, DELETE_PROGRESS, "Hold for 3 seconds to delete");
+            (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, 0);
         }
     }
     if (!pressed && s->pointer_down && !s->gesture_consumed) {
@@ -1509,7 +1509,7 @@ void vibe_product_tick(vibe_ui_t *s)
     if (s->hold_started_ms && now + 1 >= s->hold_started_ms) {
         unsigned elapsed = (unsigned)(now + 1 - s->hold_started_ms);
         if (s->page == VIBE_RESET) (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, elapsed >= 3000 ? 100 : elapsed / 30);
-        else if (s->page == VIBE_DELETE_CONFIRM) FORMAT(s, DELETE_PROGRESS, "Hold · %u s", elapsed >= 3000 ? 0 : (3000 - elapsed + 999) / 1000);
+        else if (s->page == VIBE_DELETE_CONFIRM) (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, elapsed >= 3000 ? 100 : elapsed / 30);
         if (elapsed >= 3000) {
             s->hold_started_ms = 0;
             s->hold_consumed = true;

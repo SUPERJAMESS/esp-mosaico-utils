@@ -735,11 +735,13 @@ def apply(scene):
                 if r_idx: rect(p,36,ry,408,1,LINE,0)
                 text(p,f'reset_key_{r_idx}',r_key,36,ry+8,144,28,20,color=MUTED)
                 text(p,f'reset_val_{r_idx}',r_val,184,ry+8,260,28,20,color=TEXT,align='right',overflow='ellipsis')
-            add('progress',p,24,348,432,96,name='reset_hold_progress',bind='reset_hold_progress',
-                bind_target='value',bg_color=RAISED,fg_color=ORANGE,radius=20)
+        else:
+            hide('delete_progress')
+        progress_name='reset_hold_progress' if name=='reset' else 'delete_hold_progress'
+        add('progress',p,24,348,432,96,name=progress_name,bind=progress_name,
+            bind_target='value',bg_color=RAISED,fg_color=ORANGE,radius=20)
         button(p,'button_reset_hold' if name=='reset' else 'button_delete_hold','Hold to reset' if name=='reset' else 'Hold to delete',24,348,432,96,danger=True)
-        if name=='reset':
-            named['button_reset_hold'].update(bg_color='#00000001',fg_color=TEXT)
+        named['button_reset_hold' if name=='reset' else 'button_delete_hold'].update(bg_color='#00000001',fg_color=TEXT)
 
     # Display only: keep the product's existing timeout, brightness and wake policy.
     p=index['sleep']

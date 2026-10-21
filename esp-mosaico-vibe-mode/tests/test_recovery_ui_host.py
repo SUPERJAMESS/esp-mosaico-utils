@@ -949,10 +949,33 @@ def hold(sim, x=240, y=396, **expected):
         sim.rpc("feed_pointer", x=x, y=y, pressed=False)
 
 
-def test_delete_requires_hold_and_supports_undo(sim):
+@pytest.mark.parametrize("language", [1, 2])
+def test_delete_requires_hold_and_supports_undo(sim, language):
+    if language == 2:
+        sim.tap(390, 360); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(language=2)
+        sim.tap(38, 36); sim.wait(page=11)
+        sim.tap(38, 36); sim.wait(page=0)
     sim.manage(); sim.tap(150, 170); sim.wait(page=6)
     sim.tap_ui("button_local_delete"); sim.wait(page=23)
     sim.tap(240, 396); sim.wait(page=23, delete_calls=0)
+    sim.capture("delete-idle")
+    with Image.open(sim.directory / "delete-idle.png") as frame:
+        idle = frame.copy()
+        assert all(max(rgb[:3]) < 20 for rgb in idle.crop((24, 280, 456, 340)).getdata())
+    sim.rpc("feed_pointer", x=240, y=396, pressed=True)
+    time.sleep(1)
+    sim.capture("delete-holding")
+    with Image.open(sim.directory / "delete-holding.png") as frame:
+        r, g, b = frame.getpixel((80, 370))[:3]
+        assert r > 240 and 85 < g < 125 and 40 < b < 80
+        assert not ImageChops.difference(frame, idle).crop((0, 0, 480, 348)).getbbox()
+    sim.rpc("feed_pointer", x=240, y=396, pressed=False)
+    sim.wait(page=23, pending_delete=False, delete_calls=0)
+    sim.capture("delete-released")
+    with Image.open(sim.directory / "delete-released.png") as frame:
+        assert not ImageChops.difference(frame, idle).getbbox()
     hold(sim, page=5, pending_delete=True, delete_calls=0)
     sim.capture("undo-idea")
     sim.tap(390, 435)

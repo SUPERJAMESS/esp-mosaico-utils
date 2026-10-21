@@ -1851,11 +1851,12 @@
       "name": "delete_progress",
       "bind": "delete_progress",
       "text": "Hold for 3 seconds to delete",
-      "font_size": 20,
+      "font_size": 16,
       "fg_color": "#F3F4F2",
       "text_align": "center",
       "font": "fonts/VibeInter.otf",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Hold for 3 seconds to delete长按 3 秒删除             %%33HHcddddeeeeflllnooooorsssttuu··住删按按秒秒继续长除"
+      "hidden": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文"
     },
     {
       "type": "layer",
@@ -6682,7 +6683,7 @@
     },
     {
       "type": "button",
-      "parent": 1285,
+      "parent": 1286,
       "x": 332,
       "y": 405,
       "w": 108,
@@ -7927,7 +7928,7 @@
     },
     {
       "type": "button",
-      "parent": 1288,
+      "parent": 1289,
       "x": 400,
       "y": 100,
       "w": 56,
@@ -7961,7 +7962,7 @@
     },
     {
       "type": "button",
-      "parent": 1289,
+      "parent": 1290,
       "x": 24,
       "y": 360,
       "w": 136,
@@ -8011,7 +8012,7 @@
     },
     {
       "type": "button",
-      "parent": 1287,
+      "parent": 1288,
       "x": 320,
       "y": 360,
       "w": 136,
@@ -8183,7 +8184,7 @@
     },
     {
       "type": "button",
-      "parent": 1286,
+      "parent": 1287,
       "x": 248,
       "y": 360,
       "w": 208,
@@ -8482,7 +8483,7 @@
     },
     {
       "type": "button",
-      "parent": 1290,
+      "parent": 1291,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -12851,7 +12852,7 @@
     },
     {
       "type": "button",
-      "parent": 1291,
+      "parent": 1292,
       "x": 388,
       "y": 96,
       "w": 68,
@@ -12917,7 +12918,7 @@
     },
     {
       "type": "button",
-      "parent": 1292,
+      "parent": 1293,
       "x": 352,
       "y": 28,
       "w": 104,
@@ -14836,7 +14837,7 @@
     },
     {
       "type": "button",
-      "parent": 1280,
+      "parent": 1281,
       "x": 48,
       "y": 294,
       "w": 384,
@@ -15098,7 +15099,7 @@
     },
     {
       "type": "button",
-      "parent": 1299,
+      "parent": 1300,
       "x": 30,
       "y": 69,
       "w": 124,
@@ -15139,7 +15140,7 @@
     },
     {
       "type": "image",
-      "parent": 1293,
+      "parent": 1294,
       "x": 38,
       "y": 77,
       "w": 108,
@@ -15277,7 +15278,7 @@
     },
     {
       "type": "button",
-      "parent": 1300,
+      "parent": 1301,
       "x": 178,
       "y": 69,
       "w": 124,
@@ -15318,7 +15319,7 @@
     },
     {
       "type": "image",
-      "parent": 1294,
+      "parent": 1295,
       "x": 186,
       "y": 77,
       "w": 108,
@@ -15456,7 +15457,7 @@
     },
     {
       "type": "button",
-      "parent": 1301,
+      "parent": 1302,
       "x": 326,
       "y": 69,
       "w": 124,
@@ -15497,7 +15498,7 @@
     },
     {
       "type": "image",
-      "parent": 1295,
+      "parent": 1296,
       "x": 334,
       "y": 77,
       "w": 108,
@@ -15635,7 +15636,7 @@
     },
     {
       "type": "button",
-      "parent": 1302,
+      "parent": 1303,
       "x": 30,
       "y": 253,
       "w": 124,
@@ -15676,7 +15677,7 @@
     },
     {
       "type": "image",
-      "parent": 1296,
+      "parent": 1297,
       "x": 38,
       "y": 261,
       "w": 108,
@@ -15814,7 +15815,7 @@
     },
     {
       "type": "button",
-      "parent": 1303,
+      "parent": 1304,
       "x": 178,
       "y": 253,
       "w": 124,
@@ -15855,7 +15856,7 @@
     },
     {
       "type": "image",
-      "parent": 1297,
+      "parent": 1298,
       "x": 186,
       "y": 261,
       "w": 108,
@@ -15993,7 +15994,7 @@
     },
     {
       "type": "button",
-      "parent": 1304,
+      "parent": 1305,
       "x": 326,
       "y": 253,
       "w": 124,
@@ -16034,7 +16035,7 @@
     },
     {
       "type": "image",
-      "parent": 1298,
+      "parent": 1299,
       "x": 334,
       "y": 261,
       "w": 108,
@@ -17142,7 +17143,7 @@
     },
     {
       "type": "button",
-      "parent": 1281,
+      "parent": 1282,
       "x": 24,
       "y": 400,
       "w": 432,
@@ -17280,7 +17281,7 @@
     },
     {
       "type": "button",
-      "parent": 1283,
+      "parent": 1284,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -17305,7 +17306,7 @@
     },
     {
       "type": "button",
-      "parent": 1282,
+      "parent": 1283,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -17355,7 +17356,7 @@
     },
     {
       "type": "button",
-      "parent": 1284,
+      "parent": 1285,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -17525,7 +17526,7 @@
     },
     {
       "type": "button",
-      "parent": 1279,
+      "parent": 1280,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -17957,6 +17958,20 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Remove this saved Idea?\nYou can undo for 4 seconds.删除这个已保存的 Idea？\n删除后 4 秒内可以撤销。\n\n                  ..4444?IIRYYaaaaaccccdddddddeeeeeeeffhimnnnnnnooooooooorrsssssstuuuuvv。。个以以保内内删删删可可后后存已撤撤的秒秒这销销除除除？"
     },
     {
+      "type": "progress",
+      "parent": 108,
+      "x": 24,
+      "y": 348,
+      "w": 432,
+      "h": 96,
+      "name": "delete_hold_progress",
+      "bind": "delete_hold_progress",
+      "bind_target": "value",
+      "bg_color": "#272A2D",
+      "fg_color": "#FF6439",
+      "radius": 20
+    },
+    {
       "type": "button",
       "parent": 108,
       "x": 24,
@@ -17967,8 +17982,8 @@
       "bind": "delete_hold_label",
       "text": "Hold to delete",
       "font_size": 24,
-      "fg_color": "#FF8A85",
-      "bg_color": "#272A2D",
+      "fg_color": "#F3F4F2",
+      "bg_color": "#00000001",
       "radius": 20,
       "events": [
         {
@@ -18307,7 +18322,7 @@
     },
     {
       "type": "button",
-      "parent": 1305,
+      "parent": 1306,
       "x": 16,
       "y": 16,
       "w": 56,
@@ -18330,7 +18345,7 @@
     },
     {
       "type": "label",
-      "parent": 1305,
+      "parent": 1306,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -18345,7 +18360,7 @@
     },
     {
       "type": "label",
-      "parent": 1305,
+      "parent": 1306,
       "x": 24,
       "y": 100,
       "w": 432,
@@ -18360,7 +18375,7 @@
     },
     {
       "type": "label",
-      "parent": 1305,
+      "parent": 1306,
       "x": 24,
       "y": 152,
       "w": 432,
@@ -18375,7 +18390,7 @@
     },
     {
       "type": "label",
-      "parent": 1305,
+      "parent": 1306,
       "x": 24,
       "y": 212,
       "w": 432,
@@ -18390,7 +18405,7 @@
     },
     {
       "type": "label",
-      "parent": 1305,
+      "parent": 1306,
       "x": 24,
       "y": 270,
       "w": 432,
@@ -18405,7 +18420,7 @@
     },
     {
       "type": "button",
-      "parent": 1305,
+      "parent": 1306,
       "x": 24,
       "y": 360,
       "w": 204,
@@ -18428,7 +18443,7 @@
     },
     {
       "type": "button",
-      "parent": 1305,
+      "parent": 1306,
       "x": 252,
       "y": 360,
       "w": 204,
@@ -18463,7 +18478,7 @@
     },
     {
       "type": "label",
-      "parent": 1314,
+      "parent": 1315,
       "x": 24,
       "y": 36,
       "w": 432,
@@ -18478,7 +18493,7 @@
     },
     {
       "type": "label",
-      "parent": 1314,
+      "parent": 1315,
       "x": 24,
       "y": 132,
       "w": 432,
@@ -18493,7 +18508,7 @@
     },
     {
       "type": "label",
-      "parent": 1314,
+      "parent": 1315,
       "x": 24,
       "y": 196,
       "w": 432,
@@ -18509,7 +18524,7 @@
     },
     {
       "type": "label",
-      "parent": 1314,
+      "parent": 1315,
       "x": 24,
       "y": 268,
       "w": 432,
@@ -18524,7 +18539,7 @@
     },
     {
       "type": "layer",
-      "parent": 1314,
+      "parent": 1315,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -18536,7 +18551,7 @@
     },
     {
       "type": "button",
-      "parent": 1319,
+      "parent": 1320,
       "x": 96,
       "y": 380,
       "w": 288,

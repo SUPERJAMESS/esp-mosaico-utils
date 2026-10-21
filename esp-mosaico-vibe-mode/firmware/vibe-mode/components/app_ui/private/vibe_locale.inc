@@ -488,7 +488,6 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
 static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {
     {VUI_VIBE_BIND_PAIRING_ENDPOINT, "Connect Wi-Fi first"},
     {VUI_VIBE_BIND_PAIRING_TOKEN, "Available after startup"},
-    {VUI_VIBE_BIND_DELETE_PROGRESS, "Hold for 3 seconds to delete"},
     {VUI_VIBE_BIND_HOME_BRAND, "Vibe Mode"},
     {VUI_VIBE_BIND_HOME_HEADLINE, "make ideas"},
     {VUI_VIBE_BIND_HOME_RUN, "run"},

@@ -238,7 +238,6 @@ static void show(vibe_ui_t *s, vibe_page_t page) {
         TEXT(s, DELETE_NOTE, s->delete_code[0]
             ? "Remove this saved Idea?\nYou can undo for 4 seconds."
             : "You can undo for 4 seconds.");
-        TEXT(s, DELETE_PROGRESS, "Hold for 3 seconds to delete");
     }
     /* Authored layers start with only HOME visible. Update only the two
      * participating layers, avoiding redundant visibility invalidations. */
