@@ -240,6 +240,7 @@ void *factory_ideas_copy_title(const char *code, size_t *size) {
         job_t *job = known ? calloc(1, sizeof(*job)) : NULL;
         if (job) {
             job->command = IDEAS_ROW;
+            job->title_language = language;
             strcpy(job->code, code);
             job->request_id = ctx->state->preview_id;
             ctx->state->busy = true;

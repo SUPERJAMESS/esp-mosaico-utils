@@ -75,7 +75,6 @@
   "Receive": "接收",
   "Saved in My Ideas": "已保存在我的 Idea",
   "Scan error 0x%x": "扫描失败 0x%x",
-  "Scanning NAND...": "正在扫描 NAND…",
   "Scanning...": "正在扫描…",
   "Secured": "加密",
   "Setting boot application": "正在准备打开 Idea",
@@ -370,7 +369,7 @@
   "This page summarizes selected\ncomponents and fonts. Refer to\neach project's license files for\nthe full terms and attribution.": "此页概述部分组件与字体。\n完整条款和署名信息\n请参阅各项目的许可文件。",
   "Save a value once.\nEvery Idea can read it.": "保存一次信息，\n每个 Idea 都能读取。",
   "Keys: a-z, 0-9 and _\nUp to 15 characters.\nValues: up to 256 bytes.\nSecret values are hidden by default.": "键名使用 a-z、0-9 和 _，\n最多 15 个字符。\n值最多 256 字节。\n密文默认隐藏。",
-    "Tap Value to edit this entry.": "点击「键名」或「内容」编辑此条目。",
+  "Tap Value to edit this entry.": "点击「键名」或「内容」编辑此条目。",
   "Current Idea": "当前 Idea",
   "Update all saved Ideas?": "更新所有已保存的 Idea？",
   "Download available updates to My Ideas.": "将可用更新下载到我的应用。",
@@ -475,5 +474,14 @@
   "Find Idea IDs and share your own.": "查找 Idea 编号，分享你的作品。",
   "Help with Wi-Fi, storage and Ideas.": "Wi-Fi、存储与 Idea 问题指南。",
   "Read-only. Change this value in Settings.": "此处仅供查看，请在对应设置中修改。",
-  "Sleep": "息屏"
+  "Sleep": "息屏",
+  "Open Wi-Fi Settings and check\nthat Wi-Fi is on.": "打开 Wi-Fi 设置，确认 Wi-Fi 已开启。",
+  "Select your network and enter\nthe correct password.": "选择要连接的网络，输入正确的密码。",
+  "If connection fails, check the\npassword and scan again.": "连接失败时，检查密码后重新扫描。",
+  "Open Manage Storage to check\nyour Ideas and storage usage.": "打开存储管理，查看已安装的 Idea 和可用空间。",
+  "Delete an Idea you no longer need\nto free space.": "删除不再需要的 Idea，空出存储空间。",
+  "The current Idea cannot be deleted.\nRun another Idea first.": "当前应用无法删除，请先运行其他 Idea。",
+  "Wi-Fi Settings": "Wi-Fi 设置",
+  "Manage Storage": "管理存储空间",
+  "Checking apps and storage...": "正在检查应用和存储空间…"
 }

@@ -28,6 +28,7 @@ project(vibe-mode)
 include(cmake/bq27220_profile_read_guard.cmake)
 include(cmake/usb_dma_bss.cmake)
 include(cmake/bsp_display_timing.cmake)
+include(cmake/touch_report_validity.cmake)
 
 if(NOT CONFIG_ESPTOOLPY_FLASHMODE_QIO)
     message(FATAL_ERROR "Vibe Mode requires CONFIG_ESPTOOLPY_FLASHMODE_QIO=y; update sdkconfig and rebuild")

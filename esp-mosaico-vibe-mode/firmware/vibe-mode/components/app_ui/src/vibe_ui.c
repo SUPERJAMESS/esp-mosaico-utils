@@ -424,7 +424,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         s->acknowledged_update = s->snapshot.update_revision;
         if (e->action_id == VUI_VIBE_ACT_ID_BACK_NAND && s->fix_return_active) {
             s->fix_return_active = false;
-            s->help_mode = 2;
+            s->help_mode = 1;
             show(s, VIBE_HELP);
         } else {
             show(s, VIBE_HOME);
@@ -800,8 +800,11 @@ void vibe_ui_poll(vibe_ui_t *s) {
             TEXT(s, IDEA_VERSION, "");
             TEXT(s, IDEA_SUMMARY, "");
         }
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_LOADING_STATUS, !v->idea_ready);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_ICON, v->idea_ready);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_STATUS, v->idea_ready);
         TEXT(s, IDEA_STATUS,
-             !v->idea_ready       ? "Please wait"
+             !v->idea_ready       ? ""
              : v->nand_error      ? "Storage unavailable"
              : v->idea_view_only  ? "Saved in My Ideas"
              : v->idea_downloaded ? "Already downloaded"

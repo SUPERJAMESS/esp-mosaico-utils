@@ -592,6 +592,7 @@ def test_cancel_loading_discards_late_preview(sim):
         sim.tap_ui("button_code_0")
     sim.tap_ui("button_download_code")
     sim.wait(page=9, idea_loading=True, download_calls=0)
+    sim.capture("preview-loading-aligned")
     sim.tap(120, 436)
     sim.wait(page=4, cancel_calls=1, download_calls=0)
     time.sleep(8)
@@ -640,7 +641,7 @@ def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
         r, g, b = image.convert("RGB").getpixel((40, 245))
         assert g > 200 and r < 20 and b < 20
     sim.swipe(220, 345, 220, 250)
-    sim.wait(page=9, idea_description_offset=40, download_calls=0, install_calls=0)
+    sim.wait(page=9, idea_description_offset=48, download_calls=0, install_calls=0)
     sim.capture("custom-offline-scrolled")
     with Image.open(sim.directory / "custom-offline.png") as before, Image.open(sim.directory / "custom-offline-scrolled.png") as after:
         # Only the description moves; the native title pixels, metadata and

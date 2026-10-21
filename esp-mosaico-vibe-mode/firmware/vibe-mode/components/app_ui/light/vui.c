@@ -93,7 +93,7 @@ struct vui {
     void *event_ctx;
     vui_pointer_cb_t observer;
     void *observer_ctx;
-    uint64_t now;
+    uint64_t now, press_started_ms;
     uint32_t animation;
     bool dirty, pressed, moved, scrolling;
     int start_x, start_y, last_y, pointer_x, pointer_y;
@@ -372,6 +372,13 @@ static int image_value(value_t *v, void *png, size_t size, bool *changed)
         ? vui_title_qoi(png, size, &w, &h) : vui_png(png, size, &w, &h);
     if (!p)
         return VUI_ERR_INVALID_ARG;
+    if (v->image && v->width == w && v->height == h &&
+        !memcmp(v->image, p, (size_t)w * h * 3)) {
+        free(p);
+        free(png);
+        *changed = false;
+        return VUI_OK;
+    }
     free(v->image);
     v->image = p;
     v->marquee_active = false;
@@ -685,6 +692,10 @@ void vui_tick(vui_handle_t u, uint32_t elapsed)
         return;
     uint64_t previous = u->now;
     u->now += elapsed;
+    /* Delay a scroll candidate's press feedback until it settles briefly. */
+    if (u->pressed && !u->moved && u->drag_node &&
+        previous - u->press_started_ms < 80 && u->now - u->press_started_ms >= 80)
+        damage_node(u, u->down.node);
     for (unsigned i = 0; i < TIMERS; i++) {
         vui_timer_state_t *t = &u->timers[i];
         if (t->callback && u->now >= t->next) {
@@ -1114,6 +1125,7 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
                     image.h = min(r.h, v->height);
                     image.w = max(1, (int)v->width * image.h / v->height);
                     image.y += (r.h - image.h) / 2;
+                    if (image.w < r.w && n->align == 1) image.x += (r.w - image.w) / 2;
                     image.x -= marquee_layout(u, v, image.w, r.w);
                 }
                 bitmap(u, image, paint, v->image, v->width, v->height, false, v->width * 3, n->radius);
@@ -1159,7 +1171,8 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
     int offset = (n->flags & VUI_SCROLL) ? v->scroll : 0;
     for (int c = u->child[i]; c >= 0; c = u->sibling[c])
         draw(u, c, r.x, r.y - offset, clip, row, depth + 1);
-    if (n->kind == VUI_BUTTON && !u->page_active && u->pressed && !u->moved && u->down.node == i + 1 &&
+    if (n->kind == VUI_BUTTON && !u->page_active && u->pressed && !u->moved &&
+        (!u->drag_node || u->now - u->press_started_ms >= 80) && u->down.node == i + 1 &&
         contains(u->down.rect, u->pointer_x, u->pointer_y)) {
         if (n->flags & VUI_PRESS_RING) {
             /* Grid presses keep the icon in place and only light its ring. */
@@ -1330,6 +1343,10 @@ int vui_pointer_velocity_x(vui_handle_t u)
 {
     return u ? motion_velocity(&u->motion_x, u->pointer_ms, true) : 0;
 }
+bool vui_pointer_moved(vui_handle_t u)
+{
+    return u && u->moved;
+}
 bool vui_pointer_target(vui_handle_t u, vui_event_t *event)
 {
     if (!u || !event || !u->down.node) return false;
@@ -1348,6 +1365,7 @@ void vui_pointer_at(vui_handle_t u, int x, int y, bool pressed, uint64_t time_ms
     u->pointer_x = x; u->pointer_y = y;
     u->pointer_ms = time_ms;
     if (pressed && !u->pressed) {
+        u->press_started_ms = u->now;
         memset(&u->down, 0, sizeof(u->down));
         u->start_x = x;
         u->start_y = y;

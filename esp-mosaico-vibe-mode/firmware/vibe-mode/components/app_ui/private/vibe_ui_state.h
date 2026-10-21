@@ -43,6 +43,9 @@ struct vibe_ui {
     unsigned guide_topic, help_mode, help_topic_index;
     bool fix_return_active, shared_settings_return;
     unsigned grid_page, grid_rendered_page, pager_state, shared_page, last_shared_user_count;
+    bool grid_titles_pending, open_title_ready;
+    unsigned open_title_language;
+    unsigned grid_title_ready_mask;
     vibe_pager_t pager;
     unsigned haptic_revision, last_language, grid_generation, settings_revision, motion_revision;
     bool gesture_consumed, pointer_page_ready, hold_consumed, touch_haptic_armed;
