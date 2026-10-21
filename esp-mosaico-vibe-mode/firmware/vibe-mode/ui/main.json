@@ -14501,7 +14501,7 @@
       "y": 6,
       "w": 24,
       "h": 24,
-      "bg_color": "#FFD54F",
+      "bg_color": "#FF6439",
       "radius": 6
     },
     {
@@ -14532,7 +14532,7 @@
       "text": "↑",
       "font_size": 24,
       "font": "fonts/VibeMedium.otf",
-      "fg_color": "#FFD54F",
+      "fg_color": "#FF6439",
       "text_align": "center",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文↑"
     },
