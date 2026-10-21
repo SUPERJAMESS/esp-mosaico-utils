@@ -1,5 +1,5 @@
 CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
-CONFIG_APP_PROJECT_VER="0.3.7"
+CONFIG_APP_PROJECT_VER="0.2.1"
 CONFIG_ESP_IRIS_USB_AUTO_DOWNLOAD=y
 
 # Preserve panic diagnostics when a maintenance Flash operation faults with

@@ -6,12 +6,12 @@
     "product_contract": "esp-mosaico/v2",
     "recovery_abi": 2
   },
-  "idf_version": "v6.2-dev-2221-g7b9cc1ac79f",
+  "idf_version": "v6.2-dev-2221-g7b9cc1ac79f-dirt",
   "images": {
     "bootloader": {
       "file": "bootloader.bin",
       "offset": "0x2000",
-      "sha256": "3e0a6c29c039111a83e0d66f18effcfedc6ecc6b7ef2ac441697562100ac49b1",
+      "sha256": "142bd570559b3e60989b1b97b1aec692870b6f60d8a3006230086dc8e1f3edf6",
       "size": 21984
     },
     "ota_data": {
@@ -29,8 +29,8 @@
     "recovery": {
       "file": "vibe-mode.bin",
       "offset": "0x20000",
-      "sha256": "d463c09362c9887b62e81d0e81061d17f18f94af4cf8123ea74a8b3b588fc3f8",
-      "size": 1488608
+      "sha256": "7f6280258f9e2e2ccffee38ae692e2e0af9c15e22030477b048a19355a650a3a",
+      "size": 1713168
     }
   },
   "initial_boot": {
@@ -59,9 +59,9 @@
     "secure_boot": false
   },
   "source": {
-    "commit": "ca0ecf70d62b143f8bfa26a4f54baf929db84190",
-    "dirty": false
+    "commit": "6625ba7cb2f261f6b98c100ef3e2586b1997a9b9",
+    "dirty": true
   },
   "target": "esp32s31",
-  "version": "0.2.0"
+  "version": "0.2.1"
 }

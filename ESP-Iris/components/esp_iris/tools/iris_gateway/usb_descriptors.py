@@ -94,7 +94,15 @@ def _mac_interfaces() -> dict[str, dict[str, Any]]:
 
 
 def serial_ports() -> list[Any]:
-    ports = list(list_ports.comports())
+    try:
+        ports = list(list_ports.comports())
+    except (TypeError, ValueError) as exc:
+        if not sys.platform.startswith("linux"):
+            raise
+        # Linux sysfs attributes may disappear between pySerial's existence
+        # check and int() conversion during USB re-enumeration. Discard the
+        # incomplete snapshot and let discovery/connection backoff retry it.
+        raise OSError(f"USB enumeration interrupted: {type(exc).__name__}: {exc}") from exc
     if sys.platform == "win32":
         return _windows_ports(ports)
     if sys.platform != "darwin":

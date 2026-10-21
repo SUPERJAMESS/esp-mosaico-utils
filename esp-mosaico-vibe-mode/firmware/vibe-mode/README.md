@@ -23,12 +23,14 @@ ROM 身份不符、端口不唯一或重枚举超时会停止，不尝试其它�
 当前源码使用 ESP-Iris 0.2、Recovery ABI 2 和 `mosaico-retained-test-2m-v2`
 布局。`vibe_mode` 为 `app/test`，`main_app` 为 `app/ota_0`。固件工程名为
 `vibe-mode`，新构建产物为 `vibe-mode.bin`、`vibe-mode.elf`，候选包的
-manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 已于 2026-10-16 更新为
-源码提交 `ca0ecf7` 的 `vibe-mode.bin`，版本保持 0.2.0，镜像大小为 1,488,608 字节。
-默认 Ideas 地址为 `https://mosaico.ai`，包含固件清单尾部 JSON
-空白解析修复及“打开失败”提示。主程序与 ESP32-S31 实机自更新、重启后 ELF 哈希
-核对及用户手动验收通过的镜像字节一致；bootloader、分区表及初始 OTA 数据保持原评审包
-字节不变。完整包通过 manifest、布局、大小和 SHA-256 校验，S31 产品统一使用 QIO。
+manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 已于 2026-10-21 更新为
+经过 Linux 九机实测的 0.2.1，`vibe-mode.bin` 大小为 1,713,168 字节。
+默认 Ideas 地址为 `https://mosaico.ai`。三轮六场景并发更新 162/162 通过，
+包含单台对照、准备和最终回写共 187 次实际更新通过；38 次自更新均更换 ELF。
+固件和 bootloader 直接取自受测冻结候选，未在验收后重新构建；分区表及初始 OTA
+数据保持原评审包字节不变。完整包通过 manifest、布局、大小和 SHA-256 校验，
+S31 产品统一使用 QIO。源码状态、镜像摘要、时间/速率、准备阶段接口认领问题及
+验收边界见 [九机验证记录](../../docs/vibe-0.2.1-nine-device-validation-20261021.json)。
 
 目录改名后须使用新的构建目录重新配置，避免复用包含旧绝对路径的 CMake 缓存。
 `recover` launcher 已使用新的 `build-mosaico-vibe-mode` 构建目录。
@@ -661,7 +663,7 @@ ABI 2 和布局版本 5 不变。固件及原生模拟器使用同一套 C 控�
 `tools/build_maker_story.py` 生成去重的帧/姿势表，
 `vibe_motion.c` / `vibe_home_motion.c` 在渲染任务中推进可见时间。
 修改故事生成器后先重新运行该脚本；无需把参考版的 GSP 引擎或模拟数据加入固件。
-本次源码更新未替换已评审预编译包。2026-10-18 已完成 S31 自更新、设备帧截图、
+2026-10-18 的界面迁移当时未替换已评审预编译包；该阶段已完成 S31 自更新、设备帧截图、
 USB 指针交互及原应用往返启动验证，见 [端侧验证记录](../../docs/ui-handoff-device-validation.md)。
 人工触摸体感、物理按键、旋转与面板显示效果仍需现场验收。
 

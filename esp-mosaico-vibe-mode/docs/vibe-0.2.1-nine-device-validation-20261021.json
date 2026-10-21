@@ -1,0 +1,626 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-21",
+  "product": "Vibe Mode",
+  "version": "0.2.1",
+  "result": "passed",
+  "source": {
+    "head": "6625ba7cb2f261f6b98c100ef3e2586b1997a9b9",
+    "dirty_file_sha256": {
+      "ESP-Iris/components/esp_iris/tools/iris_gateway/hub.py": "80c77a281fcb5f6952dcc571c99f948671fc047a4186b2c2e739d3391e96ed03",
+      "ESP-Iris/components/esp_iris/tools/iris_gateway/usb_descriptors.py": "bc357235bf46d6280cb191e39132615e3d5a05a60d369035adbaa6807d7b0d38",
+      "esp-mosaico-vibe-mode/firmware/vibe-mode/sdkconfig.recovery.defaults": "1fa9215413a8fa5cb9d219c0066671a8c6a52e6d18f5fe7635c375814d4b4ebf"
+    }
+  },
+  "environment": {
+    "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "idf_revision": "7b9cc1ac79f865983f59bb8ff3ff43eb74ff1dbe",
+    "idf_dirty_paths": "M components/esp_driver_cam/dvp/private_include/esp_cam_ctlr_dvp_dma.h\n M components/esp_driver_cam/dvp/src/esp_cam_ctlr_dvp_cam.c\n M components/esp_driver_cam/dvp/src/esp_cam_ctlr_dvp_gdma.c",
+    "bsp_revision": "5f88b91e1be055d1d3674364123b2779a1758377",
+    "bsp_dirty_paths": "",
+    "release_candidate_bytes": 1713168,
+    "release_candidate_sha256": "7f6280258f9e2e2ccffee38ae692e2e0af9c15e22030477b048a19355a650a3a",
+    "transport": "USB Highspeed CDC, not Wi-Fi"
+  },
+  "release": {
+    "manifest": {
+      "compatibility": {
+        "board_id": "esp-mosaico",
+        "chip_target": "esp32s31",
+        "layout_id": "mosaico-retained-test-2m-v2",
+        "product_contract": "esp-mosaico/v2",
+        "recovery_abi": 2
+      },
+      "idf_version": "v6.2-dev-2221-g7b9cc1ac79f-dirt",
+      "images": {
+        "bootloader": {
+          "file": "bootloader.bin",
+          "offset": "0x2000",
+          "sha256": "142bd570559b3e60989b1b97b1aec692870b6f60d8a3006230086dc8e1f3edf6",
+          "size": 21984
+        },
+        "ota_data": {
+          "file": "ota_data_initial.bin",
+          "offset": "0x9000",
+          "sha256": "5a5d79a1c029da23a3b9cc03c111c5b72f9cbfa386877b0a5d20dc93ab42c7e1",
+          "size": 8192
+        },
+        "partition_table": {
+          "file": "partition-table.bin",
+          "offset": "0x8000",
+          "sha256": "ff7ac35a4f2e51424150a6ba56172174299baa737230a09792dd46e8f5d0bb99",
+          "size": 3072
+        },
+        "recovery": {
+          "file": "vibe-mode.bin",
+          "offset": "0x20000",
+          "sha256": "7f6280258f9e2e2ccffee38ae692e2e0af9c15e22030477b048a19355a650a3a",
+          "size": 1713168
+        }
+      },
+      "initial_boot": {
+        "expected_mode": "recovery",
+        "ota_data_image": "ota_data_initial.bin",
+        "partition": "vibe_mode"
+      },
+      "layout": {
+        "application_partition": {
+          "name": "main_app",
+          "offset": "0x210000",
+          "subtype": "ota_0"
+        },
+        "recovery_partition": {
+          "name": "vibe_mode",
+          "offset": "0x20000",
+          "size": "0x1c0000",
+          "subtype": "test"
+        }
+      },
+      "profile": "recovery",
+      "project": "vibe-mode",
+      "schema_version": 3,
+      "security": {
+        "flash_encryption": false,
+        "secure_boot": false
+      },
+      "source": {
+        "commit": "6625ba7cb2f261f6b98c100ef3e2586b1997a9b9",
+        "dirty": true
+      },
+      "target": "esp32s31",
+      "version": "0.2.1"
+    },
+    "elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+    "exact_tested_candidate_published": true,
+    "recovery_slot_bytes": 1835008,
+    "recovery_slot_free_bytes": 121840
+  },
+  "measurements": {
+    "rom_recoveries_passed": 9,
+    "formal_parallel_passed": 162,
+    "formal_parallel_attempts": 162,
+    "rounds": 3,
+    "devices_per_round": 9,
+    "actual_updates_passed_including_setup_controls_and_final_image": 187,
+    "self_updates_with_changed_elf_and_full_1835008_byte_transfer": 38,
+    "collector_gaps_or_errors": 0,
+    "scenarios": [
+      {
+        "scenario": "self",
+        "label": "Vibe Mode 自更新",
+        "single_count": 1,
+        "parallel_count": 27,
+        "parallel_pass": 27,
+        "single_update_cli_seconds": 24.985283200163394,
+        "parallel_mean_update_cli_seconds": 32.40531248475114,
+        "parallel_batch_seconds": 43.696344748,
+        "single_download_kBps": 924.4148700974946,
+        "parallel_mean_download_kBps": 284.3625011257912,
+        "parallel_min_download_kBps": 206.03348206273674,
+        "parallel_max_download_kBps": 932.4218880182059
+      },
+      {
+        "scenario": "small",
+        "label": "小应用 + 相同分区表",
+        "single_count": 1,
+        "parallel_count": 27,
+        "parallel_pass": 27,
+        "single_update_cli_seconds": 11.145050577819347,
+        "parallel_mean_update_cli_seconds": 14.684656583893767,
+        "parallel_batch_seconds": 15.841900326,
+        "single_download_kBps": 221.08359381837911,
+        "parallel_mean_download_kBps": 167.56882839424892,
+        "parallel_min_download_kBps": 143.6146260627237,
+        "parallel_max_download_kBps": 188.9401081112755
+      },
+      {
+        "scenario": "app",
+        "label": "仅代码 OTA",
+        "single_count": 1,
+        "parallel_count": 27,
+        "parallel_pass": 27,
+        "single_update_cli_seconds": 14.03931871894747,
+        "parallel_mean_update_cli_seconds": 20.325273396119613,
+        "parallel_batch_seconds": 22.191176113333334,
+        "single_download_kBps": 235.00611900468346,
+        "parallel_mean_download_kBps": 134.2582217979658,
+        "parallel_min_download_kBps": 105.05978749989144,
+        "parallel_max_download_kBps": 183.72259453373272
+      },
+      {
+        "scenario": "large",
+        "label": "12.18 MB 大固件",
+        "single_count": 1,
+        "parallel_count": 27,
+        "parallel_pass": 27,
+        "single_update_cli_seconds": 98.02157271001488,
+        "parallel_mean_update_cli_seconds": 120.64746131815224,
+        "parallel_batch_seconds": 133.95669868666667,
+        "single_download_kBps": 258.74935925485636,
+        "parallel_mean_download_kBps": 175.19464719877777,
+        "parallel_min_download_kBps": 166.35490433004216,
+        "parallel_max_download_kBps": 182.01255661202813
+      },
+      {
+        "scenario": "layout",
+        "label": "应用 + 分区表 + 双资源",
+        "single_count": 1,
+        "parallel_count": 27,
+        "parallel_pass": 27,
+        "single_update_cli_seconds": 24.488801713101566,
+        "parallel_mean_update_cli_seconds": 30.8790038910315,
+        "parallel_batch_seconds": 41.257267319,
+        "single_download_kBps": 256.30475294566577,
+        "parallel_mean_download_kBps": 175.3389558868932,
+        "parallel_min_download_kBps": 156.2624017979328,
+        "parallel_max_download_kBps": 190.66345237638373
+      },
+      {
+        "scenario": "restore",
+        "label": "恢复 L1 布局 + 小应用",
+        "single_count": 1,
+        "parallel_count": 27,
+        "parallel_pass": 27,
+        "single_update_cli_seconds": 11.232108212076128,
+        "parallel_mean_update_cli_seconds": 14.822638146389552,
+        "parallel_batch_seconds": 24.748782324666667,
+        "single_download_kBps": 224.62656690756324,
+        "parallel_mean_download_kBps": 128.80147061197246,
+        "parallel_min_download_kBps": 99.09770909482862,
+        "parallel_max_download_kBps": 197.93647818647787
+      }
+    ],
+    "method": {
+      "single": "One sample per scenario; other eight devices connected with unchanged Boot IDs.",
+      "parallel": "Three complete nine-device batches per scenario; barrier before update workflow.",
+      "update_cli_seconds": "Includes upload, erase, validation, commit and HEALTHY/ELF acceptance; excludes separate system-update entry into Vibe Mode, readback and five-second stability check.",
+      "parallel_batch_seconds": "First workflow launch to last update command completion, including separate Vibe Mode entry when required.",
+      "download_kBps": "Sum of component ACK byte deltas / sum of transferring progress time deltas / 1000; excludes first chunk, erase, verify, reboot and components with only one progress point.",
+      "self_update": "RAM staging transfer rate, not Flash programming rate; alternated two different ELF hashes of version 0.2.1."
+    },
+    "parallel_transfer_windows": {
+      "parallel-1-app": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 7,
+        "union_transfer_seconds": 7.783538073,
+        "aggregate_measured_kBps": 449.86020074164287
+      },
+      "parallel-1-large": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 9,
+        "union_transfer_seconds": 79.465746267,
+        "aggregate_measured_kBps": 1379.1741618050185
+      },
+      "parallel-1-layout": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 9,
+        "union_transfer_seconds": 25.041761052,
+        "aggregate_measured_kBps": 813.4022187059084
+      },
+      "parallel-1-restore": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 6,
+        "union_transfer_seconds": 8.336555532,
+        "aggregate_measured_kBps": 415.71701726175223
+      },
+      "parallel-1-self": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 8,
+        "union_transfer_seconds": 14.252864482,
+        "aggregate_measured_kBps": 1156.2138979720078
+      },
+      "parallel-1-small": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 9,
+        "union_transfer_seconds": 3.697889873,
+        "aggregate_measured_kBps": 937.1961088685456
+      },
+      "parallel-2-app": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 7,
+        "union_transfer_seconds": 6.856670199,
+        "aggregate_measured_kBps": 510.6712002147444
+      },
+      "parallel-2-large": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 9,
+        "union_transfer_seconds": 82.153401845,
+        "aggregate_measured_kBps": 1334.05436097191
+      },
+      "parallel-2-layout": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 8,
+        "union_transfer_seconds": 25.501968112,
+        "aggregate_measured_kBps": 833.1102880644995
+      },
+      "parallel-2-restore": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 7,
+        "union_transfer_seconds": 8.611675395,
+        "aggregate_measured_kBps": 402.4359768613874
+      },
+      "parallel-2-self": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 7,
+        "union_transfer_seconds": 13.961647652,
+        "aggregate_measured_kBps": 1180.3306035759567
+      },
+      "parallel-2-small": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 9,
+        "union_transfer_seconds": 3.102190089,
+        "aggregate_measured_kBps": 1117.1617149731667
+      },
+      "parallel-3-app": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 6,
+        "union_transfer_seconds": 6.546362104,
+        "aggregate_measured_kBps": 534.8778366324234
+      },
+      "parallel-3-large": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 9,
+        "union_transfer_seconds": 73.722476331,
+        "aggregate_measured_kBps": 1486.6172360777696
+      },
+      "parallel-3-layout": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 8,
+        "union_transfer_seconds": 25.768909104,
+        "aggregate_measured_kBps": 809.8515895948655
+      },
+      "parallel-3-restore": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 6,
+        "union_transfer_seconds": 7.956596399,
+        "aggregate_measured_kBps": 435.5691587467688
+      },
+      "parallel-3-self": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 9,
+        "union_transfer_seconds": 13.148818334,
+        "aggregate_measured_kBps": 1253.295891797968
+      },
+      "parallel-3-small": {
+        "operations": 9,
+        "peak_simultaneous_measured_transfer_windows": 9,
+        "union_transfer_seconds": 3.201143617,
+        "aggregate_measured_kBps": 1082.628090034862
+      }
+    },
+    "gateway_cpu_during_transfer": {
+      "parallel-1-app": {
+        "samples": 7,
+        "gateway_cpu_percent_one_core_mean": 129.63486781566436,
+        "gateway_cpu_percent_one_core_max": 149.9217165766289
+      },
+      "parallel-1-large": {
+        "samples": 80,
+        "gateway_cpu_percent_one_core_mean": 114.24061065044965,
+        "gateway_cpu_percent_one_core_max": 133.8144921666225
+      },
+      "parallel-1-layout": {
+        "samples": 25,
+        "gateway_cpu_percent_one_core_mean": 114.32892375936223,
+        "gateway_cpu_percent_one_core_max": 130.94143068370377
+      },
+      "parallel-1-restore": {
+        "samples": 9,
+        "gateway_cpu_percent_one_core_mean": 123.8326876231254,
+        "gateway_cpu_percent_one_core_max": 143.93101918795094
+      },
+      "parallel-1-self": {
+        "samples": 15,
+        "gateway_cpu_percent_one_core_mean": 121.33729009880544,
+        "gateway_cpu_percent_one_core_max": 163.9380936970581
+      },
+      "parallel-1-small": {
+        "samples": 4,
+        "gateway_cpu_percent_one_core_mean": 116.94480358888121,
+        "gateway_cpu_percent_one_core_max": 131.94662402802183
+      },
+      "parallel-2-app": {
+        "samples": 7,
+        "gateway_cpu_percent_one_core_mean": 126.63328571768523,
+        "gateway_cpu_percent_one_core_max": 149.92666921689266
+      },
+      "parallel-2-large": {
+        "samples": 82,
+        "gateway_cpu_percent_one_core_mean": 114.89351849094712,
+        "gateway_cpu_percent_one_core_max": 138.9483956774326
+      },
+      "parallel-2-layout": {
+        "samples": 26,
+        "gateway_cpu_percent_one_core_mean": 119.09195859110653,
+        "gateway_cpu_percent_one_core_max": 146.93038761481662
+      },
+      "parallel-2-restore": {
+        "samples": 9,
+        "gateway_cpu_percent_one_core_mean": 127.48737671129692,
+        "gateway_cpu_percent_one_core_max": 141.93189922963492
+      },
+      "parallel-2-self": {
+        "samples": 14,
+        "gateway_cpu_percent_one_core_mean": 120.79836466455187,
+        "gateway_cpu_percent_one_core_max": 152.93921813123418
+      },
+      "parallel-2-small": {
+        "samples": 3,
+        "gateway_cpu_percent_one_core_mean": 120.27055810803009,
+        "gateway_cpu_percent_one_core_max": 120.93815247070279
+      },
+      "parallel-3-app": {
+        "samples": 7,
+        "gateway_cpu_percent_one_core_mean": 130.312347865878,
+        "gateway_cpu_percent_one_core_max": 145.92013630427917
+      },
+      "parallel-3-large": {
+        "samples": 74,
+        "gateway_cpu_percent_one_core_mean": 116.62882148378586,
+        "gateway_cpu_percent_one_core_max": 121.95403345157352
+      },
+      "parallel-3-layout": {
+        "samples": 25,
+        "gateway_cpu_percent_one_core_mean": 117.3380496744501,
+        "gateway_cpu_percent_one_core_max": 153.938621285044
+      },
+      "parallel-3-restore": {
+        "samples": 8,
+        "gateway_cpu_percent_one_core_mean": 123.30171729054331,
+        "gateway_cpu_percent_one_core_max": 147.93003279273984
+      },
+      "parallel-3-self": {
+        "samples": 13,
+        "gateway_cpu_percent_one_core_mean": 123.40588499118526,
+        "gateway_cpu_percent_one_core_max": 150.93522162158445
+      },
+      "parallel-3-small": {
+        "samples": 3,
+        "gateway_cpu_percent_one_core_mean": 121.6084097959106,
+        "gateway_cpu_percent_one_core_max": 122.94272024897967
+      }
+    }
+  },
+  "verification": {
+    "passed": true,
+    "device_count": 9,
+    "rom_recoveries_passed": 9,
+    "formal_parallel_passed": 162,
+    "formal_parallel_attempts": 162,
+    "all_update_records_passed": 187,
+    "setup_data_link_claim_rejections": 9,
+    "all_dual_links_ready_same_boot": true,
+    "all_vibe_0_2_1": true,
+    "all_original_application_layouts_restored": true,
+    "all_ui_apps_hashes_preserved": true,
+    "all_crash_counts_zero": true,
+    "historical_cores_unchanged": true,
+    "candidate_file_sha256": "7f6280258f9e2e2ccffee38ae692e2e0af9c15e22030477b048a19355a650a3a",
+    "candidate_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+    "published_bundle_layout_verified_during_rom_recovery": true,
+    "bootloader_padded_sha256": "a25d9cfa91948ad265a349de820443232ecde92c34c0e523ae9dc00fd79df8eb",
+    "published_partition_table_padded_sha256": "8d28cdded305dd5f31c4a2aec315e4577e8e55f8ade887775d543306e6eb59a6",
+    "storage": {
+      "status": "ok",
+      "state_error": null,
+      "event_error": null,
+      "lost_events": 0,
+      "pending_loss": 0
+    },
+    "event_writer": {
+      "status": "ok",
+      "error": null,
+      "queued_events": 0,
+      "queued_bytes": 0,
+      "dropped_events": 0,
+      "written_events": 477710,
+      "batches": 22478,
+      "max_commit_seconds": 0.5224255062639713,
+      "device_writes": 3787
+    }
+  },
+  "preparation_issues": {
+    "pre_write_update_refusals": 9,
+    "explanation": "After ROM recovery, control links were ready but data endpoints were discovered and not claimed. All nine setup commands were refused before an update operation was created. Original failure records were retained; successful setup used a separate group.",
+    "data_link_claim_audit": {
+      "all_dual_links_ready": true,
+      "all_boot_ids_unchanged": true,
+      "direct_data_endpoint_claims_reported_timeout": 9,
+      "device_id_claims_succeeded": 9,
+      "direct_data_endpoint_claim_errors": [
+        {
+          "error": "selection_error",
+          "message": "No endpoint validated the selected Device ID; inspect candidate failures.",
+          "count": 3
+        },
+        {
+          "error": "device_unavailable",
+          "message": "Project Gateway is unavailable: timed out",
+          "count": 6
+        }
+      ]
+    },
+    "remaining_issue": "Direct data-endpoint admission reported three selection failures and six Gateway HTTP timeouts despite data links becoming ready; subsequent Device ID claims succeeded 9/9 without reboot. The direct-endpoint admission completion condition was not changed by this fix."
+  },
+  "final_devices": [
+    {
+      "label": "D01",
+      "device_id": "4553502d4952495301001c2904d0a330",
+      "hardware_mac": "1c:29:04:d0:a3:30",
+      "boot_id": "12660276537914732836",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    },
+    {
+      "label": "D02",
+      "device_id": "4553502d49524953010030eda0f45b66",
+      "hardware_mac": "30:ed:a0:f4:5b:66",
+      "boot_id": "5081890043139879710",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    },
+    {
+      "label": "D03",
+      "device_id": "4553502d4952495301001c2904d08a6a",
+      "hardware_mac": "1c:29:04:d0:8a:6a",
+      "boot_id": "16818948273622450615",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    },
+    {
+      "label": "D04",
+      "device_id": "4553502d49524953010030eda0f460b4",
+      "hardware_mac": "30:ed:a0:f4:60:b4",
+      "boot_id": "4205114444588045660",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    },
+    {
+      "label": "D05",
+      "device_id": "4553502d49524953010030eda0f45394",
+      "hardware_mac": "30:ed:a0:f4:53:94",
+      "boot_id": "9040874552989839471",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    },
+    {
+      "label": "D06",
+      "device_id": "4553502d49524953010030eda0f4595e",
+      "hardware_mac": "30:ed:a0:f4:59:5e",
+      "boot_id": "13999590792501549643",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    },
+    {
+      "label": "D07",
+      "device_id": "4553502d49524953010030eda0f40c14",
+      "hardware_mac": "30:ed:a0:f4:0c:14",
+      "boot_id": "4306216905480834636",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    },
+    {
+      "label": "D08",
+      "device_id": "4553502d49524953010030eda0f45156",
+      "hardware_mac": "30:ed:a0:f4:51:56",
+      "boot_id": "10217607814264439794",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    },
+    {
+      "label": "D09",
+      "device_id": "4553502d49524953010030eda0f45214",
+      "hardware_mac": "30:ed:a0:f4:52:14",
+      "boot_id": "10373212800758029273",
+      "firmware_version": "0.2.1",
+      "firmware_elf_sha256": "4e4928c8b9a7a606c53ebd3fc146d98dc19b850ad1a9abfa9c8cb6ea09b196ef",
+      "partition_table_padded_sha256": "3c26b245870110b955f490e07fe047309b44b098c5adce18a449b1010bb2fd12",
+      "historical_core_unchanged": true
+    }
+  ],
+  "software_checks": [
+    {
+      "name": "ESP-Iris Python suite",
+      "result": "885 passed in 72.77s (0:01:12)",
+      "log": "/tmp/mosaico-usb-recovery-iris.log",
+      "sha256": "2fc2e2a132687077c3a0f49b4ea52002583ce6a4fbb3d87795ac0013e3874215"
+    },
+    {
+      "name": "Mosaico Tools and Vibe Mode Python suites",
+      "result": "1074 passed, 26 skipped in 821.83s (0:13:41)",
+      "log": "/tmp/mosaico-usb-recovery-integration.log",
+      "sha256": "96c5a07f0936538e53e8f451993634864b3e7925121f09e93ab494235cec605c"
+    },
+    {
+      "name": "Final USB and supervisor regression checks",
+      "result": "56 passed in 0.89s",
+      "log": "/tmp/mosaico-usb-recovery-focused.log",
+      "sha256": "9d587a53c9343a918515af6a1a9f16ec5f3b339a1272adc2fcdf28791f3ef9ca"
+    },
+    {
+      "name": "Published bundle and retained-layout checks",
+      "result": "30 passed in 0.43s",
+      "log": "/home/lishenhang/esp/idf-gitlab/02_esp-rep/esp-mosaico-workspace/test/linux-nine-ota-20261021/retest-0.2.1/evidence/published-bundle-tests.log",
+      "sha256": "e718a9572ca5d66422ff5ea2a159607293824804d4e47e40afb7952859c74402"
+    }
+  ],
+  "reviewed_launcher_preflight": {
+    "status": "dry_run",
+    "source": "reviewed",
+    "recovery_version": "0.2.1",
+    "checks": {
+      "bundle_verified": true,
+      "device_unique": true,
+      "gateway_local": true,
+      "idf": "/home/lishenhang/esp/idf-gitlab/esp-idf-master-1"
+    }
+  },
+  "host_session_cleanup": {
+    "released_devices": 9,
+    "keepalive_pid_stopped": 1443436,
+    "collectors_stopped": true,
+    "active_gateways": 0
+  },
+  "limits": [
+    "Linux USB Highspeed on a shared hub chain; no Wi-Fi throughput, power-loss injection or physical unplug stress test.",
+    "Final devices run the frozen V-A 0.2.1 candidate with original L1 application layout and test application A. Published standard partition table was validated on all nine during initial ROM installation.",
+    "NVS, identity, sysmeta and ui_apps were excluded from OTA write ranges. ui_apps and historical core dump hashes were checked; NVS did not receive an independent full-partition hash check.",
+    "Candidate uses consuming-workspace BSP and is 1713168 bytes versus the previous benchmark's 1685936 bytes; throughput differences cannot be attributed solely to host fixes.",
+    "Manifest honestly records the tested pre-commit source as dirty; runtime source file hashes are recorded above. Binaries were copied without rebuilding after device validation."
+  ],
+  "evidence_directory": "/home/lishenhang/esp/idf-gitlab/02_esp-rep/esp-mosaico-workspace/test/linux-nine-ota-20261021/retest-0.2.1/evidence",
+  "evidence_files": [
+    "report.html",
+    "measurements.csv",
+    "measurements.json",
+    "summary.json",
+    "commands.jsonl",
+    "operation-events.jsonl",
+    "bundles.json",
+    "self-write-audit.json",
+    "final-audit.json",
+    "final-device-states.json",
+    "publication.json",
+    "data-link-readiness-audit.json",
+    "load-summary.json",
+    "reviewed-recovery-dry-run.json",
+    "cleanup.json"
+  ]
+}
