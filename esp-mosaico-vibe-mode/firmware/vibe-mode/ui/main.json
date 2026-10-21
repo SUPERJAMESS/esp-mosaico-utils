@@ -17911,7 +17911,7 @@
       "bind": "reset_hold_progress",
       "bind_target": "value",
       "bg_color": "#272A2D",
-      "fg_color": "#612629",
+      "fg_color": "#FF6439",
       "radius": 20
     },
     {
@@ -17925,7 +17925,7 @@
       "bind": "reset_hold_label",
       "text": "Hold to reset",
       "font_size": 24,
-      "fg_color": "#FF8A85",
+      "fg_color": "#F3F4F2",
       "bg_color": "#00000001",
       "radius": 20,
       "events": [

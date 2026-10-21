@@ -1060,7 +1060,8 @@ def test_factory_reset_requires_hold_and_preserves_nand(sim, language):
     time.sleep(1)
     sim.capture("factory-reset-holding")
     with Image.open(sim.directory / "factory-reset-holding.png") as frame:
-        assert frame.getpixel((80, 370)) != idle.getpixel((80, 370))
+        r, g, b = frame.getpixel((80, 370))[:3]
+        assert r > 240 and 85 < g < 125 and 40 < b < 80  # Product orange fill.
         # The unfilled end receives only the 4% press highlight.
         assert max(abs(a-b) for a, b in zip(frame.getpixel((430, 370)), idle.getpixel((430, 370)))) <= 12
         assert not ImageChops.difference(frame, idle).crop((0, 0, 480, 348)).getbbox()
