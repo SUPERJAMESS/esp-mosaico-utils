@@ -415,6 +415,7 @@ def apply(scene):
     move('idea_title_pixels',32,84,416,40,hidden=True,overflow='marquee')
     move('idea_icon',24,132,80,80)
     text(117,'idea_status','',124,132,332,30,20,overflow='ellipsis')
+    text(117,'idea_loading_status','Please wait',32,132,416,30,20,color=MUTED)
     text(117,'idea_version','',124,166,332,24,20,color=MUTED,overflow='ellipsis')
     text(117,'idea_summary','',124,194,332,24,20,color=MUTED,overflow='ellipsis')
     rect(117,24,226,432,1,LINE,0)

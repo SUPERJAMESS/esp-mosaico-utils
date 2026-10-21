@@ -800,8 +800,11 @@ void vibe_ui_poll(vibe_ui_t *s) {
             TEXT(s, IDEA_VERSION, "");
             TEXT(s, IDEA_SUMMARY, "");
         }
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_LOADING_STATUS, !v->idea_ready);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_ICON, v->idea_ready);
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_STATUS, v->idea_ready);
         TEXT(s, IDEA_STATUS,
-             !v->idea_ready       ? "Please wait"
+             !v->idea_ready       ? ""
              : v->nand_error      ? "Storage unavailable"
              : v->idea_view_only  ? "Saved in My Ideas"
              : v->idea_downloaded ? "Already downloaded"

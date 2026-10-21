@@ -592,6 +592,7 @@ def test_cancel_loading_discards_late_preview(sim):
         sim.tap_ui("button_code_0")
     sim.tap_ui("button_download_code")
     sim.wait(page=9, idea_loading=True, download_calls=0)
+    sim.capture("preview-loading-aligned")
     sim.tap(120, 436)
     sim.wait(page=4, cancel_calls=1, download_calls=0)
     time.sleep(8)
