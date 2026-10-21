@@ -179,7 +179,7 @@ static bool secret(const char *key)
 static void project_shared(vibe_ui_t *s)
 {
     TEXT(s, SHARED_FIELD, s->shared_edit_value ? "Every Idea can read this value." : "a-z, 0-9 and _ · up to 15 characters");
-    TEXT(s, SHARED_EDITOR_HEADING, s->shared_edit_value ? "Value" : "New key");
+    TEXT(s, SHARED_EDITOR_HEADING, s->shared_edit_value ? "Value" : (s->shared_rename_mode ? "Key" : "New key"));
     const char *value = s->shared_edit_value ? s->shared_value : s->shared_key;
     size_t len = strlen(value);
     char masked[40];
@@ -189,14 +189,15 @@ static void project_shared(vibe_ui_t *s)
     (void)vui_set_text(s->ui, VUI_VIBE_BIND_SHARED_VALUE,
                        value[0] ? value : vibe_translate(s, "Enter text"));
     bool existing = false;
+    const char *check_key = s->shared_rename_mode ? s->shared_orig_key : s->shared_key;
     for (size_t i = 0; i < s->snapshot.settings.shared_count; ++i)
-        existing |= !strcmp(s->shared_key, s->snapshot.settings.shared[i].key);
+        existing |= !strcmp(check_key, s->snapshot.settings.shared[i].key);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_SHARED_DELETE_VISIBLE, existing);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_SHARED_REVEAL_VISIBLE, s->shared_edit_value && secret(s->shared_key));
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_SHARED_EYE_ON_VISIBLE, s->shared_reveal);
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_SHARED_EYE_OFF_VISIBLE, !s->shared_reveal);
     (void)vui_set_text(s->ui, VUI_VIBE_BIND_SHARED_REVEAL_LABEL, "");
-    TEXT(s, SHARED_SUBMIT_LABEL, s->shared_edit_value ? "Save" : "Next");
+    TEXT(s, SHARED_SUBMIT_LABEL, (s->shared_edit_value || s->shared_rename_mode) ? "Save" : "Next");
     const uint16_t spaces[] = {VUI_VIBE_OBJ_KEY_SHARED_KEYBOARD_SPACE_0, VUI_VIBE_OBJ_KEY_SHARED_KEYBOARD_SPACE_1,
         VUI_VIBE_OBJ_KEY_SHARED_KEYBOARD_SPACE_2, VUI_VIBE_OBJ_KEY_SHARED_KEYBOARD_SPACE_3};
     for (unsigned i = 0; i < 4; ++i) vui_set_text(s->ui, spaces[i], s->shared_edit_value ? "space" : "_");
@@ -259,8 +260,25 @@ static void shared_submit(vibe_ui_t *s)
         if (shared_system_index(s->shared_key) >= 0) {
             s->shared_value[0] = 0;
             s->shared_system_entry = true;
+            s->shared_rename_mode = false;
             s->shared_reveal = s->shared_detail_reveal = s->shared_wait = false;
             vibe_show(s, VIBE_SHARED_DETAIL);
+            return;
+        }
+        if (s->shared_rename_mode) {
+            if (!strcmp(s->shared_key, s->shared_orig_key)) {
+                s->shared_rename_mode = false;
+                vibe_show(s, VIBE_SHARED_DETAIL);
+                return;
+            }
+            if (shared_stored_value(&s->snapshot.settings, s->shared_key)) {
+                TEXT(s, SHARED_FIELD, "Please use a-z, 0-9 and _");
+                return;
+            }
+            if (!setting(s, VIBE_SETTINGS_SHARED_RENAME, s->shared_orig_key, s->shared_key)) {
+                s->shared_wait = true;
+                TEXT(s, SHARED_FIELD, "Saving settings...");
+            }
             return;
         }
         s->shared_edit_value = true; project_shared(s);
@@ -308,6 +326,7 @@ static void project_help(vibe_ui_t *s)
         TEXT(s, HELP_STEP_BODY_3, steps[idx][2]);
     }
 }
+static void update_nav_badge(vibe_ui_t *s);
 static const char *pointer_key(vibe_ui_t *s, const vui_event_t *e)
 {
     if (e->action_id == VUI_VIBE_ACT_ID_SELECT_NETWORKS && s->page == VIBE_WIFI &&
@@ -321,9 +340,9 @@ static const char *pointer_key(vibe_ui_t *s, const vui_event_t *e)
         size_t index = vibe_bundle_index(s, s->grid_page * 6 + e->arg);
         return index < s->snapshot.bundle_count ? s->snapshot.bundles[index].code : "";
     }
-    if (e->action_id == VUI_VIBE_ACT_ID_SHARED_ROW && s->page == VIBE_SHARED && e->arg < 4) {
+    if (e->action_id == VUI_VIBE_ACT_ID_SHARED_ROW && s->page == VIBE_SHARED && e->arg < 23) {
         size_t user_cnt = shared_user_count(&s->snapshot.settings);
-        size_t index = s->shared_page * 4 + e->arg;
+        size_t index = e->arg;
         if (index < user_cnt) {
             const vibe_shared_entry_t *entry = shared_user_entry(&s->snapshot.settings, index);
             return entry ? entry->key : "";
@@ -349,7 +368,10 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
     if (s->snapshot.updating && !s->snapshot.batch && action != VUI_VIBE_ACT_ID_CANCEL_DOWNLOAD) return true;
     switch (action) {
     case VUI_VIBE_ACT_ID_HOME_IDEAS:
-        s->grid_page = 0; vibe_show(s, VIBE_GRID); break;
+        s->grid_page = 0; vibe_show(s, VIBE_GRID);
+        s->nav_badge_until = vui_now_ms(s->ui) + 2000;
+        update_nav_badge(s);
+        break;
     case VUI_VIBE_ACT_ID_HOME_WIFI:
         if (s->snapshot.network != VIBE_NET_CONNECTED) { s->wifi_return = VIBE_HOME; vibe_show(s, VIBE_WIFI); }
         break;
@@ -357,8 +379,16 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_LICENSES_VIEWPORT, 0);
         vibe_show(s, VIBE_LICENSES); break;
     case VUI_VIBE_ACT_ID_SHARED_HELP:
-        if (s->page == VIBE_SHARED_DETAIL && s->shared_system_entry) {
-            open_shared_system_settings(s);
+        if (s->page == VIBE_SHARED_DETAIL) {
+            if (s->shared_system_entry) {
+                open_shared_system_settings(s);
+            } else {
+                snprintf(s->shared_orig_key, sizeof(s->shared_orig_key), "%s", s->shared_key);
+                s->shared_rename_mode = true;
+                s->shared_edit_value = s->shared_reveal = s->shared_wait = false;
+                vibe_show(s, VIBE_SHARED_EDITOR);
+                project_shared(s);
+            }
             break;
         }
         s->return_page = s->page; vibe_show(s, VIBE_SHARED_HELP); break;
@@ -370,6 +400,8 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
             open_shared_system_settings(s);
             break;
         }
+        s->shared_rename_mode = false;
+        s->shared_edit_value = true;
         vibe_show(s, VIBE_SHARED_EDITOR); project_shared(s); break;
     case VUI_VIBE_ACT_ID_DOWNLOAD_HELP:
         s->guide_topic = 0; s->return_page = s->page; vibe_show(s, VIBE_GUIDE); break;
@@ -454,7 +486,12 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         s->help_topic_index = 4; s->help_mode = 1; project_help(s); break;
     case VUI_VIBE_ACT_ID_SHOW_GUIDE: s->guide_topic = 0; s->return_page = s->page; vibe_show(s, VIBE_GUIDE); break;
     case VUI_VIBE_ACT_ID_NAV_LANGUAGE: s->shared_settings_return = false; vibe_show(s, VIBE_LANGUAGE); break;
-    case VUI_VIBE_ACT_ID_NAV_SHARED: s->shared_page = 0; s->last_shared_user_count = (unsigned)shared_user_count(&s->snapshot.settings); vibe_show(s, VIBE_SHARED); break;
+    case VUI_VIBE_ACT_ID_NAV_SHARED:
+        s->shared_page = 0;
+        s->last_shared_user_count = (unsigned)shared_user_count(&s->snapshot.settings);
+        (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT, 0);
+        vibe_show(s, VIBE_SHARED);
+        break;
     case VUI_VIBE_ACT_ID_NAV_ABOUT:
         (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_ABOUT_VIEWPORT, 0);
         s->firmware_check = CHECK_IDLE;
@@ -481,8 +518,15 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
             if (s->page == VIBE_SHARED_EDITOR) project_shared(s);
         }
         else if (s->page == VIBE_SHARED_EDITOR) {
-            memset(s->shared_value, 0, sizeof(s->shared_value));
-            vibe_show(s, VIBE_SHARED);
+            if (s->shared_rename_mode) {
+                snprintf(s->shared_key, sizeof(s->shared_key), "%s", s->shared_orig_key);
+                s->shared_rename_mode = false;
+                s->shared_edit_value = true;
+                vibe_show(s, VIBE_SHARED_DETAIL);
+            } else {
+                memset(s->shared_value, 0, sizeof(s->shared_value));
+                vibe_show(s, VIBE_SHARED);
+            }
         } else if (s->page == VIBE_GRID || s->page == VIBE_DEVELOP || s->page == VIBE_SETTINGS || s->page == VIBE_BOOT_TIP || s->page == VIBE_FIRMWARE_NOTICE)
             vibe_show(s, VIBE_HOME);
         else if ((s->page == VIBE_LANGUAGE || s->page == VIBE_DISPLAY) && s->shared_settings_return) {
@@ -601,18 +645,20 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
             (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_CANCEL_DOWNLOAD_VISIBLE, false);
         }
         break;
-    case VUI_VIBE_ACT_ID_SHARED_PREV: if (s->shared_page) --s->shared_page; break;
+    case VUI_VIBE_ACT_ID_SHARED_PREV:
+        (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT, vui_scroll_offset(s->ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT) - 320);
+        break;
     case VUI_VIBE_ACT_ID_SHARED_NEXT:
-        if ((s->shared_page + 1) * 4 < shared_user_count(&s->snapshot.settings) + 7) ++s->shared_page;
+        (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT, vui_scroll_offset(s->ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT) + 320);
         break;
     case VUI_VIBE_ACT_ID_SHARED_ADD:
         memset(s->shared_key, 0, sizeof(s->shared_key)); memset(s->shared_value, 0, sizeof(s->shared_value));
-        s->shared_system_entry = false;
+        s->shared_system_entry = false; s->shared_rename_mode = false;
         s->shared_edit_value = s->shared_reveal = s->shared_detail_reveal = s->shared_wait = false; vibe_show(s, VIBE_SHARED_EDITOR); project_shared(s); break;
     case VUI_VIBE_ACT_ID_SHARED_ROW: {
         size_t user_cnt = shared_user_count(&s->snapshot.settings);
-        size_t i = s->shared_page * 4 + e->arg;
-        if (s->page != VIBE_SHARED || e->arg >= 4 || i >= user_cnt + 7) break;
+        size_t i = e->arg;
+        if (s->page != VIBE_SHARED || i >= user_cnt + 7) break;
         if (i < user_cnt) {
             const vibe_shared_entry_t *entry = shared_user_entry(&s->snapshot.settings, i);
             if (!entry) break;
@@ -628,6 +674,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
             s->shared_value[0] = 0;
             s->shared_system_entry = true;
         }
+        s->shared_rename_mode = false;
         s->shared_edit_value = true; s->shared_reveal = s->shared_detail_reveal = s->shared_wait = false;
         vibe_show(s, VIBE_SHARED_DETAIL); break;
     }
@@ -639,7 +686,7 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
             break;
         }
         if ((s->page == VIBE_SHARED_EDITOR || s->page == VIBE_SHARED_DETAIL) && s->shared_key[0] && commit_delete(s)) {
-            snprintf(s->undo_key, sizeof(s->undo_key), "%s", s->shared_key);
+            snprintf(s->undo_key, sizeof(s->undo_key), "%s", s->shared_rename_mode ? s->shared_orig_key : s->shared_key);
             s->delete_code[0] = 0;
             s->return_page = s->page;
             TEXT(s, DELETE_CONFIRM_TITLE, "Shared information");
@@ -720,7 +767,8 @@ static void render_grid(vibe_ui_t *s, unsigned page)
         (void)vui_set_visible(s->ui, cards[cell], visible ? present || add_cell : cell == 1);
         (void)vui_set_visible(s->ui, add[cell], add_cell);
     }
-    if (visible) FORMAT(s, GRID_TITLE_TOP, "Ideas %u/%u", page + 1, (unsigned)visible / 6 + 1);
+    if (visible && s->nav_badge_until && vui_now_ms(s->ui) < s->nav_badge_until)
+        FORMAT(s, GRID_TITLE_TOP, "Ideas %u/%u", page + 1, (unsigned)visible / 6 + 1);
     else TEXT(s, GRID_TITLE_TOP, "");
     s->grid_generation = s->snapshot.nand_generation + 1;
     s->grid_rendered_page = page;
@@ -742,10 +790,29 @@ static void pager_project(vibe_ui_t *s, unsigned index)
     if (index && (s->grid_generation != s->snapshot.nand_generation + 1 ||
                   s->grid_rendered_page != index - 1)) render_grid(s, index - 1);
 }
+static void update_nav_badge(vibe_ui_t *s)
+{
+    bool show = s->nav_badge_until && vui_now_ms(s->ui) < s->nav_badge_until && !s->pager.active;
+    if (!show) {
+        if (s->nav_badge_until && !s->pager.active) s->nav_badge_until = 0;
+        (void)vui_set_text(s->ui, VUI_VIBE_BIND_HOME_NAV_BADGE, "");
+        (void)vui_set_text(s->ui, VUI_VIBE_BIND_GRID_TITLE_TOP, "");
+        return;
+    }
+    if (s->page == VIBE_HOME) {
+        TEXT(s, HOME_NAV_BADGE, "Home");
+        (void)vui_set_text(s->ui, VUI_VIBE_BIND_GRID_TITLE_TOP, "");
+    } else if (s->page == VIBE_GRID) {
+        (void)vui_set_text(s->ui, VUI_VIBE_BIND_HOME_NAV_BADGE, "");
+        size_t visible = vibe_bundle_count(s);
+        FORMAT(s, GRID_TITLE_TOP, "Ideas %u/%u", s->grid_page + 1, (unsigned)visible / 6 + 1);
+    }
+}
 static void pager_finish(vibe_ui_t *s, bool commit)
 {
     vibe_pager_t *p = &s->pager;
-    unsigned index = commit && p->target >= 0 ? (unsigned)p->target : pager_origin(p);
+    unsigned origin = pager_origin(p);
+    unsigned index = commit && p->target >= 0 ? (unsigned)p->target : origin;
     unsigned original_grid = p->grid;
     if (p->timer) (void)vui_timer_delete(s->ui, p->timer);
     memset(p, 0, sizeof(*p));
@@ -756,6 +823,10 @@ static void pager_finish(vibe_ui_t *s, bool commit)
     if (page != s->page) vibe_show(s, page);
     s->pager_state = 0;
     render_pager(s);
+    if (commit && index != origin) {
+        s->nav_badge_until = vui_now_ms(s->ui) + 2000;
+        update_nav_badge(s);
+    }
 }
 void vibe_product_cancel_pager(vibe_ui_t *s)
 {
@@ -928,7 +999,15 @@ void vibe_product_poll(vibe_ui_t *s)
         s->settings_revision = v->settings.revision;
         if (v->settings.error) { s->shared_wait = false; vibe_error(s, "Operation failed", v->settings.error); }
         else if (s->shared_wait && !v->settings.busy) {
-            s->shared_wait = false; memset(s->shared_value, 0, sizeof(s->shared_value)); vibe_show(s, VIBE_SHARED);
+            s->shared_wait = false;
+            if (s->shared_rename_mode) {
+                s->shared_rename_mode = false;
+                s->shared_edit_value = true;
+                vibe_show(s, VIBE_SHARED_DETAIL);
+            } else {
+                memset(s->shared_value, 0, sizeof(s->shared_value));
+                vibe_show(s, VIBE_SHARED);
+            }
         }
     }
     if (s->first_run && s->page == VIBE_WIFI && v->network == VIBE_NET_CONNECTED) {
@@ -1131,33 +1210,65 @@ void vibe_product_poll(vibe_ui_t *s)
         else FORMAT(s, ABOUT_STORAGE, "%llu / %llu MiB", (unsigned long long)(v->storage_used / 1048576), (unsigned long long)(v->storage_total / 1048576));
     } else if (s->page == VIBE_SHARED) {
         size_t user_cnt = shared_user_count(&v->settings);
-        unsigned user_last = user_cnt ? (unsigned)(user_cnt - 1) / 4 : 0;
-        if (user_cnt < s->last_shared_user_count && s->shared_page > user_last)
-            s->shared_page = user_last;
-        s->last_shared_user_count = (unsigned)user_cnt;
         unsigned total_items = (unsigned)user_cnt + 7;
-        unsigned last = total_items ? (total_items - 1) / 4 : 0;
-        if (s->shared_page > last) s->shared_page = last;
-        const uint16_t rows[] = {VUI_VIBE_BIND_SHARED_ROW_0_LABEL, VUI_VIBE_BIND_SHARED_ROW_1_LABEL, VUI_VIBE_BIND_SHARED_ROW_2_LABEL, VUI_VIBE_BIND_SHARED_ROW_3_LABEL};
-        const uint16_t keys[] = {VUI_VIBE_BIND_SHARED_KEY_0, VUI_VIBE_BIND_SHARED_KEY_1, VUI_VIBE_BIND_SHARED_KEY_2, VUI_VIBE_BIND_SHARED_KEY_3};
-        const uint16_t values[] = {VUI_VIBE_BIND_SHARED_ENTRY_VALUE_0, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_1, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_2, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_3};
-        const uint16_t buttons[] = {VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_0, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_1, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_2, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_3};
-        const uint16_t locks[] = {VUI_VIBE_BIND_SHARED_LOCK_0_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_1_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_2_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_3_VISIBLE};
+        if (total_items > 23) total_items = 23;
+        unsigned content_h = total_items * 80 > 368 ? total_items * 80 : 368;
+        (void)vui_set_value(s->ui, VUI_VIBE_BIND_SHARED_VIEWPORT_HEIGHT, content_h);
+        if (user_cnt < s->last_shared_user_count) {
+            int max_off = (int)content_h - 368;
+            int cur_off = vui_scroll_offset(s->ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT);
+            if (cur_off > max_off) (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT, max_off);
+        }
+        s->last_shared_user_count = (unsigned)user_cnt;
+        const uint16_t rows[] = {
+            VUI_VIBE_BIND_SHARED_ROW_0_LABEL, VUI_VIBE_BIND_SHARED_ROW_1_LABEL, VUI_VIBE_BIND_SHARED_ROW_2_LABEL, VUI_VIBE_BIND_SHARED_ROW_3_LABEL
+        };
+        const uint16_t keys[23] = {
+            VUI_VIBE_BIND_SHARED_KEY_0, VUI_VIBE_BIND_SHARED_KEY_1, VUI_VIBE_BIND_SHARED_KEY_2, VUI_VIBE_BIND_SHARED_KEY_3,
+            VUI_VIBE_BIND_SHARED_KEY_4, VUI_VIBE_BIND_SHARED_KEY_5, VUI_VIBE_BIND_SHARED_KEY_6, VUI_VIBE_BIND_SHARED_KEY_7,
+            VUI_VIBE_BIND_SHARED_KEY_8, VUI_VIBE_BIND_SHARED_KEY_9, VUI_VIBE_BIND_SHARED_KEY_10, VUI_VIBE_BIND_SHARED_KEY_11,
+            VUI_VIBE_BIND_SHARED_KEY_12, VUI_VIBE_BIND_SHARED_KEY_13, VUI_VIBE_BIND_SHARED_KEY_14, VUI_VIBE_BIND_SHARED_KEY_15,
+            VUI_VIBE_BIND_SHARED_KEY_16, VUI_VIBE_BIND_SHARED_KEY_17, VUI_VIBE_BIND_SHARED_KEY_18, VUI_VIBE_BIND_SHARED_KEY_19,
+            VUI_VIBE_BIND_SHARED_KEY_20, VUI_VIBE_BIND_SHARED_KEY_21, VUI_VIBE_BIND_SHARED_KEY_22
+        };
+        const uint16_t values[23] = {
+            VUI_VIBE_BIND_SHARED_ENTRY_VALUE_0, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_1, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_2, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_3,
+            VUI_VIBE_BIND_SHARED_ENTRY_VALUE_4, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_5, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_6, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_7,
+            VUI_VIBE_BIND_SHARED_ENTRY_VALUE_8, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_9, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_10, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_11,
+            VUI_VIBE_BIND_SHARED_ENTRY_VALUE_12, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_13, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_14, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_15,
+            VUI_VIBE_BIND_SHARED_ENTRY_VALUE_16, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_17, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_18, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_19,
+            VUI_VIBE_BIND_SHARED_ENTRY_VALUE_20, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_21, VUI_VIBE_BIND_SHARED_ENTRY_VALUE_22
+        };
+        const uint16_t buttons[23] = {
+            VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_0, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_1, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_2, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_3,
+            VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_4, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_5, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_6, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_7,
+            VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_8, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_9, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_10, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_11,
+            VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_12, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_13, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_14, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_15,
+            VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_16, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_17, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_18, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_19,
+            VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_20, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_21, VUI_VIBE_OBJ_KEY_BUTTON_SHARED_ROW_22
+        };
+        const uint16_t locks[23] = {
+            VUI_VIBE_BIND_SHARED_LOCK_0_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_1_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_2_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_3_VISIBLE,
+            VUI_VIBE_BIND_SHARED_LOCK_4_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_5_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_6_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_7_VISIBLE,
+            VUI_VIBE_BIND_SHARED_LOCK_8_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_9_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_10_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_11_VISIBLE,
+            VUI_VIBE_BIND_SHARED_LOCK_12_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_13_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_14_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_15_VISIBLE,
+            VUI_VIBE_BIND_SHARED_LOCK_16_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_17_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_18_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_19_VISIBLE,
+            VUI_VIBE_BIND_SHARED_LOCK_20_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_21_VISIBLE, VUI_VIBE_BIND_SHARED_LOCK_22_VISIBLE
+        };
         const char *stored_ssid = shared_stored_value(&v->settings, "wifi_ssid");
         const char *active_ssid = v->ssid[0] ? v->ssid : (stored_ssid && stored_ssid[0] ? stored_ssid : "-");
-        for (size_t r = 0; r < 4; ++r) {
-            size_t i = s->shared_page * 4 + r;
-            (void)vui_set_text(s->ui, rows[r], "");
-            (void)vui_set_visible(s->ui, buttons[r], i < total_items);
-            (void)vui_set_visible(s->ui, locks[r], i >= user_cnt && i < total_items);
+        for (size_t r = 0; r < 4; ++r) (void)vui_set_text(s->ui, rows[r], "");
+        for (size_t i = 0; i < 23; ++i) {
+            (void)vui_set_visible(s->ui, buttons[i], i < total_items);
+            (void)vui_set_visible(s->ui, locks[i], i >= user_cnt && i < total_items);
             if (i < user_cnt) {
                 const vibe_shared_entry_t *entry = shared_user_entry(&v->settings, i);
                 if (!entry) continue;
-                (void)vui_set_text(s->ui, keys[r], entry->key);
+                (void)vui_set_text(s->ui, keys[i], entry->key);
                 if (s->undo_until && s->undo_shared && !strcmp(s->undo_key, entry->key))
-                    format(s, values[r], "Undo · %u s",
+                    format(s, values[i], "Undo · %u s",
                         (unsigned)((s->undo_until > vui_now_ms(s->ui) ? s->undo_until - vui_now_ms(s->ui) : 0) + 999) / 1000);
-                else (void)vui_set_text(s->ui, values[r], secret(entry->key) ? "********" : entry->value);
+                else (void)vui_set_text(s->ui, values[i], secret(entry->key) ? "********" : entry->value);
             } else if (i < total_items) {
                 size_t sys = i - user_cnt;
                 char sys_val[64] = "";
@@ -1168,9 +1279,9 @@ void vibe_product_poll(vibe_ui_t *s)
                 else if (sys == 4) snprintf(sys_val, sizeof(sys_val), "********");
                 else if (sys == 5) snprintf(sys_val, sizeof(sys_val), "%u", v->settings.screen_off_seconds);
                 else if (sys == 6) snprintf(sys_val, sizeof(sys_val), "%s", v->settings.auto_rotate ? "1" : "0");
-                (void)vui_set_text(s->ui, keys[r], s_shared_sys_keys[sys]);
-                (void)vui_set_text(s->ui, values[r], sys_val);
-            } else (void)vui_set_text(s->ui, rows[r], "");
+                (void)vui_set_text(s->ui, keys[i], s_shared_sys_keys[sys]);
+                (void)vui_set_text(s->ui, values[i], sys_val);
+            }
         }
     } else if (s->page == VIBE_SHARED_DETAIL) {
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_SHARED_DETAIL_SYS_VISIBLE, s->shared_system_entry);
@@ -1294,6 +1405,7 @@ void vibe_product_tick(vibe_ui_t *s)
 {
     const uint64_t now = vui_now_ms(s->ui);
     pager_tick(s->ui, s);
+    update_nav_badge(s);
     if (s->undo_until && now >= s->undo_until) {
         if (!commit_delete(s)) { s->undo_until = 0; refresh_library(s); }
     }

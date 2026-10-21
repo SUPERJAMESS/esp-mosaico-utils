@@ -341,9 +341,10 @@ vui_err_t vui_set_value(vui_handle_t u, uint16_t id, unsigned value)
 {
     if (!valid(u, id))
         return VUI_ERR_INVALID_ARG;
-    value = min(value, 100);
+    if (!(u->nodes[id - 1].flags & VUI_SCROLL))
+        value = min(value, 100);
     if (u->values[id - 1].value != value) {
-        u->values[id - 1].value = value;
+        u->values[id - 1].value = (uint16_t)value;
         damage_node(u, id);
     }
     return VUI_OK;
@@ -620,7 +621,8 @@ static int *scroll_position(vui_handle_t u, uint16_t id, int *limit)
     if (!valid(u, id)) return NULL;
     const vui_node_t *n = &u->nodes[id - 1];
     if (n->flags & VUI_SCROLL) {
-        *limit = max(0, n->content_height - n->h);
+        int content_h = u->values[id - 1].value ? u->values[id - 1].value : n->content_height;
+        *limit = max(0, content_h - n->h);
         return &u->values[id - 1].scroll;
     }
     if (n->kind == VUI_LIST)
@@ -1170,9 +1172,10 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
                     pixel(u, xx, yy, 0xffff, coverage(r, n->radius ? n->radius : 18, xx, yy) * 10 / 255);
         }
     }
-    if ((n->flags & VUI_SCROLL) && n->content_height > n->h) {
-        int track = r.h - 8, thumb = max(20, track * r.h / n->content_height);
-        int y = r.y + 4 + offset * (track - thumb) / (n->content_height - n->h);
+    int content_h = (n->flags & VUI_SCROLL) && v->value ? v->value : n->content_height;
+    if ((n->flags & VUI_SCROLL) && content_h > n->h) {
+        int track = r.h - 8, thumb = max(20, track * r.h / content_h);
+        int y = r.y + 4 + offset * (track - thumb) / (content_h - n->h);
         box(u, (rect_t){r.x + r.w - 12, r.y + 4, 4, track}, paint, 2, 0x2945);
         box(u, (rect_t){r.x + r.w - 12, y, 4, thumb}, paint, 2, 0x9cd3);
     }

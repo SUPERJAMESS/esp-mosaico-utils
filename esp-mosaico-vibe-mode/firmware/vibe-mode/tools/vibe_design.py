@@ -112,6 +112,7 @@ def apply(scene):
         if o.get('parent')==0: o['hidden']=True
     text(0,'home_brand','Vibe Mode',30,20,88,24,16,color=MUTED)
     text(0,'home_version','',122,20,116,24,16,color=MUTED,overflow='ellipsis')
+    text(0,'home_nav_badge','',184,20,148,24,16,'sans',MUTED,'center',overflow='ellipsis')
     text(0,'home_status','',324,20,112,24,16,color=MUTED,align='right')
     rect(0,8,56,464,188,TEXT,24)
     text(0,'home_headline','make ideas',24,72,244,44,35,'title',BG)
@@ -471,19 +472,22 @@ def apply(scene):
 
     # Shared information keeps neutral list rows and a prominent add action.
     p=index['shared']
-    for i in range(4):
-        button(p,'button_shared_row_'+str(i),'',16,96+i*80,448,72)
-        named['button_shared_row_'+str(i)].update(font_size=18,bg_color=CARD,text_align='left')
-        text(index['button_shared_row_'+str(i)],'shared_key_'+str(i),'',84,6,312,30,24,'medium',overflow='ellipsis')
-        text(index['button_shared_row_'+str(i)],'shared_entry_value_'+str(i),'',84,38,312,26,20,color=MUTED,overflow='ellipsis')
-        rect(index['button_shared_row_'+str(i)],14,10,52,52,ICON_BG,16)
-        icon(index['button_shared_row_'+str(i)],'key-38-cream',21,17,38)
-        lk=add('layer',index['button_shared_row_'+str(i)],0,0,448,72,name='shared_lock_'+str(i),bind='shared_lock_'+str(i)+'_visible',bind_target='visible',hidden=True)
+    hide('button_shared_prev')
+    hide('button_shared_add')
+    hide('button_shared_next')
+    sh_vp=add('container',p,0,96,480,368,name='shared_viewport',bind='shared_viewport_height',scroll=True,content_height=368)
+    for i in range(23):
+        btn_r=button(sh_vp,'button_shared_row_'+str(i),'',16,i*80,448,72,action='shared_row')
+        objects[btn_r]['events'][0]['arg']=i
+        objects[btn_r].update(font_size=18,bg_color=CARD,text_align='left')
+        text(btn_r,'shared_key_'+str(i),'',84,6,312,30,24,'medium',overflow='ellipsis')
+        text(btn_r,'shared_entry_value_'+str(i),'',84,38,312,26,20,color=MUTED,overflow='ellipsis')
+        rect(btn_r,14,10,52,52,ICON_BG,16)
+        icon(btn_r,'key-38-cream',21,17,38)
+        lk=add('layer',btn_r,0,0,448,72,name='shared_lock_'+str(i),bind='shared_lock_'+str(i)+'_visible',bind_target='visible',hidden=True)
         rect(lk,14,10,52,52,ICON_BG,16)
         icon(lk,'lock-38-cream',21,17,38)
-    button(p,'button_shared_prev','‹',16,420,64,44)
-    button(p,'button_shared_add','Add entry',88,420,304,44)
-    button(p,'button_shared_next','›',400,420,64,44)
+        icon(btn_r,'chevron-20-dim',408,26,20)
     rect(p,408,20,56,56,RAISED,28);icon(p,'plus-32-white',420,32)
     click(p,'shared_header_add',400,12,72,72,'shared_add')
     rect(p,324,20,56,56,RAISED,28);icon(p,'help-32-white',336,32)
@@ -620,7 +624,7 @@ def apply(scene):
     p=index['grid'];hide('button_back_grid');hide('grid_title')
     text(p,'grid_brand','Vibe Mode',30,20,88,24,16,color=MUTED)
     text(p,'grid_version','',122,20,116,24,16,color=MUTED,overflow='ellipsis')
-    text(p,'grid_title_top','',242,20,110,24,16,'sans',MUTED,'center')
+    text(p,'grid_title_top','',184,20,148,24,16,'sans',MUTED,'center',overflow='ellipsis')
     for i in range(6):
         x,y=38+148*(i%3),77+184*(i//3)
         move('cell_current_'+str(i),x-4,y-4,116,116,bg_color='#00000001',radius=58,border_color=ORANGE,border_width=3)

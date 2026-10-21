@@ -187,10 +187,22 @@ static esp_err_t apply(const request_t *request)
     esp_err_t err = open_namespace(shared ? "shared" : "vibe_prefs", NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
     if (shared) {
-        err = request->command == VIBE_SETTINGS_SHARED_DELETE
-                  ? nvs_erase_key(h, request->key) : nvs_set_str(h, request->key, request->value);
-        if (err == ESP_ERR_NVS_NOT_FOUND && request->command == VIBE_SETTINGS_SHARED_DELETE)
-            err = ESP_OK;
+        if (request->command == VIBE_SETTINGS_SHARED_RENAME) {
+            if (!strcmp(request->key, request->value)) {
+                err = ESP_OK;
+            } else {
+                char current[VIBE_SHARED_VALUE_BYTES] = "";
+                size_t len = sizeof(current);
+                err = nvs_get_str(h, request->key, current, &len);
+                if (err == ESP_OK) err = nvs_set_str(h, request->value, current);
+                if (err == ESP_OK) err = nvs_erase_key(h, request->key);
+            }
+        } else {
+            err = request->command == VIBE_SETTINGS_SHARED_DELETE
+                      ? nvs_erase_key(h, request->key) : nvs_set_str(h, request->key, request->value);
+            if (err == ESP_ERR_NVS_NOT_FOUND && request->command == VIBE_SETTINGS_SHARED_DELETE)
+                err = ESP_OK;
+        }
     } else if (request->command == VIBE_SETTINGS_OPEN_CONFIRM) {
         uint32_t mode = (uint32_t)strtoul(request->value, NULL, 10);
         if (mode == 2) {
@@ -234,9 +246,14 @@ esp_err_t vibe_settings_request(vibe_settings_command_t command, const char *key
 {
     if (!s_lock || command < VIBE_SETTINGS_LANGUAGE || command > VIBE_SETTINGS_RESET)
         return ESP_ERR_INVALID_ARG;
-    if (command == VIBE_SETTINGS_SHARED_SET || command == VIBE_SETTINGS_SHARED_DELETE) {
+    if (command == VIBE_SETTINGS_SHARED_SET || command == VIBE_SETTINGS_SHARED_DELETE ||
+        command == VIBE_SETTINGS_SHARED_RENAME) {
         if (!vibe_shared_key_valid(key) || (command == VIBE_SETTINGS_SHARED_SET &&
             (!value || strlen(value) >= VIBE_SHARED_VALUE_BYTES))) return ESP_ERR_INVALID_ARG;
+        if (command == VIBE_SETTINGS_SHARED_RENAME &&
+            (!vibe_shared_key_valid(value) || !strcmp(key, "wifi_ssid") || !strcmp(key, "wifi_password") ||
+             !strcmp(value, "wifi_ssid") || !strcmp(value, "wifi_password")))
+            return ESP_ERR_INVALID_ARG;
         if (command == VIBE_SETTINGS_SHARED_SET &&
             ((!strcmp(key, "wifi_ssid") && !factory_network_ssid_valid(value)) ||
              (!strcmp(key, "wifi_password") && !factory_network_password_valid(value))))

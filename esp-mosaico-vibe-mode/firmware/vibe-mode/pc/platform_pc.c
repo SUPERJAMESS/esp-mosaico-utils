@@ -649,10 +649,14 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
         }
         break;
     case VIBE_SETTINGS_SHARED_SET:
-    case VIBE_SETTINGS_SHARED_DELETE: {
+    case VIBE_SETTINGS_SHARED_DELETE:
+    case VIBE_SETTINGS_SHARED_RENAME: {
         size_t i;
         for (i = 0; i < model.settings.shared_count && strcmp(model.settings.shared[i].key, key); ++i) {}
-        if (cmd == VIBE_SETTINGS_SHARED_DELETE) {
+        if (cmd == VIBE_SETTINGS_SHARED_RENAME) {
+            if (i >= model.settings.shared_count) return 0x102;
+            snprintf(model.settings.shared[i].key, sizeof(model.settings.shared[i].key), "%s", value);
+        } else if (cmd == VIBE_SETTINGS_SHARED_DELETE) {
             if (i < model.settings.shared_count)
                 memmove(&model.settings.shared[i], &model.settings.shared[i + 1],
                         (--model.settings.shared_count - i) * sizeof(model.settings.shared[0]));

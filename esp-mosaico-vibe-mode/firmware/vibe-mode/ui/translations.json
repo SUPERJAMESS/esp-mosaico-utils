@@ -369,7 +369,7 @@
   "This page summarizes selected\ncomponents and fonts. Refer to\neach project's license files for\nthe full terms and attribution.": "此页概述部分组件与字体。\n完整条款和署名信息\n请参阅各项目的许可文件。",
   "Save a value once.\nEvery Idea can read it.": "保存一次信息，\n每个 Idea 都能读取。",
   "Keys: a-z, 0-9 and _\nUp to 15 characters.\nValues: up to 256 bytes.\nSecret values are hidden by default.": "键名使用 a-z、0-9 和 _，\n最多 15 个字符。\n值最多 256 字节。\n密文默认隐藏。",
-  "Tap Value to edit this entry.": "点击「值」编辑此条目。",
+    "Tap Value to edit this entry.": "点击「键名」或「内容」编辑此条目。",
   "Current Idea": "当前 Idea",
   "Update all saved Ideas?": "更新所有已保存的 Idea？",
   "Download available updates to My Ideas.": "将可用更新下载到我的应用。",
