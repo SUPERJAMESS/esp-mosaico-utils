@@ -152,6 +152,9 @@ python3 /path/to/esp-mosaico-utils/mosaico-tools/mosaico.py \
 `iris app-update` updates only the application OTA partition. `iris system-update` builds
 and submits the workspace's atomic application, partition table, and declared resource
 bundle by default; use `--skip-build` or `--bundle PATH` to reuse artifacts.
+When only a control link is connected, local System Update waits up to five
+seconds for its data link to complete its identity handshake before submission.
+A missing data link or a changed Boot ID ends preparation with a diagnostic.
 `iris test enter-recovery` asks a reachable normal application to boot the retained
 Vibe Mode firmware without building or installing firmware. It waits for the same
 Device ID to reconnect in Vibe Mode with a new Boot ID; use `--device-id` when

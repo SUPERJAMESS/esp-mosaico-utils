@@ -46,6 +46,7 @@ struct mock_http {
     bool post, content_type, closed, device_header;
     char locale[6], code[7];
     int fault;
+    unsigned timeout_ms;
 };
 
 mock_environment_t *mock_environment(void) { return &env; }
@@ -486,6 +487,20 @@ int64_t esp_http_client_get_content_length(esp_http_client_handle_t c) {
     return c->size + (c->fault == MOCK_WRONG_LENGTH ? 1 : 0);
 }
 int esp_http_client_read(esp_http_client_handle_t c, char *data, int size) {
+    if (env.idle_file && !strcmp(env.idle_file, c->alias) && c->cursor > c->size / 2 &&
+        (env.idle_forever || env.idle_reads)) {
+        assert(c->timeout_ms > 0 && c->timeout_ms <= 60000);
+        if (c->timeout_ms > env.idle_max_wait_ms) env.idle_max_wait_ms = c->timeout_ms;
+        if (env.idle_reads) --env.idle_reads;
+        ++env.idle_hits;
+        clock_us += (int64_t)c->timeout_ms * 1000;
+        if (env.cancel_on_idle) {
+            env.cancel_on_idle = false;
+            assert(factory_ideas_cancel() == ESP_OK);
+            ++env.cancels;
+        }
+        return -ESP_ERR_HTTP_EAGAIN;
+    }
     if (env.cancel_on_read && (!strcmp(env.cancel_on_read, c->alias) ||
         (!strcmp(c->alias, "resolve") && !strcmp(env.cancel_on_read, "display.json") && c->cursor > c->size / 2))) {
         env.cancel_on_read = NULL;
@@ -639,8 +654,8 @@ esp_err_t mosaico_boot_consume_request(void) {
 }
 
 esp_err_t esp_http_client_set_timeout_ms(esp_http_client_handle_t client, int timeout) {
-    (void)client;
     assert(timeout > 0 && timeout <= 60000);
+    client->timeout_ms = (unsigned)timeout;
     return ESP_OK;
 }
 const esp_app_desc_t *esp_app_get_description(void) {

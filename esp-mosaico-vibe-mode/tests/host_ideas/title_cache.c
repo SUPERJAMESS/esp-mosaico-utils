@@ -4,6 +4,7 @@
 #undef main
 #include "vibe_ui.h"
 #include "vui_ids.h"
+#include "vibe_ui_state.h"
 
 static uint16_t frame[480 * 480];
 static void ui_snapshot(void *ctx, vibe_snapshot_t *out)
@@ -74,6 +75,18 @@ int main(int argc, char **argv)
         code = codes[i]; download();
     }
     preview(); dismiss(); assert(snapshot().count == count);
+    /* A title queued before a locale switch must keep its original locale. */
+    size_t title_size = 0;
+    assert(!factory_ideas_copy_title(codes[0], &title_size) && snapshot().busy);
+    assert(factory_locale_set(1) == ESP_OK);
+    mock_run_worker();
+    assert(factory_locale_set(0) == ESP_OK);
+    void *title = factory_ideas_copy_title(codes[0], &title_size);
+    assert(title && title_size && !snapshot().busy); free(title);
+    assert(factory_locale_set(1) == ESP_OK);
+    assert(!factory_ideas_copy_title(codes[0], &title_size) && snapshot().busy);
+    mock_run_worker();
+    assert(factory_locale_set(0) == ESP_OK);
     vui_handle_t ui; vibe_ui_t *controller;
     const vibe_services_t services = {.snapshot = ui_snapshot, .command = ui_command, .title = ui_title};
     assert(vui_create(&ui) == VUI_OK);
@@ -91,6 +104,22 @@ int main(int argc, char **argv)
     unsigned middle = load_visible(ui, controller);
     tap(ui, 38, 36);
     vibe_ui_status_t current; vibe_ui_get_status(controller, &current); assert(current.page == VIBE_HOME);
+    assert(load_visible(ui, controller) == 0);
+    /* The horizontal grid loads only its six visible names. Paging across more
+     * than eight apps must settle without cache churn or blocking Open. */
+    vibe_show(controller, VIBE_GRID);
+    unsigned grid_jobs = load_visible(ui, controller);
+    assert(!controller->grid_titles_pending);
+    for (unsigned page = 1; page <= count / 6; ++page) {
+        controller->grid_page = page;
+        vibe_ui_poll(controller);
+        grid_jobs += load_visible(ui, controller);
+        assert(!controller->grid_titles_pending);
+    }
+    controller->grid_page = 0;
+    vibe_ui_poll(controller); grid_jobs += load_visible(ui, controller);
+    assert(!controller->grid_titles_pending);
+    vibe_show(controller, VIBE_HOME);
     assert(load_visible(ui, controller) == 0);
     assert(factory_ideas_request(IDEAS_OPEN, codes[0]) == ESP_OK);
     mock_run_worker(); assert(!snapshot().failed && env->restarts == 1);

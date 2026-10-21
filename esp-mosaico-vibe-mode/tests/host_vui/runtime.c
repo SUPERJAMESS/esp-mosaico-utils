@@ -15,7 +15,8 @@ extern void vibe_pc_deinit(vui_handle_t ui);
 static unsigned releases, ticks;
 static void released(void *data) { releases++; free(data); }
 static void timer(vui_handle_t ui, void *ctx) { ticks++; assert(vui_timer_delete(ui,*(void **)ctx)==0); }
-typedef struct { vibe_snapshot_t value; unsigned resets, deletes, formats, key; } clock_model_t;
+typedef struct { vibe_snapshot_t value; unsigned resets, deletes, formats, key, haptics; } clock_model_t;
+static void clock_haptic(void *ctx, unsigned pattern) { (void)pattern; ++((clock_model_t *)ctx)->haptics; }
 static void clock_snapshot(void *ctx, vibe_snapshot_t *out) { *out = ((clock_model_t *)ctx)->value; }
 static int clock_command(void *ctx, vibe_command_t command, const char *a, const char *b) {
     if (command == VIBE_DELETE_IDEA) ++((clock_model_t *)ctx)->deletes;
@@ -85,6 +86,36 @@ static void controller_time_contract(void) {
         vibe_ui_deinit(state); vui_destroy(ui);
     }
     free(hint); free(frame);
+}
+static void gesture_feedback_contract(void)
+{
+    clock_model_t model = {.value={.settings={.language=1,.haptics=true},
+        .device={.haptics_available=true}}};
+    const vibe_services_t services = {.ctx=&model,.snapshot=clock_snapshot,
+        .command=clock_command,.setting=clock_setting,.haptic=clock_haptic};
+    vui_handle_t ui=NULL; vibe_ui_t *state=NULL;
+    uint16_t *frame=malloc(480*480*2), *before=malloc(480*480*2);
+    assert(frame && before && !vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
+    advance_clock(ui,frame,200,16);
+    vui_pointer(ui,400,398,true);
+    assert(model.haptics==1); /* Current product contract: one pulse on press and one on release. */
+    vui_pointer(ui,400,398,false); vui_render(ui,frame);
+    assert(state->page==VIBE_SETTINGS && model.haptics==2);
+    advance_clock(ui,frame,200,16);
+    memcpy(before,frame,480*480*2);
+    vui_pointer(ui,240,410,true); vui_render(ui,frame);
+    assert(!memcmp(before,frame,480*480*2)); /* Scroll candidates do not flash pressed. */
+    vui_pointer(ui,240,380,true);
+    vui_pointer(ui,240,410,true); /* Returning to the start must not rearm a click. */
+    vui_pointer(ui,240,410,false); vui_render(ui,frame);
+    assert(state->page==VIBE_SETTINGS && model.haptics==4);
+    vibe_show(state,VIBE_RESET); advance_clock(ui,frame,200,16);
+    vui_pointer(ui,240,396,true); advance_clock(ui,frame,1000,16);
+    vui_pointer(ui,254,396,true); /* Still inside the button, but beyond tap slop. */
+    vui_pointer(ui,240,396,true); advance_clock(ui,frame,3500,16);
+    assert(!model.resets && !state->hold_started_ms && model.haptics==5);
+    vui_pointer(ui,240,396,false);
+    vibe_ui_deinit(state); vui_destroy(ui); free(before); free(frame);
 }
 static void queue_contract(void)
 {
@@ -551,6 +582,232 @@ static void pager_swipe(vui_handle_t ui, uint16_t *frame, int from, int to)
     vui_pointer_at(ui, to, 250, false, now + 110);
     advance_clock(ui, frame, 240, 16);
 }
+typedef struct { clock_model_t clock; unsigned calls; bool ready; } grid_title_model_t;
+static void *grid_title(void *ctx, const char *code, size_t *size)
+{
+    grid_title_model_t *model = ctx;
+    assert(!strcmp(code, "000001")); ++model->calls;
+    if (!model->ready) return NULL;
+    uint16_t pixels[60 * 20];
+    for (unsigned i = 0; i < 60 * 20; ++i)
+        pixels[i] = model->clock.value.settings.language == 2 ? 0xf800 : 0x07e0;
+    return ideas_title_qoi(pixels, 60, 20, size);
+}
+static void grid_title_contract(uint16_t *frame)
+{
+    grid_title_model_t model = {.clock = {.value = {.settings = {.language=2,.open_confirm=true},
+        .bundle_count=7, .nand_generation=1}}};
+    for (unsigned i = 0; i < 7; ++i) {
+        snprintf(model.clock.value.bundles[i].code, 7, "%06u", i+1);
+        strcpy(model.clock.value.bundles[i].release, i ? "English & punctuation: + /" : "中文名称");
+    }
+    const vibe_services_t services = {.ctx=&model, .snapshot=clock_snapshot,
+        .command=clock_command, .title=grid_title};
+    vui_handle_t ui = NULL; vibe_ui_t *state = NULL;
+    assert(!vui_create(&ui) && !vibe_ui_create(ui, &services, &state));
+    assert(!model.calls); /* Home must not fetch hidden names. */
+    vibe_show(state, VIBE_GRID); vibe_ui_poll(state); vui_render(ui, frame);
+    assert(state->grid_titles_pending && model.calls);
+    model.ready = true;
+    vibe_ui_poll(state); vui_render(ui, frame); /* Cache-lock miss recovers without generation change. */
+    assert(!state->grid_titles_pending);
+    assert(frame[214*480+92] == 0xf800); /* Short bitmap is centered under icon. */
+    unsigned calls = model.calls;
+    for (unsigned i = 0; i < 20; ++i) vibe_ui_poll(state);
+    assert(model.calls == calls); /* Settled page makes no more title copies. */
+    state->grid_page = 1; vibe_ui_poll(state); vui_render(ui, frame);
+    assert(frame[214*480+92] != 0xf800); /* No previous page glyphs. */
+    state->grid_page = 0;
+    model.clock.value.settings.language = 1;
+    ++model.clock.value.settings.revision; ++model.clock.value.nand_generation;
+    vibe_ui_poll(state); vui_render(ui, frame);
+    assert(frame[214*480+92] == 0x07e0);
+    model.ready = false;
+    advance_clock(ui, frame, 200, 16);
+    vui_pointer(ui,92,130,true); vui_pointer(ui,92,130,false);
+    assert(state->page == VIBE_OPEN_CONFIRM && !state->open_title_ready);
+    vui_render(ui,frame);
+    model.ready = true; vibe_ui_poll(state); vui_render(ui,frame);
+    assert(state->open_title_ready && frame[90*480+60] == 0x07e0);
+    calls = model.calls;
+    for (unsigned i = 0; i < 20; ++i) vibe_ui_poll(state);
+    assert(calls == model.calls);
+    strcpy(model.clock.value.bundles[0].release, "English name");
+    ++model.clock.value.nand_generation;
+    vibe_ui_poll(state); vui_render(ui,frame);
+    assert(state->open_title_ready && frame[90*480+60] != 0x07e0);
+    vibe_ui_deinit(state); vui_destroy(ui);
+}
+static int preview_check_command(void *ctx, vibe_command_t command, const char *a, const char *b)
+{
+    clock_model_t *model = ctx;
+    if (command == VIBE_CHECK_IDEA || command == VIBE_PREVIEW_IDEA) {
+        model->value.idea_loading = model->value.idea_busy = true;
+        model->value.idea_ready = false;
+        ++model->value.idea_request;
+    } else if (command == VIBE_CANCEL_IDEA)
+        model->value.idea_loading = model->value.idea_busy = model->value.idea_ready = false;
+    return clock_command(ctx, command, a, b);
+}
+static void preview_loading_name_contract(uint16_t *frame)
+{
+    grid_title_model_t model = {.clock={.value={.settings={.language=2},
+        .bundle_count=1,.storage_total=1000000,.nand_generation=1}},.ready=true};
+    strcpy(model.clock.value.bundles[0].code,"000001");
+    strcpy(model.clock.value.bundles[0].release,"中文名称");
+    const vibe_services_t services = {.ctx=&model,.snapshot=clock_snapshot,
+        .command=preview_check_command,.title=grid_title};
+    vui_handle_t ui = NULL; vibe_ui_t *state = NULL;
+    assert(!vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
+    vibe_show(state,VIBE_NAND); advance_clock(ui,frame,200,16);
+    vui_pointer(ui,150,170,true); vui_pointer(ui,150,170,false);
+    assert(state->page == VIBE_CONFIRM);
+    advance_clock(ui,frame,200,16);
+    vui_pointer(ui,428,128,true); vui_pointer(ui,428,128,false);
+    vibe_ui_poll(state); vui_render(ui,frame);
+    assert(state->page == VIBE_IDEA_INFO && state->snapshot.idea_loading);
+    assert(state->preview_loading_title_ready && frame[40*480+100] == 0xf800);
+    unsigned copies = model.calls;
+    for (unsigned i = 0; i < 10; ++i) vibe_ui_poll(state);
+    assert(model.calls == copies);
+    model.clock.value.idea_loading = model.clock.value.idea_busy = false;
+    model.clock.value.idea_ready = true;
+    strcpy(model.clock.value.idea.release,"Fresh name");
+    vibe_ui_poll(state); vui_render(ui,frame);
+    assert(frame[40*480+100] != 0xf800); /* Loaded metadata replaces the cached title. */
+    advance_clock(ui,frame,200,16);
+    vui_pointer(ui,100,430,true); vui_pointer(ui,100,430,false);
+    assert(state->page == VIBE_CONFIRM && !state->preview_loading_title_ready);
+    vibe_ui_deinit(state); vui_destroy(ui);
+}
+static void *inline_intro_body(void *ctx, uint32_t request, unsigned slot, size_t *size)
+{
+    (void)ctx; (void)request; assert(slot == 1);
+    *size = 416*176*2;
+    uint16_t *body = malloc(*size); assert(body);
+    for (unsigned i = 0; i < 416*176; ++i) body[i] = 0x07e0;
+    return body;
+}
+static void inline_intro_contract(uint16_t *frame)
+{
+    clock_model_t model = {.value={.settings={.language=1},.bundle_count=1,
+        .storage_total=1000000,.nand_generation=1}};
+    strcpy(model.value.bundles[0].code,"000001");
+    strcpy(model.value.bundles[0].release,"Local Idea");
+    strcpy(model.value.bundles[0].description,"Short summary");
+    const vibe_services_t services = {.ctx=&model,.snapshot=clock_snapshot,
+        .command=preview_check_command,.preview=inline_intro_body};
+    vui_handle_t ui=NULL; vibe_ui_t *state=NULL;
+    assert(!vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
+    vibe_show(state,VIBE_NAND); advance_clock(ui,frame,200,16);
+    vui_pointer(ui,150,170,true); vui_pointer(ui,150,170,false);
+    model.value.idea_busy = true; /* A background title job owns the backend. */
+    advance_clock(ui,frame,200,16);
+    assert(state->page == VIBE_CONFIRM && state->inline_intro_due && !state->inline_intro_pending);
+    model.value.idea_busy = false;
+    vibe_ui_poll(state);
+    assert(state->inline_intro_pending && !state->inline_intro_due);
+    model.value.idea_loading = model.value.idea_busy = false;
+    model.value.idea_ready = model.value.idea_custom = true;
+    vibe_ui_poll(state); vui_render(ui,frame);
+    assert(state->inline_intro_ready && !state->inline_intro_pending && !model.value.idea_ready);
+    assert(frame[195*480+40] == 0x07e0);
+    assert(!vui_scroll_to(ui,VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT,1000));
+    assert(vui_scroll_offset(ui,VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT) == 20);
+    /* Opening Check updates releases only the copied local canvas; its
+     * original independent preview page and request still work. */
+    advance_clock(ui,frame,200,16);
+    vui_pointer(ui,428,128,true); vui_pointer(ui,428,128,false);
+    assert(state->page == VIBE_IDEA_INFO && !state->inline_intro_ready);
+    advance_clock(ui,frame,200,16);
+    vui_pointer(ui,100,430,true); vui_pointer(ui,100,430,false);
+    assert(state->page == VIBE_CONFIRM);
+    advance_clock(ui,frame,200,16);
+    assert(state->inline_intro_pending); /* Re-entering details loads automatically. */
+    advance_clock(ui,frame,200,16);
+    vui_pointer(ui,38,36,true); vui_pointer(ui,38,36,false);
+    assert(state->page == VIBE_NAND && !state->inline_intro_pending && !model.value.idea_loading);
+    model.value.idea_ready = true; vibe_ui_poll(state);
+    assert(state->page == VIBE_NAND); /* A late reply cannot navigate back. */
+    model.value.idea_ready = false;
+    vibe_ui_deinit(state); vui_destroy(ui);
+}
+static void check_result_origin_contract(uint16_t *frame)
+{
+    for (unsigned failed=0; failed<2; ++failed) {
+        clock_model_t model={.value={.settings={.language=1},.bundle_count=1,
+            .storage_total=1000000,.nand_generation=1}};
+        strcpy(model.value.bundles[0].code,"000001");
+        strcpy(model.value.bundles[0].release,"Selected Idea");
+        const vibe_services_t services={.ctx=&model,.snapshot=clock_snapshot,.command=preview_check_command};
+        vui_handle_t ui=NULL; vibe_ui_t *state=NULL;
+        assert(!vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
+        vibe_show(state,VIBE_NAND); advance_clock(ui,frame,200,16);
+        vui_pointer(ui,150,170,true); vui_pointer(ui,150,170,false);
+        advance_clock(ui,frame,200,16);
+        vui_pointer(ui,428,128,true); vui_pointer(ui,428,128,false);
+        assert(state->page==VIBE_IDEA_INFO && state->preview_check_updates && state->result_return_detail);
+        model.value.idea_loading=model.value.idea_busy=model.value.idea_ready=false;
+        model.value.update_terminal=true; model.value.update_failed=failed;
+        ++model.value.update_revision;
+        strcpy(model.value.update_title,failed ? "App information failed" : "Already up to date");
+        vibe_ui_poll(state); advance_clock(ui,frame,200,16);
+        assert(state->page==VIBE_RESULT && !state->result_can_open);
+        vui_pointer(ui,240,420,true); vui_pointer(ui,240,420,false);
+        assert(state->page==VIBE_CONFIRM && !state->result_return_detail);
+        assert(!strcmp(state->selected_bundle.code,"000001"));
+        /* A later save must retain the standard library destination. */
+        assert(!vibe_command(state,VIBE_SAVE_DEVELOPMENT,NULL,NULL));
+        assert(!state->result_return_detail);
+        vibe_show(state,VIBE_RESULT); advance_clock(ui,frame,200,16);
+        vui_pointer(ui,240,420,true); vui_pointer(ui,240,420,false);
+        assert(state->page==VIBE_NAND);
+        vibe_ui_deinit(state); vui_destroy(ui);
+    }
+}
+static void help_action(vibe_ui_t *state, unsigned action)
+{
+    state->pointer_page_ready = true;
+    state->pointer_page = state->page;
+    state->gesture_consumed = false;
+    state->suppress_until = 0;
+    vui_event_t event = {.type=VUI_EVENT_CALL, .action_id=action};
+    assert(vibe_product_event(state, &event));
+}
+static void help_route_contract(uint16_t *frame)
+{
+    for (unsigned language = 1; language <= 2; ++language) {
+        clock_model_t model = {.value = {.settings={.language=language}, .storage_total=1000000}};
+        const vibe_services_t services = {.ctx=&model, .snapshot=clock_snapshot, .command=clock_command};
+        vui_handle_t ui = NULL; vibe_ui_t *state = NULL;
+        assert(!vui_create(&ui) && !vibe_ui_create(ui, &services, &state));
+        help_action(state, VUI_VIBE_ACT_ID_NAV_HELP);
+        help_action(state, VUI_VIBE_ACT_ID_HELP_TOPIC_3);
+        for (unsigned topic = 5; topic <= 6; ++topic) {
+            help_action(state, topic == 5 ? VUI_VIBE_ACT_ID_FIX_WIFI : VUI_VIBE_ACT_ID_FIX_STORAGE);
+            assert(state->page == VIBE_HELP && state->help_mode == 1 && state->help_topic_index == topic);
+            assert(!state->fix_return_active); /* Reading a problem must not open settings. */
+            vui_render(ui, frame);
+            uint16_t *explanation = malloc(480*480*2); assert(explanation);
+            memcpy(explanation, frame, 480*480*2);
+            help_action(state, VUI_VIBE_ACT_ID_HELP_OPEN_QR);
+            assert(state->page == (topic == 5 ? VIBE_WIFI : VIBE_NAND) && state->fix_return_active);
+            advance_clock(ui, frame, 500, 16);
+            vui_pointer(ui,38,36,true); vui_pointer(ui,38,36,false);
+            advance_clock(ui, frame, 200, 16);
+            assert(state->page == VIBE_HELP && state->help_mode == 1 && state->help_topic_index == topic);
+            assert(!state->fix_return_active);
+            assert(!memcmp(explanation, frame, 480*480*2)); free(explanation);
+            help_action(state, VUI_VIBE_ACT_ID_PRODUCT_BACK);
+            assert(state->page == VIBE_HELP && state->help_mode == 2);
+        }
+        help_action(state, VUI_VIBE_ACT_ID_FIX_RETURN);
+        assert(state->help_mode == 1 && state->help_topic_index == 4);
+        help_action(state, VUI_VIBE_ACT_ID_PRODUCT_BACK); assert(state->help_mode == 2);
+        help_action(state, VUI_VIBE_ACT_ID_PRODUCT_BACK); assert(state->help_mode == 0);
+        vibe_ui_deinit(state); vui_destroy(ui);
+    }
+}
 static void pager_render_contract(void)
 {
     uint16_t *frame = malloc(480 * 480 * 2), *home = malloc(480 * 480 * 2);
@@ -702,6 +959,7 @@ int main(void)
     target_identity_contract();
     list_marquee_damage();
     controller_time_contract();
+    gesture_feedback_contract();
     queue_contract();
     motion_contract();
     vui_handle_t ui=NULL;
@@ -718,9 +976,12 @@ int main(void)
     assert(vui_canvas_push(ui,id,next,416*2,released,next)==0 && releases==1);
     assert(vui_canvas_stop(ui,id)==0 && releases==2);
     assert(vui_canvas_stop(ui,id)==0 && releases==2);
+    uint16_t *grid_frame = malloc(480 * 480 * 2);
+    assert(grid_frame); grid_title_contract(grid_frame); preview_loading_name_contract(grid_frame); inline_intro_contract(grid_frame); check_result_origin_contract(grid_frame); help_route_contract(grid_frame); free(grid_frame);
     assert(vibe_pc_init(ui)==0);
     uint16_t *frame=malloc(480*480*2);
     title_marquee(frame);
+
     matrix_rendering(frame);
     list_binding_contract(frame);
     keyboard_preview(frame);

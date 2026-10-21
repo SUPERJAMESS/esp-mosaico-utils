@@ -10,6 +10,10 @@
  * panel access with rendering and drain pending transfers before commands. */
 esp_err_t vibe_device_start(esp_err_t (*rotate)(unsigned degrees),
                             esp_err_t (*brightness)(unsigned percent));
+/* GSP owns keys, motion, haptics, display and sleep policy. This mode only
+ * initializes/samples the battery gauge and observes USB enumeration. Starts
+ * are idempotent within one mode; mixing modes returns INVALID_STATE. */
+esp_err_t vibe_device_start_telemetry(void);
 esp_err_t vibe_device_snapshot(vibe_device_snapshot_t *out);
 /* Nonblocking desired state, applied by the board worker. */
 void vibe_device_policy(bool asleep, bool rotation_allowed);

@@ -479,6 +479,25 @@ def select_device(devices: list[dict[str, Any]], requested: str | None) -> dict[
     )
 
 
+def wait_for_data_link(context: RunContext, session: GatewaySession,
+                       device: dict[str, Any], *, timeout: float) -> None:
+    """Let discovery finish the control connection's peer before a bulk write."""
+    if not device.get("control_link") or device.get("data_link"):
+        return
+    device_id = str(device["device_id"])
+    boot_id = device.get("boot_id")
+    deadline = time.monotonic() + min(max(timeout, 0.0), 5.0)
+    context.status("gateway: waiting for the device data link")
+    while time.monotonic() < deadline:
+        current = select_device(connected_devices(context, session, wait_seconds=0), device_id)
+        if boot_id is not None and current.get("boot_id") != boot_id:
+            raise DeviceError("The device restarted while its data link was connecting; retry the command.")
+        if current.get("data_link"):
+            return
+        time.sleep(0.1)
+    raise DeviceError("The device data link is not ready; check the second USB CDC interface before retrying.")
+
+
 def _wait_gateway_operation(
     context: RunContext,
     session: GatewaySession,

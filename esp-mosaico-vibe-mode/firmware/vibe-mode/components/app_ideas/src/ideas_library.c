@@ -535,7 +535,7 @@ esp_err_t ideas_prepare_row(ideas_context_t *ctx, job_t *job) {
             oldest = i;
     free(ctx->titles[oldest].image.data);
     strcpy(ctx->titles[oldest].code, job->code);
-    ctx->titles[oldest].language = factory_locale_get();
+    ctx->titles[oldest].language = job->title_language;
     ctx->titles[oldest].image = (icon_t){image, size};
     ctx->titles[oldest].stamp = ++ctx->title_clock;
     /* Failed entries also cache a miss until the next scan to avoid retry loops.

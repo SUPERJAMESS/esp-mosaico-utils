@@ -32,6 +32,7 @@ def settings_ui(tmp_path_factory, native_build):
                '-DSOURCE="' + (components / "app_settings/src/vibe_settings.c").as_posix() + '"',
                '-DLOCALE_SOURCE="' + (components / "app_system/src/factory_locale.c").as_posix() + '"',
                "-I" + str(build), "-I" + str(fixture),
+               "-I" + str(components / "app_ui/private"),
                *["-I" + str(components / name / "include")
                  for name in ("app_ui", "app_settings", "app_device", "app_network")],
                "-I" + str(ROOT / "components/esp_mosaico_app_recovery/include"),
@@ -60,3 +61,13 @@ def test_shared_editor_keeps_drafts_and_valid_credentials(settings_ui, tmp_path,
     if scenario in ("boot", "sleep", "boot-sleep"):
         with Image.open(tmp_path / "before.ppm") as before, Image.open(tmp_path / "returned.ppm") as returned:
             assert before.crop((16, 96, 464, 160)).tobytes() == returned.crop((16, 96, 464, 160)).tobytes()
+
+
+@pytest.mark.parametrize("language", ["en", "zh"])
+def test_reset_paints_success_before_restarting(settings_ui, tmp_path, language):
+    result = subprocess.run([str(settings_ui), "reset-" + language, str(tmp_path)],
+                            capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    with Image.open(tmp_path / "reset-clearing.ppm") as clearing, Image.open(tmp_path / "reset-success.ppm") as success:
+        assert clearing.crop((24, 170, 456, 310)).tobytes() != success.crop((24, 170, 456, 310)).tobytes()
+        assert success.getbbox()  # The success frame is present before esp_restart.

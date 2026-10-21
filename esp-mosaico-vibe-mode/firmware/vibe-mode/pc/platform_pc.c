@@ -273,12 +273,15 @@ static void trace_state(vui_handle_t ui, void *ctx)
             model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
             model.bundles[0].boot ? "true" : "false");
     fprintf(file, "\"format_calls\":%u,", format_calls);
-    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,\"about_offset\":%d,\"licenses_offset\":%d,\"idea_description_offset\":%d,",
+    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,\"about_offset\":%d,\"licenses_offset\":%d,\"shared_offset\":%d,\"idea_description_offset\":%d,",
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_ABOUT_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_LICENSES_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_IDEA_DESCRIPTION_VIEWPORT));
+    fprintf(file, "\"local_description_offset\":%d,",
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT));
     fprintf(file, "\"open_confirm\":%s,\"scan_calls\":%u,\"cancellable\":%s,\"cancelled\":%s,",
             model.settings.open_confirm ? "true" : "false", scan_calls, model.cancellable ? "true" : "false", model.update_cancelled ? "true" : "false");
     fprintf(file, "\"grid_page\":%u,\"language\":%u,\"asleep\":%s,\"pending_delete\":%s,"
@@ -639,12 +642,24 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
     case VIBE_SETTINGS_TIMEOUT: model.settings.screen_off_seconds = n; break;
     case VIBE_SETTINGS_ROTATE: model.settings.auto_rotate = n; break;
     case VIBE_SETTINGS_HAPTICS: model.settings.haptics = n; break;
-    case VIBE_SETTINGS_OPEN_CONFIRM: model.settings.open_confirm = n; break;
+    case VIBE_SETTINGS_OPEN_CONFIRM:
+        if (n == 2) {
+            if (model.settings.open_confirm_count < 3) ++model.settings.open_confirm_count;
+            if (model.settings.open_confirm_count >= 3) model.settings.open_confirm = false;
+        } else {
+            model.settings.open_confirm = n != 0;
+            model.settings.open_confirm_count = n ? 0 : 3;
+        }
+        break;
     case VIBE_SETTINGS_SHARED_SET:
-    case VIBE_SETTINGS_SHARED_DELETE: {
+    case VIBE_SETTINGS_SHARED_DELETE:
+    case VIBE_SETTINGS_SHARED_RENAME: {
         size_t i;
         for (i = 0; i < model.settings.shared_count && strcmp(model.settings.shared[i].key, key); ++i) {}
-        if (cmd == VIBE_SETTINGS_SHARED_DELETE) {
+        if (cmd == VIBE_SETTINGS_SHARED_RENAME) {
+            if (i >= model.settings.shared_count) return 0x102;
+            snprintf(model.settings.shared[i].key, sizeof(model.settings.shared[i].key), "%s", value);
+        } else if (cmd == VIBE_SETTINGS_SHARED_DELETE) {
             if (i < model.settings.shared_count)
                 memmove(&model.settings.shared[i], &model.settings.shared[i + 1],
                         (--model.settings.shared_count - i) * sizeof(model.settings.shared[0]));
@@ -660,6 +675,8 @@ static int setting(void *ctx, vibe_settings_command_t cmd, const char *key, cons
         ++reset_calls;
         ++restart_calls;
         model.settings.language = 1;
+        model.settings.open_confirm = true;
+        model.settings.open_confirm_count = 0;
         model.settings.shared_count = 0;
         memset(model.settings.shared, 0, sizeof(model.settings.shared));
         model.credentials_saved = false;
@@ -676,7 +693,7 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
     read_environment("VIBE_SIM_STATE_FILE", state_path, sizeof(state_path));
     read_environment("VIBE_SIM_CONTROL_FILE", control_path, sizeof(control_path));
     model.settings = (vibe_settings_snapshot_t){.language = 1,
-        .brightness = 80, .screen_off_seconds = 180, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
+        .brightness = 80, .screen_off_seconds = scenario("timeout-180") ? 180 : 0, .auto_rotate = false, .haptics = true, .open_confirm = true, .revision = 1};
     model.device.battery_valid = true;
     model.device.imu_available = model.device.haptics_available = model.device.peripherals_ready = true;
     if (scenario("peripherals-pending") || scenario("peripherals-failed")) {

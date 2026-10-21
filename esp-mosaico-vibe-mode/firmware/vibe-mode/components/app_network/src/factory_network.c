@@ -728,8 +728,11 @@ esp_err_t factory_network_forget(void)
     ctx->snapshot.state = FACTORY_NETWORK_NO_CREDENTIALS;
     ctx->snapshot.last_error = ESP_OK;
     bool suspended = ctx->suspended;
+    bool running = ctx->wifi_running;
     xSemaphoreGive(ctx->lock);
-    err = esp_wifi_disconnect();
+    /* Reset suspends (and stops) Wi-Fi before clearing credentials. The driver
+     * rejects disconnect while stopped; there is no connection left to close. */
+    err = running ? esp_wifi_disconnect() : ESP_OK;
     if (err == ESP_OK && !suspended) err = request_scan_started(ctx);
     if (err != ESP_OK) {
         xSemaphoreTake(ctx->lock, portMAX_DELAY);

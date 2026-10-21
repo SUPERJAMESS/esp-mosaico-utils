@@ -208,7 +208,7 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
                 retry = true;
                 break;
             }
-            esp_http_client_set_timeout_ms(client, timeout_ms(deadline, 60000));
+            esp_http_client_set_timeout_ms(client, timeout_ms(deadline, 1000));
             char extra;
             size_t room = capacity - used;
             int want = room > IO_BYTES ? IO_BYTES : room ? (int)room : 1;
@@ -218,6 +218,10 @@ static esp_err_t fetch_http(ideas_context_t *ctx, uint32_t request, const char *
             int64_t started = factory_io_now();
             int count = esp_http_client_read(client, target, want);
             metrics.read += factory_io_now() - started;
+            if (count == -ESP_ERR_HTTP_EAGAIN) {
+                vTaskDelay(1);
+                continue;
+            }
             if (count < 0) {
                 err = ESP_ERR_TIMEOUT;
                 retry = true;
