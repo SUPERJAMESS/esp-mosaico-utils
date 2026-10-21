@@ -6683,7 +6683,7 @@
     },
     {
       "type": "button",
-      "parent": 1286,
+      "parent": 1288,
       "x": 332,
       "y": 405,
       "w": 108,
@@ -7928,7 +7928,7 @@
     },
     {
       "type": "button",
-      "parent": 1289,
+      "parent": 1291,
       "x": 400,
       "y": 100,
       "w": 56,
@@ -7962,7 +7962,7 @@
     },
     {
       "type": "button",
-      "parent": 1290,
+      "parent": 1292,
       "x": 24,
       "y": 360,
       "w": 136,
@@ -8012,7 +8012,7 @@
     },
     {
       "type": "button",
-      "parent": 1288,
+      "parent": 1290,
       "x": 320,
       "y": 360,
       "w": 136,
@@ -8184,7 +8184,7 @@
     },
     {
       "type": "button",
-      "parent": 1287,
+      "parent": 1289,
       "x": 248,
       "y": 360,
       "w": 208,
@@ -8483,7 +8483,7 @@
     },
     {
       "type": "button",
-      "parent": 1291,
+      "parent": 1293,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -12852,7 +12852,7 @@
     },
     {
       "type": "button",
-      "parent": 1292,
+      "parent": 1294,
       "x": 388,
       "y": 96,
       "w": 68,
@@ -12918,7 +12918,7 @@
     },
     {
       "type": "button",
-      "parent": 1293,
+      "parent": 1295,
       "x": 352,
       "y": 28,
       "w": 104,
@@ -14837,7 +14837,7 @@
     },
     {
       "type": "button",
-      "parent": 1281,
+      "parent": 1283,
       "x": 48,
       "y": 294,
       "w": 384,
@@ -15099,7 +15099,7 @@
     },
     {
       "type": "button",
-      "parent": 1300,
+      "parent": 1302,
       "x": 30,
       "y": 69,
       "w": 124,
@@ -15140,7 +15140,7 @@
     },
     {
       "type": "image",
-      "parent": 1294,
+      "parent": 1296,
       "x": 38,
       "y": 77,
       "w": 108,
@@ -15278,7 +15278,7 @@
     },
     {
       "type": "button",
-      "parent": 1301,
+      "parent": 1303,
       "x": 178,
       "y": 69,
       "w": 124,
@@ -15319,7 +15319,7 @@
     },
     {
       "type": "image",
-      "parent": 1295,
+      "parent": 1297,
       "x": 186,
       "y": 77,
       "w": 108,
@@ -15457,7 +15457,7 @@
     },
     {
       "type": "button",
-      "parent": 1302,
+      "parent": 1304,
       "x": 326,
       "y": 69,
       "w": 124,
@@ -15498,7 +15498,7 @@
     },
     {
       "type": "image",
-      "parent": 1296,
+      "parent": 1298,
       "x": 334,
       "y": 77,
       "w": 108,
@@ -15636,7 +15636,7 @@
     },
     {
       "type": "button",
-      "parent": 1303,
+      "parent": 1305,
       "x": 30,
       "y": 253,
       "w": 124,
@@ -15677,7 +15677,7 @@
     },
     {
       "type": "image",
-      "parent": 1297,
+      "parent": 1299,
       "x": 38,
       "y": 261,
       "w": 108,
@@ -15815,7 +15815,7 @@
     },
     {
       "type": "button",
-      "parent": 1304,
+      "parent": 1306,
       "x": 178,
       "y": 253,
       "w": 124,
@@ -15856,7 +15856,7 @@
     },
     {
       "type": "image",
-      "parent": 1298,
+      "parent": 1300,
       "x": 186,
       "y": 261,
       "w": 108,
@@ -15994,7 +15994,7 @@
     },
     {
       "type": "button",
-      "parent": 1305,
+      "parent": 1307,
       "x": 326,
       "y": 253,
       "w": 124,
@@ -16035,7 +16035,7 @@
     },
     {
       "type": "image",
-      "parent": 1299,
+      "parent": 1301,
       "x": 334,
       "y": 261,
       "w": 108,
@@ -16981,7 +16981,7 @@
       "text_align": "left",
       "bind": "update_detail",
       "name": "update_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                                                  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,,---------------...........................//////00000002288::::>>AAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCDDDDDDDDDDDDEFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNNNOOPPPPPRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkkkllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwwwwxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyy||··……››。。。。。。。。。。。。。。。。一上下下下下下与个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保保候像像像像充先入入入入入入具兼内写写写写写准准准击击击创删删到到前前动动包单单即即即原发发发发取取取可可可可可可后后后后后后启启启启启启和回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备备备失失始存存存存存存存存存存安完完完容容密将就工已已已已已已已已已已已已已已已已已已已已已已已已已已布并并并应应应应应应应应开开开开开开开开开开当待待待意成成我我我我我或打打打打打打扫持持持接接接接接接接接接接接接接接接接接接接接接接接接描提提收收放整文文文文文文文新新新新新新新无时是暂更更更最有期未未未未未本本本本本本本本机机查查查校校校校校校校校校校校校校校校校校检检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正此清清源点点点版版版版版现用用用用用用用用电电电电电界留留留的的的的的的的的的直码稍空空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设设试试试误请请请请请请请请请请读读读败败资载载载载载输输运运运运返这进连连连连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重错镜镜镜镜间间间除除面验验验验验验验验验验验验验验验验验，，，，，：：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                                                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,,---------------...............................//////00000002288::::>>AAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCDDDDDDDDDDDDEFFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNNNOOPPPPPRRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkkklllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooopppppppppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwwwwxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyy||··………››。。。。。。。。。。。。。。。。一上下下下下下与个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保保候像像像像充先入入入入入入具兼内写写写写写准准准出击击击创删删到到前前动动包单单即即即厂原发发发发取取取可可可可可可后后后后后后启启启启启启启和回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备备备复失失始存存存存存存存存存存安完完完完容容密将就工已已已已已已已已已已已已已已已已已已已已已已已已已已布并并并应应应应应应应应开开开开开开开开开开当待待待恢意成成成我我我我我或打打打打打打扫持持持接接接接接接接接接接接接接接接接接接接接接接接接描提提收收放整文文文文文文文新新新新新新新无时是暂更更更最有期未未未未未本本本本本本本本机机查查查校校校校校校校校校校校校校校校校校检检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正此清清源点点点版版版版版现用用用用用用用用电电电电电界留留留的的的的的的的的的直码稍空空等等等系系系系系系组组组组组组组经统统统统统统绪置置置脑自至行行行行装设设设设设设试试试误请请请请请请请请请请读读读败败资载载载载载输输运运运运返这进连连连连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重重错镜镜镜镜间间间除除面验验验验验验验验验验验验验验验验验，，，，，：：：：",
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "overflow": "ellipsis"
@@ -17143,7 +17143,7 @@
     },
     {
       "type": "button",
-      "parent": 1282,
+      "parent": 1284,
       "x": 24,
       "y": 400,
       "w": 432,
@@ -17274,14 +17274,14 @@
       "text_align": "left",
       "bind": "result_detail",
       "name": "result_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                                                       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,,---------------...........................//////00000000000228888::::>>AAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCDDDDDDDDDDDDEEFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNNNOOPPPPPRRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkkkllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwwwwxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyy||··……››。。。。。。。。。。。。。。。。一上下下下下下与个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保保候像像像像充先入入入入入入具兼内写写写写写准准准击击击创删删到到前前动动包单单即即即原发发发发取取取可可可可可可后后后后后后后启启启启启启和回回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备备备失失始存存存存存存存存存存安完完完容容密将就工已已已已已已已已已已已已已已已已已已已已已已已已已已布并并并应应应应应应应应开开开开开开开开开开当待待待意成成我我我我我或打打打打打打扫持持持接接接接接接接接接接接接接接接接接接接接接接接接描提提收收放整文文文文文文文新新新新新新新无时是暂更更更最有期未未未未未本本本本本本本本机机查查查校校校校校校校校校校校校校校校校校检检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正此清清源点点点版版版版版现用用用用用用用用电电电电电界留留留的的的的的的的的的直码稍空空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设设试试试试误误请请请请请请请请请请请读读读败败资载载载载载输输运运运运返返这进连连连连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重重错错镜镜镜镜间间间除除面页首验验验验验验验验验验验验验验验验验，，，，，：：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                                                         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,,---------------...............................//////00000000000228888::::>>AAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCDDDDDDDDDDDDEEFFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNNNOOPPPPPRRRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkkklllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooopppppppppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwwwwxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyy||··………››。。。。。。。。。。。。。。。。一上下下下下下与个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保保候像像像像充先入入入入入入具兼内写写写写写准准准出击击击创删删到到前前动动包单单即即即厂原发发发发取取取可可可可可可后后后后后后后启启启启启启启和回回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备备备复失失始存存存存存存存存存存安完完完完容容密将就工已已已已已已已已已已已已已已已已已已已已已已已已已已布并并并应应应应应应应应开开开开开开开开开开当待待待恢意成成成我我我我我或打打打打打打扫持持持接接接接接接接接接接接接接接接接接接接接接接接接描提提收收放整文文文文文文文新新新新新新新无时是暂更更更最有期未未未未未本本本本本本本本机机查查查校校校校校校校校校校校校校校校校校检检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正此清清源点点点版版版版版现用用用用用用用用电电电电电界留留留的的的的的的的的的直码稍空空等等等系系系系系系组组组组组组组经统统统统统统绪置置置脑自至行行行行装设设设设设设试试试试误误请请请请请请请请请请请读读读败败资载载载载载输输运运运运返返这进连连连连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重重重错错镜镜镜镜间间间除除面页首验验验验验验验验验验验验验验验验验，，，，，：：：：",
       "overflow": "clip",
       "font": "fonts/VibeInter.otf",
       "hidden": false
     },
     {
       "type": "button",
-      "parent": 1284,
+      "parent": 1286,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -17306,7 +17306,7 @@
     },
     {
       "type": "button",
-      "parent": 1283,
+      "parent": 1285,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -17356,7 +17356,7 @@
     },
     {
       "type": "button",
-      "parent": 1285,
+      "parent": 1287,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -17526,7 +17526,7 @@
     },
     {
       "type": "button",
-      "parent": 1280,
+      "parent": 1282,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -17997,6 +17997,35 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Hold to delete长按删除"
     },
     {
+      "type": "container",
+      "parent": 99,
+      "x": 0,
+      "y": 80,
+      "w": 480,
+      "h": 400,
+      "name": "reset_status_panel",
+      "bind": "reset_status_panel",
+      "bind_target": "visible",
+      "hidden": true,
+      "bg_color": "#090A0B"
+    },
+    {
+      "type": "label",
+      "parent": 1278,
+      "x": 24,
+      "y": 112,
+      "w": 432,
+      "h": 112,
+      "name": "reset_status",
+      "bind": "reset_status",
+      "text": "Restoring factory settings...",
+      "font_size": 24,
+      "font": "fonts/VibeInter.otf",
+      "fg_color": "#F3F4F2",
+      "text_align": "center",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Restoring factory settings...正在恢复出厂设置…\n\n    .......FRRaaaccceeeeeeefgggiiilmnnnooooprrrrrssssstttttttttyy……出出厂厂启在在复复完恢恢成正正置置设设重"
+    },
+    {
       "type": "matrix",
       "parent": 110,
       "x": 154,
@@ -18322,7 +18351,7 @@
     },
     {
       "type": "button",
-      "parent": 1306,
+      "parent": 1308,
       "x": 16,
       "y": 16,
       "w": 56,
@@ -18345,7 +18374,7 @@
     },
     {
       "type": "label",
-      "parent": 1306,
+      "parent": 1308,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -18360,7 +18389,7 @@
     },
     {
       "type": "label",
-      "parent": 1306,
+      "parent": 1308,
       "x": 24,
       "y": 100,
       "w": 432,
@@ -18375,7 +18404,7 @@
     },
     {
       "type": "label",
-      "parent": 1306,
+      "parent": 1308,
       "x": 24,
       "y": 152,
       "w": 432,
@@ -18390,7 +18419,7 @@
     },
     {
       "type": "label",
-      "parent": 1306,
+      "parent": 1308,
       "x": 24,
       "y": 212,
       "w": 432,
@@ -18405,7 +18434,7 @@
     },
     {
       "type": "label",
-      "parent": 1306,
+      "parent": 1308,
       "x": 24,
       "y": 270,
       "w": 432,
@@ -18420,7 +18449,7 @@
     },
     {
       "type": "button",
-      "parent": 1306,
+      "parent": 1308,
       "x": 24,
       "y": 360,
       "w": 204,
@@ -18443,7 +18472,7 @@
     },
     {
       "type": "button",
-      "parent": 1306,
+      "parent": 1308,
       "x": 252,
       "y": 360,
       "w": 204,
@@ -18478,7 +18507,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1317,
       "x": 24,
       "y": 36,
       "w": 432,
@@ -18493,7 +18522,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1317,
       "x": 24,
       "y": 132,
       "w": 432,
@@ -18508,7 +18537,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1317,
       "x": 24,
       "y": 196,
       "w": 432,
@@ -18524,7 +18553,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1317,
       "x": 24,
       "y": 268,
       "w": 432,
@@ -18539,7 +18568,7 @@
     },
     {
       "type": "layer",
-      "parent": 1315,
+      "parent": 1317,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -18551,7 +18580,7 @@
     },
     {
       "type": "button",
-      "parent": 1320,
+      "parent": 1322,
       "x": 96,
       "y": 380,
       "w": 288,

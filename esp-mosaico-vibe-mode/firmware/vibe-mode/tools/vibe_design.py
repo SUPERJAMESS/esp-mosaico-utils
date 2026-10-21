@@ -743,6 +743,11 @@ def apply(scene):
         button(p,'button_reset_hold' if name=='reset' else 'button_delete_hold','Hold to reset' if name=='reset' else 'Hold to delete',24,348,432,96,danger=True)
         named['button_reset_hold' if name=='reset' else 'button_delete_hold'].update(bg_color='#00000001',fg_color=TEXT)
 
+    reset_status=add('container',index['reset'],0,80,480,400,name='reset_status_panel',
+        bind='reset_status_panel',bind_target='visible',hidden=True,bg_color=BG)
+    text(reset_status,'reset_status','Restoring factory settings...',24,112,432,112,24,
+        color=TEXT,align='center')
+
     # Display only: keep the product's existing timeout, brightness and wake policy.
     p=index['sleep']
     for obj in objects:

@@ -1206,6 +1206,9 @@ void vibe_product_poll(vibe_ui_t *s)
     }
     if (s->page == VIBE_HELP) project_help(s);
     if (s->page == VIBE_RESET) {
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_RESET_STATUS_PANEL, v->settings.reset_phase != VIBE_RESET_IDLE);
+        TEXT(s, RESET_STATUS, v->settings.reset_phase == VIBE_RESET_RESTARTING
+            ? "Factory reset complete.\nRestarting..." : "Restoring factory settings...");
         TEXT(s, RESET_VAL_1, v->network == VIBE_NET_CONNECTED && v->ssid[0] ? v->ssid : "Not connected");
         FORMAT(s, RESET_VAL_2, "%u entries", (unsigned)v->settings.shared_count);
     }
@@ -1526,6 +1529,7 @@ void vibe_product_tick(vibe_ui_t *s)
     if (s->services.key) {
         unsigned key;
         while ((key = s->services.key(s->services.ctx)) != 0) {
+            if (s->snapshot.settings.busy && s->snapshot.settings.reset_phase != VIBE_RESET_IDLE) continue;
             s->activity_ms = now;
             vibe_product_cancel_pager(s);
             if (key == 1) {

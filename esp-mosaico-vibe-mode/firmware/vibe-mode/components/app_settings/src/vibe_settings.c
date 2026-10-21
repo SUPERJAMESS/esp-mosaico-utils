@@ -177,7 +177,15 @@ static esp_err_t apply(const request_t *request)
         if (err == ESP_OK) err = factory_network_suspend(true);
         if (err == ESP_OK) err = factory_network_forget();
         if (err == ESP_OK) err = clear_preferences();
-        if (err == ESP_OK) esp_restart();
+        if (err == ESP_OK) {
+            /* Publish success while the old language and panel are still live.
+             * Keep the reset worker and storage leases active until reboot. */
+            xSemaphoreTake(s_lock, portMAX_DELAY);
+            s_settings.reset_phase = VIBE_RESET_RESTARTING;
+            xSemaphoreGive(s_lock);
+            vTaskDelay(pdMS_TO_TICKS(1800));
+            esp_restart();
+        }
         factory_system_update_read_release();
         app_storage_release();
         if (err != ESP_OK) (void)factory_network_suspend(false);
@@ -287,8 +295,9 @@ esp_err_t vibe_settings_request(vibe_settings_command_t command, const char *key
         return full ? ESP_ERR_NO_MEM : ESP_ERR_INVALID_STATE;
     }
     s_settings.busy = true;
+    s_settings.reset_phase = command == VIBE_SETTINGS_RESET ? VIBE_RESET_CLEARING : VIBE_RESET_IDLE;
     BaseType_t started = xTaskCreate(worker, "vibe_settings", 4096, request, 3, NULL);
-    if (started != pdPASS) s_settings.busy = false;
+    if (started != pdPASS) { s_settings.busy = false; s_settings.reset_phase = VIBE_RESET_IDLE; }
     xSemaphoreGive(s_lock);
     if (started != pdPASS) { memset(request, 0, sizeof(*request)); free(request); return ESP_ERR_NO_MEM; }
     return ESP_OK;

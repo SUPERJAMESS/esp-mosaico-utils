@@ -484,6 +484,8 @@ static const struct { const char *en, *zh; } vibe_translations[] = {
     {"Checking apps and storage...", "正在检查应用和存储空间…"},
     {"Loading...", "加载中…"},
     {"Checking for updates...", "正在检查更新…"},
+    {"Restoring factory settings...", "正在恢复出厂设置…"},
+    {"Factory reset complete.\nRestarting...", "恢复出厂设置完成\n正在重启…"},
 };
 static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {
     {VUI_VIBE_BIND_PAIRING_ENDPOINT, "Connect Wi-Fi first"},
@@ -730,6 +732,7 @@ static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = 
     {VUI_VIBE_BIND_RESET_HOLD_LABEL, "Hold to reset"},
     {VUI_VIBE_BIND_DELETE_NOTE, "Remove this saved Idea?\nYou can undo for 4 seconds."},
     {VUI_VIBE_BIND_DELETE_HOLD_LABEL, "Hold to delete"},
+    {VUI_VIBE_BIND_RESET_STATUS, "Restoring factory settings..."},
     {VUI_VIBE_BIND_SLEEP_MESSAGE, "Tap or press AI to wake"},
     {VUI_VIBE_BIND_BACK_FIRMWARE_NOTICE_LABEL, "‹"},
     {VUI_VIBE_BIND_FIRMWARE_NOTICE_TITLE, "Update Vibe Mode"},

@@ -482,5 +482,7 @@
   "Manage Storage": "管理存储空间",
   "Checking apps and storage...": "正在检查应用和存储空间…",
   "Loading...": "加载中…",
-  "Checking for updates...": "正在检查更新…"
+  "Checking for updates...": "正在检查更新…",
+  "Restoring factory settings...": "正在恢复出厂设置…",
+  "Factory reset complete.\nRestarting...": "恢复出厂设置完成\n正在重启…"
 }
