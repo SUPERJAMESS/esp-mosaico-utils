@@ -599,7 +599,7 @@ def runtime_charsets(root, translations):
     """Project known UI strings onto their binding's atlas, not every font size."""
     import re
     values = {}
-    sources = '\n'.join(p.read_text() for p in (root/'components/app_ui/src').glob('vibe_*.c'))
+    sources = '\n'.join(p.read_text(encoding="utf-8") for p in (root/'components/app_ui/src').glob('vibe_*.c'))
     for match in re.finditer(r'(?:TEXT|FORMAT)\(s,\s*(\w+)\s*,(.*?);', sources, re.S):
         target = values.setdefault(match[1].lower(), set())
         for quoted in re.findall(r'"(?:[^"\\]|\\.)*"', match[2]):
@@ -608,7 +608,7 @@ def runtime_charsets(root, translations):
     # Job titles and details are supplied by services rather than the UI macros.
     titles = set()
     details = set()
-    service_sources = '\n'.join(p.read_text() for p in (root/'components/app_ideas/src').glob('*.c'))
+    service_sources = '\n'.join(p.read_text(encoding="utf-8") for p in (root/'components/app_ideas/src').glob('*.c'))
     for match in re.finditer(r'ideas_message\(\w+,\s*("(?:[^"\\]|\\.)*")\s*,\s*("(?:[^"\\]|\\.)*")', service_sources):
         titles.add(json.loads(match[1])); details.add(json.loads(match[2]))
     for key in translations:
@@ -618,7 +618,7 @@ def runtime_charsets(root, translations):
             details.add(key)
     # Follow backend title/detail producers, including stage variables. Keyword
     # guesses alone missed Checking image / Saving Idea and their Chinese text.
-    backend = service_sources + (root/'components/app_ui/src/ui_services.c').read_text()
+    backend = service_sources + (root/'components/app_ui/src/ui_services.c').read_text(encoding="utf-8")
     def literals(statement):
         return [json.loads(value) for value in re.findall(r'"(?:[^"\\]|\\.)*"', statement)
                 if value != '"%s"']

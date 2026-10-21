@@ -19,13 +19,13 @@ UI = Path(__file__).resolve().parents[1] / "ui"
 
 def build(cjk_source):
     cjk = TTFont(cjk_source, fontNumber=2 if str(cjk_source).endswith('.ttc') else -1)
-    translations = json.loads((UI / 'translations.json').read_text())
+    translations = json.loads((UI / 'translations.json').read_text(encoding="utf-8"))
     chars = set(''.join(translations.keys()) + ''.join(translations.values()))
     chars.update(chr(i) for i in range(32, 127))
     chars.update('‹›•↑↓°·×–—…简体中文')
     # The generated scene also includes backend literals that are not entries
     # in translations.json (for example an already-localized failure detail).
-    scene = json.loads((UI / 'main.json').read_text())
+    scene = json.loads((UI / 'main.json').read_text(encoding="utf-8"))
     for obj in scene['objects']:
         chars.update(obj.get('text', '') + obj.get('font_charset', ''))
     for source, name in [('Inter-Regular.ttf', 'VibeInter'),
