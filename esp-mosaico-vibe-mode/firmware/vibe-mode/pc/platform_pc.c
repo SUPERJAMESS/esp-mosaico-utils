@@ -273,11 +273,12 @@ static void trace_state(vui_handle_t ui, void *ctx)
             model.idea_ready ? "true" : "false", model.idea_loading ? "true" : "false",
             model.bundles[0].boot ? "true" : "false");
     fprintf(file, "\"format_calls\":%u,", format_calls);
-    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,\"about_offset\":%d,\"licenses_offset\":%d,\"idea_description_offset\":%d,",
+    fprintf(file, "\"settings_offset\":%d,\"display_offset\":%d,\"about_offset\":%d,\"licenses_offset\":%d,\"shared_offset\":%d,\"idea_description_offset\":%d,",
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SETTINGS_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_DISPLAY_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_ABOUT_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_LICENSES_VIEWPORT),
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_IDEA_DESCRIPTION_VIEWPORT));
     fprintf(file, "\"open_confirm\":%s,\"scan_calls\":%u,\"cancellable\":%s,\"cancelled\":%s,",
             model.settings.open_confirm ? "true" : "false", scan_calls, model.cancellable ? "true" : "false", model.update_cancelled ? "true" : "false");

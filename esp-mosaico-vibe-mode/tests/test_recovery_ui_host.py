@@ -1056,6 +1056,7 @@ def test_status_bar_brand_and_version_updates(sim, language):
         assert frame.crop((128, 20, 192, 44)).getbbox()  # Version follows the brand.
     sim.swipe(420, 250, 60, 250)
     sim.wait(page=19)
+    sim.rpc("wait", frames=45)  # Let the 2-second centered page badge clear.
     sim.capture("grid-version")
     with Image.open(sim.directory / "grid-version.png") as frame:
         assert not ImageChops.difference(header, frame.crop((0, 0, 480, 56))).crop((30, 20, 238, 44)).getbbox()
@@ -1293,7 +1294,9 @@ def test_home_wifi_shortcut_and_develop_without_a_build(sim):
 def test_shared_detail_help_and_key_space_use_existing_storage(sim):
     sim.tap_ui('button_nav_settings'); sim.wait(page=11)
     sim.tap_ui('button_settings_top_shared'); sim.wait(page=14, shared_count=0)
-    sim.tap_ui('shared_empty_add'); sim.wait(page=15)
+    sim.tap_ui('shared_help_button'); sim.wait(page=29)
+    sim.tap(38, 36); sim.wait(page=14)
+    sim.tap_ui('shared_header_add'); sim.wait(page=15)
     sim.tap(35, 250); sim.tap(240, 430); sim.tap(35, 250)  # q_q, not a space in a key
     sim.tap(430, 430)
     sim.tap(35, 250); sim.tap(430, 430)
@@ -1301,8 +1304,9 @@ def test_shared_detail_help_and_key_space_use_existing_storage(sim):
     sim.tap_ui('button_shared_row_0'); sim.wait(page=30)
     sim.tap_ui('button_shared_detail_delete'); sim.wait(page=23)
     sim.tap(38, 36); sim.wait(page=30, pending_delete=False)
-    sim.tap_ui('button_shared_detail_key'); sim.wait(page=29)
-    sim.tap(38, 36); sim.wait(page=30)
+    sim.tap_ui('button_shared_detail_key'); sim.wait(page=15)
+    sim.tap(80, 250); sim.tap(430, 430)  # rename key and save
+    sim.wait(page=30, shared_count=1)
     sim.tap_ui('button_shared_detail_value'); sim.wait(page=15)
     sim.tap(35, 250); sim.tap(430, 430)
     sim.wait(page=14, shared_count=1)
@@ -1447,13 +1451,14 @@ def test_shared_info_delete_clamps_the_last_page(sim):
         sim.tap(x, 250); sim.tap(430, 430)
         sim.tap(35, 250); sim.tap(430, 430)
         sim.wait(page=14, shared_count=count)
-    sim.tap_ui("button_shared_next"); sim.wait(page=14)
-    sim.tap_ui("button_shared_row_0"); sim.wait(page=30)
+    sim.swipe(240, 410, 240, 180); sim.wait(page=14)
+    assert sim.wait()["shared_offset"] > 0
+    sim.tap_ui("button_shared_row_4"); sim.wait(page=30)
     sim.tap_ui("button_shared_detail_delete"); sim.wait(page=23)
     hold(sim, page=14, pending_delete=True)
     sim.wait(page=14, shared_count=4, pending_delete=False)
     sim.capture("shared-page-after-delete")
-    # The first surviving entry is immediately reachable without manual paging.
+    sim.swipe(240, 180, 240, 410); sim.wait(page=14, shared_offset=0)
     sim.tap_ui("button_shared_row_0"); sim.wait(page=30)
 
 

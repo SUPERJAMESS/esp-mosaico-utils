@@ -45,7 +45,7 @@ struct vibe_ui {
     unsigned grid_page, grid_rendered_page, pager_state, shared_page, last_shared_user_count;
     vibe_pager_t pager;
     unsigned haptic_revision, last_language, grid_generation, settings_revision, motion_revision;
-    bool gesture_consumed, pointer_page_ready, hold_consumed;
+    bool gesture_consumed, pointer_page_ready, hold_consumed, touch_haptic_armed;
     bool home_capture;
     vibe_page_t wifi_return;
     vibe_page_t pointer_page;

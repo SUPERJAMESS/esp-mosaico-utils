@@ -6425,7 +6425,8 @@
       "dynamic_image": true,
       "bind": "bundles_icon",
       "bind_target": "resource",
-      "hidden": false
+      "hidden": false,
+      "radius": 12
     },
     {
       "type": "label",
@@ -7712,7 +7713,8 @@
       "name": "local_icon",
       "bind": "local_icon",
       "image": "assets/idea-default.svg",
-      "dynamic_image": true
+      "dynamic_image": true,
+      "radius": 20
     },
     {
       "type": "label",
@@ -8208,7 +8210,8 @@
       "bind_target": "resource",
       "image": "assets/idea-default.svg",
       "dynamic_image": true,
-      "hidden": false
+      "hidden": false,
+      "radius": 20
     },
     {
       "type": "label",
@@ -14920,7 +14923,7 @@
       "h": 116,
       "name": "cell_current_0",
       "bg_color": "#00000001",
-      "radius": 58,
+      "radius": 26,
       "hidden": false,
       "border_color": "#FF6439",
       "border_width": 3,
@@ -14940,7 +14943,7 @@
       "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#00000001",
-      "radius": 54,
+      "radius": 26,
       "events": [
         {
           "event": "click",
@@ -14964,7 +14967,7 @@
       "name": "cell_default_0",
       "image": "assets/idea-default.svg",
       "hidden": false,
-      "radius": 54,
+      "radius": 22,
       "bind": "cell_default_0_visible",
       "bind_target": "visible"
     },
@@ -14981,7 +14984,7 @@
       "dynamic_image": true,
       "bind_target": "resource",
       "hidden": false,
-      "radius": 54
+      "radius": 22
     },
     {
       "type": "label",
@@ -15020,7 +15023,7 @@
       "w": 26,
       "h": 26,
       "bg_color": "#7FD1D7",
-      "radius": 13
+      "radius": 8
     },
     {
       "type": "image",
@@ -15051,7 +15054,9 @@
       "w": 108,
       "h": 108,
       "bg_color": "#272A2D",
-      "radius": 54
+      "radius": 22,
+      "border_color": "#3D4145",
+      "border_width": 1
     },
     {
       "type": "container",
@@ -15082,7 +15087,7 @@
       "h": 116,
       "name": "cell_current_1",
       "bg_color": "#00000001",
-      "radius": 58,
+      "radius": 26,
       "hidden": false,
       "border_color": "#FF6439",
       "border_width": 3,
@@ -15102,7 +15107,7 @@
       "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#00000001",
-      "radius": 54,
+      "radius": 26,
       "events": [
         {
           "event": "click",
@@ -15126,7 +15131,7 @@
       "name": "cell_default_1",
       "image": "assets/idea-default.svg",
       "hidden": false,
-      "radius": 54,
+      "radius": 22,
       "bind": "cell_default_1_visible",
       "bind_target": "visible"
     },
@@ -15143,7 +15148,7 @@
       "dynamic_image": true,
       "bind_target": "resource",
       "hidden": false,
-      "radius": 54
+      "radius": 22
     },
     {
       "type": "label",
@@ -15182,7 +15187,7 @@
       "w": 26,
       "h": 26,
       "bg_color": "#7FD1D7",
-      "radius": 13
+      "radius": 8
     },
     {
       "type": "image",
@@ -15213,7 +15218,9 @@
       "w": 108,
       "h": 108,
       "bg_color": "#272A2D",
-      "radius": 54
+      "radius": 22,
+      "border_color": "#3D4145",
+      "border_width": 1
     },
     {
       "type": "container",
@@ -15244,7 +15251,7 @@
       "h": 116,
       "name": "cell_current_2",
       "bg_color": "#00000001",
-      "radius": 58,
+      "radius": 26,
       "hidden": false,
       "border_color": "#FF6439",
       "border_width": 3,
@@ -15264,7 +15271,7 @@
       "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#00000001",
-      "radius": 54,
+      "radius": 26,
       "events": [
         {
           "event": "click",
@@ -15288,7 +15295,7 @@
       "name": "cell_default_2",
       "image": "assets/idea-default.svg",
       "hidden": false,
-      "radius": 54,
+      "radius": 22,
       "bind": "cell_default_2_visible",
       "bind_target": "visible"
     },
@@ -15305,7 +15312,7 @@
       "dynamic_image": true,
       "bind_target": "resource",
       "hidden": false,
-      "radius": 54
+      "radius": 22
     },
     {
       "type": "label",
@@ -15344,7 +15351,7 @@
       "w": 26,
       "h": 26,
       "bg_color": "#7FD1D7",
-      "radius": 13
+      "radius": 8
     },
     {
       "type": "image",
@@ -15375,7 +15382,9 @@
       "w": 108,
       "h": 108,
       "bg_color": "#272A2D",
-      "radius": 54
+      "radius": 22,
+      "border_color": "#3D4145",
+      "border_width": 1
     },
     {
       "type": "container",
@@ -15406,7 +15415,7 @@
       "h": 116,
       "name": "cell_current_3",
       "bg_color": "#00000001",
-      "radius": 58,
+      "radius": 26,
       "hidden": false,
       "border_color": "#FF6439",
       "border_width": 3,
@@ -15426,7 +15435,7 @@
       "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#00000001",
-      "radius": 54,
+      "radius": 26,
       "events": [
         {
           "event": "click",
@@ -15450,7 +15459,7 @@
       "name": "cell_default_3",
       "image": "assets/idea-default.svg",
       "hidden": false,
-      "radius": 54,
+      "radius": 22,
       "bind": "cell_default_3_visible",
       "bind_target": "visible"
     },
@@ -15467,7 +15476,7 @@
       "dynamic_image": true,
       "bind_target": "resource",
       "hidden": false,
-      "radius": 54
+      "radius": 22
     },
     {
       "type": "label",
@@ -15506,7 +15515,7 @@
       "w": 26,
       "h": 26,
       "bg_color": "#7FD1D7",
-      "radius": 13
+      "radius": 8
     },
     {
       "type": "image",
@@ -15537,7 +15546,9 @@
       "w": 108,
       "h": 108,
       "bg_color": "#272A2D",
-      "radius": 54
+      "radius": 22,
+      "border_color": "#3D4145",
+      "border_width": 1
     },
     {
       "type": "container",
@@ -15568,7 +15579,7 @@
       "h": 116,
       "name": "cell_current_4",
       "bg_color": "#00000001",
-      "radius": 58,
+      "radius": 26,
       "hidden": false,
       "border_color": "#FF6439",
       "border_width": 3,
@@ -15588,7 +15599,7 @@
       "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#00000001",
-      "radius": 54,
+      "radius": 26,
       "events": [
         {
           "event": "click",
@@ -15612,7 +15623,7 @@
       "name": "cell_default_4",
       "image": "assets/idea-default.svg",
       "hidden": false,
-      "radius": 54,
+      "radius": 22,
       "bind": "cell_default_4_visible",
       "bind_target": "visible"
     },
@@ -15629,7 +15640,7 @@
       "dynamic_image": true,
       "bind_target": "resource",
       "hidden": false,
-      "radius": 54
+      "radius": 22
     },
     {
       "type": "label",
@@ -15668,7 +15679,7 @@
       "w": 26,
       "h": 26,
       "bg_color": "#7FD1D7",
-      "radius": 13
+      "radius": 8
     },
     {
       "type": "image",
@@ -15699,7 +15710,9 @@
       "w": 108,
       "h": 108,
       "bg_color": "#272A2D",
-      "radius": 54
+      "radius": 22,
+      "border_color": "#3D4145",
+      "border_width": 1
     },
     {
       "type": "container",
@@ -15730,7 +15743,7 @@
       "h": 116,
       "name": "cell_current_5",
       "bg_color": "#00000001",
-      "radius": 58,
+      "radius": 26,
       "hidden": false,
       "border_color": "#FF6439",
       "border_width": 3,
@@ -15750,7 +15763,7 @@
       "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#00000001",
-      "radius": 54,
+      "radius": 26,
       "events": [
         {
           "event": "click",
@@ -15774,7 +15787,7 @@
       "name": "cell_default_5",
       "image": "assets/idea-default.svg",
       "hidden": false,
-      "radius": 54,
+      "radius": 22,
       "bind": "cell_default_5_visible",
       "bind_target": "visible"
     },
@@ -15791,7 +15804,7 @@
       "dynamic_image": true,
       "bind_target": "resource",
       "hidden": false,
-      "radius": 54
+      "radius": 22
     },
     {
       "type": "label",
@@ -15830,7 +15843,7 @@
       "w": 26,
       "h": 26,
       "bg_color": "#7FD1D7",
-      "radius": 13
+      "radius": 8
     },
     {
       "type": "image",
@@ -15861,7 +15874,9 @@
       "w": 108,
       "h": 108,
       "bg_color": "#272A2D",
-      "radius": 54
+      "radius": 22,
+      "border_color": "#3D4145",
+      "border_width": 1
     },
     {
       "type": "container",
@@ -15903,7 +15918,9 @@
       "w": 108,
       "h": 108,
       "bg_color": "#272A2D",
-      "radius": 54
+      "radius": 22,
+      "border_color": "#3D4145",
+      "border_width": 1
     },
     {
       "type": "container",

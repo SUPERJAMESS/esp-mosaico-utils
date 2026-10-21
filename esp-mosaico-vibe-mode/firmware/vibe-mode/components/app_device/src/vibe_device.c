@@ -21,7 +21,7 @@ static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
 static QueueHandle_t s_keys;
 static vibe_device_snapshot_t s_snapshot;
 static bool s_asleep, s_rotate_allowed = true;
-static unsigned s_pattern;
+static unsigned s_pattern_q[8], s_q_head, s_q_tail;
 static esp_timer_handle_t s_motor_timer;
 static SemaphoreHandle_t s_motor_lock;
 static bool s_motor_shutdown; /* Protected by s_motor_lock, including timer callbacks. */
@@ -38,10 +38,9 @@ static void peripheral_ready(unsigned mask)
     s_ready |= mask;
     taskEXIT_CRITICAL(&s_lock);
 }
-/* BSP already drives the motor at 100%; strengthen feedback by doubling
- * the on-time of each pulse while preserving the inter-pulse pauses. */
+/* Single 10 ms pulse for press/release; distinct patterns for reject/success/error. */
 static const unsigned s_patterns[][3] = {
-    {16, 0, 0}, {16, 45, 16}, {48, 0, 0}, {28, 70, 44}, {80, 60, 80},
+    {10, 0, 0}, {10, 45, 10}, {24, 0, 0}, {14, 70, 22}, {40, 60, 40},
 };
 static unsigned s_motor_pattern, s_motor_step;
 static void motor_shutdown(void)
@@ -93,7 +92,13 @@ void vibe_device_policy(bool asleep, bool rotation_allowed)
 void vibe_device_haptic(unsigned pattern)
 {
     taskENTER_CRITICAL(&s_lock);
-    if (s_mode == MODE_CONTROLS) s_pattern = pattern ? pattern : 1;
+    if (s_mode == MODE_CONTROLS) {
+        unsigned p = pattern ? pattern : 1;
+        if (s_q_tail - s_q_head < 8)
+            s_pattern_q[s_q_tail++ & 7] = p;
+        else
+            s_pattern_q[(s_q_tail - 1) & 7] = p;
+    }
     taskEXIT_CRITICAL(&s_lock);
 }
 esp_err_t vibe_device_snapshot(vibe_device_snapshot_t *out)
@@ -258,19 +263,22 @@ static void sample_task(void *unused)
         peripheral_ready(READY_PERIPHERALS);
         ESP_LOGW("vibe_device", "Optional peripheral initialization unavailable");
     }
-    int64_t next_battery = 0, candidate_since = 0;
+    int64_t next_battery = 0, candidate_since = 0, next_haptic = 0;
     unsigned candidate = 0, brightness = 0;
     bool sleeping = false, network_retry = false;
     int64_t next_network = 0;
-    float last_x = 0, last_y = 0, last_z = 0;
     while (true) {
         int64_t now = esp_timer_get_time();
         (void)vibe_settings_snapshot(&s_preferences);
         taskENTER_CRITICAL(&s_lock);
         bool asleep = s_asleep, allowed = s_rotate_allowed;
         unsigned ready = s_ready;
-        unsigned pattern = s_pattern;
-        s_pattern = 0;
+        unsigned pattern = 0;
+        if (!s_preferences.haptics) {
+            s_q_head = s_q_tail = 0;
+        } else if (s_q_head != s_q_tail && now >= next_haptic) {
+            pattern = s_pattern_q[s_q_head++ & 7];
+        }
         taskEXIT_CRITICAL(&s_lock);
         if ((asleep != sleeping || network_retry) && now >= next_network) {
             network_retry = factory_network_suspend(asleep) != ESP_OK;
@@ -293,14 +301,15 @@ static void sample_task(void *unused)
             read_battery(&snapshot);
             next_battery = now + 2000000;
         }
-        if (snapshot.haptics_available && (!s_preferences.haptics || pattern))
+        if (snapshot.haptics_available && (!s_preferences.haptics || pattern)) {
             motor_play(s_preferences.haptics ? pattern : 0);
+            if (s_preferences.haptics && pattern == 1) next_haptic = now + 35000;
+        }
         /* A fixed upright preference does not depend on live IMU readings. */
         unsigned wanted = s_preferences.auto_rotate ? snapshot.orientation : 0;
         if (!asleep && snapshot.imu_available) {
             float x, y, z;
             if (bsp_imu_get_accel(&x, &y, &z) == ESP_OK) {
-                last_x = x; last_y = y; last_z = z;
                 if (s_preferences.auto_rotate && fabsf(z) < 0.8f) {
                     /* Dominant-axis threshold provides angular hysteresis. */
                     if (fabsf(x) > fabsf(y) * 1.7f) wanted = x > 0 ? 90 : 270;

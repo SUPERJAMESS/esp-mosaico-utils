@@ -143,12 +143,12 @@ static void accept_open(vibe_ui_t *s)
         s->run_development_pending = false;
         int err = vibe_command(s, VIBE_RUN_DEVELOPMENT, NULL, NULL);
         if (err) vibe_error(s, "Operation failed", err);
-        else { vibe_show(s, VIBE_HOME); haptic(s, 2); }
+        else vibe_show(s, VIBE_HOME);
         return;
     }
     int err = vibe_command(s, VIBE_OPEN_IDEA, s->selected_bundle.code, NULL);
     if (err) vibe_error(s, "Operation failed", err);
-    else { vibe_show(s, VIBE_UPDATE); TEXT(s, UPDATE_TITLE, "Setting boot application"); haptic(s, 2); }
+    else { vibe_show(s, VIBE_UPDATE); TEXT(s, UPDATE_TITLE, "Setting boot application"); }
 }
 static void open_confirm(vibe_ui_t *s)
 {
@@ -1352,7 +1352,7 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
     s->activity_ms = now;
     if (s->page == VIBE_SLEEP && pressed) { wake(s); s->pointer_down = pressed; return; }
     if (pressed && !s->pointer_down) {
-        s->gesture_consumed = false; s->hold_consumed = false; s->pointer_page = s->page;
+        s->gesture_consumed = false; s->hold_consumed = false; s->touch_haptic_armed = false; s->pointer_page = s->page;
         vui_event_t target = {0};
         const bool has_target = vui_pointer_target(ui, &target);
         const char *key = has_target ? pointer_key(s, &target) : NULL;
@@ -1365,8 +1365,14 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
             now - s->last_release_ms >= 150 || abs(x - s->last_release_x) > 24 ||
             abs(y - s->last_release_y) > 24;
         s->pointer_x = x; s->pointer_y = y;
-        if (has_target && now >= s->suppress_until && pointer_actionable(s, &target, key))
+        if (has_target && now >= s->suppress_until && pointer_actionable(s, &target, key)) {
+            s->touch_haptic_armed = true;
             haptic(s, 1);
+        }
+    }
+    if (!pressed && s->pointer_down && s->touch_haptic_armed) {
+        s->touch_haptic_armed = false;
+        haptic(s, 1);
     }
     if (pressed && s->pointer_down && (abs(x - s->pointer_x) > 24 || abs(y - s->pointer_y) > 24)) s->gesture_consumed = true;
     if (pressed && !s->pointer_down) {
@@ -1432,16 +1438,21 @@ void vibe_product_tick(vibe_ui_t *s)
             s->activity_ms = now;
             vibe_product_cancel_pager(s);
             if (key == 1) {
+                haptic(s, 1);
                 if (s->page == VIBE_SLEEP) wake(s);
                 else if (s->page == VIBE_FORMAT_NAND_CONFIRM) vibe_show(s, s->format_return);
                 else if (s->page == VIBE_UPDATE_CONFIRM) vibe_show(s, VIBE_NAND);
                 else if (s->page == VIBE_OPEN_CONFIRM || s->page == VIBE_GUIDE) vibe_show(s, s->return_page);
                 else if (s->page != VIBE_HOME && s->page != VIBE_GRID &&
                          !s->snapshot.updating && !s->snapshot.idea_busy && !s->preview_active) vibe_show(s, VIBE_HOME);
+            } else if (key == 2) {
+                haptic(s, 1);
             } else if (key == 3 && !s->snapshot.updating) {
+                haptic(s, 1);
                 if (s->page == VIBE_SLEEP) wake(s);
                 else { s->boot_page = s->page; vibe_show(s, VIBE_BOOT_TIP); }
             } else if (key == 4) {
+                haptic(s, 1);
                 if (s->page == VIBE_BOOT_TIP) {
                     vibe_show(s, s->boot_page);
                     if (s->page == VIBE_SHARED_EDITOR) project_shared(s);

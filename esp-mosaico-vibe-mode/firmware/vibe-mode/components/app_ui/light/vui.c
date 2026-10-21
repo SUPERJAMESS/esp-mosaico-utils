@@ -1163,8 +1163,8 @@ static void draw(vui_handle_t u, int i, int x, int y, rect_t clip, vui_row_t row
         contains(u->down.rect, u->pointer_x, u->pointer_y)) {
         if (n->flags & VUI_PRESS_RING) {
             /* Grid presses keep the icon in place and only light its ring. */
-            int diameter = r.w - 8;
-            outline(u, (rect_t){r.x + 4, r.y + 4, diameter, diameter}, paint, diameter / 2, 2, 0xf79e);
+            int side = min(r.w, r.h) - 8;
+            outline(u, (rect_t){r.x + 4, r.y + 4, side, side}, paint, n->radius ? n->radius : 26, 2, 0xf79e);
         } else {
             /* A light overlay preserves the card geometry and all child labels. */
             for (int yy = paint.y; yy < paint.y + paint.h; ++yy)
