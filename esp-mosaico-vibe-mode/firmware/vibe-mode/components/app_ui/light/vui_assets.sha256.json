@@ -1,5 +1,5 @@
 {
-  "components/app_ui/light/vui_assets.bin": "677711cf56fb23ce41a7a9471af564d4d3c03598caded6d1243d81a3628d3b0f",
+  "components/app_ui/light/vui_assets.bin": "d9b230997bdec5d928fa7fc6302f93e3b31fa9bf02958728faf902aa2315a574",
   "components/app_ui/private/vui_ids.h": "17cc419a51e788d0b2e9b8e43060bfd74f629bc942553be148613e64fd12f3df",
   "tools/build_vibe_ui.py": "c258f13c934054d8425626130115df64426cb800f700e1c71bab047c2f0809ef",
   "tools/compile_vui.py": "85d192ec4827c7466cca144d7e4a7d4dfa8d340856e1a91ad726ea3c1b8c255f",
@@ -51,8 +51,8 @@
   "ui/assets/icons/storage-38-cream.png": "9c4b1920e84d51c03a314dabb0f29c42586e7096eb3ae7bf9c524e7183cdb648",
   "ui/assets/icons/support-38-cream.png": "3da9f7238b5427b278550cc72b16451cc276cc2f02ea0dec15649d5f1e11fa29",
   "ui/assets/icons/trash-32-red.png": "863cdff03239b2c4aab32b73706ff87c6e65d7828827893f6e56fbeda1d3f64c",
-  "ui/assets/icons/upgrade-32-white.png": "d4a376da99815ef1b14a3f846de161184c62e349fe2beba4b8f6ddf20b94f1b5",
-  "ui/assets/icons/upgrade-38-orange.png": "ea02c4ad734b4c73ac1afb497e8711b0eb55191c226a0852bd05da0dbc9c7435",
+  "ui/assets/icons/upgrade-32-white.png": "77d3156557faf7a5b868ad92609a47376a090ee8526c34a8077a4368eb245f03",
+  "ui/assets/icons/upgrade-38-orange.png": "ab1c180e3b9f5830790893b3790e46b8106897c5b7ba9aaf53c8d3fecb42c3ce",
   "ui/assets/icons/usb-22-orange.png": "13c3a5a5271fc28490336749bcf6814658b31e1633a648f4fd1294383c661fd1",
   "ui/assets/icons/usb-22-white.png": "b83cf11a706127ab62cbebc5bac64f2dab3e1a1bd98bf874643b3d88b1a6b821",
   "ui/assets/icons/usb_off-22-grey.png": "b3ec3af8f118fa8d5c90bc1ef15e08ae4d4d7edd3f3f2ddacd9bd667d6443568",
