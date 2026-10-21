@@ -63,7 +63,7 @@ def svg(path):
 
 
 def compile_assets():
-    scene = json.loads((UI / "main.json").read_text())
+    scene = json.loads((UI / "main.json").read_text(encoding="utf-8"))
     objects = scene["objects"]
     # Expand the two fixed keyboards into ordinary nodes. No widget framework,
     # runtime layout interpreter, or embedded font rasterizer is involved.
@@ -319,7 +319,7 @@ def compile_assets():
         lines.append(
             f"#define VUI_VIBE_TEMPLATE_BUNDLES_ROW_BUNDLES_{suffix}_SLOT VUI_VIBE_BIND_BUNDLES_{suffix.split('_')[0]}"
         )
-    (OUT.parent / "private/vui_ids.h").write_text("\n".join(lines) + "\n")
+    (OUT.parent / "private/vui_ids.h").write_bytes(("\n".join(lines) + "\n").encode("utf-8"))
     inputs = (
         ["tools/compile_vui.py", "ui/main.json"]
         + ["ui/" + p for p, _ in fonts]
@@ -333,8 +333,8 @@ def compile_assets():
     checks = {
         p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs + outputs
     }
-    (OUT / "vui_assets.sha256.json").write_text(
-        json.dumps(checks, indent=2, sort_keys=True) + "\n"
+    (OUT / "vui_assets.sha256.json").write_bytes(
+        (json.dumps(checks, indent=2, sort_keys=True) + "\n").encode("utf-8")
     )
     print(
         f"{len(objects)} nodes, {len(fonts)} fonts, {len(images)} images; {len(blob)} raw / {len(packed) + 4} compressed bytes"

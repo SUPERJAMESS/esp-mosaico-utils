@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
+from pathlib import Path
 
 from .errors import EnvironmentError, OperationError
 from .template import shell_quote
@@ -30,7 +30,10 @@ def initialize_git(project: Path, executable: str) -> None:
             env=environment,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
+            check=False,
         )
         if result.returncode or not (project / ".git").is_dir():
             raise OSError(result.stderr.strip() or "Git did not create a local .git directory")

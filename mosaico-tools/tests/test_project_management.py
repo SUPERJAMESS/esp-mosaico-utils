@@ -1,13 +1,13 @@
 """Exercise generated repositories and shared quality checks without a workspace checkout."""
 
-from dataclasses import replace
 import json
 import os
 import shlex
 import shutil
-from pathlib import Path
 import subprocess
 import sys
+from dataclasses import replace
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
@@ -25,9 +25,12 @@ from mosaico_cli.workspace import load_workspace
 
 
 @pytest.fixture
-def workspace():
+def workspace(tmp_path):
     # Same drive as utils for Windows relative template references.
-    with TemporaryDirectory(prefix=".project-quality-test-", dir=TOOLS.parent) as temporary:
+    # Prefer pytest's isolated directory so workspace file watchers do not hold
+    # newly generated repositories open during Windows fixture cleanup.
+    base = tmp_path if tmp_path.anchor.casefold() == TOOLS.anchor.casefold() else TOOLS.parent
+    with TemporaryDirectory(prefix=".project-quality-test-", dir=base) as temporary:
         root = Path(temporary).resolve()
         (root / "templates").mkdir()
         (root / "templates/entry.txt").write_bytes(b"Application\n")
@@ -180,7 +183,7 @@ def test_shared_checker_is_referenced_without_copying_implementation(workspace):
     for entry in entries:
         assert (project / entry[1]).resolve() == TOOLS / "tools/quality/check_project.py"
         assert not Path(entry[1]).is_absolute()
-    assert set(path.name for path in (project / "tools/quality").iterdir()) == {
+    assert {path.name for path in (project / "tools/quality").iterdir()} == {
         "README.md",
         "policy.json",
         "requirements.txt",
@@ -330,7 +333,7 @@ def run_hook(project, hook=None, *arguments):
     command = [sys.executable, "-m", "pre_commit", "run"]
     if hook:
         command.append(hook)
-    return subprocess.run([*command, "--all-files", *arguments], cwd=project, capture_output=True, text=True)
+    return subprocess.run([*command, "--all-files", *arguments], cwd=project, capture_output=True, text=True, check=False)
 
 
 @pytest.mark.skipif(not HOOKS_ENABLED, reason="Set MOSAICO_TEST_PRE_COMMIT=1 for real pinned hook environments")

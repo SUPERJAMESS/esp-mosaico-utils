@@ -1,21 +1,21 @@
 """The fixed-slot font subset must cover every runtime update title."""
 import json
-from pathlib import Path
 import re
 import struct
 import zlib
+from pathlib import Path
 
 RECOVERY = Path(__file__).resolve().parents[1] / 'firmware/vibe-mode'
 
 
 def test_compiled_update_font_covers_device_and_simulator_states():
-    scene = json.loads((RECOVERY / 'ui/main.json').read_text())
+    scene = json.loads((RECOVERY / 'ui/main.json').read_text(encoding="utf-8"))
     objects = {item.get('name'): item for item in scene['objects']}
     titles = []
     for source in ('components/app_ui/src/ui_services.c', 'pc/platform_pc.c'):
         statements = re.findall(
             r'(?:COPY\s*\(\s*update_title|snprintf\s*\(\s*model\.update_title)[^;]+;',
-            (RECOVERY / source).read_text(), re.S)
+            (RECOVERY / source).read_text(encoding="utf-8"), re.DOTALL)
         for statement in statements:
             titles.extend(text for text in re.findall(r'"([^"\\]*)"', statement)
                           if text != '%s')
@@ -34,7 +34,7 @@ def test_all_compiled_glyphs_have_pixels_and_dynamic_translation_coverage():
     """Audit the actual embedded atlas, including generated keyboard glyphs."""
     packed = (RECOVERY / 'components/app_ui/light/vui_assets.bin').read_bytes()
     data = zlib.decompress(packed[4:])
-    _, size, nodes, count, fonts, font_count, _, _ = struct.unpack_from('<8I', data)
+    _, size, nodes, _count, fonts, font_count, _, _ = struct.unpack_from('<8I', data)
     assert size == len(data)
     atlases = []
     for i in range(font_count):
@@ -46,8 +46,8 @@ def test_all_compiled_glyphs_have_pixels_and_dynamic_translation_coverage():
             if not chr(cp).isspace():
                 assert w > 0 and h > 0 and any(data[pixels:pixels + w * h]), (i, chr(cp))
         atlases.append(chars)
-    scene = json.loads((RECOVERY / 'ui/main.json').read_text())
-    translations = json.loads((RECOVERY / 'ui/translations.json').read_text())
+    scene = json.loads((RECOVERY / 'ui/main.json').read_text(encoding="utf-8"))
+    translations = json.loads((RECOVERY / 'ui/translations.json').read_text(encoding="utf-8"))
     for i, obj in enumerate(scene['objects']):
         if 'text' not in obj:
             continue
@@ -78,9 +78,9 @@ def test_all_compiled_glyphs_have_pixels_and_dynamic_translation_coverage():
 
 
 def test_online_firmware_status_fonts_cover_translations():
-    scene = json.loads((RECOVERY / 'ui/main.json').read_text())
+    scene = json.loads((RECOVERY / 'ui/main.json').read_text(encoding="utf-8"))
     objects = {item.get('name'): item for item in scene['objects']}
-    translations = json.loads((RECOVERY / 'ui/translations.json').read_text())
+    translations = json.loads((RECOVERY / 'ui/translations.json').read_text(encoding="utf-8"))
     for name, strings in {
         'firmware_progress_title': ['Updating firmware', 'Firmware update failed'],
         'firmware_phase': ['Downloading firmware', 'Verifying firmware', 'Writing firmware', 'Restarting Vibe Mode'],

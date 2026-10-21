@@ -1,7 +1,7 @@
 {
   "components/app_ui/light/vui_assets.bin": "5e8699f29cf367ddeb6060cbecd2a306ffccea845e90963f395d3329aabc9dcf",
   "components/app_ui/private/vui_ids.h": "025c04b15712100e83fc2c1f78dcabca36f4a2bfe08ff2a7b63c715d1a6e0939",
-  "tools/compile_vui.py": "bd2cbd2df94606829c5098c21272f2e677f2833dd35fd109866d33ba0ae7779b",
+  "tools/compile_vui.py": "4cb613e26eee32073dc0c15f253fc847a691c8e69d344a3cae6572c13a4023d4",
   "ui/assets/icons/back-32-white.png": "319ef3fac418b5408d4bfb2d908211259334a4293faa98439f8f2c1d740897b0",
   "ui/assets/icons/backspace-32-white.png": "3c275c7ab5c06b64769e356670d50b5be39c8b2bf197ee42da8299fc533e1730",
   "ui/assets/icons/battery_charging-20-white.png": "fe793dcd557490d9f1fccf58bb7ed1455ea580fb7bd832a63db22dc4178af957",

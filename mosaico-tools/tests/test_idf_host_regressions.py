@@ -2,12 +2,12 @@
 import importlib.util
 import io
 import json
-from pathlib import Path
 import subprocess
 import sys
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
-from contextlib import redirect_stdout, redirect_stderr
 
 import pytest
 
@@ -17,6 +17,11 @@ from mosaico_cli import doctor, host, runtime
 from mosaico_cli.cli import _emit_error
 from mosaico_cli.errors import BuildError, EnvironmentError
 from mosaico_cli.workspace import load_workspace
+
+
+def test_doctor_decodes_utf8_output_independent_of_windows_codepage():
+    code, output = doctor._command([sys.executable, "-c", "print('中文路径')"], environment={})
+    assert code == 0 and output == "中文路径"
 
 SPEC = importlib.util.spec_from_file_location(
     "host_regression_runner", ROOT / "skills/idf-low-noise-build/scripts/idf_low_noise_build.py"

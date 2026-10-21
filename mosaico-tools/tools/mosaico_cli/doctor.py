@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -17,8 +18,8 @@ from .host import (
     prepare_idf_environment,
     state_root,
 )
-from .runtime import resolve_idf_path
 from .registry import select_model
+from .runtime import resolve_idf_path
 from .workspace import WorkspaceConfig
 
 
@@ -34,8 +35,10 @@ def _command(
     try:
         result = subprocess.run(
             command,
-            env=environment,
+            env={**(os.environ if environment is None else environment), "PYTHONIOENCODING": "utf-8"},
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             timeout=30,

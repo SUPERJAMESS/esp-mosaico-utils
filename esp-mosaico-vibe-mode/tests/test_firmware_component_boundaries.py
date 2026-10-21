@@ -1,8 +1,7 @@
 """Enforce the runtime component boundaries independently of an IDF build."""
-from pathlib import Path
 import re
 import shlex
-
+from pathlib import Path
 
 RECOVERY = Path(__file__).resolve().parents[1] / "firmware/vibe-mode"
 COMPONENTS = RECOVERY / "components"
@@ -11,7 +10,7 @@ OPTIONS = {"SRCS", "INCLUDE_DIRS", "PRIV_INCLUDE_DIRS", "REQUIRES",
 
 
 def registration(component):
-    source = (component / "CMakeLists.txt").read_text()
+    source = (component / "CMakeLists.txt").read_text(encoding="utf-8")
     body = source.split("idf_component_register(", 1)[1].split(")", 1)[0]
     fields = {}
     field = None
@@ -63,8 +62,8 @@ def test_private_headers_and_mutable_state_do_not_cross_components():
         fields = registration(component)
         dependencies = set(fields.get("REQUIRES", []) + fields.get("PRIV_REQUIRES", []))
         for path in list(component.rglob("*.c")) + list(component.rglob("*.h")):
-            source = path.read_text()
-            for include in re.findall(r'^#include "([^"]+)"', source, re.M):
+            source = path.read_text(encoding="utf-8")
+            for include in re.findall(r'^#include "([^"]+)"', source, re.MULTILINE):
                 assert ".." not in Path(include).parts, path
                 if include in private:
                     assert private[include] == component.name, (path, include)
@@ -75,7 +74,7 @@ def test_private_headers_and_mutable_state_do_not_cross_components():
                         assert public[include] in fields.get("REQUIRES", []), (path, include)
             # Function declarations and immutable generated assets are allowed;
             # mutable extern variables are not a business-state interface.
-            for declaration in re.findall(r'^extern[ \t]+(?!")([^;{]+);', source, re.M):
+            for declaration in re.findall(r'^extern[ \t]+(?!")([^;{]+);', source, re.MULTILINE):
                 assert "(" in declaration or declaration.startswith("const "), path
 
 
@@ -83,14 +82,14 @@ def test_entrypoint_and_pc_backend_only_use_public_service_interfaces():
     fields = registration(RECOVERY / "main")
     assert fields["SRCS"] == ["main.c"]
     assert sorted(path.name for path in (RECOVERY / "main").glob("*.[ch]")) == ["main.c"]
-    source = (RECOVERY / "main/main.c").read_text()
+    source = (RECOVERY / "main/main.c").read_text(encoding="utf-8")
     assert "gpio_config(" not in source
     assert source.index("factory_system_update_register()") < source.index("recovery_ota_support_start()")
     assert source.index("app_iris_storage_register()") < source.index("recovery_ota_support_start()")
     assert source.index("recovery_ota_support_start()") < source.index("factory_ui_start()")
     assert source.index("app_iris_input_register(") < source.index("esp_iris_mark_healthy()")
-    assert "factory_ideas_init(" not in (COMPONENTS / "app_ui/src/factory_ui.c").read_text()
-    pc = (RECOVERY / "pc/platform_pc.c").read_text()
+    assert "factory_ideas_init(" not in (COMPONENTS / "app_ui/src/factory_ui.c").read_text(encoding="utf-8")
+    pc = (RECOVERY / "pc/platform_pc.c").read_text(encoding="utf-8")
     assert "vibe_ui_get_status(" in pc and "vibe_ui_create(" in pc
     assert not re.search(r"\bstate\s*(?:->|\.)", pc)
-    assert "struct vibe_ui {" not in (COMPONENTS / "app_ui/include/vibe_ui.h").read_text()
+    assert "struct vibe_ui {" not in (COMPONENTS / "app_ui/include/vibe_ui.h").read_text(encoding="utf-8")

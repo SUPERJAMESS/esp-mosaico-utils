@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Mapping, Sequence
 
 
@@ -264,6 +264,7 @@ def prepare_idf_environment(
 
     values = configdep_environment(environment=base_environment)
     values["IDF_PATH"] = str(root)
+    values["PYTHONIOENCODING"] = "utf-8"
     python = resolve_idf_bootstrap_python(
         root, values, explicit=bootstrap_python
     )
@@ -283,6 +284,8 @@ def prepare_idf_environment(
             command,
             env=values,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             timeout=timeout,
