@@ -3,11 +3,14 @@ from __future__ import annotations
 import abc
 import asyncio
 import contextlib
+import errno
 import hashlib
 import os
 import pathlib
 import sys
 import tempfile
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Protocol
 
 from .compat import to_thread
@@ -93,6 +96,10 @@ class SerialLink(Link):
         self._close_lock = asyncio.Lock()
         self._closing = False
         self._release_dtr = False
+        # Persistent CDC readers must not occupy the default executor used by
+        # writes, discovery and cancellation. Nine dual-CDC boards exceed the
+        # default pool on common Windows hosts.
+        self._read_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="iris-serial-read")
 
     @classmethod
     async def open(
@@ -165,8 +172,8 @@ class SerialLink(Link):
             async with self._read_lock:
                 if self._closing or not self._serial.is_open:
                     return b""
-                read_task = asyncio.create_task(
-                    to_thread(self._read_batch, size)
+                read_task = asyncio.get_running_loop().run_in_executor(
+                    self._read_executor, self._read_batch, size
                 )
                 self.reader_started.set()
                 try:
@@ -209,6 +216,7 @@ class SerialLink(Link):
     async def close(self) -> None:
         async with self._close_lock:
             if not self._serial.is_open:
+                self._read_executor.shutdown(wait=False)
                 return
             self._closing = True
             cancel_read = getattr(self._serial, "cancel_read", None)
@@ -224,7 +232,10 @@ class SerialLink(Link):
                         if self._release_dtr:
                             await to_thread(setattr, self._serial, "dtr", False)
                     finally:
-                        await to_thread(self._serial.close)
+                        try:
+                            await to_thread(self._serial.close)
+                        finally:
+                            self._read_executor.shutdown(wait=False)
 
 
 class EndpointLock:
@@ -278,16 +289,16 @@ class EndpointLock:
             import msvcrt
 
             self._file.seek(0)
-            try:
-                msvcrt.locking(  # type: ignore[attr-defined]
-                    self._file.fileno(),
-                    msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK,  # type: ignore[attr-defined]
-                    1,
-                )
-            except OSError as exc:
-                raise RuntimeError(
-                    self._owner_message()
-                ) from exc
+            while True:
+                try:
+                    msvcrt.locking(self._file.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as exc:
+                    if not blocking or exc.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                        raise RuntimeError(self._owner_message()) from exc
+                    # LK_LOCK gives up after ten one-second retries. Match
+                    # POSIX blocking semantics for serialized CLI admission.
+                    time.sleep(0.05)
         else:
             import fcntl
 

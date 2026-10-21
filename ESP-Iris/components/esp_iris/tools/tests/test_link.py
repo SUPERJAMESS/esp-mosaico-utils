@@ -5,6 +5,7 @@ import contextvars
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import pytest
@@ -96,6 +97,41 @@ def test_serial_write_is_not_blocked_by_an_in_flight_read() -> None:
         serial.release_read.set()
         assert await asyncio.wait_for(read_task, 1.0) == b"frame"
         await link.close()
+
+    asyncio.run(scenario())
+
+
+def test_serial_readers_do_not_starve_default_executor() -> None:
+    class BlockingSerial(FakeSerial):
+        def __init__(self) -> None:
+            super().__init__([])
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        def read(self, size: int) -> bytes:
+            self.started.set()
+            self.release.wait(2)
+            return b"x"
+
+    async def scenario() -> None:
+        # A host with nine dual-CDC devices has more persistent readers than
+        # the default executor's 16 workers on a 12-core Windows machine.
+        asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(max_workers=1))
+        serial = BlockingSerial()
+        link = SerialLink("COM43", serial)
+        reader = asyncio.create_task(link.read(1))
+        try:
+            for _ in range(100):
+                if serial.started.is_set():
+                    break
+                await asyncio.sleep(0.001)
+            assert serial.started.is_set()
+            await asyncio.wait_for(link.write(b"request"), 0.5)
+            assert await asyncio.wait_for(to_thread(lambda: "discovery"), 0.5) == "discovery"
+        finally:
+            serial.release.set()
+            await reader
+            await link.close()
 
     asyncio.run(scenario())
 

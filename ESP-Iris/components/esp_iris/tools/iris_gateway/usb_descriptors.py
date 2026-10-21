@@ -1,4 +1,4 @@
-"""Passive serial enumeration with interface-scoped macOS USB descriptors."""
+"""Passive serial enumeration with interface-scoped native USB metadata."""
 from __future__ import annotations
 
 import copy
@@ -95,6 +95,8 @@ def _mac_interfaces() -> dict[str, dict[str, Any]]:
 
 def serial_ports() -> list[Any]:
     ports = list(list_ports.comports())
+    if sys.platform == "win32":
+        return _windows_ports(ports)
     if sys.platform != "darwin":
         return ports
     descriptors = _mac_interfaces() if ports else {}
@@ -117,6 +119,70 @@ def serial_ports() -> list[Any]:
                 port.interface, "unknown")
         result[port.device] = port
     return list(result.values())
+
+
+def _windows_interfaces() -> dict[str, dict[str, Any]]:
+    # pySerial loses MI_00 and both CDC interface names on Windows. Read the
+    # native interface devnodes by their assigned COM name, never COM order or
+    # USB serial number. HELLO still verifies the protocol role and identity.
+    import winreg
+
+    found: dict[str, dict[str, Any]] = {}
+    ambiguous = set()
+    for number, name in _IRIS_INTERFACES.items():
+        path = rf"SYSTEM\CurrentControlSet\Enum\USB\VID_303A&PID_4002&MI_{number:02X}"
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path) as parent:
+                index = 0
+                while True:
+                    try:
+                        instance = winreg.EnumKey(parent, index)
+                    except OSError:
+                        break
+                    index += 1
+                    try:
+                        with winreg.OpenKey(parent, instance) as device:
+                            try:
+                                location = winreg.QueryValueEx(device, "LocationInformation")[0]
+                            except OSError:
+                                location = ""
+                            with winreg.OpenKey(device, "Device Parameters") as parameters:
+                                port = winreg.QueryValueEx(parameters, "PortName")[0]
+                        if not isinstance(port, str):
+                            continue
+                        descriptor = {"number": number, "interface": name,
+                                      "location": location if isinstance(location, str) else ""}
+                        key = port.upper()
+                        if key in found and found[key] != descriptor:
+                            ambiguous.add(key)
+                        found[key] = descriptor
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return {key: value for key, value in found.items() if key not in ambiguous}
+
+
+def _windows_ports(ports: list[Any]) -> list[Any]:
+    descriptors = _windows_interfaces() if ports else {}
+    result = []
+    for original in ports:
+        descriptor = descriptors.get(original.device.upper())
+        if (original.vid, original.pid) != (0x303A, 0x4002) or descriptor is None:
+            result.append(original)
+            continue
+        port = copy.copy(original)
+        number = descriptor["number"]
+        port.interface = descriptor["interface"]
+        port.iris_link_role = "data" if number == 2 else "control"
+        physical = descriptor["location"]
+        if physical:
+            # Use native topology even when only one CDC has re-enumerated.
+            # Borrowing the data port's pySerial location changes the console
+            # key when that port appears later, creating duplicate supervisors.
+            port.location = "win-" + physical + f":1.{number}"
+        result.append(port)
+    return result
 
 
 def link_role(port: Any) -> str:

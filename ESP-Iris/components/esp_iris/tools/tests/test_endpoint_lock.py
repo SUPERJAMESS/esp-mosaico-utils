@@ -1,6 +1,11 @@
 """A contender must never write metadata before acquiring the endpoint lock."""
+import errno
+import sys
+from types import SimpleNamespace
+
 import pytest
 
+from iris_gateway import link
 from iris_gateway.link import EndpointLock
 
 
@@ -27,3 +32,26 @@ def test_contender_during_owner_metadata_replacement(tmp_path):
         owner.close()
         if contender is not None:
             contender.close()
+
+
+def test_windows_blocking_lock_waits_past_ten_contended_attempts(tmp_path, monkeypatch):
+    attempts = []
+    sleeps = []
+
+    def locking(fd, mode, size):
+        if mode == 1:
+            attempts.append(fd)
+            if len(attempts) <= 11:
+                raise OSError(errno.EACCES, "contended")
+
+    lock = EndpointLock("project-start:queued-clients", root=tmp_path)
+    monkeypatch.setattr(link, "sys", SimpleNamespace(platform="win32"))
+    monkeypatch.setitem(sys.modules, "msvcrt",
+                        SimpleNamespace(locking=locking, LK_NBLCK=1, LK_UNLCK=2))
+    monkeypatch.setattr(link, "time", SimpleNamespace(sleep=sleeps.append))
+    try:
+        lock.acquire(blocking=True)
+        assert len(attempts) == 12
+        assert len(sleeps) == 11
+    finally:
+        lock.close()
