@@ -22,6 +22,26 @@ from mosaico_cli.session_runtime import SessionScope, request
 from mosaico_cli.workspace import load_workspace
 
 
+def test_health_probe_retries_only_transport_timeouts():
+    from mosaico_cli.session_runtime import _gateway_health
+
+    timed_out = DeviceError("probe timed out")
+    timed_out.__cause__ = TimeoutError()
+    with patch("mosaico_cli.session_runtime.request", side_effect=[timed_out, {"ready": True}]) as probe:
+        assert _gateway_health("http://127.0.0.1:1") == {"ready": True}
+        assert probe.call_count == 2
+        for call in probe.call_args_list:
+            assert call.args == ("http://127.0.0.1:1", "/v2/health")
+    with patch("mosaico_cli.session_runtime.request", side_effect=timed_out) as probe:
+        with pytest.raises(DeviceError):
+            _gateway_health("http://127.0.0.1:1")
+        assert probe.call_count == 3
+    with patch("mosaico_cli.session_runtime.request", side_effect=DeviceError("rejected")) as probe:
+        with pytest.raises(DeviceError):
+            _gateway_health("http://127.0.0.1:1")
+        probe.assert_called_once()
+
+
 def workspace(tmp_path):
     for name in ("a", "b"):
         project = tmp_path / "projects" / name

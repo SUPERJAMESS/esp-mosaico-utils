@@ -162,7 +162,9 @@ async def run_system_update(
             raise OperationOutcomeUnknown("system update rebooted after HEALTHY; acceptance needs reconciliation")
         status = after
     except (ConnectionError, OSError, KeyError, LookupError) as exc:
-        raise OperationOutcomeUnknown("system update outcome needs read-only reconciliation") from exc
+        raise OperationOutcomeUnknown(
+            f"system update outcome needs read-only reconciliation: {type(exc).__name__}: {exc}"
+        ) from exc
     finally:
         hub.unsubscribe(device_id, queue)
 

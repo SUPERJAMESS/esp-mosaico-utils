@@ -366,11 +366,24 @@ class DeviceSession:
 
     def _require_data_link(self) -> DeviceSession:
         data = self.data_session
-        if data is None or data.info is None or self.info is None or not data._ready.is_set():
+        if data is None or data.info is None or self.info is None or data._closed or not data._ready.is_set():
             raise RuntimeError("operation requires an independently connected Iris 0.2 data link")
         if data.info.device_id != self.info.device_id or data.info.boot_id != self.info.boot_id or data.owner_id != self.owner_id:
             raise ProtocolError("data link identity/session binding changed")
         return data
+
+    async def _wait_data_link(self, timeout: float) -> DeviceSession:
+        deadline = asyncio.get_running_loop().time() + timeout
+        while True:
+            if self._closed:
+                raise ConnectionError("ESP-Iris control session closed before data admission")
+            data = self.data_session
+            if data is not None and data.info is not None and not data._closed and data._ready.is_set():
+                return self._require_data_link()
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise TimeoutError("independent Iris 0.2 data link did not become ready")
+            await asyncio.sleep(min(0.05, remaining))
 
     async def _request(
         self,
@@ -772,7 +785,17 @@ class DeviceSession:
             await self._handle_media(frame)
 
     async def status(self) -> dict[str, Any]:
-        frame = await self._request(Channel.CONTROL, ControlType.STATUS_REQUEST)
+        identity = (self.info.device_id, self.info.boot_id, self.info.session_id) if self.info else None
+        try:
+            frame = await self._request(Channel.CONTROL, ControlType.STATUS_REQUEST, timeout=5.0)
+        except asyncio.TimeoutError:
+            # STATUS is read-only. One new correlated request tolerates a
+            # delayed reply during bulk traffic without replaying any write or
+            # carrying a probe across a changed session/boot.
+            current = (self.info.device_id, self.info.boot_id, self.info.session_id) if self.info else None
+            if self._closed or current != identity:
+                raise
+            frame = await self._request(Channel.CONTROL, ControlType.STATUS_REQUEST, timeout=5.0)
         if frame.type != ControlType.STATUS_RESPONSE:
             raise ProtocolError("unexpected status response")
         fields = decode_tlv(frame.payload)
@@ -1064,7 +1087,8 @@ class DeviceSession:
         progress_callback: ProgressCallback | None = None,
     ) -> dict[str, Any]:
         if self._console:
-            return await self._require_data_link().ota_update(image,
+            data = await self._wait_data_link(timeout)
+            return await data.ota_update(image,
                 expected_sha256=expected_sha256, project_name=project_name,
                 version=version, timeout=timeout, progress_callback=progress_callback)
         return await ota_transport.perform_ota_update(
@@ -1101,7 +1125,8 @@ class DeviceSession:
         progress_callback: ProgressCallback | None = None,
     ) -> dict[str, Any]:
         if self._console:
-            return await self._require_data_link().system_update(bundle,
+            data = await self._wait_data_link(timeout)
+            return await data.system_update(bundle,
                 operation_id=operation_id, timeout=timeout, progress_callback=progress_callback)
         return await system_update_transport.perform_system_update(
             self.wait_ready,
@@ -1164,11 +1189,14 @@ class DeviceSession:
                     # failure during cancellation. Do not delay teardown.
                     return
                 if (
-                    self._console
+                    self._console or self._request_lock.locked()
                 ):
                     # Keep raw capture open across bootloaders/debug pauses.
                     # Explicit HELLO queries detect a changed boot/session even
                     # when a UART/Serial-JTAG device never re-enumerates.
+                    # An active bulk/RPC request owns its own deadline. A
+                    # background clock timeout must not abort a long erase or
+                    # a transfer contending with other devices on the host.
                     await asyncio.sleep(self._clock_sync_interval)
                     continue
                 # A serial read timeout is handled inside SerialLink and is not
@@ -1177,7 +1205,7 @@ class DeviceSession:
                 # that created it. Close that stale, already-authenticated
                 # session so this process never keeps writing to old device
                 # state after the board has switched to its normal TCP image.
-                await self.link.close()
+                await self.close()
                 return
             await asyncio.sleep(self._clock_sync_interval)
 

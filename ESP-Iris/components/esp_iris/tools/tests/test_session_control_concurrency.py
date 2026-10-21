@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -21,6 +22,72 @@ def ready_session():
     )
     session._ready.set()
     return session, link
+
+
+def test_status_retries_one_timeout_on_same_session():
+    async def scenario():
+        session, _ = ready_session()
+        response = Frame(channel=Channel.CONTROL, type=ControlType.STATUS_RESPONSE, payload=b"")
+        session._request = AsyncMock(side_effect=[asyncio.TimeoutError(), response])
+        result = await session.status()
+        assert result["device_id"] == "device"
+        assert session._request.await_count == 2
+        for call in session._request.await_args_list:
+            assert call.args == (Channel.CONTROL, ControlType.STATUS_REQUEST)
+        session._request = AsyncMock(side_effect=asyncio.TimeoutError())
+        with pytest.raises(asyncio.TimeoutError):
+            await session.status()
+        assert session._request.await_count == 2
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("same_boot", [True, False])
+def test_status_retry_uses_protocol_identity_across_periodic_hello(same_boot):
+    async def scenario():
+        session, _ = ready_session()
+        calls = 0
+
+        async def response(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                # Periodic console HELLO replaces DeviceInfo even when its
+                # Device ID, Boot ID and protocol session remain unchanged.
+                session.info = replace(session.info, boot_id=1 if same_boot else 2)
+                raise asyncio.TimeoutError()
+            return Frame(channel=Channel.CONTROL, type=ControlType.STATUS_RESPONSE, payload=b"")
+
+        session._request = response
+        if same_boot:
+            assert (await session.status())["boot_id"] == 1
+            assert calls == 2
+        else:
+            with pytest.raises(asyncio.TimeoutError):
+                await session.status()
+            assert calls == 1
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("changed", ["closed", "identity"])
+def test_status_never_retries_across_changed_session(changed):
+    async def scenario():
+        session, _ = ready_session()
+
+        async def timeout(*args, **kwargs):
+            if changed == "closed":
+                session._closed = True
+            else:
+                session.info = None
+            raise asyncio.TimeoutError()
+
+        session._request = AsyncMock(side_effect=timeout)
+        with pytest.raises(asyncio.TimeoutError):
+            await session.status()
+        assert session._request.await_count == 1
+
+    asyncio.run(scenario())
 
 
 async def wait_for_writes(link, count: int) -> list[Frame]:
@@ -86,5 +153,73 @@ def test_mutating_request_stays_serial_and_close_releases_all_waiters() -> None:
         assert not session._request_lock.locked()
         assert link.write.await_count == 2
         link.close.assert_awaited_once()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("active_request", [False, True])
+def test_clock_timeout_does_not_abort_an_active_data_request(active_request):
+    async def scenario():
+        session, link = ready_session()
+        probed = asyncio.Event()
+
+        async def timeout(*args):
+            probed.set()
+            raise asyncio.TimeoutError
+
+        session.sync_clock = timeout
+        if active_request:
+            await session._request_lock.acquire()
+        clock = asyncio.create_task(session._clock_loop())
+        try:
+            await asyncio.wait_for(probed.wait(), 1)
+            await asyncio.sleep(0)
+            assert link.close.await_count == (0 if active_request else 1)
+            assert session._closed is (not active_request)
+        finally:
+            if active_request:
+                session._request_lock.release()
+            clock.cancel()
+            await asyncio.gather(clock, return_exceptions=True)
+            await session.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("kind", ["ota_update", "system_update"])
+def test_update_waits_for_independent_data_authentication(kind):
+    async def scenario():
+        control, _ = ready_session()
+        control._console = True
+        data, _ = ready_session()
+        data.owner_id = control.owner_id
+        data._ready.clear()
+        control.data_session = data
+        transferred = AsyncMock(return_value={"validated": True})
+        setattr(data, kind, transferred)
+        operation = asyncio.create_task(getattr(control, kind)(b"image", timeout=1))
+        try:
+            await asyncio.sleep(0)
+            transferred.assert_not_awaited()
+            data._ready.set()
+            assert await operation == {"validated": True}
+            transferred.assert_awaited_once()
+        finally:
+            await control.close()
+            await data.close()
+
+    asyncio.run(scenario())
+
+
+def test_update_data_admission_does_not_accept_wrong_binding():
+    async def scenario():
+        control, _ = ready_session()
+        data, _ = ready_session()
+        control._console = True
+        control.data_session = data  # Authenticated to a different owner.
+        with pytest.raises(ValueError, match="binding"):
+            await control._wait_data_link(1)
+        await control.close()
+        await data.close()
 
     asyncio.run(scenario())

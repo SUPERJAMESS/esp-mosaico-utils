@@ -37,6 +37,7 @@ def test_status_decodes_spiram_watermarks_and_old_firmware() -> None:
 
         session = DeviceSession(FakeLink(), discard, discard)
         session.info = SimpleNamespace(
+            device_id="device-1", boot_id=42, session_id=7,
             hardware_mac="",
             as_dict=lambda: {"device_id": "device-1", "boot_id": "42"},
         )
@@ -49,9 +50,10 @@ def test_status_decodes_spiram_watermarks_and_old_firmware() -> None:
             (TlvTag.MIN_FREE_SPIRAM, struct.pack("<I", 1000)),
         ])
 
-        async def response(channel: int, type_: int) -> Frame:
+        async def response(channel: int, type_: int, *, timeout: float) -> Frame:
             assert channel == Channel.CONTROL
             assert type_ == ControlType.STATUS_REQUEST
+            assert timeout == 5.0
             return Frame(channel=channel, type=ControlType.STATUS_RESPONSE, payload=payload)
 
         session._request = response

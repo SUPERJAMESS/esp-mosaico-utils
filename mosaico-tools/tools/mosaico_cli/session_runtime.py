@@ -102,6 +102,20 @@ def request(url: str, path: str, body: dict[str, Any] | None = None,
         raise DeviceError(f"Project Gateway is unavailable: {error}") from error
 
 
+def _gateway_health(url: str) -> dict[str, Any]:
+    """Tolerate a short host stall before admitting any business request."""
+    for attempt in range(3):
+        try:
+            return request(url, "/v2/health", timeout=2)
+        except DeviceError as error:
+            cause = error.__cause__
+            if isinstance(cause, URLError):
+                cause = cause.reason
+            if attempt == 2 or not isinstance(cause, TimeoutError):
+                raise
+    raise AssertionError("unreachable")
+
+
 def acquire_device(url: str, arguments: Any, context: Any, *, allow_none: bool = False) -> dict[str, Any] | None:
     """Resolve and pin one live device for the rest of this command."""
     selected = getattr(arguments, "device_id", None)
@@ -171,7 +185,7 @@ class SessionScope:
             existing = None
             try:
                 record = local.connection()
-                health = request(record["url"], "/v2/health", timeout=2)
+                health = _gateway_health(record["url"])
                 live = health.get("project_session") or {}
                 if (live.get("session_id"), live.get("project_id"), live.get("instance_id")) != (
                     record["session_id"], project_key, record["instance_id"],

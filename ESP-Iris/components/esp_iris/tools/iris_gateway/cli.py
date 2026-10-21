@@ -333,6 +333,10 @@ async def _web_owned(args: argparse.Namespace, state_dir: pathlib.Path) -> None:
                 with contextlib.suppress(NotImplementedError):
                     loop.add_signal_handler(getattr(signal, name), request_stop)
         await stop.wait()
+        # Stop receive producers before aiohttp's cleanup flushes their queue.
+        # With nine busy consoles, waiting for an empty diagnostics queue while
+        # the hub still feeds it can retain dead listeners/ownership forever.
+        await hub.close()
         await runner.cleanup()
     finally:
         maintenance_stop.set()
@@ -442,6 +446,47 @@ async def _response_json(response: ClientResponse) -> Any:
     return body
 
 
+SYSTEM_UPDATE_ADMISSION_ATTEMPTS = 20
+
+
+class SystemUpdateAdmissionRejected(RuntimeError):
+    def __init__(self, error: dict[str, Any]) -> None:
+        super().__init__(str(error.get("message", "System update upload was rejected")))
+        self.error = error
+
+
+async def _post_update_upload(session: ClientSession, url: str, ssl_value: Any,
+                              data: Any, headers: dict[str, str]) -> Any:
+    for attempt in range(SYSTEM_UPDATE_ADMISSION_ATTEMPTS):
+        body_data = data() if callable(data) else data
+        async with session.post(url, data=body_data, headers=headers, ssl=ssl_value) as response:
+            if response.status == 429:
+                try:
+                    body = await response.json()
+                except (json.JSONDecodeError, ValueError):
+                    body = {}
+                error = body.get("error", {}) if isinstance(body, dict) else {}
+                details = error.get("details", {}) if isinstance(error, dict) else {}
+                # Only these middleware budgets reject before the update
+                # handler runs. Never replay timeouts or an accepted operation.
+                if (isinstance(error, dict) and error.get("code") == "resource_limit"
+                        and isinstance(details, dict)
+                        and details.get("resource") in {"requests", "large_requests"}):
+                    if attempt + 1 == SYSTEM_UPDATE_ADMISSION_ATTEMPTS:
+                        raise SystemUpdateAdmissionRejected(error)
+                    try:
+                        delay = float(response.headers.get("Retry-After", "1"))
+                    except ValueError:
+                        delay = 1.0
+                    if not 0.05 <= delay <= 2.0:
+                        delay = 1.0
+                else:
+                    return await _response_json(response)
+            else:
+                return await _response_json(response)
+        await asyncio.sleep(delay)
+
+
 def _output(value: Any, json_mode: bool) -> None:
     if json_mode:
         print(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
@@ -470,16 +515,15 @@ async def _upload_firmware_artifact(
     ssl_value: Any,
     paths: tuple[pathlib.Path, pathlib.Path, pathlib.Path],
 ) -> dict[str, Any]:
-    form = FormData()
-    for field, path in zip(("bin", "elf", "map"), paths):
-        form.add_field(
-            field,
-            path.read_bytes(),
-            filename=path.name,
-            content_type="application/octet-stream",
-        )
-    async with session.post(base + "/v2/firmware-artifacts", data=form, ssl=ssl_value) as response:
-        body = await _response_json(response)
+    parts = [(field, path, path.read_bytes()) for field, path in zip(("bin", "elf", "map"), paths)]
+
+    def form():
+        value = FormData()
+        for field, path, data in parts:
+            value.add_field(field, data, filename=path.name, content_type="application/octet-stream")
+        return value
+
+    body = await _post_update_upload(session, base + "/v2/firmware-artifacts", ssl_value, form, {})
     return dict(body["artifact"])
 
 
@@ -719,17 +763,17 @@ async def _ctl(args: argparse.Namespace) -> int:
                     raise ValueError(f"system-update bundle does not exist: {bundle_path}")
                 operation_id = str(uuid.uuid4())
                 url = base + f"/v2/devices/{args.device}/system-update"
-                async with session.post(
-                    url,
-                    data=bundle_path.read_bytes(),
-                    headers={
-                        "Content-Type": "application/vnd.esp-iris.system-update+zip",
-                        "X-Iris-Compatibility": json.dumps(args.compatibility),
-                        "X-Operation-ID": operation_id,
-                    },
-                    ssl=ssl_value,
-                ) as response:
-                    accepted = await _response_json(response)
+                try:
+                    accepted = await _post_update_upload(
+                        session, url, ssl_value, bundle_path.read_bytes(), {
+                            "Content-Type": "application/vnd.esp-iris.system-update+zip",
+                            "X-Iris-Compatibility": json.dumps(args.compatibility),
+                            "X-Operation-ID": operation_id,
+                        })
+                except SystemUpdateAdmissionRejected as exc:
+                    _output({"operation_id": operation_id, "status": "rejected",
+                             "write_started": False, "error": exc.error}, args.json)
+                    return 2
                 if args.wait:
                     operation = await _operation_watch(
                         session,
@@ -794,6 +838,9 @@ async def _ctl(args: argparse.Namespace) -> int:
                 await _logs(session, base, ssl_value, args)
             else:
                 raise RuntimeError(f"unsupported ctl command: {command}")
+    except SystemUpdateAdmissionRejected as exc:
+        _output({"status": "rejected", "write_started": False, "error": exc.error}, args.json)
+        return 2
     except ClientConnectorCertificateError as exc:
         raise RuntimeError("TLS certificate is not trusted; configure --ca or --fingerprint") from exc
     return 0
