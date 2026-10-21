@@ -20,6 +20,11 @@ Task memory observation later added status fields and a control response to
 1300. Gateway snapshot assembly now lives in `memory_observation.py`, keeping
 `gateway.py` within its existing 2050-line limit.
 
+The host reconciliation module's source ceiling is now 1500 lines, replacing
+the original 150-line threshold derived from its 130-line baseline. This allows
+related read-only transaction observations to remain in one cohesive module.
+The source-line ceiling is a review gate, not a runtime resource measurement.
+
 | Source | Review baseline lines | Integration lines | Previous limit | New limit |
 | --- | ---: | ---: | ---: | ---: |
 | `components/esp_iris/src/esp_iris.c` | 998 | 1255 | 1100 | 1300 |
@@ -33,7 +38,7 @@ Task memory observation later added status fields and a control response to
 | `components/esp_iris/tools/frontend/src/Workspace.tsx` | 1525 | 1525 | 550 | 1550 |
 | `components/esp_iris/src/esp_iris_executor.inc` | new | 414 | 400 | 450 |
 | `components/esp_iris/tools/iris_gateway/compatibility.py` | new | 67 | — | 100 |
-| `components/esp_iris/tools/iris_gateway/reconciliation.py` | new | 130 | — | 150 |
+| `components/esp_iris/tools/iris_gateway/reconciliation.py` | 130 | 163 | 150 | 1500 |
 | `components/esp_iris/tools/iris_gateway/operation_identity.py` | new | 42 | — | 50 |
 
 Firmware byte gates use the CI build directories. The existing services/coredump

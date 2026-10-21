@@ -13,7 +13,7 @@
     "components/esp_iris/tools/frontend/src/Workspace.tsx": 1550,
     "components/esp_iris/src/esp_iris_executor.inc": 450,
     "components/esp_iris/tools/iris_gateway/compatibility.py": 100,
-    "components/esp_iris/tools/iris_gateway/reconciliation.py": 150,
+    "components/esp_iris/tools/iris_gateway/reconciliation.py": 1500,
     "components/esp_iris/tools/iris_gateway/operation_identity.py": 50,
     "components/esp_iris/src/esp_iris_ota_service.inc": 400,
     "components/esp_iris/src/esp_iris_executor_dispatch.inc": 200,

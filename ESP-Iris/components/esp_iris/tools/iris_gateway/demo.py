@@ -763,6 +763,12 @@ class DemoHub:
             "demo": True,
         }
 
+    async def system_update_status(self, device_id: str) -> dict[str, Any]:
+        device = self.get(device_id)
+        operation_id = device.get("last_system_update_operation_id", "00" * 16)
+        return {"operation_id": operation_id, "phase": "idle" if operation_id == "00" * 16 else "committed",
+                "result": 0, "demo": True}
+
     async def system_update_inventory(self, device_id: str) -> dict[str, Any]:
         device = self.get(device_id)
         return {

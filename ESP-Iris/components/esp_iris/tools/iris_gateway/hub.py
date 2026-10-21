@@ -1263,6 +1263,9 @@ class IrisHub:
     async def system_update_inventory(self, device_id: str) -> dict[str, Any]:
         return await self.get(device_id).system_update_inventory()
 
+    async def system_update_status(self, device_id: str) -> dict[str, Any]:
+        return await self.get(device_id).system_update_status()
+
     async def restart(self, device_id: str, delay_ms: int = 250) -> int:
         return await self.get(device_id).restart(delay_ms)
 

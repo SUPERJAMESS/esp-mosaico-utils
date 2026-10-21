@@ -114,6 +114,16 @@ async def reconcile_operation(
                 except ValueError:
                     wire_id = uuid.uuid5(uuid.NAMESPACE_URL, operation_id).hex
                 receipt_matches = inventory.get("last_operation_id") == wire_id
+                transaction = None
+                if (not receipt_matches and boot == writer_boot
+                        and status.get("firmware_mode") == "recovery"
+                        and hasattr(hub, "system_update_status")):
+                    transaction = await asyncio.wait_for(hub.system_update_status(device_id), 10)
+                    record["evidence"]["transaction"] = transaction
+                    final_status = await asyncio.wait_for(hub.status(device_id), 10)
+                    record["evidence"]["status_after_transaction"] = final_status
+                    if final_status.get("device_id") != device_id or final_status.get("boot_id") != boot:
+                        raise RuntimeError("device rebooted during transaction observation")
                 components = params.get("bundle", {}).get("components", [])
                 expected_mode = (
                     "recovery"
@@ -122,6 +132,11 @@ async def reconcile_operation(
                 )
                 if receipt_matches and inventory.get("last_result") not in (None, 0):
                     record.update(outcome="observed_failure", reason="matching device receipt reports failure")
+                elif transaction is not None and (
+                    (transaction.get("operation_id") == wire_id and transaction.get("phase") in {"failed", "cancelled"})
+                    or (transaction.get("operation_id") == "00" * 16 and transaction.get("phase") == "idle")
+                ):
+                    record.update(outcome="observed_failure", reason="same writer boot reports an ended or absent uncommitted transaction")
                 elif (receipt_matches and inventory.get("last_result") == 0 and healthy
                       and status.get("firmware_mode") == expected_mode
                       and after.get("firmware_mode") == expected_mode

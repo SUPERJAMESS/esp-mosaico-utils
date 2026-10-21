@@ -271,3 +271,46 @@ def test_recovery_self_update_reconciles_to_healthy_recovery(tmp_path):
         store.close()
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("phase,matching,changed_boot,outcome", [
+    ("cancelled", True, False, "observed_failure"),
+    ("failed", True, False, "observed_failure"),
+    ("idle", False, False, "observed_failure"),
+    ("receiving", True, False, "outcome_unknown"),
+    ("committing", True, False, "outcome_unknown"),
+    ("failed", False, False, "outcome_unknown"),
+    ("cancelled", True, True, "outcome_unknown"),
+])
+def test_ended_uncommitted_transaction_can_be_proven_without_replaying(tmp_path, phase, matching, changed_boot, outcome):
+    import uuid
+
+    async def scenario():
+        store = GatewayStore(tmp_path)
+        store.create_operation({"operation_id": "ended", "device_id": "a", "actor_type": "agent",
+                                "actor_name": "test", "action": "firmware.system_update", "params": {},
+                                "status": "outcome_unknown", "created_ns": 1})
+        store.update_operation("ended", progress_json={"writer_boot_id": 1})
+        original = store.operation("ended")
+        reads = []
+
+        async def status(device_id):
+            reads.append(device_id)
+            return {"device_id": "a", "boot_id": 2 if changed_boot and len(reads) > 2 else 1,
+                    "firmware_mode": "recovery"}
+
+        async def inventory(device_id):
+            return {"last_operation_id": "older", "last_result": 0}
+
+        async def transaction(device_id):
+            return {"phase": phase, "operation_id": uuid.uuid5(uuid.NAMESPACE_URL, "ended").hex
+                    if matching else "00" * 16}
+
+        hub = SimpleNamespace(status=status, system_update_inventory=inventory, system_update_status=transaction)
+        record = await reconcile_operation(store, hub, "ended", Actor("agent", "test"))
+        assert record["outcome"] == outcome
+        assert record["replayed"] is False
+        assert store.operation("ended") == original
+        store.close()
+
+    asyncio.run(scenario())
