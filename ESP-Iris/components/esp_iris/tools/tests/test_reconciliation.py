@@ -145,6 +145,7 @@ def test_missing_postwrite_health_is_unknown_and_never_replayed(tmp_path):
             return {"completion_evidence": "session_close"}
 
         service.hub = SimpleNamespace(status=status, ota_update=ota_update, list_devices=list,
+                                      device_snapshot=lambda _: None,
                                       subscribe=lambda device: queue, unsubscribe=lambda *args: None)
         with pytest.raises(OperationOutcomeUnknown):
             await service.operations.execute(
@@ -307,7 +308,10 @@ def test_recovery_self_update_reconciles_to_healthy_recovery(tmp_path):
     ("failed", False, False, "outcome_unknown"),
     ("cancelled", True, True, "outcome_unknown"),
 ])
-def test_ended_uncommitted_transaction_can_be_proven_without_replaying(tmp_path, phase, matching, changed_boot, outcome):
+@pytest.mark.parametrize("writer_key", ["writer_boot_id", "recovery_boot_id", "previous_boot_id"])
+def test_ended_uncommitted_transaction_can_be_proven_without_replaying(
+    tmp_path, phase, matching, changed_boot, outcome, writer_key,
+):
     import uuid
 
     async def scenario():
@@ -315,7 +319,7 @@ def test_ended_uncommitted_transaction_can_be_proven_without_replaying(tmp_path,
         store.create_operation({"operation_id": "ended", "device_id": "a", "actor_type": "agent",
                                 "actor_name": "test", "action": "firmware.system_update", "params": {},
                                 "status": "outcome_unknown", "created_ns": 1})
-        store.update_operation("ended", progress_json={"writer_boot_id": 1})
+        store.update_operation("ended", progress_json={"previous_boot_id": 0, writer_key: 1})
         original = store.operation("ended")
         reads = []
 

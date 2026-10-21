@@ -87,7 +87,8 @@ async def reconcile_operation(
         else:
             validate_crash_state(status)
             progress = operation.get("progress") or {}
-            writer_boot = progress.get("writer_boot_id", progress.get("previous_boot_id"))
+            writer_boot = progress.get("writer_boot_id", progress.get(
+                "recovery_boot_id", progress.get("previous_boot_id")))
             boot = status["boot_id"]
             healthy = store.find_healthy_evidence(operation, boot)
             if healthy is not None:
