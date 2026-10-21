@@ -614,8 +614,12 @@ bool vibe_product_event(vibe_ui_t *s, const vui_event_t *e)
         if (s->page == VIBE_RESULT && s->result_can_open && !s->result_failed && !s->result_cancelled) { s->run_development_pending = false; open_confirm(s); }
         break;
     case VUI_VIBE_ACT_ID_RESULT_DONE:
-        if (s->page == VIBE_RESULT)
-            vibe_show(s, s->result_cancelled ? VIBE_HOME : VIBE_NAND);
+        if (s->page == VIBE_RESULT) {
+            vibe_page_t target = s->result_return_detail && s->selected_bundle.code[0]
+                ? VIBE_CONFIRM : s->result_cancelled ? VIBE_HOME : VIBE_NAND;
+            s->result_return_detail = false;
+            vibe_show(s, target);
+        }
         break;
     case VUI_VIBE_ACT_ID_OPEN_CELL: {
         if (s->page != VIBE_GRID || e->arg >= 6) break;

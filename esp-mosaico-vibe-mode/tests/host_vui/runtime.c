@@ -663,7 +663,7 @@ static void preview_loading_name_contract(uint16_t *frame)
     vui_pointer(ui,150,170,true); vui_pointer(ui,150,170,false);
     assert(state->page == VIBE_CONFIRM);
     advance_clock(ui,frame,200,16);
-    vui_pointer(ui,100,330,true); vui_pointer(ui,100,330,false);
+    vui_pointer(ui,428,128,true); vui_pointer(ui,428,128,false);
     vibe_ui_poll(state); vui_render(ui,frame);
     assert(state->page == VIBE_IDEA_INFO && state->snapshot.idea_loading);
     assert(state->preview_loading_title_ready && frame[40*480+100] == 0xf800);
@@ -713,11 +713,11 @@ static void inline_intro_contract(uint16_t *frame)
     assert(state->inline_intro_ready && !state->inline_intro_pending && !model.value.idea_ready);
     assert(frame[195*480+40] == 0x07e0);
     assert(!vui_scroll_to(ui,VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT,1000));
-    assert(vui_scroll_offset(ui,VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT) == 56);
+    assert(vui_scroll_offset(ui,VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT) == 20);
     /* Opening Check updates releases only the copied local canvas; its
      * original independent preview page and request still work. */
     advance_clock(ui,frame,200,16);
-    vui_pointer(ui,100,330,true); vui_pointer(ui,100,330,false);
+    vui_pointer(ui,428,128,true); vui_pointer(ui,428,128,false);
     assert(state->page == VIBE_IDEA_INFO && !state->inline_intro_ready);
     advance_clock(ui,frame,200,16);
     vui_pointer(ui,100,430,true); vui_pointer(ui,100,430,false);
@@ -731,6 +731,39 @@ static void inline_intro_contract(uint16_t *frame)
     assert(state->page == VIBE_NAND); /* A late reply cannot navigate back. */
     model.value.idea_ready = false;
     vibe_ui_deinit(state); vui_destroy(ui);
+}
+static void check_result_origin_contract(uint16_t *frame)
+{
+    for (unsigned failed=0; failed<2; ++failed) {
+        clock_model_t model={.value={.settings={.language=1},.bundle_count=1,
+            .storage_total=1000000,.nand_generation=1}};
+        strcpy(model.value.bundles[0].code,"000001");
+        strcpy(model.value.bundles[0].release,"Selected Idea");
+        const vibe_services_t services={.ctx=&model,.snapshot=clock_snapshot,.command=preview_check_command};
+        vui_handle_t ui=NULL; vibe_ui_t *state=NULL;
+        assert(!vui_create(&ui) && !vibe_ui_create(ui,&services,&state));
+        vibe_show(state,VIBE_NAND); advance_clock(ui,frame,200,16);
+        vui_pointer(ui,150,170,true); vui_pointer(ui,150,170,false);
+        advance_clock(ui,frame,200,16);
+        vui_pointer(ui,428,128,true); vui_pointer(ui,428,128,false);
+        assert(state->page==VIBE_IDEA_INFO && state->preview_check_updates && state->result_return_detail);
+        model.value.idea_loading=model.value.idea_busy=model.value.idea_ready=false;
+        model.value.update_terminal=true; model.value.update_failed=failed;
+        ++model.value.update_revision;
+        strcpy(model.value.update_title,failed ? "App information failed" : "Already up to date");
+        vibe_ui_poll(state); advance_clock(ui,frame,200,16);
+        assert(state->page==VIBE_RESULT && !state->result_can_open);
+        vui_pointer(ui,240,420,true); vui_pointer(ui,240,420,false);
+        assert(state->page==VIBE_CONFIRM && !state->result_return_detail);
+        assert(!strcmp(state->selected_bundle.code,"000001"));
+        /* A later save must retain the standard library destination. */
+        assert(!vibe_command(state,VIBE_SAVE_DEVELOPMENT,NULL,NULL));
+        assert(!state->result_return_detail);
+        vibe_show(state,VIBE_RESULT); advance_clock(ui,frame,200,16);
+        vui_pointer(ui,240,420,true); vui_pointer(ui,240,420,false);
+        assert(state->page==VIBE_NAND);
+        vibe_ui_deinit(state); vui_destroy(ui);
+    }
 }
 static void help_action(vibe_ui_t *state, unsigned action)
 {
@@ -944,7 +977,7 @@ int main(void)
     assert(vui_canvas_stop(ui,id)==0 && releases==2);
     assert(vui_canvas_stop(ui,id)==0 && releases==2);
     uint16_t *grid_frame = malloc(480 * 480 * 2);
-    assert(grid_frame); grid_title_contract(grid_frame); preview_loading_name_contract(grid_frame); inline_intro_contract(grid_frame); help_route_contract(grid_frame); free(grid_frame);
+    assert(grid_frame); grid_title_contract(grid_frame); preview_loading_name_contract(grid_frame); inline_intro_contract(grid_frame); check_result_origin_contract(grid_frame); help_route_contract(grid_frame); free(grid_frame);
     assert(vibe_pc_init(ui)==0);
     uint16_t *frame=malloc(480*480*2);
     title_marquee(frame);

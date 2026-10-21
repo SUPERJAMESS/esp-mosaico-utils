@@ -613,6 +613,8 @@ def test_complete_release_opens_library_without_downloading(sim):
     sim.wait(page=6)
     sim.tap_ui("button_check_idea")
     sim.wait(page=8, check_calls=1, download_calls=0)
+    sim.tap_ui("button_result_done")
+    sim.wait(page=6, last_code="042731", check_calls=1, download_calls=0)
 
 
 @pytest.mark.parametrize("sim", ["preview-fail"], indirect=True)
@@ -638,13 +640,13 @@ def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
         r, g, b = image.convert("RGB").getpixel((40, 195))
         assert g > 200 and r < 20 and b < 20
     sim.swipe(220, 290, 220, 200)
-    sim.wait(page=6, local_description_offset=56, download_calls=0, install_calls=0)
+    sim.wait(page=6, local_description_offset=20, download_calls=0, install_calls=0)
     sim.capture("custom-inline-scrolled")
     with Image.open(sim.directory / "custom-inline.png") as before, Image.open(sim.directory / "custom-inline-scrolled.png") as after:
-        for bounds in ((0, 0, 480, 184), (0, 314, 480, 480)):
+        for bounds in ((0, 0, 480, 184), (0, 348, 480, 480)):
             assert before.crop(bounds).tobytes() == after.crop(bounds).tobytes()
     sim.tap(350,330)  # The removed View info button has no hit target.
-    sim.wait(page=6, local_description_offset=56, prepare_calls=1, cancel_calls=1)
+    sim.wait(page=6, local_description_offset=20, prepare_calls=1, cancel_calls=1)
     # Check updates still opens the original remote preview and download flow.
     sim.tap_ui("button_check_idea"); sim.wait(page=9, idea_ready=True, check_calls=1, idea_description_offset=0)
     sim.capture("custom-update-preview")
@@ -653,6 +655,8 @@ def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
         assert r > 200 and g < 20 and b < 20
     sim.tap(350, 436)
     sim.wait(timeout=45, page=8, download_calls=1, install_calls=0)
+    sim.tap_ui("button_result_library")
+    sim.wait(page=6, check_calls=1, download_calls=1)
 
 
 @pytest.mark.parametrize("sim", ["slow-preview"], indirect=True)
@@ -671,6 +675,23 @@ def test_inline_intro_failure_stays_in_details_and_check_keeps_its_error_flow(si
     sim.wait(page=6, idea_loading=False, idea_ready=False, prepare_calls=1, download_calls=0)
     sim.tap_ui("button_check_idea")
     sim.wait(page=8, check_calls=1, download_calls=0)
+    sim.tap_ui("button_result_done"); sim.wait(page=6, check_calls=1)
+
+
+@pytest.mark.parametrize("sim", ["slow-preview"], indirect=True)
+@pytest.mark.parametrize("language", [1,2])
+def test_update_check_loading_uses_its_own_message(sim, language):
+    if language == 2:
+        sim.tap_ui("button_nav_settings"); sim.wait(page=11)
+        sim.tap_ui("button_settings_top_language"); sim.wait(page=13)
+        sim.tap_ui("button_language_zh"); sim.wait(page=13, language=2)
+        sim.tap(38,36); sim.wait(page=11)
+        sim.tap(38,36); sim.wait(page=0)
+    sim.manage(); sim.tap(150,170); sim.wait(page=6)
+    sim.tap_ui("button_check_idea")
+    sim.wait(page=9, idea_loading=True, check_calls=1)
+    sim.capture("check-updates-loading")
+    sim.tap_ui("button_cancel_idea"); sim.wait(page=6, check_calls=1, download_calls=0)
 
 
 @pytest.mark.parametrize("sim", ["custom-preview-fail"], indirect=True)

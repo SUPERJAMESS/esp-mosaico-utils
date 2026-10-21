@@ -96,8 +96,15 @@ static int command(vibe_ui_t *s, vibe_command_t cmd, const char *a, const char *
          * which may survive deletion or change during a background request. */
         switch (cmd) {
         case VIBE_DOWNLOAD_IDEA:
+            s->result_return_detail = s->preview_active && s->preview_return == VIBE_CONFIRM;
+            s->result_can_open = true;
+            break;
         case VIBE_CHECK_IDEA:
+            s->result_return_detail = s->page == VIBE_CONFIRM;
+            s->result_can_open = false;
+            break;
         case VIBE_OPEN_IDEA:
+            s->result_return_detail = false;
             s->result_can_open = true;
             break;
         case VIBE_DELETE_IDEA:
@@ -107,6 +114,7 @@ static int command(vibe_ui_t *s, vibe_command_t cmd, const char *a, const char *
         case VIBE_INSTALL_NAND:
         case VIBE_START_IDEA:
         case VIBE_RUN_DEVELOPMENT:
+            s->result_return_detail = false;
             s->result_can_open = false;
             break;
         default:
@@ -477,6 +485,9 @@ static void prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code) {
     s->services.snapshot(s->services.ctx, &s->snapshot);
     if (s->snapshot.idea_busy)
         return;
+    s->preview_check_updates = cmd == VIBE_CHECK_IDEA;
+    s->result_return_detail = s->page == VIBE_CONFIRM;
+    s->result_can_open = false;
     int err = command(s, cmd, code, NULL);
     if (err) {
         error_result(s, T(s, "App information failed"), err);
@@ -729,6 +740,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         err = command(s, VIBE_CANCEL_IDEA, NULL, NULL);
         if (!err) {
             s->preview_active = false;
+            s->result_return_detail = false;
             show(s, s->preview_return);
         }
         break;
@@ -906,7 +918,7 @@ void vibe_ui_poll(vibe_ui_t *s) {
         }
         project_preview_name(s);
         TEXT(s, IDEA_DESCRIPTION,
-             !v->idea_ready   ? T(s, "Loading...")
+             !v->idea_ready   ? (s->preview_check_updates ? "" : T(s, "Loading..."))
              : v->idea_custom ? ""
                               : v->idea.description);
         if (v->idea_ready) {
@@ -917,6 +929,7 @@ void vibe_ui_poll(vibe_ui_t *s) {
             TEXT(s, IDEA_VERSION, "");
             TEXT(s, IDEA_SUMMARY, "");
         }
+        TEXT(s, IDEA_LOADING_STATUS, s->preview_check_updates ? "Checking for updates..." : "Please wait");
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_LOADING_STATUS, !v->idea_ready);
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_ICON, v->idea_ready);
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_STATUS, v->idea_ready);
