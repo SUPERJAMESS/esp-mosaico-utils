@@ -135,6 +135,10 @@ class HostOperations:
             before = await hub.status(device_id)
             if before.get("device_id") != device_id or not before.get("boot_id"):
                 raise RuntimeError("host operation requires verified device and boot identity")
+            # Persist the verified identity before detaching for the writer.
+            # Inventory queries are read-only and cannot be relied on to have
+            # cached a just-connected device already.
+            service.store.remember_device(before)
             evidence["device_before"] = before
             evidence["crash_index"] = await hub.crash_report(device_id)
             evidence["coredump"] = await service.preserve_coredump(device_id)

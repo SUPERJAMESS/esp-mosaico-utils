@@ -112,8 +112,9 @@ class GatewayStore(StateStore):
         if capture and payload.get("kind") == "console_raw":
             offset = int(payload["offset"])
             previous = self._lost_captures.get(str(capture))
-            self._lost_captures[str(capture)] = (previous[0] if previous else offset, offset + len(
-                base64.b64decode(payload["data_base64"], validate=True)))
+            end = offset + len(base64.b64decode(payload["data_base64"], validate=True))
+            self._lost_captures[str(capture)] = (
+                (min(previous[0], offset), max(previous[1], end)) if previous else (offset, end))
             self._lost_captures.move_to_end(str(capture))
             while len(self._lost_captures) > 1024:
                 self._lost_captures.popitem(last=False)

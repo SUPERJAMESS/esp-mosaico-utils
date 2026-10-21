@@ -18,6 +18,7 @@ from aiohttp import BodyPartReader, WSMsgType, web
 
 from .boot_identity import boot_id_text
 from .client_lifecycle import CAPABILITY as LIFECYCLE_CAPABILITY
+from .compat import to_thread
 from .compatibility import compatibility_expectation, validate_update_compatibility
 from .console_input import encode_console_line
 from .contracts import GatewayHub
@@ -233,7 +234,8 @@ class GatewayService:
                                              max_event_bytes=self.limits.event_bytes)
             self.store.before_close(self._event_writer.close_sync)
         accepted, acknowledgement = self._event_writer.submit(
-            category, item, device, critical=item.get("event_name") == "healthy")
+            category, item, device,
+            critical=item.get("event_name") == "healthy" or kind == "console_binding")
         if not accepted:
             self._broadcast_event({"kind": "history_gap", "category": "system",
                                    "reason": "event writer queue is full", "dropped_events": 1})
@@ -369,7 +371,10 @@ class GatewayService:
                 item["alias"] = old["alias"]
             elif item.get("suggested_alias"):
                 item["alias"] = item["suggested_alias"]
-            self.store.remember_device(item)
+            # Connection/device events persist inventory on the diagnostics
+            # worker. A read-only listing must not write every connected board
+            # again: concurrent clients otherwise serialize N*N SQLite commits
+            # on the communication loop.
             cached[device_id] = item
         for device_id, item in cached.items():
             if device_id not in connected:
@@ -383,7 +388,12 @@ class GatewayService:
         workers = active_workers()
         return [boot_id_text({**item, **describe_device(self, item, workers=workers)}) for item in result]
 
-    def list_endpoints(self) -> list[dict[str, Any]]:
+    async def endpoint_snapshot(self) -> list[dict[str, Any]]:
+        ports = [] if self.demo else await to_thread(
+            discover_iris_usb_devices, include_rom=True, include_usb_serial_jtag=True, include_uart=True)
+        return self.list_endpoints(usb_ports=ports)
+
+    def list_endpoints(self, *, usb_ports: list[Any] | None = None) -> list[dict[str, Any]]:
         endpoints = {item["endpoint"]: dict(item) for item in self.device_hub.list_endpoints()}
         if not self.demo:
             # Listing is passive, including unclaimed USB Serial/JTAG and UART.
@@ -391,9 +401,10 @@ class GatewayService:
             for item in endpoints.values():
                 if item["endpoint"].startswith("usb:"):
                     item["present"] = False
-            for port in discover_iris_usb_devices(
-                include_rom=True, include_usb_serial_jtag=True, include_uart=True
-            ):
+            if usb_ports is None:
+                usb_ports = discover_iris_usb_devices(
+                    include_rom=True, include_usb_serial_jtag=True, include_uart=True)
+            for port in usb_ports:
                 metadata = {"path": port.path, "device_path": port.device, "vid": port.vid,
                             "pid": port.pid, "serial_number": port.serial_number, "location": port.location,
                             "product": port.product, "interface": port.interface, "link_role": port.link_role,
@@ -409,7 +420,8 @@ class GatewayService:
             if self.project is not None:
                 item["ownership"] = self.project.registry.claim(item["endpoint"])
             result.append({**item, "connection_state": item.get("state"),
-                           **describe_device(self, item, workers=workers)})
+                           **describe_device(self, item, workers=workers,
+                                             usb_present=bool(item.get("present")) if not self.demo else None)})
         return sorted(result, key=lambda item: item["endpoint"])
 
     def resolve_device(self, value: str) -> str:
@@ -937,7 +949,7 @@ def create_app(service: GatewayService) -> web.Application:
     async def endpoints(request: web.Request) -> web.Response:
         del request
         return web.json_response(
-            {"endpoints": service.list_endpoints(), "demo": service.demo}
+            {"endpoints": await service.endpoint_snapshot(), "demo": service.demo}
         )
 
     async def status(request: web.Request) -> web.Response:

@@ -8,7 +8,7 @@ from .discovery import resolve_usb_port
 DEVICE_STATES = ("offline", "discovered", "connecting", "idle", "busy", "needs_recovery")
 
 
-def describe(service: Any, item: dict, *, workers: list[dict]) -> dict:
+def describe(service: Any, item: dict, *, workers: list[dict], usb_present: bool | None = None) -> dict:
     device_id = str(item.get("device_id") or "")
     endpoint = str(item.get("endpoint") or "")
     queue = service.operations.queue_state(device_id or "endpoint::" + endpoint)
@@ -44,7 +44,11 @@ def describe(service: Any, item: dict, *, workers: list[dict]) -> dict:
         # stale firmware cache or ordinary reconnect timeout never does.
         if endpoint.startswith("usb:"):
             try:
-                current = resolve_usb_port(endpoint)
+                # Endpoint listings already have one complete descriptor
+                # snapshot. Never enumerate USB again for each offline row.
+                if usb_present is False:
+                    raise OSError("endpoint absent from USB snapshot")
+                current = item if usb_present else resolve_usb_port(endpoint)
             except OSError:
                 present = False
                 if state == "discovered":

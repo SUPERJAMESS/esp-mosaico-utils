@@ -20,10 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 class EventWriter:
-    MAX_ITEMS = 1024
+    MAX_ITEMS = 2048
     MAX_BYTES = 4 * 1024 * 1024
-    BATCH_ITEMS = 128
-    BATCH_BYTES = 512 * 1024
+    # Amortize Windows fsync/SQLite catalog work across a dual-CDC fleet.
+    # Device snapshots are shared within the existing four-MiB byte budget.
+    BATCH_ITEMS = 512
+    BATCH_BYTES = 2 * 1024 * 1024
+    CRITICAL_BYTES = 512 * 1024
+    BATCH_DELAY = 0.01
 
     def __init__(self, root: pathlib.Path, publish: Callable[[list[dict[str, Any]]], None], *,
                  max_items: int | None = None, max_bytes: int | None = None,
@@ -35,6 +39,7 @@ class EventWriter:
         self.max_event_bytes = max_event_bytes
         self.condition = threading.Condition()
         self.items: Any = deque()
+        self.pending_devices: dict[str, tuple[dict[str, Any], int, int]] = {}
         self.bytes = 0
         self.inflight = False
         self.closing = False
@@ -54,17 +59,26 @@ class EventWriter:
 
     def submit(self, category: str, item: dict[str, Any], device: dict[str, Any] | None,
                *, critical: bool = False) -> tuple[bool, Any]:
-        size = len(encode_json(item).encode()) + (len(encode_json(device).encode()) if device else 0)
+        size = len(encode_json(item).encode())
+        device_size = len(encode_json(device).encode()) if device else 0
+        device_id = str(device["device_id"]) if device else None
         future: concurrent.futures.Future[bool] | None = concurrent.futures.Future() if critical else None
         with self.condition:
             # Reserve a small amount of space for evidence acknowledgements.
-            extra_items, extra_bytes = (16, self.BATCH_BYTES) if critical else (0, 0)
-            if (self.closing or size > self.max_event_bytes or len(self.items) >= self.max_items + extra_items
-                    or self.bytes + size > self.max_bytes + extra_bytes):
+            extra_items, extra_bytes = (16, self.CRITICAL_BYTES) if critical else (0, 0)
+            previous = self.pending_devices.get(device_id) if device_id is not None else None
+            growth = size + device_size - (previous[1] if previous else 0)
+            if (self.closing or size + device_size > self.max_event_bytes or len(self.items) >= self.max_items + extra_items
+                    or self.bytes + growth > self.max_bytes + extra_bytes):
                 self._note_loss(item)
                 return False, None
-            self.items.append((size, category, item, device, future))
-            self.bytes += size
+            if device is not None and device_id is not None:
+                # Inventory persistence already coalesces each device to its
+                # latest snapshot. Do the same before queueing, instead of
+                # copying/counting dual-CDC metadata for every log fragment.
+                self.pending_devices[device_id] = (device, device_size, (previous[2] if previous else 0) + 1)
+            self.items.append((size, category, item, device_id, future))
+            self.bytes += growth
             self.condition.notify()
         return True, future
 
@@ -81,7 +95,8 @@ class EventWriter:
             old = self.lost_captures.get(capture)
             encoded = item["data_base64"]
             raw_size = len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip("=")))
-            self.lost_captures[capture] = (old[0] if old else start, start + raw_size)
+            end = start + raw_size
+            self.lost_captures[capture] = (min(old[0], start), max(old[1], end)) if old else (start, end)
             self.lost_captures.move_to_end(capture)
             while len(self.lost_captures) > 1024:
                 self.lost_captures.popitem(last=False)
@@ -92,17 +107,40 @@ class EventWriter:
                 self.condition.wait(timeout=0.05)
             if not self.items:
                 return []
+            # Amortize durable commits across bursts from multiple consoles.
+            # Critical evidence and shutdown bypass this small coalescing wait.
+            deadline = time.monotonic() + self.BATCH_DELAY
+            while (not self.closing and len(self.items) < self.BATCH_ITEMS and self.bytes < self.BATCH_BYTES
+                   and self.items[-1][4] is None):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                self.condition.wait(remaining)
             batch: list[Any] = []
+            devices: set[str] = set()
             size = 0
             while self.items and len(batch) < self.BATCH_ITEMS:
                 item = self.items[0]
+                device_id = item[3]
+                pending = self.pending_devices.get(device_id) if device_id is not None else None
+                cost = item[0] + (pending[1] if pending and device_id not in devices else 0)
                 special = item[2].get("kind") == "console_binding" or item[4] is not None
-                if batch and (special or size + item[0] > self.BATCH_BYTES):
+                if batch and (special or size + cost > self.BATCH_BYTES):
                     break
                 self.items.popleft()
                 self.bytes -= item[0]
-                size += item[0]
-                batch.append(item)
+                if pending:
+                    info, amount, references = pending
+                    devices.add(device_id)
+                    if references == 1:
+                        del self.pending_devices[device_id]
+                        self.bytes -= amount
+                    else:
+                        self.pending_devices[device_id] = (info, amount, references - 1)
+                else:
+                    info = None
+                size += cost
+                batch.append((item[0], item[1], item[2], info, item[4]))
                 if special:
                     break
             self.inflight = True
@@ -116,7 +154,9 @@ class EventWriter:
             store._loss_end_ns = self.loss_end
             store._pending_loss += self.pending_loss
             store._lost_events += self.pending_loss
-            store._lost_captures.update(self.lost_captures)
+            for capture, (start, end) in self.lost_captures.items():
+                old = store._lost_captures.get(capture)
+                store._lost_captures[capture] = (min(old[0], start), max(old[1], end)) if old else (start, end)
             self.pending_loss = 0
             self.lost_captures.clear()
 
@@ -190,6 +230,7 @@ class EventWriter:
                 self.closing = True
                 stranded = [*batch, *self.items]
                 self.items.clear()
+                self.pending_devices.clear()
                 self.bytes = 0
             for _, category, item, _, future in stranded:
                 with self.condition:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import os
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -13,6 +14,127 @@ from iris_gateway.event_writer import EventWriter
 from iris_gateway.gateway import GatewayService
 from iris_gateway.resource_limits import GatewayLimits
 from iris_gateway.store import GatewayStore
+
+
+def test_queued_inventory_is_shared_within_the_byte_budget(tmp_path, monkeypatch):
+    async def scenario():
+        store = GatewayStore(tmp_path)
+        service = GatewayService(store, instance_id="shared-snapshot",
+                                 limits=GatewayLimits(writer_items=16, writer_bytes=8192))
+        info = {"device_id": "device", "metadata": "x" * 4096, "app_version": "old"}
+        service.attach_hub(SimpleNamespace(list_devices=lambda: [dict(info)]))
+        entered, release = threading.Event(), threading.Event()
+        append = EventSegments.append
+
+        def delayed(self, rows):
+            entered.set()
+            assert release.wait(5)
+            return append(self, rows)
+
+        monkeypatch.setattr(EventSegments, "append", delayed)
+        try:
+            await service.on_device_event({"kind": "log", "text": "warmup"})
+            while not entered.is_set():
+                await asyncio.sleep(0.005)
+            for index in range(8):
+                info["app_version"] = str(index)
+                await service.on_device_event({"kind": "log", "device_id": "device", "text": str(index)})
+            snapshot = service._event_writer.snapshot()
+            assert snapshot["queued_events"] == 8 and snapshot["queued_bytes"] <= 8192
+            assert snapshot["dropped_events"] == 0
+            assert len(service._event_writer.pending_devices) == 1
+            release.set()
+            await service.flush_events()
+            assert service._event_writer.snapshot()["queued_bytes"] == 0
+            assert not service._event_writer.pending_devices
+            assert store.cached_devices()[0]["app_version"] == "7"
+            assert len(store.latest_events()) == 9
+        finally:
+            release.set()
+            await service.close_events()
+            store.close()
+
+    asyncio.run(scenario())
+
+
+def test_failed_older_batch_cannot_shrink_already_reported_console_gap(tmp_path):
+    store = GatewayStore(tmp_path)
+    capture = "b" * 32
+    raw = {"kind": "console_raw", "capture_id": capture, "endpoint": "uart:test",
+           "data_base64": base64.b64encode(b"data").decode()}
+    try:
+        store.record_event("console", {**raw, "offset": 0})
+        # A full producer queue reports a later gap before the earlier batch
+        # fails to commit on the worker. Both loss windows must survive.
+        store._lost_captures[capture] = (12, 16)
+        store._retry_events_at = float("inf")
+        store.record_event("console", {**raw, "offset": 4})
+        store.record_event("console", {**raw, "offset": 8})
+        assert store._lost_captures[capture] == (4, 16)
+        store._retry_events_at = 0
+        result = store.record_event("console", {**raw, "offset": 16})
+        gap = next(item for item in store.latest_events() if item["kind"] == "console_gap")
+        assert (gap["offset"], gap["end_offset"]) == (4, 16)
+        assert result[-1]["offset"] == 16 and "event_id" in result[-1]
+    finally:
+        store.close()
+
+
+def test_queued_console_bytes_between_lost_ranges_are_preserved(tmp_path):
+    store = GatewayStore(tmp_path)
+    capture = "c" * 32
+    raw = {"kind": "console_raw", "capture_id": capture, "endpoint": "uart:test",
+           "data_base64": base64.b64encode(b"data").decode()}
+    try:
+        store.append_event("console", {**raw, "offset": 0})
+        # While a batch waits, a full producer queue drops [4,8) and
+        # [12,16), but accepts [8,12). The loss bound includes that queued row.
+        store._lost_captures[capture] = (4, 16)
+        store.append_event("console", {**raw, "offset": 8})
+        store.append_event("console", {**raw, "offset": 16})
+        rows = store.latest_events()
+        assert [(item["offset"], item["end_offset"]) for item in rows if item["kind"] == "console_gap"] == [(4, 8), (12, 16)]
+        assert [item["offset"] for item in rows if item["kind"] == "console_raw"] == [0, 8, 16]
+    finally:
+        store.close()
+
+
+def test_sqlite_contention_preserves_batch_and_listings_do_not_write(tmp_path):
+    async def scenario():
+        store = GatewayStore(tmp_path)
+        service = GatewayService(store, instance_id="contention")
+        devices = [{"device_id": f"device-{index}", "session_id": index} for index in range(9)]
+        service.attach_hub(SimpleNamespace(list_devices=lambda: devices, active_mirrors=lambda _: [], list_endpoints=list))
+        # Initialize the worker before holding an independent state writer.
+        await service.on_device_event({"kind": "log", "text": "ready"})
+        await service.flush_events()
+        blocker = sqlite3.connect(tmp_path / "gateway.sqlite3")
+        blocker.execute("BEGIN IMMEDIATE")
+        try:
+            writes = store.db.total_changes
+            for _ in range(9):
+                assert len(service.list_devices()) == 9
+            assert store.db.total_changes == writes
+            for index in range(9):
+                await service.on_device_event({"kind": "log", "device_id": f"device-{index}", "text": str(index)})
+            # Longer than the diagnostics connection's 100 ms busy timeout.
+            # The loop must continue servicing requests while the batch waits.
+            for _ in range(30):
+                await asyncio.sleep(0.01)
+            assert service._event_writer.snapshot()["dropped_events"] == 0
+            blocker.rollback()
+            await asyncio.wait_for(service.flush_events(), 5)
+            snapshot = service._event_writer.snapshot()
+            assert snapshot["status"] == "ok" and snapshot["dropped_events"] == 0
+            assert snapshot["written_events"] == 10
+            assert len(store.cached_devices()) == 9
+            assert not any(row["kind"] == "history_gap" for row in store.latest_events())
+        finally:
+            blocker.close()
+            await service.close_events()
+            store.close()
+
+    asyncio.run(scenario())
 
 
 def test_slow_disk_does_not_block_loop_and_batches_coalesce_devices(tmp_path, monkeypatch):

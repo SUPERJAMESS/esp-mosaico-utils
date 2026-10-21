@@ -35,9 +35,27 @@ class EventStore:
 
     def append_batch(self, events: list[tuple[str, dict[str, Any], str | None]],
                      devices: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
-        with self.segments.lock:
-            self.segments.recover_pending()
+        # Retry only rolled-back SQLite contention, on the owning writer
+        # thread. Do not turn a brief state/progress commit into lost history.
+        deadline = time.monotonic() + 2.0
+        for attempt in range(20):
             try:
+                return self._append_batch(events, devices)
+            except sqlite3.OperationalError as exc:
+                # sqlite_errorcode is unavailable on supported Python 3.8.
+                code = getattr(exc, "sqlite_errorcode", None)
+                busy = (code is not None and (code & 0xff) in (5, 6)) or str(exc) in (
+                    "database is locked", "database table is locked")
+                if not busy or attempt == 19 or time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.01)
+        raise AssertionError("unreachable")
+
+    def _append_batch(self, events: list[tuple[str, dict[str, Any], str | None]],
+                      devices: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        with self.segments.lock:
+            try:
+                self.segments.recover_pending()
                 for device in devices or []:
                     self.state.remember_device(device, commit=False)
                 rows = []
@@ -71,10 +89,13 @@ class EventStore:
             row = self.db.execute("SELECT bytes_received FROM console_captures WHERE capture_id=?", (capture_id,)).fetchone()
             expected = int(row[0]) if row else 0
             lost = self._lost_captures.get(str(capture_id))
-            if offset != expected and (not lost or offset <= expected or lost[1] != offset):
+            if offset != expected and not (lost and lost[0] <= expected < offset <= lost[1]):
                 raise ValueError("raw console capture contains an offset gap")
-            if lost and lost[1] == offset:
-                gap = dict(payload, kind="console_gap", offset=min(expected, lost[0]), end_offset=offset,
+            if offset > expected:
+                # Queue overflow can drop several ranges with accepted bytes
+                # between them. Record only the missing prefix before this
+                # row, retaining the bound for later queued rows.
+                gap = dict(payload, kind="console_gap", offset=expected, end_offset=offset,
                            reason="event storage unavailable")
                 gap.pop("data_base64", None)
                 rows.append(("console", gap, device_id, host_ns))

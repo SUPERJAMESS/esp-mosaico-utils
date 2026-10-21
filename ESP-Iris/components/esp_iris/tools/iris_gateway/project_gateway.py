@@ -139,14 +139,14 @@ class ProjectGateway:
         finally:
             self.active[device_id] -= 1
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(self, *, endpoints: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         claims = self.registry.claims()
         return {"session": self.registry.session(self.registry.session_id),
                 "capability": CAPABILITY, "capabilities": [TAKEOVER_CAPABILITY], "closing": self.closing,
                 "lifecycle": self.clients.snapshot(self.keepalive_reasons()) if self.shared else None,
                 "pairing_configured": bool(self.pairing_token),
                 "busy": self.busy(), "sessions": self.registry.sessions(),
-                "claims": claims, "endpoints": self.service.list_endpoints(),
+                "claims": claims, "endpoints": self.service.list_endpoints() if endpoints is None else endpoints,
                 "takeovers": [public_record(self.registry.transfer(key)) for key in sorted({
                     item["transfer_id"] for item in claims if item["transfer_id"]
                 })]}
@@ -321,8 +321,10 @@ class ProjectGateway:
                 raise OwnershipConflict("device is draining for handoff")
         if not candidates:
             self.selection_error("No available endpoint for the selected Device ID.", [])
-        return await admit_candidates(self, candidates, str(device_id) if device_id else None,
-                                      token, float(body.get("timeout", 10)))
+        admitted = await admit_candidates(self, candidates, str(device_id) if device_id else None,
+                                          token, float(body.get("timeout", 10)))
+        self.service.store.remember_device(admitted)
+        return admitted
 
     async def prepare(self, body: dict[str, Any]) -> dict[str, Any]:
         device_id, target = str(body["device_id"]), str(body["target_session_id"])
@@ -373,7 +375,8 @@ class ProjectGateway:
         # A single verified transport is sufficient. Credentials stay local.
         endpoint = endpoints[0]
         await self.hub.connect_owned(endpoint["resource"], endpoint["metadata"], pairing_token=self.pairing_token)
-        await self.wait_device(result["device_id"], endpoint["resource"], 15)
+        admitted = await self.wait_device(result["device_id"], endpoint["resource"], 15)
+        self.service.store.remember_device(admitted)
         result = self.registry.complete(transfer_id, result["device_id"])
         self.audit(result)
         return result
@@ -407,7 +410,7 @@ class ProjectGateway:
                 raise PermissionError("project session control is local-only")
             action = request.match_info.get("action", "status")
             if request.method == "GET":
-                return web.json_response(self.snapshot())
+                return web.json_response(self.snapshot(endpoints=await self.service.endpoint_snapshot()))
             body = await request.json()
             if not isinstance(body, dict):
                 raise TypeError("project request must be an object")

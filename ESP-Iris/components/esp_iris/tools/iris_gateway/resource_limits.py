@@ -23,7 +23,7 @@ class GatewayLimits:
     subscriber_items: int = 1024
     subscriber_bytes: int = 1024 * 1024
     event_bytes: int = 256 * 1024
-    writer_items: int = 1024
+    writer_items: int = 2048
     writer_bytes: int = 4 * 1024 * 1024
     operations: int = 64
     operations_per_device: int = 8
