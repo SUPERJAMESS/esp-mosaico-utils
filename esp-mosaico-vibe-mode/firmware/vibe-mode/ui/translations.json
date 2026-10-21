@@ -494,5 +494,14 @@
   "Software Components": "软件组件",
   "New Key": "新建键名",
   "Close": "关闭",
-  "Wake": "唤醒"
+  "Wake": "唤醒",
+  "Scanning NAND...": "正在扫描 NAND…",
+  "Storage unavailable": "存储空间不可用",
+  "Open network": "开放",
+  "Key already exists": "该键名已存在",
+  "Run Current Build": "运行当前开发版",
+  "Save Current Build": "保存当前开发版",
+  "Idea Details": "Idea 详情",
+  "Update All": "全部更新",
+  "Join Network": "连接网络"
 }

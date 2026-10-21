@@ -171,9 +171,9 @@ def apply(scene):
         icon(gate,glyph,x,20,22)
 
     # Shared header geometry, with existing controller actions.
-    for p,title,back in ((15,'Wi-Fi','button_back_wifi'),(31,'Join network','button_back_password'),
+    for p,title,back in ((15,'Wi-Fi','button_back_wifi'),(31,'Join Network','button_back_password'),
                         (39,'TCP pairing','button_back_pairing'),(49,'Download Idea','button_back_bridge'),
-                        (59,'Manage','button_back_nand'),(69,'Idea details','button_back_confirm')):
+                        (59,'Manage','button_back_nand'),(69,'Idea Details','button_back_confirm')):
         for o in objects:
             if o.get('parent')==p and o['type']=='label' and not o.get('bind'): o['hidden']=True
         header(p,title,back)
@@ -206,8 +206,8 @@ def apply(scene):
     named['button_help_qr'].update(bg_color=RAISED,radius=20,text='')
     for key, glyph in (('qr','qr-20-white'), ('wifi','wifi-32-cream'), ('storage','storage-32-cream')):
         gate=add('layer',btn_hqr,0,0,432,84,name='help_action_'+key,bind='help_action_'+key+'_visible',bind_target='visible',hidden=key!='qr')
-        icon(gate,glyph,82,32,20)
-    text(btn_hqr,'help_qr_caption','Full guide on your phone',112,26,280,32,22,'medium',TEXT,'left')
+        icon(gate,glyph,66,32,20)
+    text(btn_hqr,'help_qr_caption','Full guide on your phone',96,26,316,32,22,'medium',TEXT,'left')
     help_fix=add('layer',help_page,0,0,480,480,name='help_fix_layer',bind='help_fix_layer_visible',bind_target='visible',hidden=True)
     for i,(title,sub,glyph,action) in enumerate((
             ('Wi-Fi Connection','Check networks and passwords','wifi','fix_wifi'),
@@ -216,8 +216,8 @@ def apply(scene):
         row(help_fix,'fix_'+str(i),title,sub,glyph+'-32-cream',96+88*i,action)
     btn_fqr=button(help_fix,'button_fix_qr','',24,380,432,84,action='fix_open_qr')
     named['button_fix_qr'].update(bg_color=RAISED,radius=20,text='')
-    icon(btn_fqr,'qr-20-white',82,32,20)
-    text(btn_fqr,'fix_qr_caption','Full guide on your phone',112,26,280,32,22,'medium',TEXT,'left')
+    icon(btn_fqr,'qr-20-white',66,32,20)
+    text(btn_fqr,'fix_qr_caption','Full guide on your phone',96,26,316,32,22,'medium',TEXT,'left')
 
     guide=add('layer',-1,0,0,480,480,name='guide',bind='guide_visible',bind_target='visible',hidden=True)
     header(guide,'View on your phone','button_back_guide',title_name='guide_heading')
@@ -243,13 +243,13 @@ def apply(scene):
     icon(p_boot,'globe-20-grey',244,252,20)
     text(p_boot,'boot_tip_url','mosaico.espressif.com/\nvibe/update',270,238,186,48,16,color=TEXT)
     text(p_boot,'boot_tip_how','Release Boot after entering ROM.',24,352,432,30,20,'sans',MUTED,'center')
-    rect(p_boot,24,398,184,36,'#33231E',10,border_color=ORANGE,border_width=1)
-    text(p_boot,'boot_key_1_num','1',34,404,22,24,18,'medium',ORANGE,'center')
-    text(p_boot,'boot_key_1_text','Hold Boot',60,402,140,28,18,'medium',TEXT)
+    rect(p_boot,24,398,168,36,'#33231E',10,border_color=ORANGE,border_width=1)
+    text(p_boot,'boot_key_1_num','1',32,404,22,24,18,'medium',ORANGE,'center')
+    text(p_boot,'boot_key_1_text','Hold Boot',56,402,130,28,18,'medium',TEXT,'center')
     icon(p_boot,'arrow_down-24-orange',96,444,24)
-    rect(p_boot,272,398,184,36,RAISED,10,border_color=LINE,border_width=1)
-    text(p_boot,'boot_key_2_num','2',282,404,22,24,18,'medium',MUTED,'center')
-    text(p_boot,'boot_key_2_text','Turn on',308,402,140,28,18,'medium',TEXT)
+    rect(p_boot,288,398,168,36,RAISED,10,border_color=LINE,border_width=1)
+    text(p_boot,'boot_key_2_num','2',296,404,22,24,18,'medium',MUTED,'center')
+    text(p_boot,'boot_key_2_text','Turn on',320,402,130,28,18,'medium',TEXT,'center')
     icon(p_boot,'arrow_down-24-white',360,444,24)
 
     p=index['develop']
@@ -270,8 +270,8 @@ def apply(scene):
         text(parent,subtitle_name or 'row_sub_'+name,subtitle,100,y+38,312,26,18,color=MUTED,overflow='ellipsis')
         icon(parent,'chevron-20-dim',424,y+26,20)
         click(parent,'button_'+name,16,y,448,72,action)
-    compact_row(p,'develop_run','Run current build','','play-32-cream',218,'run_development','develop_run_detail')
-    compact_row(p,'develop_save','Save current build','','storage-32-cream',296,'save_development','develop_save_detail')
+    compact_row(p,'develop_run','Run Current Build','','play-32-cream',218,'run_development','develop_run_detail')
+    compact_row(p,'develop_save','Save Current Build','','storage-32-cream',296,'save_development','develop_save_detail')
     compact_row(p,'develop_guide','Vibe-code an Idea','Scan for the coding guide','code-32-cream',374,'show_guide')
     text(p,'develop_feedback','',24,450,432,26,18,color=MUTED,align='center')
 
@@ -387,7 +387,7 @@ def apply(scene):
     text(69,'local_status','On this device',124,133,332,32,22,'medium')
     text(69,'release_detail','',124,169,332,40,20,color=MUTED)
     rect(69,24,214,432,1,LINE,0);rect(69,24,232,4,76,ORANGE,0)
-    text(69,'release_path','',32,228,416,80,22,color=MUTED,overflow='ellipsis')
+    text(69,'release_path','',32,228,416,80,22,color=MUTED)
     button(69,'button_check_idea','Check updates',24,314,208,36)
     named['button_check_idea'].update(font=FONT['sans'],font_size=18)
     button(69,'button_preview_idea','View info',248,314,208,36)
@@ -412,7 +412,7 @@ def apply(scene):
         text(parent,name+'_caption',title,4,53,200,34,24,'medium',BG if action=='install' else RED,'center')
     # The update check opens the real remote preview with the download action.
     # The controller exposes Update only when the selected release has an update.
-    header(117,'Idea details','button_back_remote')
+    header(117,'Idea Details','button_back_remote')
     click(117,'button_back_remote',2,6,84,84,'cancel_idea')
     hide('idea_heading');hide('heading_117')
     # Reflow published title glyphs into a native single-line cache. The header
@@ -464,11 +464,11 @@ def apply(scene):
     text(gate,'timeout_title','SCREEN OFF AFTER',32,116,424,28,20,'medium',color=MUTED)
     for i in range(5):
         move('button_brightness_'+str(i),24+i*88,32,80,72,parent=gate,font_size=22,font=FONT['medium'],bg_color=RAISED,radius=24)
-        move('button_timeout_'+str(i),24+i*88,148,80,72,parent=gate,font_size=22,font=FONT['medium'],bg_color=RAISED,radius=24)
+        move('button_timeout_'+str(i),24+i*88,148,80,72,parent=gate,font_size=20,font=FONT['medium'],bg_color=RAISED,radius=24)
         for kind,y in (('brightness',32),('timeout',148)):
             selected=add('layer',gate,0,0,480,412,name=f'{kind}_selected_{i}',bind=f'{kind}_selected_{i}_visible',bind_target='visible',hidden=True)
             rect(selected,24+i*88,y,80,72,TEXT,24)
-            text(selected,f'{kind}_selected_{i}_label',named[f'button_{kind}_{i}']['text'],24+i*88,y+20,80,32,22,'medium',BG,'center')
+            text(selected,f'{kind}_selected_{i}_label',named[f'button_{kind}_{i}']['text'],24+i*88,y+20,80,32,20 if kind=='timeout' else 22,'medium',BG,'center')
     for j,(name,title,sub,glyph) in enumerate((('rotate','Auto-Rotate','Follows how you hold it','rotate'),('haptics','Haptic Feedback','Touch feedback','haptic'))):
         y=236+j*88
         row(gate,'display_0_'+name,title,sub,glyph+'-32-cream',y,'toggle_'+name,'display_'+name+'_sub')
@@ -540,6 +540,7 @@ def apply(scene):
         if i:rect(viewport,36,44*i,408,1,LINE,0)
     row(viewport,'about_check','Update Vibe Mode','Check updates','upgrade-32-orange',188,'firmware_check','about_check')
     row(viewport,'about_licenses','Open-Source Licenses','Components used in Vibe Mode','hash-32-cream',276,'licenses')
+    named['row_title_about_licenses']['font_size']=22
     row(viewport,'about_download','Find Ideas','Browse Mosaico Ideas','globe-32-cream',364,'download')
 
     def info_page(name,title):
@@ -561,8 +562,8 @@ def apply(scene):
         text(body,f'licenses_comp_{idx}',comp,32,cy+10,416,30,22,'medium')
         text(body,f'licenses_lic_{idx}',lic,32,cy+44,416,28,20,color=MUTED)
     rect(body,24,660,432,1,LINE,0)
-    text(body,'licenses_body_8','Other components retain their own licenses and copyright notices.',24,676,432,60,20,color=MUTED)
-    text(body,'licenses_body_248','Full terms and copyright notices are in each project\'s license files.',24,740,432,60,20,color=MUTED)
+    text(body,'licenses_body_8','Other components retain their own licenses and copyright notices.',20,676,440,60,20,color=MUTED)
+    text(body,'licenses_body_248','Full terms and copyright notices are in each project\'s license files.',20,740,440,60,20,color=MUTED)
     text(body,'licenses_heading_488','',24,800,424,10,16,hidden=True)
     text(body,'licenses_body_488','',24,800,424,10,16,hidden=True)
     shared_help=info_page('shared_help','Shared Info')
@@ -578,10 +579,6 @@ def apply(scene):
     detail=info_page('shared_detail','Shared Info')
     row(detail,'shared_detail_key','Key','','key-32-cream',96,'shared_help','shared_detail_key')
     row(detail,'shared_detail_value','Value','','id-32-cream',184,'shared_edit','shared_detail_value')
-    sys_ui=add('layer',detail,0,0,480,480,name='shared_detail_sys_ui',bind='shared_detail_sys_visible',bind_target='visible',hidden=True)
-    rect(sys_ui,30,110,52,52,ICON_BG,16)
-    icon(sys_ui,'lock-32-cream',40,120,32)
-    rect(sys_ui,416,120,32,32,CARD,0)
     eye_gate=add('layer',detail,0,0,480,480,name='shared_detail_eye_gate',bind='button_shared_detail_reveal_visible',bind_target='visible',hidden=True)
     rect(eye_gate,380,198,68,52,RAISED,14)
     icon(eye_gate,'eye-32-white',398,208,32)
@@ -589,6 +586,10 @@ def apply(scene):
     rect(detail,24,276,432,88,CARD,14,border_color=LINE,border_width=1)
     text(detail,'shared_detail_note','Tap Value to edit this entry.',36,282,408,76,20,color=MUTED)
     button(detail,'button_shared_detail_delete','Delete entry',24,380,432,84,danger=True,action='shared_delete')
+    sys_ui=add('layer',detail,0,0,480,480,name='shared_detail_sys_ui',bind='shared_detail_sys_visible',bind_target='visible',hidden=True)
+    rect(sys_ui,30,110,52,52,ICON_BG,16)
+    icon(sys_ui,'lock-32-cream',40,120,32)
+    rect(sys_ui,416,120,32,32,CARD,0)
     rect(sys_ui,24,380,432,84,ORANGE,18)
     text(sys_ui,'shared_detail_open_settings_label','Open Settings',40,404,400,36,24,'medium',BG,'center')
 
@@ -603,7 +604,7 @@ def apply(scene):
     text(p,'open_key_pwr_num','1',330,449,24,24,18,'medium',BG,'center')
     icon(p,'arrow_down-24-white',360,450,24)
     rect(p,24,34,432,410,CARD,24,border_color=LINE,border_width=1)
-    text(p,'open_question','Running Leaves Vibe Mode',48,48,384,34,24,'title')
+    text(p,'open_question','Running Leaves Vibe Mode',48,48,384,34,24,'medium')
     text(p,'open_name','',48,84,384,28,20,overflow='marquee')
     add('image',p,48,84,384,28,name='open_name_pixels',bind='open_name_pixels',bind_target='resource',dynamic_image=True,hidden=True,overflow='marquee')
     rect(p,48,118,384,1,LINE,0)
@@ -706,11 +707,11 @@ def apply(scene):
 
     p=add('layer',-1,0,0,480,480,name='update_confirm',bind='update_confirm_visible',
           bind_target='visible',hidden=True,bg_color=BG)
-    header(p,'Update all','button_back_update_confirm',24,'medium')
+    header(p,'Update All','button_back_update_confirm',24,'medium')
     text(p,'update_confirm_question','Update all saved Ideas?',24,132,432,64,24,'medium')
     text(p,'update_confirm_note','Download available updates to My Ideas.',24,216,432,96,22,color=MUTED)
     button(p,'button_update_all_cancel','Cancel',24,380,208,84,action='product_back')
-    button(p,'button_update_all_accept','Update all',248,380,208,84,primary=True,action='update_all_accept')
+    button(p,'button_update_all_accept','Update All',248,380,208,84,primary=True,action='update_all_accept')
 
     button(59,'button_format_nand','Format NAND',24,380,432,84,danger=True,action='format_nand')
     p=add('layer',-1,0,0,480,480,name='format_nand_confirm',bind='format_nand_confirm_visible',
@@ -733,13 +734,16 @@ def apply(scene):
             for r_idx,(r_key,r_val) in enumerate((('Ideas','Kept on this device'),('Wi-Fi','Not connected'),('Shared Info','0 entries'),('Settings','Display & haptics, language'))):
                 ry=124+r_idx*43
                 if r_idx: rect(p,36,ry,408,1,LINE,0)
-                text(p,f'reset_key_{r_idx}',r_key,36,ry+8,144,28,20,color=MUTED)
-                text(p,f'reset_val_{r_idx}',r_val,184,ry+8,260,28,20,color=TEXT,align='right',overflow='ellipsis')
-            add('progress',p,24,348,432,96,name='reset_hold_progress',bind='reset_hold_progress',
-                bind_target='value',bg_color=RAISED,fg_color='#612629',radius=20)
-        button(p,'button_reset_hold' if name=='reset' else 'button_delete_hold','Hold to reset' if name=='reset' else 'Hold to delete',24,348,432,96,danger=True)
-        if name=='reset':
-            named['button_reset_hold']['bg_color']='#00000001'
+                kw = 112 if r_idx == 3 else 144
+                vx, vw = (152, 292) if r_idx == 3 else (184, 260)
+                text(p,f'reset_key_{r_idx}',r_key,36,ry+8,kw,28,20,color=MUTED)
+                text(p,f'reset_val_{r_idx}',r_val,vx,ry+8,vw,28,20,color=TEXT,align='right',overflow='ellipsis')
+        prog_name = 'reset_hold_progress' if name=='reset' else 'delete_hold_progress'
+        add('progress',p,24,348,432,96,name=prog_name,bind=prog_name,
+            bind_target='value',bg_color=RAISED,fg_color='#612629',radius=20)
+        btn_name = 'button_reset_hold' if name=='reset' else 'button_delete_hold'
+        button(p,btn_name,'Hold to reset' if name=='reset' else 'Hold to delete',24,348,432,96,danger=True)
+        named[btn_name]['bg_color']='#00000001'
 
     # Display only: keep the product's existing timeout, brightness and wake policy.
     p=index['sleep']
@@ -767,7 +771,7 @@ def apply(scene):
 
     # Unify legacy detail labels with the reviewed title/body styles.
     for o in objects:
-        if o.get('type')=='button' and o.get('font_size')==22:
+        if o.get('type')=='button' and o.get('font_size')==22 and not o.get('name','').startswith(('button_brightness_','button_timeout_')):
             o['font_size']=24
 
     # The source retains invisible compatibility bindings; don't spend glyph
@@ -831,9 +835,10 @@ def runtime_charsets(root, translations):
     values.setdefault('firmware_phase', set()).update(('Downloading firmware', 'Verifying firmware', 'Writing firmware', 'Restarting Vibe Mode'))
     for i in range(6):values.setdefault('cell_name_'+str(i),set()).add('Add Idea')
     values.setdefault('bundles_detail',set()).update(('Current','Update available','Updating · %u%%','Waiting'))
+    values.setdefault('networks_detail',set()).update(('Open network','Secured'))
     # Direct text projection in project_shared is outside TEXT/FORMAT macros.
     values.setdefault('shared_value',set()).add('Enter text')
-    values.setdefault('shared_field',set()).update(('Saving settings...','Please use a-z, 0-9 and _'))
+    values.setdefault('shared_field',set()).update(('Saving settings...','Please use a-z, 0-9 and _','Key already exists'))
     values.setdefault('shared_submit_label',set()).update(('Next','Save'))
     values.setdefault('shared_reveal_label',set()).update(('Show','Hide'))
     values.setdefault('button_shared_detail_delete',set()).update(('Delete entry','Open Settings'))

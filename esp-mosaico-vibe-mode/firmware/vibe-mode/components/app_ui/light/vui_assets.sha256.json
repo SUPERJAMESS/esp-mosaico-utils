@@ -1,9 +1,9 @@
 {
-  "components/app_ui/light/vui_assets.bin": "d9b230997bdec5d928fa7fc6302f93e3b31fa9bf02958728faf902aa2315a574",
-  "components/app_ui/private/vui_ids.h": "17cc419a51e788d0b2e9b8e43060bfd74f629bc942553be148613e64fd12f3df",
-  "tools/build_vibe_ui.py": "c258f13c934054d8425626130115df64426cb800f700e1c71bab047c2f0809ef",
+  "components/app_ui/light/vui_assets.bin": "f1f91ca05012516d807c672b0b28b845a8d22ffc2d138c2de6b967da2434c6ce",
+  "components/app_ui/private/vui_ids.h": "8ad34249fe369983d1128b8b0fc5305410ca7fa61fce9edbc027c9cf38019757",
+  "tools/build_vibe_ui.py": "77ed42a6b14a1832abb8bc65370e375ea1af6c2f8784e6282996af99d89c2d30",
   "tools/compile_vui.py": "85d192ec4827c7466cca144d7e4a7d4dfa8d340856e1a91ad726ea3c1b8c255f",
-  "tools/vibe_design.py": "8b6c41dfd9663b0c28c99975c2d438baea401df2315d9b31247dc62c7bd10cf5",
+  "tools/vibe_design.py": "b9098ef59e36782d6b069d0d27a4d00cb04e3d644dca7cd701058f2116ff0923",
   "ui/assets/icons/arrow-28-orange.png": "4b4df4c7fd4d4f63a9e0fbb18dbf4af2a9c51698c2daa8077aef70e01be25a8b",
   "ui/assets/icons/arrow_down-24-orange.png": "4b77f56a6c11a43e08b150cb126c1d15355e9bd55d32b4ba2631021900a6401a",
   "ui/assets/icons/arrow_down-24-white.png": "bfa507e952456b9b9d3b60bfbcf03d97a9166b2e1ad5b3c59078fc51cfcc78b8",
@@ -78,8 +78,8 @@
   "ui/fonts/VibeDisplay.otf": "e903cb1aca42573bd7a85098dd21c5c28ef63e6bf977699c543f5286322d83d4",
   "ui/fonts/VibeInter.otf": "661a1551574f35ce28ad1af334ddde8115e2889629ca9a5df34dd4bba45482a3",
   "ui/fonts/VibeMedium.otf": "b2d2b5a925e62fab93c3118303c6bf9d897a1aaf15e68c16a8ba6d6107e0d83d",
-  "ui/main.json": "6ad4d8be41b695810106ce36b8fe36172deb84f0c3b083c0e308906daa359e9c",
+  "ui/main.json": "7e736f4ed35aa38bce6d33032ed36b4a3c6ce4665565e2934a997b1514cf8b66",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3",
-  "ui/translations.json": "297433280f2db50dcb02fec86f3c24e37c614e1a4b91426e51e00de5b9f99758"
+  "ui/translations.json": "65abdb5c176ef1b5f2521b7318291e2cd30a074ce0f714fed70dd43e1a7e5f43"
 }

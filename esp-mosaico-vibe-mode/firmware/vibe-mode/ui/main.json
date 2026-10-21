@@ -2918,7 +2918,7 @@
       "h": 40,
       "name": "heading_31",
       "bind": "heading_31",
-      "text": "Join network",
+      "text": "Join Network",
       "font_size": 16,
       "font": "fonts/VibeInter.otf",
       "fg_color": "#F3F4F2",
@@ -3164,7 +3164,7 @@
       "h": 40,
       "name": "heading_69",
       "bind": "heading_69",
-      "text": "Idea details",
+      "text": "Idea Details",
       "font_size": 16,
       "font": "fonts/VibeInter.otf",
       "fg_color": "#F3F4F2",
@@ -4367,7 +4367,7 @@
     {
       "type": "image",
       "parent": 292,
-      "x": 82,
+      "x": 66,
       "y": 32,
       "w": 20,
       "h": 20,
@@ -4388,7 +4388,7 @@
     {
       "type": "image",
       "parent": 294,
-      "x": 82,
+      "x": 66,
       "y": 32,
       "w": 20,
       "h": 20,
@@ -4409,7 +4409,7 @@
     {
       "type": "image",
       "parent": 296,
-      "x": 82,
+      "x": 66,
       "y": 32,
       "w": 20,
       "h": 20,
@@ -4418,9 +4418,9 @@
     {
       "type": "label",
       "parent": 291,
-      "x": 112,
+      "x": 96,
       "y": 26,
-      "w": 280,
+      "w": 316,
       "h": 32,
       "name": "help_qr_caption",
       "bind": "help_qr_caption",
@@ -4737,7 +4737,7 @@
     {
       "type": "image",
       "parent": 321,
-      "x": 82,
+      "x": 66,
       "y": 32,
       "w": 20,
       "h": 20,
@@ -4746,9 +4746,9 @@
     {
       "type": "label",
       "parent": 321,
-      "x": 112,
+      "x": 96,
       "y": 26,
-      "w": 280,
+      "w": 316,
       "h": 32,
       "name": "fix_qr_caption",
       "bind": "fix_qr_caption",
@@ -5117,7 +5117,7 @@
       "parent": 112,
       "x": 24,
       "y": 398,
-      "w": 184,
+      "w": 168,
       "h": 36,
       "bg_color": "#33231E",
       "radius": 10,
@@ -5127,7 +5127,7 @@
     {
       "type": "label",
       "parent": 112,
-      "x": 34,
+      "x": 32,
       "y": 404,
       "w": 22,
       "h": 24,
@@ -5143,9 +5143,9 @@
     {
       "type": "label",
       "parent": 112,
-      "x": 60,
+      "x": 56,
       "y": 402,
-      "w": 140,
+      "w": 130,
       "h": 28,
       "name": "boot_key_1_text",
       "bind": "boot_key_1_text",
@@ -5153,7 +5153,7 @@
       "font_size": 18,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#F3F4F2",
-      "text_align": "left",
+      "text_align": "center",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Hold Boot按住 Boot 键"
     },
     {
@@ -5168,9 +5168,9 @@
     {
       "type": "container",
       "parent": 112,
-      "x": 272,
+      "x": 288,
       "y": 398,
-      "w": 184,
+      "w": 168,
       "h": 36,
       "bg_color": "#272A2D",
       "radius": 10,
@@ -5180,7 +5180,7 @@
     {
       "type": "label",
       "parent": 112,
-      "x": 282,
+      "x": 296,
       "y": 404,
       "w": 22,
       "h": 24,
@@ -5196,9 +5196,9 @@
     {
       "type": "label",
       "parent": 112,
-      "x": 308,
+      "x": 320,
       "y": 402,
-      "w": 140,
+      "w": 130,
       "h": 28,
       "name": "boot_key_2_text",
       "bind": "boot_key_2_text",
@@ -5206,7 +5206,7 @@
       "font_size": 18,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#F3F4F2",
-      "text_align": "left",
+      "text_align": "center",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Turn on再开机"
     },
     {
@@ -5409,13 +5409,13 @@
       "h": 32,
       "name": "row_title_develop_run",
       "bind": "row_title_develop_run",
-      "text": "Run current build",
+      "text": "Run Current Build",
       "font_size": 24,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#F3F4F2",
       "text_align": "left",
       "overflow": "ellipsis",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Run current build运行当前开发版"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Run Current Build运行当前开发版"
     },
     {
       "type": "label",
@@ -5498,13 +5498,13 @@
       "h": 32,
       "name": "row_title_develop_save",
       "bind": "row_title_develop_save",
-      "text": "Save current build",
+      "text": "Save Current Build",
       "font_size": 24,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#F3F4F2",
       "text_align": "left",
       "overflow": "ellipsis",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Save current build保存当前开发版"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Save Current Build保存当前开发版"
     },
     {
       "type": "label",
@@ -6658,7 +6658,7 @@
     },
     {
       "type": "button",
-      "parent": 1295,
+      "parent": 1283,
       "x": 332,
       "y": 405,
       "w": 108,
@@ -7915,12 +7915,11 @@
       "name": "release_path",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文            CIIIVaaaaaaccddddddeeeeeeeeeeeffhiiiilmnnnnnnnooooprrrrstttttuw不与介删前名当查的看称绍能除",
       "font": "fonts/VibeInter.otf",
-      "hidden": false,
-      "overflow": "ellipsis"
+      "hidden": false
     },
     {
       "type": "button",
-      "parent": 1298,
+      "parent": 1286,
       "x": 24,
       "y": 314,
       "w": 208,
@@ -7970,7 +7969,7 @@
     },
     {
       "type": "button",
-      "parent": 1299,
+      "parent": 1287,
       "x": 24,
       "y": 360,
       "w": 136,
@@ -8020,7 +8019,7 @@
     },
     {
       "type": "button",
-      "parent": 1297,
+      "parent": 1285,
       "x": 320,
       "y": 360,
       "w": 136,
@@ -8192,7 +8191,7 @@
     },
     {
       "type": "button",
-      "parent": 1296,
+      "parent": 1284,
       "x": 248,
       "y": 360,
       "w": 208,
@@ -8267,7 +8266,7 @@
       "h": 40,
       "name": "heading_117",
       "bind": "heading_117",
-      "text": "Idea details",
+      "text": "Idea Details",
       "font_size": 16,
       "font": "fonts/VibeInter.otf",
       "fg_color": "#F3F4F2",
@@ -8357,7 +8356,7 @@
       "text_align": "left",
       "name": "idea_status",
       "bind": "idea_status",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文            ACIIIIMMSSaaaaaaaaaaaabdddddddddeeeeeeeeeefgiiiillllmnnnnnooooorrrsssttuvvvwyyy下保保到后在存存已已我我的的确经认载",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文            ACIIIIMMSSaaaaaaaaaaaabdddddddddeeeeeeeeeefgiiiillllmnnnnnooooorrrsssttuvvvwyyy下不保保储到可后在存存存已已我我用的的确空经认载间",
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "overflow": "ellipsis"
@@ -8491,7 +8490,7 @@
     },
     {
       "type": "button",
-      "parent": 1300,
+      "parent": 1288,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -8829,7 +8828,7 @@
       "font": "fonts/VibeDisplay.otf",
       "fg_color": "#F3F4F2",
       "text_align": "center",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Choose Your Language选择语言"
+      "font_charset": "Choose Your Language"
     },
     {
       "type": "label",
@@ -8861,7 +8860,7 @@
       "font": "fonts/VibeInter.otf",
       "fg_color": "#B2B7BA",
       "text_align": "center",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Change later in Settings.之后可在「设置」里更改。"
+      "font_charset": "Change later in Settings."
     },
     {
       "type": "label",
@@ -8934,7 +8933,7 @@
       "name": "button_brightness_0",
       "bind": "brightness_0_label",
       "text": "20%",
-      "font_size": 24,
+      "font_size": 22,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -8960,7 +8959,7 @@
       "name": "button_timeout_0",
       "bind": "timeout_0_label",
       "text": "1 min",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9046,7 +9045,7 @@
       "name": "timeout_selected_0_label",
       "bind": "timeout_selected_0_label",
       "text": "1 min",
-      "font_size": 22,
+      "font_size": 20,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#090A0B",
       "text_align": "center",
@@ -9062,7 +9061,7 @@
       "name": "button_brightness_1",
       "bind": "brightness_1_label",
       "text": "40%",
-      "font_size": 24,
+      "font_size": 22,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9088,7 +9087,7 @@
       "name": "button_timeout_1",
       "bind": "timeout_1_label",
       "text": "3 min",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9174,7 +9173,7 @@
       "name": "timeout_selected_1_label",
       "bind": "timeout_selected_1_label",
       "text": "3 min",
-      "font_size": 22,
+      "font_size": 20,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#090A0B",
       "text_align": "center",
@@ -9190,7 +9189,7 @@
       "name": "button_brightness_2",
       "bind": "brightness_2_label",
       "text": "60%",
-      "font_size": 24,
+      "font_size": 22,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9216,7 +9215,7 @@
       "name": "button_timeout_2",
       "bind": "timeout_2_label",
       "text": "5 min",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9302,7 +9301,7 @@
       "name": "timeout_selected_2_label",
       "bind": "timeout_selected_2_label",
       "text": "5 min",
-      "font_size": 22,
+      "font_size": 20,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#090A0B",
       "text_align": "center",
@@ -9318,7 +9317,7 @@
       "name": "button_brightness_3",
       "bind": "brightness_3_label",
       "text": "80%",
-      "font_size": 24,
+      "font_size": 22,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9344,7 +9343,7 @@
       "name": "button_timeout_3",
       "bind": "timeout_3_label",
       "text": "10 min",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9430,7 +9429,7 @@
       "name": "timeout_selected_3_label",
       "bind": "timeout_selected_3_label",
       "text": "10 min",
-      "font_size": 22,
+      "font_size": 20,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#090A0B",
       "text_align": "center",
@@ -9446,7 +9445,7 @@
       "name": "button_brightness_4",
       "bind": "brightness_4_label",
       "text": "100%",
-      "font_size": 24,
+      "font_size": 22,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9472,7 +9471,7 @@
       "name": "button_timeout_4",
       "bind": "timeout_4_label",
       "text": "Never",
-      "font_size": 24,
+      "font_size": 20,
       "fg_color": "#F3F4F2",
       "bg_color": "#272A2D",
       "radius": 24,
@@ -9558,7 +9557,7 @@
       "name": "timeout_selected_4_label",
       "bind": "timeout_selected_4_label",
       "text": "Never",
-      "font_size": 22,
+      "font_size": 20,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#090A0B",
       "text_align": "center",
@@ -12856,11 +12855,11 @@
       "text_align": "left",
       "font": "fonts/VibeInter.otf",
       "hidden": false,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Key键名                             ,,--------....000011559999EIIPS___aaaaaaaaaaaaaaacccdddddeeeeeeeeeegghhiiillnnnnnoprrrrsssssstttttuuuvvvyzzzz··…、、。下个仅以保值划取可和和在多字存所持支最有正此符线置设读都"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Key键名                               ,,--------....000011559999EIIKPS___aaaaaaaaaaaaaaaaacccddddddeeeeeeeeeeeeegghhiiiilllnnnnnoprrrrrssssssssttttttuuuvvvxyyyzzzz··…、、。下个仅以保值划取可名和和在在多字存存已所持支最有正此符线置设该读都键"
     },
     {
       "type": "button",
-      "parent": 1301,
+      "parent": 1289,
       "x": 388,
       "y": 96,
       "w": 68,
@@ -12926,7 +12925,7 @@
     },
     {
       "type": "button",
-      "parent": 1302,
+      "parent": 1290,
       "x": 352,
       "y": 28,
       "w": 104,
@@ -13317,7 +13316,7 @@
       "name": "row_title_about_licenses",
       "bind": "row_title_about_licenses",
       "text": "Open-Source Licenses",
-      "font_size": 24,
+      "font_size": 22,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#F3F4F2",
       "text_align": "left",
@@ -13838,9 +13837,9 @@
     {
       "type": "label",
       "parent": 951,
-      "x": 24,
+      "x": 20,
       "y": 676,
-      "w": 432,
+      "w": 440,
       "h": 60,
       "name": "licenses_body_8",
       "bind": "licenses_body_8",
@@ -13854,9 +13853,9 @@
     {
       "type": "label",
       "parent": 951,
-      "x": 24,
+      "x": 20,
       "y": 740,
-      "w": 432,
+      "w": 440,
       "h": 60,
       "name": "licenses_body_248",
       "bind": "licenses_body_248",
@@ -14352,47 +14351,6 @@
       "y": 0,
       "w": 480,
       "h": 480,
-      "name": "shared_detail_sys_ui",
-      "bind": "shared_detail_sys_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
-      "type": "container",
-      "parent": 1010,
-      "x": 30,
-      "y": 110,
-      "w": 52,
-      "h": 52,
-      "bg_color": "#202326",
-      "radius": 16
-    },
-    {
-      "type": "image",
-      "parent": 1010,
-      "x": 40,
-      "y": 120,
-      "w": 32,
-      "h": 32,
-      "image": "assets/icons/lock-32-cream.png"
-    },
-    {
-      "type": "container",
-      "parent": 1010,
-      "x": 416,
-      "y": 120,
-      "w": 32,
-      "h": 32,
-      "bg_color": "#191B1D",
-      "radius": 0
-    },
-    {
-      "type": "layer",
-      "parent": 991,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
       "name": "shared_detail_eye_gate",
       "bind": "button_shared_detail_reveal_visible",
       "bind_target": "visible",
@@ -14400,7 +14358,7 @@
     },
     {
       "type": "container",
-      "parent": 1014,
+      "parent": 1010,
       "x": 380,
       "y": 198,
       "w": 68,
@@ -14410,7 +14368,7 @@
     },
     {
       "type": "image",
-      "parent": 1014,
+      "parent": 1010,
       "x": 398,
       "y": 208,
       "w": 32,
@@ -14419,7 +14377,7 @@
     },
     {
       "type": "button",
-      "parent": 1014,
+      "parent": 1010,
       "x": 372,
       "y": 190,
       "w": 84,
@@ -14484,11 +14442,52 @@
         }
       ],
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Delete entry删除条目",
-      "bind": "static_1020"
+      "bind": "static_1016"
+    },
+    {
+      "type": "layer",
+      "parent": 991,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "shared_detail_sys_ui",
+      "bind": "shared_detail_sys_visible",
+      "bind_target": "visible",
+      "hidden": true
     },
     {
       "type": "container",
-      "parent": 1010,
+      "parent": 1017,
+      "x": 30,
+      "y": 110,
+      "w": 52,
+      "h": 52,
+      "bg_color": "#202326",
+      "radius": 16
+    },
+    {
+      "type": "image",
+      "parent": 1017,
+      "x": 40,
+      "y": 120,
+      "w": 32,
+      "h": 32,
+      "image": "assets/icons/lock-32-cream.png"
+    },
+    {
+      "type": "container",
+      "parent": 1017,
+      "x": 416,
+      "y": 120,
+      "w": 32,
+      "h": 32,
+      "bg_color": "#191B1D",
+      "radius": 0
+    },
+    {
+      "type": "container",
+      "parent": 1017,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -14498,7 +14497,7 @@
     },
     {
       "type": "label",
-      "parent": 1010,
+      "parent": 1017,
       "x": 40,
       "y": 404,
       "w": 400,
@@ -14607,7 +14606,7 @@
       "font_size": 24,
       "fg_color": "#F3F4F2",
       "text_align": "left",
-      "font": "fonts/VibeDisplay.otf",
+      "font": "fonts/VibeMedium.otf",
       "hidden": false,
       "font_charset": "Running Leaves Vibe Mode运行后将离开 Vibe Mode"
     },
@@ -14831,7 +14830,7 @@
     },
     {
       "type": "button",
-      "parent": 1290,
+      "parent": 1278,
       "x": 48,
       "y": 294,
       "w": 384,
@@ -14989,7 +14988,7 @@
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#090A0B",
       "text_align": "left",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Run运行 PRaaeeilnstuw候稍行请运"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Run运行Rnu行运"
     },
     {
       "type": "button",
@@ -15093,7 +15092,7 @@
     },
     {
       "type": "button",
-      "parent": 1309,
+      "parent": 1297,
       "x": 30,
       "y": 69,
       "w": 124,
@@ -15134,7 +15133,7 @@
     },
     {
       "type": "image",
-      "parent": 1303,
+      "parent": 1291,
       "x": 38,
       "y": 77,
       "w": 108,
@@ -15180,20 +15179,8 @@
       "text_align": "center"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_update_0",
-      "bind": "cell_update_0_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1067,
+      "parent": 1303,
       "x": 124,
       "y": 73,
       "w": 26,
@@ -15203,7 +15190,7 @@
     },
     {
       "type": "image",
-      "parent": 1067,
+      "parent": 1303,
       "x": 127,
       "y": 76,
       "w": 20,
@@ -15211,20 +15198,8 @@
       "image": "assets/icons/refresh-20-black.png"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_add_0",
-      "bind": "cell_add_0_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1070,
+      "parent": 1309,
       "x": 38,
       "y": 77,
       "w": 108,
@@ -15236,7 +15211,7 @@
     },
     {
       "type": "container",
-      "parent": 1070,
+      "parent": 1309,
       "x": 72,
       "y": 128,
       "w": 40,
@@ -15246,7 +15221,7 @@
     },
     {
       "type": "container",
-      "parent": 1070,
+      "parent": 1309,
       "x": 89,
       "y": 111,
       "w": 6,
@@ -15272,7 +15247,7 @@
     },
     {
       "type": "button",
-      "parent": 1310,
+      "parent": 1298,
       "x": 178,
       "y": 69,
       "w": 124,
@@ -15313,7 +15288,7 @@
     },
     {
       "type": "image",
-      "parent": 1304,
+      "parent": 1292,
       "x": 186,
       "y": 77,
       "w": 108,
@@ -15359,20 +15334,8 @@
       "text_align": "center"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_update_1",
-      "bind": "cell_update_1_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1080,
+      "parent": 1304,
       "x": 272,
       "y": 73,
       "w": 26,
@@ -15382,7 +15345,7 @@
     },
     {
       "type": "image",
-      "parent": 1080,
+      "parent": 1304,
       "x": 275,
       "y": 76,
       "w": 20,
@@ -15390,20 +15353,8 @@
       "image": "assets/icons/refresh-20-black.png"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_add_1",
-      "bind": "cell_add_1_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1083,
+      "parent": 1310,
       "x": 186,
       "y": 77,
       "w": 108,
@@ -15415,7 +15366,7 @@
     },
     {
       "type": "container",
-      "parent": 1083,
+      "parent": 1310,
       "x": 220,
       "y": 128,
       "w": 40,
@@ -15425,7 +15376,7 @@
     },
     {
       "type": "container",
-      "parent": 1083,
+      "parent": 1310,
       "x": 237,
       "y": 111,
       "w": 6,
@@ -15451,7 +15402,7 @@
     },
     {
       "type": "button",
-      "parent": 1311,
+      "parent": 1299,
       "x": 326,
       "y": 69,
       "w": 124,
@@ -15492,7 +15443,7 @@
     },
     {
       "type": "image",
-      "parent": 1305,
+      "parent": 1293,
       "x": 334,
       "y": 77,
       "w": 108,
@@ -15538,20 +15489,8 @@
       "text_align": "center"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_update_2",
-      "bind": "cell_update_2_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1093,
+      "parent": 1305,
       "x": 420,
       "y": 73,
       "w": 26,
@@ -15561,7 +15500,7 @@
     },
     {
       "type": "image",
-      "parent": 1093,
+      "parent": 1305,
       "x": 423,
       "y": 76,
       "w": 20,
@@ -15569,20 +15508,8 @@
       "image": "assets/icons/refresh-20-black.png"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_add_2",
-      "bind": "cell_add_2_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1096,
+      "parent": 1311,
       "x": 334,
       "y": 77,
       "w": 108,
@@ -15594,7 +15521,7 @@
     },
     {
       "type": "container",
-      "parent": 1096,
+      "parent": 1311,
       "x": 368,
       "y": 128,
       "w": 40,
@@ -15604,7 +15531,7 @@
     },
     {
       "type": "container",
-      "parent": 1096,
+      "parent": 1311,
       "x": 385,
       "y": 111,
       "w": 6,
@@ -15630,7 +15557,7 @@
     },
     {
       "type": "button",
-      "parent": 1312,
+      "parent": 1300,
       "x": 30,
       "y": 253,
       "w": 124,
@@ -15671,7 +15598,7 @@
     },
     {
       "type": "image",
-      "parent": 1306,
+      "parent": 1294,
       "x": 38,
       "y": 261,
       "w": 108,
@@ -15717,20 +15644,8 @@
       "text_align": "center"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_update_3",
-      "bind": "cell_update_3_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1106,
+      "parent": 1306,
       "x": 124,
       "y": 257,
       "w": 26,
@@ -15740,7 +15655,7 @@
     },
     {
       "type": "image",
-      "parent": 1106,
+      "parent": 1306,
       "x": 127,
       "y": 260,
       "w": 20,
@@ -15748,20 +15663,8 @@
       "image": "assets/icons/refresh-20-black.png"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_add_3",
-      "bind": "cell_add_3_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1109,
+      "parent": 1312,
       "x": 38,
       "y": 261,
       "w": 108,
@@ -15773,7 +15676,7 @@
     },
     {
       "type": "container",
-      "parent": 1109,
+      "parent": 1312,
       "x": 72,
       "y": 312,
       "w": 40,
@@ -15783,7 +15686,7 @@
     },
     {
       "type": "container",
-      "parent": 1109,
+      "parent": 1312,
       "x": 89,
       "y": 295,
       "w": 6,
@@ -15809,7 +15712,7 @@
     },
     {
       "type": "button",
-      "parent": 1313,
+      "parent": 1301,
       "x": 178,
       "y": 253,
       "w": 124,
@@ -15850,7 +15753,7 @@
     },
     {
       "type": "image",
-      "parent": 1307,
+      "parent": 1295,
       "x": 186,
       "y": 261,
       "w": 108,
@@ -15896,20 +15799,8 @@
       "text_align": "center"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_update_4",
-      "bind": "cell_update_4_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1119,
+      "parent": 1307,
       "x": 272,
       "y": 257,
       "w": 26,
@@ -15919,7 +15810,7 @@
     },
     {
       "type": "image",
-      "parent": 1119,
+      "parent": 1307,
       "x": 275,
       "y": 260,
       "w": 20,
@@ -15927,20 +15818,8 @@
       "image": "assets/icons/refresh-20-black.png"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_add_4",
-      "bind": "cell_add_4_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1122,
+      "parent": 1313,
       "x": 186,
       "y": 261,
       "w": 108,
@@ -15952,7 +15831,7 @@
     },
     {
       "type": "container",
-      "parent": 1122,
+      "parent": 1313,
       "x": 220,
       "y": 312,
       "w": 40,
@@ -15962,7 +15841,7 @@
     },
     {
       "type": "container",
-      "parent": 1122,
+      "parent": 1313,
       "x": 237,
       "y": 295,
       "w": 6,
@@ -15988,7 +15867,7 @@
     },
     {
       "type": "button",
-      "parent": 1314,
+      "parent": 1302,
       "x": 326,
       "y": 253,
       "w": 124,
@@ -16029,7 +15908,7 @@
     },
     {
       "type": "image",
-      "parent": 1308,
+      "parent": 1296,
       "x": 334,
       "y": 261,
       "w": 108,
@@ -16075,20 +15954,8 @@
       "text_align": "center"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_update_5",
-      "bind": "cell_update_5_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1132,
+      "parent": 1308,
       "x": 420,
       "y": 257,
       "w": 26,
@@ -16098,7 +15965,7 @@
     },
     {
       "type": "image",
-      "parent": 1132,
+      "parent": 1308,
       "x": 423,
       "y": 260,
       "w": 20,
@@ -16106,20 +15973,8 @@
       "image": "assets/icons/refresh-20-black.png"
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "cell_add_5",
-      "bind": "cell_add_5_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1135,
+      "parent": 1314,
       "x": 334,
       "y": 261,
       "w": 108,
@@ -16131,7 +15986,7 @@
     },
     {
       "type": "container",
-      "parent": 1135,
+      "parent": 1314,
       "x": 368,
       "y": 312,
       "w": 40,
@@ -16141,7 +15996,7 @@
     },
     {
       "type": "container",
-      "parent": 1135,
+      "parent": 1314,
       "x": 385,
       "y": 295,
       "w": 6,
@@ -16150,20 +16005,8 @@
       "radius": 3
     },
     {
-      "type": "layer",
-      "parent": 100,
-      "x": 0,
-      "y": 0,
-      "w": 480,
-      "h": 480,
-      "name": "grid_empty",
-      "bind": "grid_empty_visible",
-      "bind_target": "visible",
-      "hidden": true
-    },
-    {
       "type": "container",
-      "parent": 1139,
+      "parent": 1315,
       "x": 186,
       "y": 92,
       "w": 108,
@@ -16175,7 +16018,7 @@
     },
     {
       "type": "container",
-      "parent": 1139,
+      "parent": 1315,
       "x": 220,
       "y": 143,
       "w": 40,
@@ -16185,7 +16028,7 @@
     },
     {
       "type": "container",
-      "parent": 1139,
+      "parent": 1315,
       "x": 237,
       "y": 126,
       "w": 6,
@@ -16195,7 +16038,7 @@
     },
     {
       "type": "label",
-      "parent": 1139,
+      "parent": 1315,
       "x": 152,
       "y": 207,
       "w": 176,
@@ -16211,7 +16054,7 @@
     },
     {
       "type": "label",
-      "parent": 1139,
+      "parent": 1315,
       "x": 24,
       "y": 262,
       "w": 432,
@@ -16227,7 +16070,7 @@
     },
     {
       "type": "label",
-      "parent": 1139,
+      "parent": 1315,
       "x": 24,
       "y": 310,
       "w": 432,
@@ -16243,7 +16086,7 @@
     },
     {
       "type": "label",
-      "parent": 1139,
+      "parent": 1315,
       "x": 24,
       "y": 332,
       "w": 432,
@@ -16271,7 +16114,7 @@
     },
     {
       "type": "container",
-      "parent": 1147,
+      "parent": 1134,
       "x": 222,
       "y": 452,
       "w": 8,
@@ -16281,7 +16124,7 @@
     },
     {
       "type": "container",
-      "parent": 1147,
+      "parent": 1134,
       "x": 238,
       "y": 452,
       "w": 20,
@@ -16303,7 +16146,7 @@
     },
     {
       "type": "container",
-      "parent": 1150,
+      "parent": 1137,
       "x": 214,
       "y": 452,
       "w": 8,
@@ -16313,7 +16156,7 @@
     },
     {
       "type": "container",
-      "parent": 1150,
+      "parent": 1137,
       "x": 230,
       "y": 452,
       "w": 20,
@@ -16323,7 +16166,7 @@
     },
     {
       "type": "container",
-      "parent": 1150,
+      "parent": 1137,
       "x": 258,
       "y": 452,
       "w": 8,
@@ -16345,7 +16188,7 @@
     },
     {
       "type": "container",
-      "parent": 1154,
+      "parent": 1141,
       "x": 214,
       "y": 452,
       "w": 8,
@@ -16355,7 +16198,7 @@
     },
     {
       "type": "container",
-      "parent": 1154,
+      "parent": 1141,
       "x": 230,
       "y": 452,
       "w": 8,
@@ -16365,7 +16208,7 @@
     },
     {
       "type": "container",
-      "parent": 1154,
+      "parent": 1141,
       "x": 246,
       "y": 452,
       "w": 20,
@@ -16387,7 +16230,7 @@
     },
     {
       "type": "container",
-      "parent": 1158,
+      "parent": 1145,
       "x": 206,
       "y": 452,
       "w": 8,
@@ -16397,7 +16240,7 @@
     },
     {
       "type": "container",
-      "parent": 1158,
+      "parent": 1145,
       "x": 222,
       "y": 452,
       "w": 20,
@@ -16407,7 +16250,7 @@
     },
     {
       "type": "container",
-      "parent": 1158,
+      "parent": 1145,
       "x": 250,
       "y": 452,
       "w": 8,
@@ -16417,7 +16260,7 @@
     },
     {
       "type": "container",
-      "parent": 1158,
+      "parent": 1145,
       "x": 266,
       "y": 452,
       "w": 8,
@@ -16439,7 +16282,7 @@
     },
     {
       "type": "container",
-      "parent": 1163,
+      "parent": 1150,
       "x": 206,
       "y": 452,
       "w": 8,
@@ -16449,7 +16292,7 @@
     },
     {
       "type": "container",
-      "parent": 1163,
+      "parent": 1150,
       "x": 222,
       "y": 452,
       "w": 8,
@@ -16459,7 +16302,7 @@
     },
     {
       "type": "container",
-      "parent": 1163,
+      "parent": 1150,
       "x": 238,
       "y": 452,
       "w": 20,
@@ -16469,7 +16312,7 @@
     },
     {
       "type": "container",
-      "parent": 1163,
+      "parent": 1150,
       "x": 266,
       "y": 452,
       "w": 8,
@@ -16491,7 +16334,7 @@
     },
     {
       "type": "container",
-      "parent": 1168,
+      "parent": 1155,
       "x": 206,
       "y": 452,
       "w": 8,
@@ -16501,7 +16344,7 @@
     },
     {
       "type": "container",
-      "parent": 1168,
+      "parent": 1155,
       "x": 222,
       "y": 452,
       "w": 8,
@@ -16511,7 +16354,7 @@
     },
     {
       "type": "container",
-      "parent": 1168,
+      "parent": 1155,
       "x": 238,
       "y": 452,
       "w": 8,
@@ -16521,7 +16364,7 @@
     },
     {
       "type": "container",
-      "parent": 1168,
+      "parent": 1155,
       "x": 254,
       "y": 452,
       "w": 20,
@@ -16543,7 +16386,7 @@
     },
     {
       "type": "image",
-      "parent": 1173,
+      "parent": 1160,
       "x": 360,
       "y": 20,
       "w": 22,
@@ -16564,7 +16407,7 @@
     },
     {
       "type": "image",
-      "parent": 1175,
+      "parent": 1162,
       "x": 360,
       "y": 20,
       "w": 22,
@@ -16585,7 +16428,7 @@
     },
     {
       "type": "image",
-      "parent": 1177,
+      "parent": 1164,
       "x": 394,
       "y": 20,
       "w": 22,
@@ -16606,7 +16449,7 @@
     },
     {
       "type": "image",
-      "parent": 1179,
+      "parent": 1166,
       "x": 394,
       "y": 20,
       "w": 22,
@@ -16627,7 +16470,7 @@
     },
     {
       "type": "image",
-      "parent": 1181,
+      "parent": 1168,
       "x": 394,
       "y": 20,
       "w": 22,
@@ -16648,7 +16491,7 @@
     },
     {
       "type": "image",
-      "parent": 1183,
+      "parent": 1170,
       "x": 428,
       "y": 20,
       "w": 22,
@@ -16669,7 +16512,7 @@
     },
     {
       "type": "image",
-      "parent": 1185,
+      "parent": 1172,
       "x": 428,
       "y": 20,
       "w": 22,
@@ -16690,7 +16533,7 @@
     },
     {
       "type": "image",
-      "parent": 1187,
+      "parent": 1174,
       "x": 428,
       "y": 20,
       "w": 22,
@@ -16711,7 +16554,7 @@
     },
     {
       "type": "image",
-      "parent": 1189,
+      "parent": 1176,
       "x": 428,
       "y": 20,
       "w": 22,
@@ -16732,7 +16575,7 @@
     },
     {
       "type": "image",
-      "parent": 1191,
+      "parent": 1178,
       "x": 428,
       "y": 20,
       "w": 22,
@@ -16753,7 +16596,7 @@
     },
     {
       "type": "image",
-      "parent": 1193,
+      "parent": 1180,
       "x": 428,
       "y": 20,
       "w": 22,
@@ -16774,7 +16617,7 @@
     },
     {
       "type": "image",
-      "parent": 1195,
+      "parent": 1182,
       "x": 428,
       "y": 20,
       "w": 22,
@@ -16795,7 +16638,7 @@
     },
     {
       "type": "image",
-      "parent": 1197,
+      "parent": 1184,
       "x": 428,
       "y": 20,
       "w": 22,
@@ -16816,7 +16659,7 @@
     },
     {
       "type": "container",
-      "parent": 1199,
+      "parent": 1186,
       "x": 32,
       "y": 52,
       "w": 96,
@@ -16828,7 +16671,7 @@
     },
     {
       "type": "image",
-      "parent": 1199,
+      "parent": 1186,
       "x": 61,
       "y": 81,
       "w": 38,
@@ -16837,7 +16680,7 @@
     },
     {
       "type": "container",
-      "parent": 1199,
+      "parent": 1186,
       "x": 102,
       "y": 122,
       "w": 10,
@@ -16859,7 +16702,7 @@
     },
     {
       "type": "container",
-      "parent": 1203,
+      "parent": 1190,
       "x": 32,
       "y": 52,
       "w": 96,
@@ -16871,7 +16714,7 @@
     },
     {
       "type": "image",
-      "parent": 1203,
+      "parent": 1190,
       "x": 61,
       "y": 81,
       "w": 38,
@@ -16880,7 +16723,7 @@
     },
     {
       "type": "container",
-      "parent": 1203,
+      "parent": 1190,
       "x": 102,
       "y": 122,
       "w": 10,
@@ -16902,7 +16745,7 @@
     },
     {
       "type": "container",
-      "parent": 1207,
+      "parent": 1194,
       "x": 32,
       "y": 52,
       "w": 96,
@@ -16914,7 +16757,7 @@
     },
     {
       "type": "image",
-      "parent": 1207,
+      "parent": 1194,
       "x": 61,
       "y": 81,
       "w": 38,
@@ -16923,7 +16766,7 @@
     },
     {
       "type": "container",
-      "parent": 1207,
+      "parent": 1194,
       "x": 102,
       "y": 122,
       "w": 10,
@@ -16975,7 +16818,7 @@
       "text_align": "left",
       "bind": "update_detail",
       "name": "update_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                                                  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,,---------------...........................//////00000002288::::>>AAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCDDDDDDDDDDDDEFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNNNOOPPPPPRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkkkllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwwwwxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyy||··……››。。。。。。。。。。。。。。。。一上下下下下下与个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保保候像像像像充先入入入入入入具兼内写写写写写准准准击击击创删删到到前前动动包单单即即即原发发发发取取取可可可可可可后后后后后后启启启启启启和回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备备备失失始存存存存存存存存存存安完完完容容密将就工已已已已已已已已已已已已已已已已已已已已已已已已已已布并并并应应应应应应应应开开开开开开开开开开当待待待意成成我我我我我或打打打打打打扫持持持接接接接接接接接接接接接接接接接接接接接接接接接描提提收收放整文文文文文文文新新新新新新新无时是暂更更更最有期未未未未未本本本本本本本本机机查查查校校校校校校校校校校校校校校校校校检检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正此清清源点点点版版版版版现用用用用用用用用电电电电电界留留留的的的的的的的的的直码稍空空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设设试试试误请请请请请请请请请请读读读败败资载载载载载输输运运运运返这进连连连连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重错镜镜镜镜间间间除除面验验验验验验验验验验验验验验验验验，，，，，：：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                                                   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,,---------------...........................//////00000002288::::>>AAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCDDDDDDDDDDDDDEFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNNNNNOOPPPPPRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkkkllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwwwwxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyy||··………››。。。。。。。。。。。。。。。。一上下下下下下与个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保保候像像像像充先入入入入入入具兼内写写写写写准准准击击击创删删到到前前动动包单单即即即原发发发发取取取可可可可可可后后后后后后启启启启启启和回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备备备失失始存存存存存存存存存存安完完完容容密将就工已已已已已已已已已已已已已已已已已已已已已已已已已已布并并并应应应应应应应应开开开开开开开开开开当待待待意成成我我我我我或打打打打打打扫扫持持持接接接接接接接接接接接接接接接接接接接接接接接接描描提提收收放整文文文文文文文新新新新新新新无时是暂更更更最有期未未未未未本本本本本本本本机机查查查校校校校校校校校校校校校校校校校校检检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正此清清源点点点版版版版版现用用用用用用用用电电电电电界留留留的的的的的的的的的直码稍空空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设设试试试误请请请请请请请请请请读读读败败资载载载载载输输运运运运返这进连连连连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重错镜镜镜镜间间间除除面验验验验验验验验验验验验验验验验验，，，，，：：：：",
       "font": "fonts/VibeInter.otf",
       "hidden": false,
       "overflow": "ellipsis"
@@ -17028,7 +16871,7 @@
     },
     {
       "type": "container",
-      "parent": 1216,
+      "parent": 1203,
       "x": 202,
       "y": 242,
       "w": 12,
@@ -17038,7 +16881,7 @@
     },
     {
       "type": "container",
-      "parent": 1216,
+      "parent": 1203,
       "x": 234,
       "y": 242,
       "w": 12,
@@ -17048,7 +16891,7 @@
     },
     {
       "type": "container",
-      "parent": 1216,
+      "parent": 1203,
       "x": 266,
       "y": 242,
       "w": 12,
@@ -17121,7 +16964,7 @@
     },
     {
       "type": "label",
-      "parent": 1223,
+      "parent": 1210,
       "x": 24,
       "y": 414,
       "w": 432,
@@ -17137,7 +16980,7 @@
     },
     {
       "type": "button",
-      "parent": 1291,
+      "parent": 1279,
       "x": 24,
       "y": 400,
       "w": 432,
@@ -17225,7 +17068,7 @@
     },
     {
       "type": "container",
-      "parent": 1230,
+      "parent": 1217,
       "x": 32,
       "y": 264,
       "w": 4,
@@ -17247,7 +17090,7 @@
     },
     {
       "type": "container",
-      "parent": 1232,
+      "parent": 1219,
       "x": 32,
       "y": 264,
       "w": 4,
@@ -17268,14 +17111,14 @@
       "text_align": "left",
       "bind": "result_detail",
       "name": "result_detail",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                                                       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,,---------------...........................//////00000000000228888::::>>AAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCDDDDDDDDDDDDEEFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNNNOOPPPPPRRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkkkllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwwwwxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyy||··……››。。。。。。。。。。。。。。。。一上下下下下下与个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保保候像像像像充先入入入入入入具兼内写写写写写准准准击击击创删删到到前前动动包单单即即即原发发发发取取取可可可可可可后后后后后后后启启启启启启和回回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备备备失失始存存存存存存存存存存安完完完容容密将就工已已已已已已已已已已已已已已已已已已已已已已已已已已布并并并应应应应应应应应开开开开开开开开开开当待待待意成成我我我我我或打打打打打打扫持持持接接接接接接接接接接接接接接接接接接接接接接接接描提提收收放整文文文文文文文新新新新新新新无时是暂更更更最有期未未未未未本本本本本本本本机机查查查校校校校校校校校校校校校校校校校校检检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正此清清源点点点版版版版版现用用用用用用用用电电电电电界留留留的的的的的的的的的直码稍空空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设设试试试试误误请请请请请请请请请请请读读读败败资载载载载载输输运运运运返返这进连连连连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重重错错镜镜镜镜间间间除除面页首验验验验验验验验验验验验验验验验验，，，，，：：：：",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n                                                                                                                                                                                                                                                                                                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%(),,,---------------...........................//////00000000000228888::::>>AAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBCCCCCCCCCCCCCCCCCCDDDDDDDDDDDDDEEFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIKKKMMMMMMMNNNNNNNNNNNNNNNNNNNNNOOPPPPPRRRRRRRRRRRSSSSSSSSSSSSSSSSSSSSSSSSSSSSTTTTUUUUUUUUUUUUUUVVVVVVVVWWWWWWWWWWWWWWYaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiikkkkllllllllllllllllllllllllllllllllllllllllllllllllmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooppppppppppppppppppppppppppppppppppppppppppppppppppppppppprrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssstttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvwwwwwwwwwwwwwwwwwwwwwwwwwxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyy||··………››。。。。。。。。。。。。。。。。一上下下下下下与个个中主些交交从从以以以以件件件件件件件件件件件件件件件件件件件传传你供供供保保保保保保保保保保保保保保保保候像像像像充先入入入入入入具兼内写写写写写准准准击击击创删删到到前前动动包单单即即即原发发发发取取取可可可可可可后后后后后后后启启启启启启和回回固固固固固在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在在地备备备备备备失失始存存存存存存存存存存安完完完容容密将就工已已已已已已已已已已已已已已已已已已已已已已已已已已布并并并应应应应应应应应开开开开开开开开开开当待待待意成成我我我我我或打打打打打打扫扫持持持接接接接接接接接接接接接接接接接接接接接接接接接描描提提收收放整文文文文文文文新新新新新新新无时是暂更更更最有期未未未未未本本本本本本本本机机查查查校校校校校校校校校校校校校校校校校检检检正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正正此清清源点点点版版版版版现用用用用用用用用电电电电电界留留留的的的的的的的的的直码稍空空等等等系系系系系系组组组组组组组经统统统统统统绪置置脑自至行行行行装设设设设设试试试试误误请请请请请请请请请请请读读读败败资载载载载载输输运运运运返返这进连连连连连连连连连连连连连连连连连连连连连连释重重重重重重重重重重重重错错镜镜镜镜间间间除除面页首验验验验验验验验验验验验验验验验验，，，，，：：：：",
       "overflow": "clip",
       "font": "fonts/VibeInter.otf",
       "hidden": false
     },
     {
       "type": "button",
-      "parent": 1293,
+      "parent": 1281,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -17300,7 +17143,7 @@
     },
     {
       "type": "button",
-      "parent": 1292,
+      "parent": 1280,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -17325,7 +17168,7 @@
     },
     {
       "type": "image",
-      "parent": 1236,
+      "parent": 1223,
       "x": 52,
       "y": 26,
       "w": 32,
@@ -17334,7 +17177,7 @@
     },
     {
       "type": "label",
-      "parent": 1236,
+      "parent": 1223,
       "x": 92,
       "y": 25,
       "w": 88,
@@ -17350,7 +17193,7 @@
     },
     {
       "type": "button",
-      "parent": 1294,
+      "parent": 1282,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -17370,7 +17213,7 @@
         }
       ],
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Done完成",
-      "bind": "static_1239"
+      "bind": "static_1226"
     },
     {
       "type": "layer",
@@ -17387,7 +17230,7 @@
     },
     {
       "type": "container",
-      "parent": 1240,
+      "parent": 1227,
       "x": 16,
       "y": 20,
       "w": 56,
@@ -17397,7 +17240,7 @@
     },
     {
       "type": "image",
-      "parent": 1240,
+      "parent": 1227,
       "x": 28,
       "y": 32,
       "w": 32,
@@ -17406,7 +17249,7 @@
     },
     {
       "type": "button",
-      "parent": 1240,
+      "parent": 1227,
       "x": 2,
       "y": 6,
       "w": 84,
@@ -17423,24 +17266,24 @@
     },
     {
       "type": "label",
-      "parent": 1240,
+      "parent": 1227,
       "x": 88,
       "y": 29,
       "w": 368,
       "h": 40,
       "name": "heading_1245",
       "bind": "heading_1245",
-      "text": "Update all",
+      "text": "Update All",
       "font_size": 24,
       "font": "fonts/VibeMedium.otf",
       "fg_color": "#F3F4F2",
       "text_align": "left",
       "overflow": "ellipsis",
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Update all全部更新"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Update All全部更新"
     },
     {
       "type": "label",
-      "parent": 1240,
+      "parent": 1227,
       "x": 24,
       "y": 132,
       "w": 432,
@@ -17456,7 +17299,7 @@
     },
     {
       "type": "label",
-      "parent": 1240,
+      "parent": 1227,
       "x": 24,
       "y": 216,
       "w": 432,
@@ -17472,7 +17315,7 @@
     },
     {
       "type": "button",
-      "parent": 1240,
+      "parent": 1227,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -17492,17 +17335,17 @@
         }
       ],
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Cancel取消",
-      "bind": "static_1247"
+      "bind": "static_1234"
     },
     {
       "type": "button",
-      "parent": 1240,
+      "parent": 1227,
       "x": 248,
       "y": 380,
       "w": 208,
       "h": 84,
       "name": "button_update_all_accept",
-      "text": "Update all",
+      "text": "Update All",
       "font": "fonts/VibeMedium.otf",
       "font_size": 24,
       "fg_color": "#090A0B",
@@ -17515,12 +17358,12 @@
           "target_name": "update_all_accept"
         }
       ],
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Update all全部更新",
-      "bind": "static_1248"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Update All全部更新",
+      "bind": "static_1235"
     },
     {
       "type": "button",
-      "parent": 1289,
+      "parent": 1277,
       "x": 24,
       "y": 380,
       "w": 432,
@@ -17540,7 +17383,7 @@
         }
       ],
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Format NAND格式化 NAND",
-      "bind": "static_1249"
+      "bind": "static_1236"
     },
     {
       "type": "layer",
@@ -17557,7 +17400,7 @@
     },
     {
       "type": "container",
-      "parent": 1250,
+      "parent": 1237,
       "x": 16,
       "y": 20,
       "w": 56,
@@ -17567,7 +17410,7 @@
     },
     {
       "type": "image",
-      "parent": 1250,
+      "parent": 1237,
       "x": 28,
       "y": 32,
       "w": 32,
@@ -17576,7 +17419,7 @@
     },
     {
       "type": "button",
-      "parent": 1250,
+      "parent": 1237,
       "x": 2,
       "y": 6,
       "w": 84,
@@ -17593,7 +17436,7 @@
     },
     {
       "type": "label",
-      "parent": 1250,
+      "parent": 1237,
       "x": 88,
       "y": 29,
       "w": 368,
@@ -17610,7 +17453,7 @@
     },
     {
       "type": "label",
-      "parent": 1250,
+      "parent": 1237,
       "x": 24,
       "y": 112,
       "w": 432,
@@ -17626,7 +17469,7 @@
     },
     {
       "type": "label",
-      "parent": 1250,
+      "parent": 1237,
       "x": 24,
       "y": 188,
       "w": 432,
@@ -17642,7 +17485,7 @@
     },
     {
       "type": "button",
-      "parent": 1250,
+      "parent": 1237,
       "x": 24,
       "y": 380,
       "w": 208,
@@ -17662,11 +17505,11 @@
         }
       ],
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Cancel取消",
-      "bind": "static_1257"
+      "bind": "static_1244"
     },
     {
       "type": "button",
-      "parent": 1250,
+      "parent": 1237,
       "x": 248,
       "y": 380,
       "w": 208,
@@ -17686,7 +17529,7 @@
         }
       ],
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Format格式化",
-      "bind": "static_1258"
+      "bind": "static_1245"
     },
     {
       "type": "label",
@@ -17867,7 +17710,7 @@
       "parent": 98,
       "x": 36,
       "y": 261,
-      "w": 144,
+      "w": 112,
       "h": 28,
       "name": "reset_key_3",
       "bind": "reset_key_3",
@@ -17881,9 +17724,9 @@
     {
       "type": "label",
       "parent": 98,
-      "x": 184,
+      "x": 152,
       "y": 261,
-      "w": 260,
+      "w": 292,
       "h": 28,
       "name": "reset_val_3",
       "bind": "reset_val_3",
@@ -17952,6 +17795,20 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Remove this saved Idea?\nYou can undo for 4 seconds.删除这个已保存的 Idea？\n删除后 4 秒内可以撤销。\n\n                  ..4444?IIRYYaaaaaccccdddddddeeeeeeeffhimnnnnnnooooooooorrsssssstuuuuvv。。个以以保内内删删删可可后后存已撤撤的秒秒这销销除除除？"
     },
     {
+      "type": "progress",
+      "parent": 107,
+      "x": 24,
+      "y": 348,
+      "w": 432,
+      "h": 96,
+      "name": "delete_hold_progress",
+      "bind": "delete_hold_progress",
+      "bind_target": "value",
+      "bg_color": "#272A2D",
+      "fg_color": "#612629",
+      "radius": 20
+    },
+    {
       "type": "button",
       "parent": 107,
       "x": 24,
@@ -17963,7 +17820,7 @@
       "text": "Hold to delete",
       "font_size": 24,
       "fg_color": "#FF8A85",
-      "bg_color": "#272A2D",
+      "bg_color": "#00000001",
       "radius": 20,
       "events": [
         {
@@ -18016,7 +17873,7 @@
     },
     {
       "type": "button",
-      "parent": 1279,
+      "parent": 1267,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -18033,7 +17890,7 @@
     },
     {
       "type": "container",
-      "parent": 1279,
+      "parent": 1267,
       "x": 24,
       "y": 116,
       "w": 432,
@@ -18045,7 +17902,7 @@
     },
     {
       "type": "label",
-      "parent": 1279,
+      "parent": 1267,
       "x": 48,
       "y": 148,
       "w": 384,
@@ -18061,7 +17918,7 @@
     },
     {
       "type": "label",
-      "parent": 1279,
+      "parent": 1267,
       "x": 48,
       "y": 196,
       "w": 384,
@@ -18077,7 +17934,7 @@
     },
     {
       "type": "button",
-      "parent": 1279,
+      "parent": 1267,
       "x": 48,
       "y": 256,
       "w": 384,
@@ -18099,7 +17956,7 @@
       "border_color": "#3D4145",
       "border_width": 1,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~‹›•↑简体中文Cancel取消",
-      "bind": "static_1284"
+      "bind": "static_1272"
     },
     {
       "type": "layer",
@@ -18115,7 +17972,7 @@
     },
     {
       "type": "container",
-      "parent": 1285,
+      "parent": 1273,
       "x": 340,
       "y": 4,
       "w": 64,
@@ -18125,7 +17982,7 @@
     },
     {
       "type": "container",
-      "parent": 1285,
+      "parent": 1273,
       "x": 328,
       "y": 20,
       "w": 88,
@@ -18137,7 +17994,7 @@
     },
     {
       "type": "label",
-      "parent": 1285,
+      "parent": 1273,
       "x": 328,
       "y": 25,
       "w": 88,
@@ -18439,6 +18296,162 @@
     },
     {
       "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_update_0",
+      "bind": "cell_update_0_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_update_1",
+      "bind": "cell_update_1_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_update_2",
+      "bind": "cell_update_2_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_update_3",
+      "bind": "cell_update_3_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_update_4",
+      "bind": "cell_update_4_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_update_5",
+      "bind": "cell_update_5_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_add_0",
+      "bind": "cell_add_0_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_add_1",
+      "bind": "cell_add_1_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_add_2",
+      "bind": "cell_add_2_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_add_3",
+      "bind": "cell_add_3_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_add_4",
+      "bind": "cell_add_4_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "cell_add_5",
+      "bind": "cell_add_5_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
+      "parent": 100,
+      "x": 0,
+      "y": 0,
+      "w": 480,
+      "h": 480,
+      "name": "grid_empty",
+      "bind": "grid_empty_visible",
+      "bind_target": "visible",
+      "hidden": true
+    },
+    {
+      "type": "layer",
       "parent": -1,
       "x": 0,
       "y": 0,
@@ -18451,7 +18464,7 @@
     },
     {
       "type": "button",
-      "parent": 1315,
+      "parent": 1316,
       "x": 16,
       "y": 16,
       "w": 56,
@@ -18474,7 +18487,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1316,
       "x": 88,
       "y": 20,
       "w": 368,
@@ -18489,7 +18502,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1316,
       "x": 24,
       "y": 100,
       "w": 432,
@@ -18504,7 +18517,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1316,
       "x": 24,
       "y": 152,
       "w": 432,
@@ -18519,7 +18532,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1316,
       "x": 24,
       "y": 212,
       "w": 432,
@@ -18534,7 +18547,7 @@
     },
     {
       "type": "label",
-      "parent": 1315,
+      "parent": 1316,
       "x": 24,
       "y": 270,
       "w": 432,
@@ -18549,7 +18562,7 @@
     },
     {
       "type": "button",
-      "parent": 1315,
+      "parent": 1316,
       "x": 24,
       "y": 360,
       "w": 204,
@@ -18572,7 +18585,7 @@
     },
     {
       "type": "button",
-      "parent": 1315,
+      "parent": 1316,
       "x": 252,
       "y": 360,
       "w": 204,
@@ -18607,7 +18620,7 @@
     },
     {
       "type": "label",
-      "parent": 1324,
+      "parent": 1325,
       "x": 24,
       "y": 36,
       "w": 432,
@@ -18622,7 +18635,7 @@
     },
     {
       "type": "label",
-      "parent": 1324,
+      "parent": 1325,
       "x": 24,
       "y": 132,
       "w": 432,
@@ -18637,7 +18650,7 @@
     },
     {
       "type": "label",
-      "parent": 1324,
+      "parent": 1325,
       "x": 24,
       "y": 196,
       "w": 432,
@@ -18653,7 +18666,7 @@
     },
     {
       "type": "label",
-      "parent": 1324,
+      "parent": 1325,
       "x": 24,
       "y": 268,
       "w": 432,
@@ -18668,7 +18681,7 @@
     },
     {
       "type": "layer",
-      "parent": 1324,
+      "parent": 1325,
       "x": 0,
       "y": 0,
       "w": 480,
@@ -18680,7 +18693,7 @@
     },
     {
       "type": "button",
-      "parent": 1329,
+      "parent": 1330,
       "x": 96,
       "y": 380,
       "w": 288,

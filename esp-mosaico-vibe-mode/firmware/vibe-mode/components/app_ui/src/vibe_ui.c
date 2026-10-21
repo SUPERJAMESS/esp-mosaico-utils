@@ -277,7 +277,8 @@ static vui_err_t network_row(vui_handle_t ui, vui_row_t row, uint32_t index, voi
         return VUI_ERR_INVALID_ARG;
     const vibe_ap_t *ap = &s->snapshot.aps[index];
     char detail[48];
-    snprintf(detail, sizeof(detail), "%s - %d dBm", ap->open ? "Open" : "Secured", ap->rssi);
+    snprintf(detail, sizeof(detail), "%s · %d dBm",
+             vibe_translate(s, ap->open ? "Open network" : "Secured"), ap->rssi);
     vui_err_t err = vui_vibe_networks_row_row_set_networks_title_text(ui, row, ap->ssid);
     if (err == VUI_OK)
         err = vui_vibe_networks_row_row_set_networks_detail_text(ui, row, detail);
@@ -815,11 +816,11 @@ void vibe_ui_poll(vibe_ui_t *s) {
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_STATUS, v->idea_ready);
         TEXT(s, IDEA_STATUS,
              !v->idea_ready       ? ""
-             : v->nand_error      ? "Storage unavailable"
-             : v->idea_view_only  ? "Saved in My Ideas"
-             : v->idea_downloaded ? "Already downloaded"
-                                  : "Confirm to save in My Ideas");
-        TEXT(s, IDEA_ACCEPT, v->idea_downloaded ? "My Ideas" : "Download");
+             : v->nand_error      ? T(s, "Storage unavailable")
+             : v->idea_view_only  ? T(s, "Saved in My Ideas")
+             : v->idea_downloaded ? T(s, "Already downloaded")
+                                  : T(s, "Confirm to save in My Ideas"));
+        TEXT(s, IDEA_ACCEPT, v->idea_downloaded ? T(s, "My Ideas") : T(s, "Download"));
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_BUTTON_ACCEPT_IDEA_VISIBLE,
                                             v->idea_ready && !v->idea_view_only && !v->nand_error);
         break;

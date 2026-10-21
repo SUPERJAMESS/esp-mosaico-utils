@@ -94,6 +94,7 @@ bool vibe_product_leave(vibe_ui_t *s, vibe_page_t next)
         s->hold_started_ms = 0;
         s->hold_consumed = true;
         (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, 0);
+        (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, 0);
     }
     if (shared_context(s, s->page) && next != s->page) {
         (void)vui_set_text(s->ui, VUI_VIBE_BIND_SHARED_VALUE, "");
@@ -165,7 +166,7 @@ static void project_open_confirm(vibe_ui_t *s)
                !s->snapshot.device.usb_connected && !s->snapshot.device.charging;
     TEXT(s, OPEN_WARNING, s->open_waiting ? (s->snapshot.nand_scanning ? "Checking apps and storage..." : "Finishing previous request...")
                                          : low ? "Charge above 20% or connect USB." : s->open_unsaved ? "Unsaved development will be replaced." : "");
-    TEXT(s, OPEN_ACCEPT_CAPTION, s->open_waiting ? "Please wait" : "Run");
+    TEXT(s, OPEN_ACCEPT_CAPTION, "Run");
     (void)vui_set_text(s->ui, VUI_VIBE_BIND_OPEN_ACCEPT_LABEL, "");
     (void)vui_set_text(s->ui, VUI_VIBE_BIND_TOGGLE_OPEN_CONFIRM_LABEL, "");
     (void)vui_set_visible(s->ui, VUI_VIBE_BIND_OPEN_CONFIRM_CHECKED_VISIBLE, !s->snapshot.settings.open_confirm);
@@ -342,7 +343,7 @@ static void shared_submit(vibe_ui_t *s)
                 return;
             }
             if (shared_stored_value(&s->snapshot.settings, s->shared_key)) {
-                TEXT(s, SHARED_FIELD, "Please use a-z, 0-9 and _");
+                TEXT(s, SHARED_FIELD, "Key already exists");
                 return;
             }
             if (!setting(s, VIBE_SETTINGS_SHARED_RENAME, s->shared_orig_key, s->shared_key)) {
@@ -1222,7 +1223,7 @@ void vibe_product_poll(vibe_ui_t *s)
         for (unsigned i = 0; i < 6; ++i) {
             char value[2] = {i < len ? s->idea_code[i] : ' ', 0};
             (void)vui_set_text(s->ui, digits[i], value);
-            (void)vui_set_visible(s->ui, focuses[i], i == (len < 6 ? len : 5));
+            (void)vui_set_visible(s->ui, focuses[i], i == len);
         }
         (void)vui_set_visible(s->ui, VUI_VIBE_BIND_DOWNLOAD_GO_READY_VISIBLE, len == 6);
         if (s->bridge_error) {
@@ -1558,6 +1559,7 @@ static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *c
         } else {
             s->hold_started_ms = 0;
             (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, 0);
+            (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, 0);
             if (s->page == VIBE_DELETE_CONFIRM)
                 TEXT(s, DELETE_PROGRESS, "Hold for 3 seconds to delete");
         }
@@ -1582,7 +1584,10 @@ void vibe_product_tick(vibe_ui_t *s)
     if (s->hold_started_ms && now + 1 >= s->hold_started_ms) {
         unsigned elapsed = (unsigned)(now + 1 - s->hold_started_ms);
         if (s->page == VIBE_RESET) (void)vui_set_value(s->ui, VUI_VIBE_BIND_RESET_HOLD_PROGRESS, elapsed >= 3000 ? 100 : elapsed / 30);
-        else if (s->page == VIBE_DELETE_CONFIRM) FORMAT(s, DELETE_PROGRESS, "Hold · %u s", elapsed >= 3000 ? 0 : (3000 - elapsed + 999) / 1000);
+        else if (s->page == VIBE_DELETE_CONFIRM) {
+            (void)vui_set_value(s->ui, VUI_VIBE_BIND_DELETE_HOLD_PROGRESS, elapsed >= 3000 ? 100 : elapsed / 30);
+            FORMAT(s, DELETE_PROGRESS, "Hold · %u s", elapsed >= 3000 ? 0 : (3000 - elapsed + 999) / 1000);
+        }
         if (elapsed >= 3000) {
             s->hold_started_ms = 0;
             s->hold_consumed = true;
