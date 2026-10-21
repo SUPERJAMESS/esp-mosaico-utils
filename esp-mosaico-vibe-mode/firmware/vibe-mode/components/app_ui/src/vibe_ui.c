@@ -265,6 +265,7 @@ int vibe_ui_open_bridge(vibe_ui_t *s) {
         return VUI_ERR_INVALID_STATE;
     memset(s->idea_code, 0, sizeof(s->idea_code));
     s->code_submitted = false;
+    s->bridge_error = false;
     show(s, VIBE_BRIDGE);
     vibe_ui_poll(s);
     return 0;
@@ -561,6 +562,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
     case VUI_VIBE_ACT_ID_CODE_8:
     case VUI_VIBE_ACT_ID_CODE_9:
         if (s->page == VIBE_BRIDGE && (strlen(s->idea_code) < 6 || s->code_submitted)) {
+            s->bridge_error = false;
             if (s->code_submitted) {
                 memset(s->idea_code, 0, sizeof(s->idea_code));
                 s->code_submitted = false;
@@ -581,9 +583,12 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         }
         break;
     case VUI_VIBE_ACT_ID_CODE_DELETE:
-        if (s->page == VIBE_BRIDGE && s->idea_code[0]) {
-            s->code_submitted = false;
-            s->idea_code[strlen(s->idea_code) - 1] = 0;
+        if (s->page == VIBE_BRIDGE) {
+            s->bridge_error = false;
+            if (s->idea_code[0]) {
+                s->code_submitted = false;
+                s->idea_code[strlen(s->idea_code) - 1] = 0;
+            }
             vibe_ui_poll(s);
         }
         break;
@@ -591,9 +596,12 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
         if (s->page != VIBE_BRIDGE)
             break;
         if (strlen(s->idea_code) != 6) {
+            s->bridge_error = true;
             TEXT(s, BRIDGE_DETAIL, T(s, "Enter all six digits"));
+            (void)vui_set_color(s->ui, VUI_VIBE_BIND_BRIDGE_DETAIL, 0xFA08);
             break;
         }
+        s->bridge_error = false;
         s->code_submitted = true;
         prepare_idea(s, VIBE_RESOLVE_IDEA, s->idea_code);
         break;
@@ -768,10 +776,12 @@ void vibe_ui_poll(vibe_ui_t *s) {
         memcpy(display, s->idea_code, strlen(s->idea_code));
         TEXT(s, BRIDGE_CODE, display);
         TEXT(s, BRIDGE_DETAIL,
-             v->network == VIBE_NET_CONNECTED
+             s->bridge_error ? T(s, "Enter all six digits")
+             : v->network == VIBE_NET_CONNECTED
                  ? (v->idea_busy ? T(s, "Finishing previous request...")
                                  : T(s, "Enter the six-digit Idea code"))
                  : T(s, "Wi-Fi is not connected"));
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_DOWNLOAD_GO_READY_VISIBLE, strlen(s->idea_code) == 6);
     } break;
     case VIBE_IDEA_INFO:
         if (v->idea_ready) {

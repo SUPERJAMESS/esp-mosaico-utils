@@ -985,11 +985,14 @@ def test_language_display_and_ai_does_not_sleep(sim):
     sim.tap(38, 36); sim.wait(page=0)
     sim.control("ai")
     time.sleep(.3)  # Let the queued hardware key reach the UI tick.
+    sim.wait(page=21, asleep=True)
+    sim.control("ai")
+    time.sleep(.3)
     sim.wait(page=0, asleep=False)
     sim.swipe(400, 250, 80, 250); sim.wait(page=19)
     sim.control("ai")
     time.sleep(.3)
-    sim.wait(page=19, asleep=False)
+    sim.wait(page=0, asleep=False)
 
 
 @pytest.mark.parametrize("sim", ["first-run"], indirect=True)
@@ -1080,6 +1083,8 @@ def test_reset_hold_cancels_on_navigation_and_runs_once(sim):
     enter_reset()
     sim.rpc("feed_pointer", x=240, y=396, pressed=True)
     time.sleep(.8)
+    sim.control("ai")
+    sim.wait(page=11, reset_calls=0)
     sim.control("ai")
     sim.wait(page=0, reset_calls=0)
     sim.rpc("feed_pointer", x=240, y=396, pressed=False)

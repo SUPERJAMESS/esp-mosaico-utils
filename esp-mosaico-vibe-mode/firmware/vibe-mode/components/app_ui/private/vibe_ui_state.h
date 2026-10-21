@@ -38,8 +38,9 @@ struct vibe_ui {
     uint32_t acknowledged_update, rendered_preview;
     vibe_rate_t rate;
     uint64_t page_enter_ms, next_poll_ms, activity_ms, hold_started_ms, suppress_until, undo_until;
-    uint64_t last_release_ms, nav_badge_until;
-    bool open_waiting, open_unsaved, run_development_pending, code_submitted, shared_detail_reveal, shared_system_entry, shared_rename_mode;
+    uint64_t last_release_ms, nav_badge_until, ai_feedback_until;
+    bool open_waiting, open_unsaved, run_development_pending, code_submitted, bridge_error, shared_detail_reveal, shared_system_entry, shared_rename_mode;
+    bool wait_modal;
     unsigned guide_topic, help_mode, help_topic_index;
     bool fix_return_active, shared_settings_return;
     unsigned grid_page, grid_rendered_page, pager_state, shared_page, last_shared_user_count;

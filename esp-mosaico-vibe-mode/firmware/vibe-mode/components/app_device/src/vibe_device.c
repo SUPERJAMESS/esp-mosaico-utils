@@ -119,12 +119,15 @@ static void read_battery(vibe_device_snapshot_t *snapshot)
 {
     vibe_battery_sample_t status = {0};
     const unsigned battery_present = 1U << 3; /* BQ27220 BatteryStatus.BATTPRES */
+    const unsigned discharging = 1U << 0;     /* BQ27220 BatteryStatus.DSG */
+    const unsigned full_charged = 1U << 9;    /* BQ27220 BatteryStatus.FC */
     const esp_err_t error = vibe_battery_read(&status);
     const bool valid = error == ESP_OK && status.voltage_mv > 0 &&
         status.state_of_charge <= 100 && (status.status_flags & battery_present);
     snapshot->battery_valid = valid;
     snapshot->battery_percent = valid ? status.state_of_charge : 0;
-    snapshot->charging = valid && status.current_ma > 0 && !(status.status_flags & 1U);
+    snapshot->charging = valid && !(status.status_flags & discharging) &&
+        (status.current_ma > 0 || (snapshot->usb_connected && (status.status_flags & full_charged)));
     static unsigned last_state = ~0U;
     static esp_err_t last_error;
     const unsigned state = snapshot->battery_percent | (valid << 8) |

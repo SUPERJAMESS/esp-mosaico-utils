@@ -177,8 +177,8 @@ def apply(scene):
         for o in objects:
             if o.get('parent')==p and o['type']=='label' and not o.get('bind'): o['hidden']=True
         header(p,title,back)
-    for name,title in (('develop','Develop'),('settings','Settings'),('display','Display & haptics'),('language','Language'),
-                       ('shared','Shared info'),('shared_editor','Shared info'),('about','About'),('reset','Factory reset'),
+    for name,title in (('develop','Develop'),('settings','Settings'),('display','Display & Haptics'),('language','Language'),
+                       ('shared','Shared Info'),('shared_editor','Shared Info'),('about','About'),('reset','Factory Reset'),
                        ('delete_confirm','Delete Idea'),('boot_tip','Update Vibe Mode')):
         header(index[name],title,'button_back_'+name,
                size=28 if name=='delete_confirm' else 30,
@@ -190,7 +190,7 @@ def apply(scene):
     header(help_page,'Help','button_back_help',title_name='help_heading')
     help_root=add('layer',help_page,0,0,480,480,name='help_root_layer',bind='help_root_layer_visible',bind_target='visible')
     for i,(title,sub,glyph,action) in enumerate((
-            ('Getting started','Set up and run your first Idea','flag','help_topic_0'),
+            ('Getting Started','Set up and run your first Idea','flag','help_topic_0'),
             ('Develop Ideas','Build one with your AI agent','code','help_topic_1'),
             ('Idea IDs & Sharing','Find, download and share','hash','help_topic_2'),
             ('Troubleshooting','Wi-Fi, storage, stuck Ideas','support','help_topic_3'))):
@@ -280,10 +280,10 @@ def apply(scene):
     for o in objects:
         if o.get('parent')==p and o.get('name','').startswith('button_nav_'): o['hidden']=True
     viewport=add('container',p,0,96,480,368,name='settings_viewport',scroll=True,content_height=648)
-    rows=[('wifi','Wi-Fi','','wifi'),('display','Display & haptics','Screen off after 3 min','display'),
-          ('language','Language','English','globe'),('shared','Shared info','','key'),
+    rows=[('wifi','Wi-Fi','','wifi'),('display','Display & Haptics','Screen off after 3 min','display'),
+          ('language','Language','English','globe'),('shared','Shared Info','','key'),
           ('help','Help','Get started with Vibe Mode','help'),('about','About','Version · device · storage','chip'),
-          ('reset','Factory reset','Clear preferences · keep NAND','replay')]
+          ('reset','Factory Reset','Clear preferences · keep NAND','replay')]
     for i,(name,title,sub,glyph) in enumerate(rows):
         group='settings_top' if i<4 else 'settings_bottom'
         row(viewport,group+'_'+name,title,sub,glyph+'-32-cream',88*i+(16 if i>=4 else 0)+(16 if i>=6 else 0),'nav_'+name,
@@ -331,7 +331,7 @@ def apply(scene):
         fgate=add('layer',49,0,0,480,480,name='code_focus_'+str(i),bind='code_focus_'+str(i)+'_visible',bind_target='visible',hidden=i!=0)
         rect(fgate,x,92,44,56,'#00000001',8,border_color=ORANGE,border_width=2)
         text(49,'code_digit_'+str(i),'',x,102,44,37,28,'title',align='center')
-    text(49,'bridge_detail','Enter the 6-digit ID from Mosaico Ideas',24,151,432,30,20,color=MUTED,align='center',overflow='ellipsis')
+    text(49,'bridge_detail','Enter the 6-digit ID from Mosaico Ideas',24,151,432,30,20,color=MUTED,align='center',overflow='ellipsis',dynamic_color=True)
     rect(49,408,20,56,56,RAISED,28);icon(49,'help-32-white',420,32)
     click(49,'download_help',394,6,84,84,'download_help')
     for n in range(1,10):
@@ -339,8 +339,11 @@ def apply(scene):
         button(49,'button_code_'+str(n),str(n),x,y,88,56)
         named['button_code_'+str(n)].update(font=FONT['title'],font_size=28,bg_color=TILE,radius=16)
     button(49,'button_code_0','0',196,404,88,56);named['button_code_0'].update(font=FONT['title'],font_size=28,bg_color=TILE,radius=16)
-    click(49,'button_code_delete',84,396,104,72,'code_delete');icon(49,'backspace-32-white',120,416)
-    button(49,'button_download_code','Go',300,404,88,56,primary=True);named['button_download_code']['font_size']=22
+    click(49,'button_code_delete',92,404,88,56,'code_delete');named['button_code_delete'].update(bg_color=ORANGE,radius=16);icon(index['button_code_delete'],'backspace-32-white',28,12,32)
+    button(49,'button_download_code','Go',300,404,88,56);named['button_download_code'].update(font_size=22,bg_color=TILE,fg_color=TEXT,radius=16)
+    go_ready=add('layer',index['button_download_code'],0,0,88,56,name='download_go_ready',bind='download_go_ready_visible',bind_target='visible',hidden=True)
+    rect(go_ready,0,0,88,56,ORANGE,16)
+    text(go_ready,'download_go_ready_label','Go',0,12,88,32,24,'medium',BG,'center')
 
     # Wi-Fi and password use the same row typography and native keyboard.
     for i in (18,): objects[i]['hidden']=True
@@ -466,7 +469,7 @@ def apply(scene):
             selected=add('layer',gate,0,0,480,412,name=f'{kind}_selected_{i}',bind=f'{kind}_selected_{i}_visible',bind_target='visible',hidden=True)
             rect(selected,24+i*88,y,80,72,TEXT,24)
             text(selected,f'{kind}_selected_{i}_label',named[f'button_{kind}_{i}']['text'],24+i*88,y+20,80,32,22,'medium',BG,'center')
-    for j,(name,title,sub,glyph) in enumerate((('rotate','Auto rotate','Follows how you hold it','rotate'),('haptics','Haptics','Touch feedback','haptic'))):
+    for j,(name,title,sub,glyph) in enumerate((('rotate','Auto-Rotate','Follows how you hold it','rotate'),('haptics','Haptic Feedback','Touch feedback','haptic'))):
         y=236+j*88
         row(gate,'display_0_'+name,title,sub,glyph+'-32-cream',y,'toggle_'+name,'display_'+name+'_sub')
         named['row_title_display_0_'+name]['w']=284
@@ -509,7 +512,7 @@ def apply(scene):
 
     # Shared editor follows the original input card and keyboard geometry.
     p=index['shared_editor']
-    text(p,'shared_editor_heading','New key',88,29,252,40,30,'title')
+    text(p,'shared_editor_heading','New Key',88,29,252,40,30,'title')
     rect(p,16,96,448,64)
     text(p,'shared_value','',36,112,332,32,22,'medium')
     text(p,'shared_field','Key',32,168,416,53,22,color=MUTED)
@@ -536,16 +539,16 @@ def apply(scene):
         text(viewport,value,'ESP-Mosaico' if i==1 else '',176,6+44*i,268,30,20,align='right')
         if i:rect(viewport,36,44*i,408,1,LINE,0)
     row(viewport,'about_check','Update Vibe Mode','Check updates','upgrade-32-orange',188,'firmware_check','about_check')
-    row(viewport,'about_licenses','Open-source licenses','Components used in Vibe Mode','hash-32-cream',276,'licenses')
+    row(viewport,'about_licenses','Open-Source Licenses','Components used in Vibe Mode','hash-32-cream',276,'licenses')
     row(viewport,'about_download','Find Ideas','Browse Mosaico Ideas','globe-32-cream',364,'download')
 
     def info_page(name,title):
         page=add('layer',-1,0,0,480,480,name=name,bind=name+'_visible',bind_target='visible',hidden=True,bg_color=BG)
         header(page,title,'button_back_'+name)
         return page
-    licenses=info_page('licenses','Licenses & notices')
+    licenses=info_page('licenses','Licenses & Notices')
     body=add('container',licenses,0,96,480,368,name='licenses_viewport',scroll=True,content_height=820)
-    text(body,'licenses_heading_8','Software components',24,8,432,34,24,'medium')
+    text(body,'licenses_heading_8','Software Components',24,8,432,34,24,'medium')
     for idx,(comp,lic) in enumerate((('ESP-IDF · ESP-Iris','Apache License 2.0'),('ESP-GSP · VUI','Espressif Modified MIT License'),('LZMA SDK','Public domain'))):
         cy=48+idx*92
         rect(body,16,cy,448,84,CARD,16)
@@ -562,7 +565,7 @@ def apply(scene):
     text(body,'licenses_body_248','Full terms and copyright notices are in each project\'s license files.',24,740,432,60,20,color=MUTED)
     text(body,'licenses_heading_488','',24,800,424,10,16,hidden=True)
     text(body,'licenses_body_488','',24,800,424,10,16,hidden=True)
-    shared_help=info_page('shared_help','Shared info')
+    shared_help=info_page('shared_help','Shared Info')
     text(shared_help,'shared_help_intro','Save a value once.\nEvery Idea can read it.',24,96,432,68,22,'medium')
     text(shared_help,'shared_help_example_title','FOR EXAMPLE',24,174,432,26,18,'medium',color=MUTED)
     rect(shared_help,16,204,448,112,CARD,18,border_color=LINE,border_width=1)
@@ -572,7 +575,7 @@ def apply(scene):
     text(shared_help,'shared_help_ex1_k','api_key',36,272,160,30,22,'medium')
     text(shared_help,'shared_help_ex1_v','read by Skills',196,274,248,26,18,color=MUTED,align='right')
     text(shared_help,'shared_help_rules','Keys: a-z, 0-9 and _ · up to 15 characters\nValues: up to 256 bytes',24,332,432,120,20,color=MUTED)
-    detail=info_page('shared_detail','Shared info')
+    detail=info_page('shared_detail','Shared Info')
     row(detail,'shared_detail_key','Key','','key-32-cream',96,'shared_help','shared_detail_key')
     row(detail,'shared_detail_value','Value','','id-32-cream',184,'shared_edit','shared_detail_value')
     sys_ui=add('layer',detail,0,0,480,480,name='shared_detail_sys_ui',bind='shared_detail_sys_visible',bind_target='visible',hidden=True)
@@ -727,7 +730,7 @@ def apply(scene):
             hide(note)
             text(p,'reset_body','Clears settings, then restarts:',24,94,432,26,20,'sans',TEXT)
             rect(p,16,124,448,172,CARD,18,border_color=LINE,border_width=1)
-            for r_idx,(r_key,r_val) in enumerate((('Ideas','Kept on this device'),('Wi-Fi','Not connected'),('Shared info','0 entries'),('Settings','Display & haptics, language'))):
+            for r_idx,(r_key,r_val) in enumerate((('Ideas','Kept on this device'),('Wi-Fi','Not connected'),('Shared Info','0 entries'),('Settings','Display & haptics, language'))):
                 ry=124+r_idx*43
                 if r_idx: rect(p,36,ry,408,1,LINE,0)
                 text(p,f'reset_key_{r_idx}',r_key,36,ry+8,144,28,20,color=MUTED)
@@ -747,6 +750,20 @@ def apply(scene):
 
     for o in objects:
         if o.get('parent') == -1 and o.get('type') == 'layer': o['bg_color']=BG
+
+    wait_modal=add('layer',-1,0,0,480,480,name='wait_modal',bind='wait_modal_visible',bind_target='visible',hidden=True)
+    click(wait_modal,'wait_modal_backdrop',0,0,480,480,'wait_modal_close')
+    rect(wait_modal,24,116,432,248,CARD,24,border_color=LINE,border_width=1)
+    text(wait_modal,'wait_modal_title','Please wait',48,148,384,34,24,'medium',TEXT,'center')
+    text(wait_modal,'wait_modal_body','Checking apps and storage...',48,196,384,32,20,'sans',MUTED,'center')
+    button(wait_modal,'button_wait_modal_cancel','Cancel',48,256,384,84,action='wait_modal_close')
+    named['button_wait_modal_cancel'].update(bg_color=RAISED,radius=16,border_color=LINE,border_width=1)
+
+    order[0]=999998
+    ai_fb=add('layer',-1,0,0,480,56,name='ai_feedback',bind='ai_feedback_visible',bind_target='visible',hidden=True)
+    rect(ai_fb,340,4,64,8,ORANGE,4)
+    rect(ai_fb,328,20,88,32,RAISED,16,border_color=LINE,border_width=1)
+    text(ai_fb,'ai_feedback_chip','Back',328,25,88,22,16,'medium',TEXT,'center')
 
     # Unify legacy detail labels with the reviewed title/body styles.
     for o in objects:
@@ -820,7 +837,7 @@ def runtime_charsets(root, translations):
     values.setdefault('shared_submit_label',set()).update(('Next','Save'))
     values.setdefault('shared_reveal_label',set()).update(('Show','Hide'))
     values.setdefault('button_shared_detail_delete',set()).update(('Delete entry','Open Settings'))
-    values.setdefault('help_heading',set()).update(('Help','Getting started','Develop Ideas','Idea IDs & Sharing','Troubleshooting','Return to Vibe Mode','Wi-Fi Connection','Storage Is Full'))
+    values.setdefault('help_heading',set()).update(('Help','Getting Started','Develop Ideas','Idea IDs & Sharing','Troubleshooting','Return to Vibe Mode','Wi-Fi Connection','Storage Is Full'))
     for step_idx, step_strs in (
         (1, ('Plug in USB and ask your agent to build an Idea.','Open the Vibe-coding guide and\nfollow it in your AI agent.','Every Idea has a 6-digit ID shown\non Mosaico Ideas.','Power off the device.')),
         (2, ('Or download one: open Manage, tap +, type its ID.','Plug in USB. The agent installs the\nIdea over the cable.','Open Manage, tap +, type the ID\nand press Go.','Hold AI and turn the device on.')),
@@ -833,4 +850,6 @@ def runtime_charsets(root, translations):
     values.setdefault('guide_one',set()).update(('Scan for the coding guide.','Build your first Idea with AI.','Set up and run your first Idea.','Find Idea IDs and share your own.','Help with Wi-Fi, storage and Ideas.'))
     values.setdefault('guide_url',set()).update(('mosaico.espressif.com/guide/vibe-coding','mosaico.espressif.com/vibe/start','mosaico.espressif.com/vibe/ids','mosaico.espressif.com/vibe/fix'))
     for i in range(4):values.setdefault('shared_entry_value_'+str(i),set()).add('Undo · %u s')
+    values.setdefault('ai_feedback_chip',set()).update(('Sleep','Home','Back','Close','Wake'))
+    values.setdefault('heading_49',set()).add('前往')
     return {name: ''.join(sorted(''.join(strings)+''.join(translations.get(s,'') for s in strings))) for name,strings in values.items()}

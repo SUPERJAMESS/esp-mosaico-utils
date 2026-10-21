@@ -204,12 +204,16 @@ def generate():
             obj["font_charset"] += dynamic_chars.get(obj.get("bind"), "")
             if obj.get("name", "").startswith("code_digit_") or obj.get("name") in ("update_percent", "firmware_percent"):
                 obj["font_charset"] = "0123456789% -"
+            if obj.get("name") == "ai_feedback_chip":
+                obj["font_charset"] = dynamic_chars.get("ai_feedback_chip", "")
             if obj.get("name") == "home_ideas_count":
                 obj["font_charset"] = "0123456789-"
             # This fixed Chinese welcome subtitle has no runtime text producer.
             # Its unique 28px style does not need the dynamic ASCII alphabet.
             if obj.get("name") in ("welcome_chinese", "welcome_later_zh"):
                 obj["font_charset"] = value
+            if obj.get("name") in ("home_ideas_title", "open_question"):
+                obj["font_charset"] = value + translations.get(value, "")
             if obj.get("font") == "fonts/ArchivoExtended-Black.ttf" or obj.get("name") == "home_headline":
                 obj["font_charset"] = value
             if obj.get("hidden"):
