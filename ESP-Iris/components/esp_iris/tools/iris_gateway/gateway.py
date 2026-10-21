@@ -93,6 +93,7 @@ from .system_update import (
     load_system_update_bundle,
 )
 from .system_update_workflow import run_system_update
+from .transfer_progress import TransferProgress
 from .update_acceptance import validate_updated_contract
 
 LOG_PATTERN = re.compile(r"^(?P<level>[EWIDV])\s+\((?P<stamp>\d+)\)\s+(?P<tag>[^:]+):\s?(?P<message>.*)$")
@@ -222,12 +223,9 @@ class GatewayService:
         self.metrics.increment(f"events.{category}")
         device = None
         if device_id and self.hub is not None:
-            for current in self.hub.list_devices():
-                if current.get("device_id") == device_id:
-                    current = dict(current)
-                    current["connected"] = True
-                    device = current
-                    break
+            current = self.hub.device_snapshot(str(device_id))
+            if current is not None:
+                device = {**current, "connected": True}
         if self._event_writer is None:
             self._event_writer = EventWriter(self.store.root, self._events_written,
                                              max_items=self.limits.writer_items, max_bytes=self.limits.writer_bytes,
@@ -509,19 +507,13 @@ class GatewayService:
             recovery=execution_mode == "recovery",
         )
         recovery_evidence = await validate_recovery(self.device_hub, device_id, writer_status, preconditions or {})
-        last_device_progress = -10
+        progress_updates = TransferProgress()
 
         async def report_progress(progress: dict[str, Any]) -> None:
-            nonlocal last_device_progress
+            if not progress_updates.accept(progress):
+                return
             device_progress = int(progress.get("progress_permille", 0))
             stage = str(progress.get("stage", "transferring"))
-            if (
-                stage == "transferring"
-                and device_progress < 900
-                and device_progress < last_device_progress + 10
-            ):
-                return
-            last_device_progress = device_progress
             overall = 100 + (device_progress * 750 // 1000) if execution_mode == "recovery" else device_progress * 850 // 1000
             await self.operations.progress(
                 operation_id,

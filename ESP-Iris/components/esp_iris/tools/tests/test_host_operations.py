@@ -50,6 +50,9 @@ class HostHub:
     def list_devices(self):
         return [self.info.copy()] if self.connected else []
 
+    def device_snapshot(self, device_id):
+        return self.info.copy() if self.connected and device_id == self.info["device_id"] else None
+
     def list_endpoints(self):
         endpoints = [self.endpoint, self.endpoint + "-data"] if self.composite else [self.endpoint]
         return [{"endpoint": endpoint, "state": "ready" if self.connected else "host_operation",

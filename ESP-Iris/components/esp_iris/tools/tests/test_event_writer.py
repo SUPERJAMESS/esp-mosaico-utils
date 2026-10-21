@@ -22,7 +22,7 @@ def test_queued_inventory_is_shared_within_the_byte_budget(tmp_path, monkeypatch
         service = GatewayService(store, instance_id="shared-snapshot",
                                  limits=GatewayLimits(writer_items=16, writer_bytes=8192))
         info = {"device_id": "device", "metadata": "x" * 4096, "app_version": "old"}
-        service.attach_hub(SimpleNamespace(list_devices=lambda: [dict(info)]))
+        service.attach_hub(SimpleNamespace(device_snapshot=lambda _: dict(info)))
         entered, release = threading.Event(), threading.Event()
         append = EventSegments.append
 
@@ -104,7 +104,9 @@ def test_sqlite_contention_preserves_batch_and_listings_do_not_write(tmp_path):
         store = GatewayStore(tmp_path)
         service = GatewayService(store, instance_id="contention")
         devices = [{"device_id": f"device-{index}", "session_id": index} for index in range(9)]
-        service.attach_hub(SimpleNamespace(list_devices=lambda: devices, active_mirrors=lambda _: [], list_endpoints=list))
+        service.attach_hub(SimpleNamespace(list_devices=lambda: devices,
+                                          device_snapshot=lambda key: next(d for d in devices if d["device_id"] == key),
+                                          active_mirrors=lambda _: [], list_endpoints=list))
         # Initialize the worker before holding an independent state writer.
         await service.on_device_event({"kind": "log", "text": "ready"})
         await service.flush_events()
@@ -141,7 +143,7 @@ def test_slow_disk_does_not_block_loop_and_batches_coalesce_devices(tmp_path, mo
     async def scenario():
         store = GatewayStore(tmp_path)
         service = GatewayService(store, instance_id="batch")
-        service.attach_hub(SimpleNamespace(list_devices=lambda: [{"device_id": "device", "session_id": 1}]))
+        service.attach_hub(SimpleNamespace(device_snapshot=lambda _: {"device_id": "device", "session_id": 1}))
         entered, release = threading.Event(), threading.Event()
         append = EventSegments.append
 

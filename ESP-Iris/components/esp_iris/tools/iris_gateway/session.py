@@ -385,11 +385,8 @@ class DeviceSession:
             ) != identity:
                 raise ProtocolError("control identity changed before data handshake")
             data = self.data_session
-            if data is not None and data.info is not None and data._ready.is_set():
-                if data._closed:
-                    data = None
-                else:
-                    return self._require_data_link()
+            if data is not None and data.info is not None and not data._closed and data._ready.is_set():
+                return self._require_data_link()
             remaining = deadline - asyncio.get_running_loop().time()
             if remaining <= 0:
                 raise TimeoutError("independent Iris data link did not become ready")

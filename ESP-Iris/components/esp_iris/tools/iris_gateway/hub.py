@@ -945,28 +945,35 @@ class IrisHub:
 
     def list_devices(self) -> list[dict[str, Any]]:
         result = []
-        for session in self._devices.values():
-            if session.info is None:
-                continue
-            item = session.info.as_dict()
-            links = self._links.get(session.info.device_id, {})
-            for role in ("control", "data"):
-                peer = links.get(role)
-                item[f"{role}_link"] = (
-                    peer.info.as_dict() if peer is not None and peer.info is not None else None
-                )
-            item["data_available"] = "data" in links
-            item["console_available"] = bool(getattr(links.get("control"), "console_available", False))
-            state = self._endpoint_states.get(session.link.endpoint, {})
-            item["firmware_mode"] = state.get("firmware_mode", "unknown")
-            item["transport_name"] = {
-                Transport.USB: "USB Highspeed",
-                Transport.TCP: "TCP",
-                Transport.USB_SERIAL_JTAG: "USB Serial/JTAG",
-                Transport.UART: "UART",
-            }.get(Transport(session.info.transport), "Unknown")
-            result.append(item)
+        for device_id in self._devices:
+            item = self.device_snapshot(device_id)
+            if item is not None:
+                result.append(item)
         return result
+
+    def device_snapshot(self, device_id: str) -> dict[str, Any] | None:
+        """Snapshot one live device without serializing the rest of the fleet."""
+        session = self._devices.get(device_id)
+        if session is None or session.info is None:
+            return None
+        item = session.info.as_dict()
+        links = self._links.get(device_id, {})
+        for role in ("control", "data"):
+            peer = links.get(role)
+            item[f"{role}_link"] = (
+                peer.info.as_dict() if peer is not None and peer.info is not None else None
+            )
+        item["data_available"] = "data" in links
+        item["console_available"] = bool(getattr(links.get("control"), "console_available", False))
+        state = self._endpoint_states.get(session.link.endpoint, {})
+        item["firmware_mode"] = state.get("firmware_mode", "unknown")
+        item["transport_name"] = {
+            Transport.USB: "USB Highspeed",
+            Transport.TCP: "TCP",
+            Transport.USB_SERIAL_JTAG: "USB Serial/JTAG",
+            Transport.UART: "UART",
+        }.get(Transport(session.info.transport), "Unknown")
+        return item
 
     def list_endpoints(self) -> list[dict[str, Any]]:
         remembered = {} if self.ownership is None else {
