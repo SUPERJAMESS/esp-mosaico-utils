@@ -118,7 +118,8 @@ static void load(vibe_settings_snapshot_t *out)
     memset(out, 0, sizeof(*out));
     out->brightness = 80;
     out->screen_off_seconds = 0;
-    out->auto_rotate = out->haptics = out->open_confirm = true;
+    out->auto_rotate = false;
+    out->haptics = out->open_confirm = true;
     nvs_handle_t h;
     if (open_namespace("vibe_prefs", NVS_READONLY, &h) == ESP_OK) {
         out->language = read_number(h, "lang", 0);
@@ -127,7 +128,7 @@ static void load(vibe_settings_snapshot_t *out)
         if (out->brightness < 20 || out->brightness > 100) out->brightness = 80;
         out->screen_off_seconds = read_number(h, "timeout", 0);
         if (out->screen_off_seconds > 600) out->screen_off_seconds = 0;
-        out->auto_rotate = read_number(h, "rotate", 1) != 0;
+        out->auto_rotate = read_number(h, "rotate", 0) != 0;
         out->haptics = read_number(h, "haptics", 1) != 0;
         out->open_confirm_count = read_number(h, "confirm_cnt", 0);
         if (out->open_confirm_count > 3) out->open_confirm_count = 3;

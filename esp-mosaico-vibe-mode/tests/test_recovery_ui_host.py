@@ -259,11 +259,11 @@ def test_unavailable_peripherals_preserve_preferences_and_recover(sim):
     sim.tap_ui("button_settings_top_display"); sim.wait(page=12)
     sim.swipe(240, 410, 240, 200)
     sim.tap_ui("button_display_0_rotate"); sim.tap_ui("button_display_0_haptics")
-    sim.wait(rotate=True, haptics=True)
+    sim.wait(rotate=False, haptics=True)
     sim.capture("peripherals-unavailable")
     sim.control("peripherals-ready")
     sim.tap_ui("button_display_0_rotate"); sim.tap_ui("button_display_0_haptics")
-    sim.wait(rotate=False, haptics=False)
+    sim.wait(rotate=True, haptics=False)
 
 
 @pytest.mark.parametrize("sim", ["prefetched"], indirect=True)
@@ -971,7 +971,7 @@ def test_language_display_and_ai_does_not_sleep(sim):
     sim.tap_ui("button_settings_top_display"); sim.wait(page=12)
     sim.tap(145, 155); sim.wait(brightness=40)
     sim.tap(420, 275); sim.wait(screen_off_seconds=0)
-    sim.tap(125, 360); sim.wait(rotate=False)
+    sim.tap(125, 360); sim.wait(rotate=True)
     sim.swipe(240, 410, 240, 180)
     sim.wait(display_offset=40)
     sim.tap_ui("button_display_0_haptics"); sim.wait(haptics=False)
