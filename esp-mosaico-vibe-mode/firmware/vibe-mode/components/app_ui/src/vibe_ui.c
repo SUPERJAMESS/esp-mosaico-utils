@@ -132,7 +132,7 @@ static void clear_inline_intro(vibe_ui_t *s)
     (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT, 0);
     (void)vui_set_text(s->ui, VUI_VIBE_BIND_RELEASE_PATH,
         ascii_text(s->selected_bundle.description) ? s->selected_bundle.description :
-        T(s, "View info for name and description"));
+        T(s, "Loading..."));
 }
 static void clear_preview(vibe_ui_t *s)
 {
@@ -433,7 +433,7 @@ static void open_inline_intro(vibe_ui_t *s)
     }
     s->inline_intro_due = false;
     s->inline_intro_pending = true;
-    TEXT(s, RELEASE_PATH, "Reading downloaded resources");
+    TEXT(s, RELEASE_PATH, "Loading...");
 }
 static void poll_inline_intro(vibe_ui_t *s)
 {
@@ -631,7 +631,7 @@ static void event(vui_handle_t ui, const vui_event_t *e, void *ctx)
                s->selected_bundle.version, s->selected_bundle.boot ? T(s, " | Boot app") : "");
         TEXT(s, RELEASE_PATH,
              ascii_text(s->selected_bundle.description) ? s->selected_bundle.description
-                                                        : "View info for name and description");
+                                                        : "Loading...");
         (void)vui_set_visible(ui, VUI_VIBE_BIND_BUTTON_START_IDEA_VISIBLE,
                                             !s->selected_bundle.boot);
         (void)vui_set_visible(ui, VUI_VIBE_BIND_BUTTON_CHECK_IDEA_VISIBLE, s->selected_bundle.code[0] != 'd');
@@ -906,8 +906,7 @@ void vibe_ui_poll(vibe_ui_t *s) {
         }
         project_preview_name(s);
         TEXT(s, IDEA_DESCRIPTION,
-             !v->idea_ready   ? (v->idea_view_only ? T(s, "Reading downloaded resources")
-                                                   : T(s, "Fetching details from the cloud"))
+             !v->idea_ready   ? T(s, "Loading...")
              : v->idea_custom ? ""
                               : v->idea.description);
         if (v->idea_ready) {

@@ -424,7 +424,7 @@ def apply(scene):
     text(117,'idea_summary','',124,154,332,24,20,color=MUTED,overflow='ellipsis')
     rect(117,24,186,432,1,LINE,0)
     viewport=add('container',117,24,200,432,168,name='idea_description_viewport',scroll=True,content_height=176)
-    text(viewport,'idea_description','Fetching details from the cloud',8,0,416,176,22)
+    text(viewport,'idea_description','Loading...',8,0,416,176,22)
     move('idea_body_pixels',8,0,416,176,parent=viewport,hidden=True)
     button(117,'button_cancel_idea','Cancel',24,380,208,84)
     button(117,'button_accept_idea','Download',248,380,208,84,primary=True)
