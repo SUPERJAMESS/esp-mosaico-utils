@@ -34,3 +34,14 @@ def test_final_byte_count_is_immediate_and_operations_are_independent(monkeypatc
     assert not first.accept(progress)
     assert second.accept(progress)
     assert first.accept(dict(progress, bytes_received=100))
+
+
+def test_large_transfers_retain_the_percentage_sampling_bound(monkeypatch):
+    clock = [100.0]
+    monkeypatch.setattr("iris_gateway.transfer_progress.time.monotonic", lambda: clock[0])
+    gate = TransferProgress()
+    progress = {"stage": "transferring", "bytes_received": 0, "bytes_total": 1000000}
+    assert gate.accept(progress)
+    clock[0] += 2
+    assert not gate.accept(dict(progress, bytes_received=1000))
+    assert gate.accept(dict(progress, bytes_received=10000))
