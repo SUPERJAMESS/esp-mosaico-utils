@@ -163,6 +163,18 @@ def generate():
         obj = next(o for o in objects if o.get("name") == name)
         obj["parent"] = add("layer", obj["parent"], 0, 0, 480, 480,
                             name=name + "_gate", bind=name + "_visible", bind_target="visible")
+    # Keep cell update badges, add overlays, and empty state on top of gated cell icons/buttons.
+    grid_overlays = [f"cell_update_{i}" for i in range(6)] + [f"cell_add_{i}" for i in range(6)] + ["grid_empty"]
+    for name in grid_overlays:
+        idx = next(i for i, o in enumerate(objects) if o.get("name") == name)
+        objects.append(objects.pop(idx))
+        new_idx = len(objects) - 1
+        for o in objects:
+            p = o.get("parent", -1)
+            if p == idx:
+                o["parent"] = new_idx
+            elif p > idx:
+                o["parent"] = p - 1
     for obj in objects:
         if obj.get("name", "").startswith(("cell_current_", "cell_default_")):
             obj.update(bind=obj["name"] + "_visible", bind_target="visible")
@@ -204,12 +216,16 @@ def generate():
             obj["font_charset"] += dynamic_chars.get(obj.get("bind"), "")
             if obj.get("name", "").startswith("code_digit_") or obj.get("name") in ("update_percent", "firmware_percent"):
                 obj["font_charset"] = "0123456789% -"
+            if obj.get("name") == "ai_feedback_chip":
+                obj["font_charset"] = dynamic_chars.get("ai_feedback_chip", "")
             if obj.get("name") == "home_ideas_count":
                 obj["font_charset"] = "0123456789-"
             # This fixed Chinese welcome subtitle has no runtime text producer.
             # Its unique 28px style does not need the dynamic ASCII alphabet.
-            if obj.get("name") in ("welcome_chinese", "welcome_later_zh"):
+            if obj.get("name") in ("welcome_chinese", "welcome_later_zh", "welcome_heading", "welcome_later"):
                 obj["font_charset"] = value
+            if obj.get("name") in ("home_ideas_title", "open_question"):
+                obj["font_charset"] = value + translations.get(value, "")
             if obj.get("font") == "fonts/ArchivoExtended-Black.ttf" or obj.get("name") == "home_headline":
                 obj["font_charset"] = value
             if obj.get("hidden"):
@@ -227,7 +243,7 @@ def generate():
                 continue
             if not obj.get("bind"):
                 obj["bind"] = "static_" + str(i)
-            if obj.get("text"):
+            if obj.get("text") and obj.get("name") not in ("welcome_heading", "welcome_later"):
                 static_labels.append((obj["bind"], obj["text"]))
 
         if obj["type"] == "keyboard": obj["font"] = "fonts/VibeMedium.otf"

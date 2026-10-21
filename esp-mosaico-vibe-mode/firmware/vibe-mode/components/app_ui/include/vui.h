@@ -56,6 +56,7 @@ void vui_pointer(vui_handle_t ui, int x, int y, bool pressed);
 /* Monotonic sample time, independent of when a queued event is consumed. */
 void vui_pointer_at(vui_handle_t ui, int x, int y, bool pressed, uint64_t time_ms);
 vui_err_t vui_set_text(vui_handle_t ui, uint16_t id, const char *text);
+vui_err_t vui_set_color(vui_handle_t ui, uint16_t id, uint16_t color);
 vui_err_t vui_set_visible(vui_handle_t ui, uint16_t id, bool visible);
 vui_err_t vui_component_set_visible(vui_handle_t ui, uint16_t id, bool visible);
 vui_err_t vui_set_value(vui_handle_t ui, uint16_t id, unsigned value);

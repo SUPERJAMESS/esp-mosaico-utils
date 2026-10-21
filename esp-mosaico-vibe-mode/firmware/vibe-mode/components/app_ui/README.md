@@ -36,6 +36,10 @@ PC 由 `pc/CMakeLists.txt` 将绘制器和页面控制器编译为本机动态�
 已完成的更新保留。共享信息删除后收敛页码；编辑草稿跨息屏和 Boot 提示保留，
 返回编辑页后重新显示，真正离开该编辑上下文时清理。
 
+下载页返回管理页或网格的实际来源，退出 FAQ 子流程后清理其返回上下文。
+后台检查期间可先输入编号，提交仍遵守任务互斥。未满六位的提示保持到编辑输入；
+编号查询失败时提供“修改编号”，保留原编号并允许重新提交。
+
 公共业务依赖为 app_settings、app_device；私有适配依赖 app_network、app_ideas、
 app_nand_update、app_system_update、app_bridge 和 BSP / display presenter / ESP-Iris 公共 API。
 所有控制器与渲染操作由单个渲染任务串行执行；外部请求排队，旋转在帧间持锁执行。

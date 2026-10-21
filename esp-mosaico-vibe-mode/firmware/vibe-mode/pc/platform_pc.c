@@ -280,6 +280,8 @@ static void trace_state(vui_handle_t ui, void *ctx)
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_LICENSES_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_SHARED_VIEWPORT),
             vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_IDEA_DESCRIPTION_VIEWPORT));
+    fprintf(file, "\"local_description_offset\":%d,",
+            vui_scroll_offset(ui, VUI_VIBE_OBJ_KEY_LOCAL_DESCRIPTION_VIEWPORT));
     fprintf(file, "\"open_confirm\":%s,\"scan_calls\":%u,\"cancellable\":%s,\"cancelled\":%s,",
             model.settings.open_confirm ? "true" : "false", scan_calls, model.cancellable ? "true" : "false", model.update_cancelled ? "true" : "false");
     fprintf(file, "\"grid_page\":%u,\"language\":%u,\"asleep\":%s,\"pending_delete\":%s,"
