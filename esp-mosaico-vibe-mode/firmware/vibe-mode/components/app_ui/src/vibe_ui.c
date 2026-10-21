@@ -128,6 +128,7 @@ static void clear_preview(vibe_ui_t *s)
     (void)vui_component_set_visible(s->ui, VUI_VIBE_OBJ_KEY_IDEA_BODY_PIXELS, false);
     (void)vui_component_set_visible(s->ui, VUI_VIBE_OBJ_KEY_IDEA_ICON, false);
     s->rendered_preview = 0;
+    s->preview_loading_title_ready = false;
 }
 static int render_preview(vibe_ui_t *s) {
     const vibe_snapshot_t *v = &s->snapshot;
@@ -288,6 +289,36 @@ static bool ascii_text(const char *text) {
             return false;
     return true;
 }
+/* A local update check already knows the selected Idea. Keep its name in
+ * the header while the requested release metadata is loading. */
+static void project_preview_name(vibe_ui_t *s)
+{
+    const vibe_snapshot_t *v = &s->snapshot;
+    if (v->idea_ready) {
+        (void)vui_set_text(s->ui, VUI_VIBE_BIND_IDEA_NAME, v->idea_custom ? "" : v->idea.release);
+        return;
+    }
+    const char *name = s->preview_return == VIBE_CONFIRM ? s->selected_bundle.release : "";
+    if (!*name) {
+        TEXT(s, IDEA_NAME, "Loading app information...");
+        return;
+    }
+    if (ascii_text(name)) {
+        (void)vui_set_text(s->ui, VUI_VIBE_BIND_IDEA_NAME, name);
+        return;
+    }
+    if (!s->preview_loading_title_ready && s->services.title) {
+        size_t size = 0;
+        void *image = s->services.title(s->services.ctx, s->selected_bundle.code, &size);
+        if (image) {
+            if (vui_set_image_owned(s->ui, VUI_VIBE_BIND_IDEA_TITLE_PIXELS, image, size) == VUI_OK) {
+                (void)vui_set_visible(s->ui, VUI_VIBE_BIND_IDEA_TITLE_PIXELS, true);
+                s->preview_loading_title_ready = true;
+            } else free(image);
+        }
+    }
+    (void)vui_set_text(s->ui, VUI_VIBE_BIND_IDEA_NAME, s->preview_loading_title_ready ? "" : "...");
+}
 static vui_err_t bundle_row(vui_handle_t ui, vui_row_t row, uint32_t index, void *ctx)
 {
     vibe_ui_t *s = ctx;
@@ -372,6 +403,7 @@ static void prepare_idea(vibe_ui_t *s, vibe_command_t cmd, const char *code) {
         error_result(s, T(s, "App information failed"), err);
         return;
     }
+    clear_preview(s);
     s->preview_return = s->page;
     s->preview_active = true;
     (void)vui_scroll_to(s->ui, VUI_VIBE_OBJ_KEY_IDEA_DESCRIPTION_VIEWPORT, 0);
@@ -783,10 +815,7 @@ void vibe_ui_poll(vibe_ui_t *s) {
                 break;
             }
         }
-        TEXT(s, IDEA_NAME,
-             !v->idea_ready   ? T(s, "Loading app information...")
-             : v->idea_custom ? ""
-                              : v->idea.release);
+        project_preview_name(s);
         TEXT(s, IDEA_DESCRIPTION,
              !v->idea_ready   ? (v->idea_view_only ? T(s, "Reading downloaded resources")
                                                    : T(s, "Fetching details from the cloud"))

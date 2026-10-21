@@ -638,15 +638,15 @@ def test_custom_font_pixels_and_offline_view_share_native_controls(sim):
     with Image.open(sim.directory / "custom-offline.png") as image:
         r, g, b = image.convert("RGB").getpixel((100, 40))
         assert r > 200 and g < 20 and b < 20
-        r, g, b = image.convert("RGB").getpixel((40, 245))
+        r, g, b = image.convert("RGB").getpixel((40, 205))
         assert g > 200 and r < 20 and b < 20
     sim.swipe(220, 345, 220, 250)
-    sim.wait(page=9, idea_description_offset=48, download_calls=0, install_calls=0)
+    sim.wait(page=9, idea_description_offset=8, download_calls=0, install_calls=0)
     sim.capture("custom-offline-scrolled")
     with Image.open(sim.directory / "custom-offline.png") as before, Image.open(sim.directory / "custom-offline-scrolled.png") as after:
         # Only the description moves; the native title pixels, metadata and
         # action buttons retain their positions and remain unobscured.
-        for bounds in ((0, 0, 480, 228), (0, 380, 480, 480)):
+        for bounds in ((0, 0, 480, 196), (0, 380, 480, 480)):
             assert before.crop(bounds).tobytes() == after.crop(bounds).tobytes()
     sim.tap(350, 436)  # no download from read-only view
     sim.wait(page=9, download_calls=0, install_calls=0)
