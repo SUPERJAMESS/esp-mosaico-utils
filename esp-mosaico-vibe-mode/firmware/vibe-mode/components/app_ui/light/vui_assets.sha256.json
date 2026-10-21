@@ -1,9 +1,9 @@
 {
-  "components/app_ui/light/vui_assets.bin": "5a10704a7fb0563ece467f98ce77ebdad966c052b86d05a850b2ac9a628c2ca8",
-  "components/app_ui/private/vui_ids.h": "41fb55e9c92caf5374bb611d303014b6d5d42e0d572f30c1c07d7c906e635cb5",
+  "components/app_ui/light/vui_assets.bin": "8bd402e48aeb4bf045bc10b4231d44d0233663e99f9caf61c0be311720fb41c1",
+  "components/app_ui/private/vui_ids.h": "23d83cc63662ef1f0c10578d76ac599bac4d0ee7b6a5faf3ea053f91bd47f39f",
   "tools/build_vibe_ui.py": "0e45e37415de4b86be3c8b24ffa0f54b938a3ac30d78e050fb5259b0cd1bed4d",
   "tools/compile_vui.py": "85d192ec4827c7466cca144d7e4a7d4dfa8d340856e1a91ad726ea3c1b8c255f",
-  "tools/vibe_design.py": "03b26726dcd8f6d48bad658b5bd56638720f95166d1a3eedb84eef6c22d4dd1f",
+  "tools/vibe_design.py": "ab31d4fede0bc1d5c332eb38c93c7aee23d04f6faaae0ca0e848e638ab6c6b70",
   "ui/assets/icons/arrow-28-orange.png": "4b4df4c7fd4d4f63a9e0fbb18dbf4af2a9c51698c2daa8077aef70e01be25a8b",
   "ui/assets/icons/arrow_down-24-orange.png": "4b77f56a6c11a43e08b150cb126c1d15355e9bd55d32b4ba2631021900a6401a",
   "ui/assets/icons/arrow_down-24-white.png": "bfa507e952456b9b9d3b60bfbcf03d97a9166b2e1ad5b3c59078fc51cfcc78b8",
@@ -76,8 +76,8 @@
   "ui/fonts/VibeDisplay.otf": "94aeec63522d9270a47ad4936993e00e4289a80695d9a85a5697eb34edb15c5f",
   "ui/fonts/VibeInter.otf": "76fa8a34783f77d6830d9f103a5dba6be3ff0f030790ec641320a91120777036",
   "ui/fonts/VibeMedium.otf": "4d7adfb5ad4e9ccee1e34a0b6b9bca69464dbea8c409f80c0c9627b22e7ae654",
-  "ui/main.json": "35c82e1fec92e5628e1c4ff06f5ed6e5396e088c370a74077085612fed2882be",
+  "ui/main.json": "462df9f5a77d5f4f9ea6470a904e90b5d7f080d29bf52fd5af87673eb4096048",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3",
-  "ui/translations.json": "03482ae2ae8fa1124a186f1e4a9c174cc967fc143d5d3cf26a9f94863ad10de0"
+  "ui/translations.json": "2edcb27b73e4ae86844630a77a44c0ad9dee9415c8b67c50d731e56fe1bb55a3"
 }

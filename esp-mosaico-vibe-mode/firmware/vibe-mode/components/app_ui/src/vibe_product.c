@@ -337,7 +337,11 @@ static const char *pointer_key(vibe_ui_t *s, const vui_event_t *e)
         return index < s->snapshot.bundle_count ? s->snapshot.bundles[index].code : "";
     }
     if (e->action_id == VUI_VIBE_ACT_ID_OPEN_CELL && s->page == VIBE_GRID && e->arg < 6) {
-        size_t index = vibe_bundle_index(s, s->grid_page * 6 + e->arg);
+        size_t visible = vibe_bundle_count(s);
+        if (!visible) return e->arg == 1 ? "+add" : "";
+        size_t slot = s->grid_page * 6 + e->arg;
+        if (slot == visible) return "+add";
+        size_t index = vibe_bundle_index(s, slot);
         return index < s->snapshot.bundle_count ? s->snapshot.bundles[index].code : "";
     }
     if (e->action_id == VUI_VIBE_ACT_ID_SHARED_ROW && s->page == VIBE_SHARED && e->arg < 23) {
@@ -1117,7 +1121,8 @@ void vibe_product_poll(vibe_ui_t *s)
         FORMAT(s, RESET_VAL_2, "%u entries", (unsigned)v->settings.shared_count);
     }
     if (s->page == VIBE_HOME || s->page == VIBE_GRID) {
-        TEXT(s, HOME_CAPTION, v->network == VIBE_NET_CONNECTED ? "Snap ideas together." : "Wi-Fi not connected >");
+        TEXT(s, HOME_CAPTION, v->network == VIBE_NET_CONNECTED ? "Snap ideas together." : "");
+        (void)vui_set_visible(s->ui, VUI_VIBE_BIND_HOME_WIFI_PILL_VISIBLE, v->network != VIBE_NET_CONNECTED);
         if (v->nand_generation) FORMAT(s, HOME_IDEAS_COUNT, "%u", (unsigned)vibe_bundle_count(s));
         else TEXT(s, HOME_IDEAS_COUNT, "--");
         FORMAT(s, HOME_VERSION, "%s", v->firmware_version);
@@ -1339,9 +1344,6 @@ static bool pointer_actionable(vibe_ui_t *s, const vui_event_t *e, const char *k
     if (key && !*key) return false;
     if (e->action_id == VUI_VIBE_ACT_ID_SELECT_NETWORKS && e->item >= s->snapshot.ap_count) return false;
     if (e->action_id == VUI_VIBE_ACT_ID_HOME_WIFI && s->snapshot.network == VIBE_NET_CONNECTED) return false;
-    if (e->action_id == VUI_VIBE_ACT_ID_RUN_DEVELOPMENT && (!s->snapshot.development_available || s->snapshot.idea_busy)) return false;
-    if (e->action_id == VUI_VIBE_ACT_ID_TOGGLE_ROTATE && !s->snapshot.device.imu_available) return false;
-    if (e->action_id == VUI_VIBE_ACT_ID_TOGGLE_HAPTICS && !s->snapshot.device.haptics_available) return false;
     return true;
 }
 static void pointer(vui_handle_t ui, int32_t x, int32_t y, bool pressed, void *ctx)
