@@ -9,6 +9,7 @@ import json
 BG, CARD, RAISED, TILE = '#090A0B', '#191B1D', '#272A2D', '#272A2D'
 TEXT, MUTED, ORANGE, RED = '#F3F4F2', '#B2B7BA', '#FF6439', '#FF8A85'
 LINE, ICON_BG = '#3D4145', '#202326'
+KEY_YELLOW = '#FFD54F'
 FONT = {'sans': 'fonts/VibeInter.otf', 'medium': 'fonts/VibeMedium.otf',
         'title': 'fonts/VibeDisplay.otf', 'hero': 'fonts/ArchivoExtended-Black.ttf',
         'doto': 'fonts/Doto-Black.ttf'}
@@ -594,12 +595,12 @@ def apply(scene):
     p=index['open_confirm']
     for o in objects:
         if o.get('parent')==p: o['hidden']=True
-    rect(p,330,6,24,24,TEXT,6)
+    rect(p,330,6,24,24,KEY_YELLOW,6)
     text(p,'open_key_ai_num','2',330,5,24,24,18,'medium',BG,'center')
-    icon(p,'arrow_up-24-orange',360,6,24)
-    rect(p,330,450,24,24,ORANGE,6)
+    text(p,'open_key_ai_arrow','↑',360,4,24,28,24,'medium',KEY_YELLOW,'center')
+    rect(p,330,450,24,24,TEXT,6)
     text(p,'open_key_pwr_num','1',330,449,24,24,18,'medium',BG,'center')
-    icon(p,'arrow_down-24-white',360,450,24)
+    text(p,'open_key_pwr_arrow','↓',360,448,24,28,24,'medium',TEXT,'center')
     rect(p,24,34,432,410,CARD,24,border_color=LINE,border_width=1)
     text(p,'open_question','Running Leaves Vibe Mode',48,48,384,34,24,'title')
     text(p,'open_name','',48,84,384,28,20,overflow='marquee')
