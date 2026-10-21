@@ -375,8 +375,8 @@ def apply(scene):
     for o in objects:
         if o.get('parent')==69 and o['type']=='container' and o.get('y')!=20:o['hidden']=True
     hide('heading_69');hide('button_cancel_install')
-    text(69,'release','',32,84,416,40,30,'title',overflow='marquee')
-    add('image',69,32,84,416,40,name='release_pixels',bind='release_pixels',bind_target='resource',dynamic_image=True,hidden=True,overflow='marquee')
+    text(69,'release','',88,29,368,40,30,'title',overflow='marquee')
+    add('image',69,88,29,368,40,name='release_pixels',bind='release_pixels',bind_target='resource',dynamic_image=True,hidden=True,overflow='marquee')
     add('image',69,24,132,80,80,name='local_icon',bind='local_icon',image='assets/idea-default.svg',dynamic_image=True)
     text(69,'local_status','On this device',124,133,332,32,22,'medium')
     text(69,'release_detail','',124,169,332,40,20,color=MUTED)
@@ -411,8 +411,8 @@ def apply(scene):
     hide('idea_heading');hide('heading_117')
     # Reflow published title glyphs into a native single-line cache. The header
     # clips and scrolls it without stretching. The body keeps display/1 geometry.
-    text(117,'idea_name','Loading app information...',32,84,416,40,24,'medium',overflow='marquee')
-    move('idea_title_pixels',32,84,416,40,hidden=True,overflow='marquee')
+    text(117,'idea_name','Loading app information...',88,29,368,40,24,'medium',overflow='marquee')
+    move('idea_title_pixels',88,29,368,40,hidden=True,overflow='marquee')
     move('idea_icon',24,132,80,80)
     text(117,'idea_status','',124,132,332,30,20,overflow='ellipsis')
     text(117,'idea_loading_status','Please wait',32,132,416,30,20,color=MUTED)

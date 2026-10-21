@@ -1,9 +1,9 @@
 {
-  "components/app_ui/light/vui_assets.bin": "ea858870a3c0a168e3227087b51357edb60bbbce2c40ce542ec6a0a834c2e53d",
+  "components/app_ui/light/vui_assets.bin": "a4788ceb3fb8c1a219c188d4026777a66b42b9d6950733a38aea4fb8a865b62e",
   "components/app_ui/private/vui_ids.h": "09f8bf2e3cccb56a88631b29aebd367ef200e24911b930c622bbf2f1866c29d5",
   "tools/build_vibe_ui.py": "0e45e37415de4b86be3c8b24ffa0f54b938a3ac30d78e050fb5259b0cd1bed4d",
   "tools/compile_vui.py": "85d192ec4827c7466cca144d7e4a7d4dfa8d340856e1a91ad726ea3c1b8c255f",
-  "tools/vibe_design.py": "e72b741818b6c5b45ba779b690c4881176302ff8d2656588942713629de1becb",
+  "tools/vibe_design.py": "e50f14ee0cf4a2bc3859a8737dc529bbe05acef13dab32559dfbbf77be7da760",
   "ui/assets/icons/arrow-28-orange.png": "4b4df4c7fd4d4f63a9e0fbb18dbf4af2a9c51698c2daa8077aef70e01be25a8b",
   "ui/assets/icons/arrow_down-24-orange.png": "4b77f56a6c11a43e08b150cb126c1d15355e9bd55d32b4ba2631021900a6401a",
   "ui/assets/icons/arrow_down-24-white.png": "bfa507e952456b9b9d3b60bfbcf03d97a9166b2e1ad5b3c59078fc51cfcc78b8",
@@ -77,7 +77,7 @@
   "ui/fonts/VibeDisplay.otf": "e903cb1aca42573bd7a85098dd21c5c28ef63e6bf977699c543f5286322d83d4",
   "ui/fonts/VibeInter.otf": "661a1551574f35ce28ad1af334ddde8115e2889629ca9a5df34dd4bba45482a3",
   "ui/fonts/VibeMedium.otf": "b2d2b5a925e62fab93c3118303c6bf9d897a1aaf15e68c16a8ba6d6107e0d83d",
-  "ui/main.json": "5a5a832990628df09f563e2be9e9bf79503fd53724e4d45b8aaed60c98bebd7f",
+  "ui/main.json": "4a400d441cfbd5a9e9d89fcd508c6dfb29f23855157c487bf12b46f8623b7156",
   "ui/settings_keyboard_delete.png": "578a8661f8f6f67e23371808b70a6191382651b9377f55bcc38dca250edb5014",
   "ui/settings_keyboard_shift.png": "6304df6586ba75a1b546f963cc098a6bd21691427a15ec07724b5b0d575dd4c3",
   "ui/translations.json": "4e76b2b295b129ef764ad310c156bf90d093549d1f91e4616093f397e3a8cefa"

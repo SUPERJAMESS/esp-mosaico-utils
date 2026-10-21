@@ -345,23 +345,23 @@ static void title_marquee(uint16_t *frame)
     uint16_t *first = malloc(480 * 480 * 2);
     assert(first); memcpy(first, frame, 480 * 480 * 2);
     /* Exact native geometry: the 20x28 first glyph is not enlarged or squashed. */
-    for (unsigned y = 90; y < 118; ++y)
-        for (unsigned x = 32; x < 52; ++x) assert(frame[y*480+x] == 0xf800);
-    assert(frame[89*480+34] != 0xf800 && frame[118*480+34] != 0xf800);
-    assert(frame[100*480+52] != 0xf800);
+    for (unsigned y = 35; y < 63; ++y)
+        for (unsigned x = 88; x < 108; ++x) assert(frame[y*480+x] == 0xf800);
+    assert(frame[34*480+90] != 0xf800 && frame[63*480+90] != 0xf800);
+    assert(frame[40*480+108] != 0xf800);
     vui_tick(ui, 1000);
     assert(!vui_render(ui, frame));
     vui_tick(ui, 1200);
     vui_area_t damage;
     assert(vui_render_changed(ui, frame, &damage));
-    assert(damage.x == 32 && damage.y == 84 && damage.w == 416 && damage.h == 40);
+    assert(damage.x == 88 && damage.y == 29 && damage.w == 368 && damage.h == 40);
     for (unsigned y = 0; y < 480; ++y)
         for (unsigned x = 0; x < 480; ++x)
-            if (x < 32 || x >= 448 || y < 84 || y >= 124)
+            if (x < 88 || x >= 456 || y < 29 || y >= 69)
                 assert(frame[y*480+x] == first[y*480+x]);
-    assert(frame[100*480+32] != first[100*480+32]);
+    assert(frame[40*480+88] != first[40*480+88]);
     compare_full(ui, frame);
-    vui_tick(ui, 7000); /* End reached, then pause for reading. */
+    vui_tick(ui, 8815); /* End reached, then pause for reading. */
     assert(vui_render(ui, frame));
     vui_tick(ui, 800);
     assert(!vui_render(ui, frame));
@@ -374,7 +374,7 @@ static void title_marquee(uint16_t *frame)
     qoi = ideas_title_qoi(pixels, 80, 28, &size);
     assert(qoi && vui_set_image_owned(ui, VUI_VIBE_BIND_RELEASE_PIXELS, qoi, size) == VUI_OK);
     assert(vui_render(ui, frame));
-    assert(frame[100*480+111] == 0xf800 && frame[100*480+112] != 0xf800);
+    assert(frame[40*480+167] == 0xf800 && frame[40*480+168] != 0xf800);
     vui_tick(ui, 5000); assert(!vui_render(ui, frame));
     vui_set_visible(ui, VUI_VIBE_BIND_RELEASE_PIXELS, false);
     vui_set_text(ui, VUI_VIBE_BIND_RELEASE, "A long title that scrolls at its original font size without ellipsis");
