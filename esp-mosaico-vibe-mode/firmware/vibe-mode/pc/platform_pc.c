@@ -686,7 +686,7 @@ vui_err_t vibe_pc_init(vui_handle_t ui)
     read_environment("VIBE_SIM_STATE_FILE", state_path, sizeof(state_path));
     read_environment("VIBE_SIM_CONTROL_FILE", control_path, sizeof(control_path));
     model.settings = (vibe_settings_snapshot_t){.language = 1,
-        .brightness = 80, .screen_off_seconds = 180, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
+        .brightness = 80, .screen_off_seconds = scenario("timeout-180") ? 180 : 0, .auto_rotate = true, .haptics = true, .open_confirm = true, .revision = 1};
     model.device.battery_valid = true;
     model.device.imu_available = model.device.haptics_available = model.device.peripherals_ready = true;
     if (scenario("peripherals-pending") || scenario("peripherals-failed")) {

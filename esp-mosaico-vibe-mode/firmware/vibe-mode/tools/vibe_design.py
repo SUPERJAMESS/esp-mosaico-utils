@@ -478,6 +478,9 @@ def apply(scene):
         text(index['button_shared_row_'+str(i)],'shared_entry_value_'+str(i),'',84,38,312,26,20,color=MUTED,overflow='ellipsis')
         rect(index['button_shared_row_'+str(i)],14,10,52,52,ICON_BG,16)
         icon(index['button_shared_row_'+str(i)],'key-38-cream',21,17,38)
+        lk=add('layer',index['button_shared_row_'+str(i)],0,0,448,72,name='shared_lock_'+str(i),bind='shared_lock_'+str(i)+'_visible',bind_target='visible',hidden=True)
+        rect(lk,14,10,52,52,ICON_BG,16)
+        icon(lk,'lock-38-cream',21,17,38)
     button(p,'button_shared_prev','‹',16,420,64,44)
     button(p,'button_shared_add','Add entry',88,420,304,44)
     button(p,'button_shared_next','›',400,420,64,44)
@@ -488,7 +491,7 @@ def apply(scene):
     named['heading_'+str(p)]['w']=224
     empty=add('layer',p,0,0,480,480,name='shared_empty',bind='shared_empty_visible',bind_target='visible',hidden=True)
     rect(empty,0,88,480,392,BG,0)
-    button(empty,'shared_empty_add','Add entry',24,380,432,84,action='shared_add')
+    button(empty,'shared_empty_add','Add entry',88,420,304,44,action='shared_add')
     add('image',empty,200,128,80,80,image='assets/mosaic/hero_empty-80.png')
     text(empty,'shared_empty_title','No shared info yet',24,226,432,30,22,'medium',align='center')
     text(empty,'shared_empty_line1','Save a value once, like your city,',40,264,400,26,18,color=MUTED,align='center')
@@ -562,6 +565,10 @@ def apply(scene):
     detail=info_page('shared_detail','Shared info')
     row(detail,'shared_detail_key','Key','','key-32-cream',96,'shared_help','shared_detail_key')
     row(detail,'shared_detail_value','Value','','id-32-cream',184,'shared_edit','shared_detail_value')
+    sys_ui=add('layer',detail,0,0,480,480,name='shared_detail_sys_ui',bind='shared_detail_sys_visible',bind_target='visible',hidden=True)
+    rect(sys_ui,30,110,52,52,ICON_BG,16)
+    icon(sys_ui,'lock-32-cream',40,120,32)
+    rect(sys_ui,416,120,32,32,CARD,0)
     eye_gate=add('layer',detail,0,0,480,480,name='shared_detail_eye_gate',bind='button_shared_detail_reveal_visible',bind_target='visible',hidden=True)
     rect(eye_gate,380,198,68,52,RAISED,14)
     icon(eye_gate,'eye-32-white',398,208,32)
@@ -569,6 +576,8 @@ def apply(scene):
     rect(detail,24,276,432,88,CARD,14,border_color=LINE,border_width=1)
     text(detail,'shared_detail_note','Tap Value to edit this entry.',36,282,408,76,20,color=MUTED)
     button(detail,'button_shared_detail_delete','Delete entry',24,380,432,84,danger=True,action='shared_delete')
+    rect(sys_ui,24,380,432,84,ORANGE,18)
+    text(sys_ui,'shared_detail_open_settings_label','Open Settings',40,404,400,36,24,'medium',BG,'center')
 
     # Confirm: the original centered modal and two large footer actions.
     p=index['open_confirm']

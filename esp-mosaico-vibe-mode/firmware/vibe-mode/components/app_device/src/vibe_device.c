@@ -297,11 +297,9 @@ static void sample_task(void *unused)
             motor_play(s_preferences.haptics ? pattern : 0);
         /* A fixed upright preference does not depend on live IMU readings. */
         unsigned wanted = s_preferences.auto_rotate ? snapshot.orientation : 0;
-        if (snapshot.imu_available) {
+        if (!asleep && snapshot.imu_available) {
             float x, y, z;
             if (bsp_imu_get_accel(&x, &y, &z) == ESP_OK) {
-                float change = fabsf(x - last_x) + fabsf(y - last_y) + fabsf(z - last_z);
-                if (asleep && change > 0.25f) ++snapshot.motion_revision;
                 last_x = x; last_y = y; last_z = z;
                 if (s_preferences.auto_rotate && fabsf(z) < 0.8f) {
                     /* Dominant-axis threshold provides angular hysteresis. */

@@ -928,9 +928,10 @@ def test_delete_requires_hold_and_supports_undo(sim):
 @pytest.mark.parametrize("cadence_ms", [50, 100, 250])
 def test_screen_off_timeout_survives_slow_ui_cadence(tmp_path, native_build, monkeypatch, cadence_ms):
     state_file = tmp_path / "idle-state.json"
+    control_file = tmp_path / "control.txt"
     monkeypatch.setenv("VIBE_SIM_STATE_FILE", str(state_file))
-    monkeypatch.setenv("VIBE_SIM_SCENARIO", "")
-    monkeypatch.setenv("VIBE_SIM_CONTROL_FILE", "")
+    monkeypatch.setenv("VIBE_SIM_SCENARIO", "timeout-180")
+    monkeypatch.setenv("VIBE_SIM_CONTROL_FILE", str(control_file))
     lib = ctypes.CDLL(str(native_build[0]))
     lib.vui_create.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
     lib.vibe_pc_init.argtypes = [ctypes.c_void_p]
@@ -949,10 +950,14 @@ def test_screen_off_timeout_survives_slow_ui_cadence(tmp_path, native_build, mon
             for _ in range(milliseconds // cadence_ms):
                 lib.vui_tick(ui, cadence_ms)
         for _ in range(2):
-            # The actual default is 180 s. Timer callbacks need not run at 20 Hz.
+            # When configured to 180 s, timer callbacks need not run at 20 Hz.
             advance(179000)
             assert not json.loads(state_file.read_text())["asleep"]
             advance(2000)
+            assert json.loads(state_file.read_text())["asleep"]
+            # IMU motion must not wake the screen while asleep.
+            control_file.write_text("motion")
+            advance(cadence_ms)
             assert json.loads(state_file.read_text())["asleep"]
             lib.vui_pointer(ui, 240, 60, True)
             lib.vui_pointer(ui, 240, 60, False)
