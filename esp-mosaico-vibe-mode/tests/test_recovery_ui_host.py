@@ -911,24 +911,20 @@ def test_horizontal_drag_previews_without_committing_and_slow_release_returns(si
     sim.tap_ui("button_nav_settings"); sim.wait(page=11)
 
 
+@pytest.mark.parametrize("sim", [{"tick_ms": 10}, {"tick_ms": 120}], indirect=True)
 def test_horizontal_short_flick_commits_and_reverse_drag_cancels(sim):
-    sim.rpc("feed_pointer", x=420, y=250, pressed=True)
-    time.sleep(.02)
-    sim.rpc("feed_pointer", x=400, y=250, pressed=True)
-    time.sleep(.02)
-    sim.rpc("feed_pointer", x=380, y=250, pressed=True)
-    sim.rpc("feed_pointer", x=380, y=250, pressed=False)
+    sim.rpc("feed_pointers", samples=[
+        {"x": x, "y": 250, "pressed": pressed, "offset_ms": offset}
+        for x, pressed, offset in ((420, True, 0), (400, True, 20),
+                                   (380, True, 40), (380, False, 50))
+    ])
     sim.wait(page=19, grid_page=0, install_calls=0)
     sim.swipe(60,250,420,250); sim.wait(page=0)
-    sim.rpc("feed_pointer", x=420, y=250, pressed=True)
-    time.sleep(.03)
-    sim.rpc("feed_pointer", x=180, y=250, pressed=True)
-    time.sleep(.025)
-    sim.rpc("feed_pointer", x=220, y=250, pressed=True)
-    time.sleep(.025)
-    sim.rpc("feed_pointer", x=260, y=250, pressed=True)
-    sim.rpc("feed_pointer", x=260, y=250, pressed=False)
-    time.sleep(.3)
+    sim.rpc("feed_pointers", samples=[
+        {"x": x, "y": 250, "pressed": pressed, "offset_ms": offset}
+        for x, pressed, offset in ((420, True, 0), (180, True, 30),
+                                   (220, True, 55), (260, True, 80), (260, False, 90))
+    ])
     sim.wait(page=0, install_calls=0)
 
 

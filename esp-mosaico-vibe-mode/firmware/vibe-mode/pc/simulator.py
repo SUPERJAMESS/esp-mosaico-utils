@@ -56,6 +56,9 @@ class NativeUI:
             ctypes.c_int,
             ctypes.c_bool,
         ]
+        self.lib.vui_pointer_at.argtypes = [*self.lib.vui_pointer.argtypes, ctypes.c_uint64]
+        self.lib.vui_now_ms.argtypes = [pointer]
+        self.lib.vui_now_ms.restype = ctypes.c_uint64
         self.ui = pointer()
         if self.lib.vui_create(ctypes.byref(self.ui)):
             raise RuntimeError("Unable to load UI assets")
@@ -80,11 +83,25 @@ class NativeUI:
                 if self.lib.vui_render(self.ui, self.pixels):
                     self.image = None
 
-    def pointer(self, x, y, pressed):
+    def pointer(self, x, y, pressed, time_ms=None):
         with self.lock:
-            self.lib.vui_pointer(self.ui, int(x), int(y), bool(pressed))
+            if time_ms is None:
+                self.lib.vui_pointer(self.ui, int(x), int(y), bool(pressed))
+            else:
+                self.lib.vui_pointer_at(self.ui, int(x), int(y), bool(pressed), int(time_ms))
             if self.lib.vui_render(self.ui, self.pixels):
                 self.image = None
+
+    def pointers(self, samples):
+        # Acquisition times stay independent of RPC/render scheduling, just
+        # like timestamped samples queued by the device input adapter.
+        with self.lock:
+            start_ms = self.lib.vui_now_ms(self.ui)
+            for sample in samples:
+                values = dict(sample)
+                if "offset_ms" in values:
+                    values["time_ms"] = start_ms + int(values.pop("offset_ms"))
+                self.pointer(**values)
 
     def frame(self):
         with self.lock:
@@ -127,11 +144,7 @@ class RPC(socketserver.StreamRequestHandler):
                 if method == "feed_pointer":
                     self.server.ui.pointer(**params)
                 elif method == "feed_pointers":
-                    # Replay samples at one UI clock instant. Rapid-input
-                    # tests must not depend on host rendering/RPC latency.
-                    with self.server.ui.lock:
-                        for sample in params["samples"]:
-                            self.server.ui.pointer(**sample)
+                    self.server.ui.pointers(params["samples"])
                 elif method == "wait":
                     time.sleep(min(10, params.get("frames", 1) * 0.01))
                 elif method == "screenshot":
