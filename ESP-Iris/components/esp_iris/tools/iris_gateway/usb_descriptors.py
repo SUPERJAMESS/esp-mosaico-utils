@@ -130,6 +130,8 @@ def serial_ports() -> list[Any]:
 
 
 def _windows_interfaces() -> dict[str, dict[str, Any]]:
+    if sys.platform != "win32":
+        return {}
     # pySerial loses MI_00 and both CDC interface names on Windows. Read the
     # native interface devnodes by their assigned COM name, never COM order or
     # USB serial number. HELLO still verifies the protocol role and identity.

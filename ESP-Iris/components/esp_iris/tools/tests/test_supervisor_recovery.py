@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from iris_gateway.hub import IrisHub
-from iris_gateway.link import EndpointLock
 from test_hub import SupervisorLink
 from test_usb_ownership import until
+
+from iris_gateway.hub import IrisHub
+from iris_gateway.link import EndpointLock
 
 
 @pytest.fixture

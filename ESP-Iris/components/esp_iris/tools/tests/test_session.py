@@ -30,6 +30,16 @@ from iris_gateway.protocol import (
 from iris_gateway.session import DeviceSession
 
 
+@pytest.fixture
+def without_clock_sync(monkeypatch):
+    # These protocol fakes do not answer liveness probes. Disable them before
+    # the handshake: Python 3.8 wait_for can swallow cancellation at readiness.
+    async def disabled(self):
+        pass
+
+    monkeypatch.setattr(DeviceSession, "_clock_loop", disabled)
+
+
 def test_status_decodes_spiram_watermarks_and_old_firmware() -> None:
     async def scenario() -> None:
         async def discard(value: object) -> None:
@@ -591,6 +601,7 @@ def test_ota_data_window_rejects_a_truncated_response_batch(monkeypatch) -> None
     asyncio.run(scenario())
 
 
+@pytest.mark.usefixtures("without_clock_sync")
 def test_event_time_fields_crash_metadata_and_chunk_download() -> None:
     async def scenario() -> None:
         link = FakeLink()
@@ -631,11 +642,6 @@ def test_event_time_fields_crash_metadata_and_chunk_download() -> None:
             )
         )
         info = await session.wait_ready()
-        assert session._clock_task is not None
-        session._clock_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await session._clock_task
-        session._clock_task = None
 
         event_payload = encode_tlv(
             [
@@ -1046,6 +1052,7 @@ def test_usb_serial_jtag_keeps_link_after_unanswered_clock_probes() -> None:
     asyncio.run(scenario())
 
 
+@pytest.mark.usefixtures("without_clock_sync")
 def test_rpc_jobs_screenshot_media_ota_and_restart() -> None:
     async def scenario() -> None:
         link = FakeLink()
@@ -1096,11 +1103,6 @@ def test_rpc_jobs_screenshot_media_ota_and_restart() -> None:
             )
         )
         await session.wait_ready()
-        assert session._clock_task is not None
-        session._clock_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await session._clock_task
-        session._clock_task = None
 
         control_sequence = 1
         rpc_task = asyncio.create_task(

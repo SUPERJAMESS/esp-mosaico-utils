@@ -7,11 +7,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from test_usb_ownership import until
+from test_usb_reconnect_policy import board, open_board
+
 from iris_gateway import usb_descriptors
 from iris_gateway.hub import IrisHub
 from iris_gateway.link import SerialLink
-from test_usb_ownership import until
-from test_usb_reconnect_policy import board, open_board
 
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux sysfs parser")
