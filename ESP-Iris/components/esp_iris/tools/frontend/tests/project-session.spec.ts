@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: "wait" });
+});
+
 for (const force of [false, true]) {
   test(`project requests a device from its owner (force=${force})`, async ({ page }) => {
     const sessions = [

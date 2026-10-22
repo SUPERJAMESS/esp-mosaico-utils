@@ -2,6 +2,7 @@
 import importlib.util
 import io
 import json
+import os
 import subprocess
 import sys
 from contextlib import redirect_stderr, redirect_stdout
@@ -20,8 +21,13 @@ from mosaico_cli.workspace import load_workspace
 
 
 def test_doctor_decodes_utf8_output_independent_of_windows_codepage():
-    code, output = doctor._command([sys.executable, "-c", "print('中文路径')"], environment={})
-    assert code == 0 and output == "中文路径"
+    # Preserve Windows startup variables such as SystemRoot while exercising
+    # the encoding override independently of the runner's UTF-8 defaults.
+    environment = dict(os.environ, PYTHONUTF8="0", PYTHONIOENCODING="cp1252")
+    code, output = doctor._command(
+        [sys.executable, "-c", "print('中文路径')"], environment=environment)
+    assert code == 0, output
+    assert output == "中文路径"
 
 SPEC = importlib.util.spec_from_file_location(
     "host_regression_runner", ROOT / "skills/idf-low-noise-build/scripts/idf_low_noise_build.py"

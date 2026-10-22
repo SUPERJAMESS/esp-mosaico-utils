@@ -21,6 +21,7 @@ def test_settings_and_reset_preserve_identity_and_nand(tmp_path):
         '-DLOCALE_SOURCE="' + str(ROOT / "firmware/vibe-mode/components/app_system/src/factory_locale.c") + '"',
         "-I" + str(tmp_path), "-I" + str(fixture),
         "-I" + str(source.parents[1] / "include"),
+        "-I" + str(ROOT / "firmware/vibe-mode/components/app_network/include"),
         "-I" + str(ROOT / "components/esp_mosaico_app_recovery/include"),
         str(fixture / "main.c"), str(ROOT / "components/esp_mosaico_app_recovery/mosaico_shared.c"),
         "-o", str(executable)], capture_output=True, text=True, timeout=30, check=False)

@@ -9,7 +9,7 @@ def test_prebuilt_recovery_release():
     directory = project / "prebuilt/recovery"
     manifest = json.loads((directory / "manifest.json").read_text())
     assert manifest["schema_version"] == 3
-    assert manifest["version"] == "0.2.0"
+    assert manifest["version"] == "0.2.1"
     assert manifest["target"] == "esp32s31"
     assert manifest["compatibility"]["recovery_abi"] == 2
     assert manifest["compatibility"]["layout_id"] == "mosaico-retained-test-2m-v2"
@@ -27,7 +27,7 @@ def test_prebuilt_recovery_release():
     recovery = (directory / manifest["images"]["recovery"]["file"]).read_bytes()
     assert recovery[0] == 0xE9
     assert int.from_bytes(recovery[32:36], "little") == 0xABCD5432
-    assert recovery[48:80].split(b"\0", 1)[0] == b"0.2.0"
+    assert recovery[48:80].split(b"\0", 1)[0] == b"0.2.1"
     assert recovery[80:112].split(b"\0", 1)[0].decode() == manifest["project"]
     assert recovery[213] == 1  # app descriptor's QIO Flash mode
     assert len(recovery) <= 0x1C0000
@@ -42,6 +42,7 @@ def test_prebuilt_recovery_release():
 
 def test_old_reviewed_bundle_is_not_accepted_by_02_tools(tmp_path):
     import sys
+
     import pytest
 
     root = Path(__file__).resolve().parents[1]
@@ -61,4 +62,4 @@ def test_reviewed_bundle_is_accepted_by_02_tools():
     from mosaico_cli.recovery import load_bundle
 
     manifest = load_bundle(root / "firmware/vibe-mode/prebuilt/recovery", "esp32s31")
-    assert manifest["version"] == "0.2.0"
+    assert manifest["version"] == "0.2.1"

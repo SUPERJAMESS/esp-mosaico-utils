@@ -166,6 +166,30 @@ void app_main(void)
 `esp_iris_stop()` 会释放 worker、传输、VFS 和
 stdio 所有权，之后可以再次启动。
 
+### USB 应用启动日志
+
+启用应用 USB 和 stdio 捕获时，`CONFIG_ESP_IRIS_USB_EARLY_LOGS` 默认开启。
+组件通过链接器包装，在 `app_main()` 前安装有界 stdout/stderr 日志捕获，同时保留
+原生控制台输出。`esp_iris_start()` 复用这批记录并启动现有 USB 驱动，不会重复安装
+USB 协议栈，也不会提前初始化应用 NVS。应在 `app_main()` 中尽早调用它，让 USB
+端口及时出现。
+
+`CONFIG_ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS` 默认为 1500：worker 启动后最多等待
+主机打开 console 1.5 秒，超时仍成功返回、继续运行应用；设为 `0` 可取消等待。
+待发送日志受 `CONFIG_ESP_IRIS_LOG_RING_BYTES` 限制，默认 8192 字节，包含记录头。
+缓存满时淘汰最旧记录，并在后续文本前输出丢失字节数提示。
+
+USB 仅完成枚举时不会消耗启动日志。CDC0 观察到主机控制线活动或输入后，留出短暂
+稳定时间供终端完成打开、复位和输入清空，再发送文本。兼容原版 IDF Monitor 最终
+将 DTR 保持低电平的行为，不需要 Iris 握手。USB 断开时保留尚在日志环中的记录；
+已经交给 USB 的字节没有主机确认或补发机制，因此不能保证断线期间完全无丢失。
+Gateway 和普通 monitor 应轮流占用串口。
+
+覆盖范围从 `app_main()` 开始，包括 Iris 初始化期间的 stdout/stderr 输出，不包含
+ROM、bootloader、构造函数、此前的系统初始化或绕过 stdio 的输出；这些阶段仍需
+可用的原生控制台。若其他组件已包装 `app_main`，关闭 `CONFIG_ESP_IRIS_USB_EARLY_LOGS`，
+捕获将从 `esp_iris_start()` 开始。在首次 start 前调用 stop 也会释放提前安装的日志捕获。
+
 ### 4. 构建固件
 
 ```bash

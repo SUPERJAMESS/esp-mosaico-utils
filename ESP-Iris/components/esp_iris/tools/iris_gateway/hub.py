@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import contextlib
+import logging
 import secrets
 import struct
 import time
@@ -35,6 +36,7 @@ EventCallback = Callable[[Dict[str, Any]], Awaitable[None]]
 SCREEN_CHANNEL = 3
 RAW_MEDIA_FORMATS = {1, 2}
 ENCODED_MEDIA_FORMATS = {3, 4}
+_LOG = logging.getLogger(__name__)
 
 
 async def _next_complete_screen_frame(
@@ -367,8 +369,15 @@ class IrisHub:
             },
         )
         state.update(metadata or {})
-        if endpoint in self._endpoint_tasks:
-            return
+        prior_task = self._endpoint_tasks.get(endpoint)
+        if prior_task is not None:
+            if not prior_task.done():
+                return
+            if not prior_task.cancelled():
+                failure = prior_task.exception()
+                if failure is not None:
+                    self._record_supervisor_failure(endpoint, failure)
+            self._endpoint_tasks.pop(endpoint)
         if endpoint in self._host_endpoints:
             state["state"] = "host_operation"
             state["updated_monotonic_ns"] = time.monotonic_ns()
@@ -389,9 +398,57 @@ class IrisHub:
             updated_monotonic_ns=time.monotonic_ns(),
         )
         self._endpoint_tasks[endpoint] = asyncio.create_task(
-            self._supervise(endpoint, opener, pairing_token),
+            self._run_supervisor(endpoint, opener, pairing_token),
             name=f"iris-supervisor-{endpoint}",
         )
+
+    def _record_supervisor_failure(self, endpoint: str, exc: BaseException) -> None:
+        state = self._endpoint_states[endpoint]
+        self._set_endpoint_state(
+            endpoint, "stopped", attempt=state["attempt"],
+            error=f"{type(exc).__name__}: {exc}",
+        )
+        _LOG.error("Endpoint supervisor failed: %s", endpoint,
+                   exc_info=(type(exc), exc, exc.__traceback__))
+
+    async def _run_supervisor(
+        self, endpoint: str, opener: LinkOpener, pairing_token: str | None,
+    ) -> None:
+        # Keep unexpected library/session failures observable and recoverable,
+        # including failures outside _supervise's normal connection retry loop.
+        delay = self.reconnect_min_seconds
+        try:
+            while True:
+                try:
+                    await self._supervise(endpoint, opener, pairing_token)
+                    return
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:  # noqa: BLE001 - boundary logs the full traceback
+                    self._record_supervisor_failure(endpoint, exc)
+                    state = self._endpoint_states[endpoint]
+                    self._set_endpoint_state(
+                        endpoint, "retrying", attempt=state["attempt"], error=state["error"],
+                    )
+                await asyncio.sleep(delay)
+                delay = min(self.reconnect_max_seconds, max(delay * 2, 0.001))
+        finally:
+            # Cancellation can arrive during the outer backoff as well as
+            # inside _supervise; neither should leave a retrying endpoint.
+            state = self._endpoint_states[endpoint]
+            self._set_endpoint_state(
+                endpoint, "stopped", attempt=state["attempt"], error=state["error"],
+            )
+
+    async def _stop_supervisor(self, endpoint: str) -> None:
+        task = self._endpoint_tasks.pop(endpoint, None)
+        if task is not None:
+            task.cancel()
+            # A completed task may already hold an exception. Retrieve and
+            # report it without aborting lock release or a host handoff.
+            result, = await asyncio.gather(task, return_exceptions=True)
+            if isinstance(result, Exception):
+                self._record_supervisor_failure(endpoint, result)
 
     async def start_usb_discovery(
         self,
@@ -535,11 +592,7 @@ class IrisHub:
             discovery is not None and state.get("discovery") != discovery
         ):
             return
-        task = self._endpoint_tasks.pop(endpoint, None)
-        if task is not None:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+        await self._stop_supervisor(endpoint)
         lock = self._locks.pop(endpoint, None)
         if lock is not None:
             lock.close()
@@ -604,11 +657,7 @@ class IrisHub:
         self._claim_usb(endpoint, state)
         state["resume_after_host"] = endpoint in self._endpoint_tasks
         self._host_endpoints.add(endpoint)
-        task = self._endpoint_tasks.pop(endpoint, None)
-        if task is not None:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+        await self._stop_supervisor(endpoint)
         if device_id:
             self._devices.pop(device_id, None)
         state.update(
@@ -682,6 +731,9 @@ class IrisHub:
                 "updated_monotonic_ns": time.monotonic_ns(),
             }
         )
+        if error is not None:
+            current["last_error"] = error
+            current["last_error_monotonic_ns"] = current["updated_monotonic_ns"]
         if device_id is not None:
             current["device_id"] = device_id
 
@@ -764,7 +816,8 @@ class IrisHub:
                 await self._drop_session(active_session)
             self._endpoint_states[endpoint]["device_id"] = None
             self._set_endpoint_state(
-                endpoint, "stopped", attempt=attempt, error=None
+                endpoint, "stopped", attempt=attempt,
+                error=self._endpoint_states[endpoint].get("error"),
             )
 
     def device_for_endpoint(self, endpoint: str) -> str | None:
@@ -945,28 +998,35 @@ class IrisHub:
 
     def list_devices(self) -> list[dict[str, Any]]:
         result = []
-        for session in self._devices.values():
-            if session.info is None:
-                continue
-            item = session.info.as_dict()
-            links = self._links.get(session.info.device_id, {})
-            for role in ("control", "data"):
-                peer = links.get(role)
-                item[f"{role}_link"] = (
-                    peer.info.as_dict() if peer is not None and peer.info is not None else None
-                )
-            item["data_available"] = "data" in links
-            item["console_available"] = bool(getattr(links.get("control"), "console_available", False))
-            state = self._endpoint_states.get(session.link.endpoint, {})
-            item["firmware_mode"] = state.get("firmware_mode", "unknown")
-            item["transport_name"] = {
-                Transport.USB: "USB Highspeed",
-                Transport.TCP: "TCP",
-                Transport.USB_SERIAL_JTAG: "USB Serial/JTAG",
-                Transport.UART: "UART",
-            }.get(Transport(session.info.transport), "Unknown")
-            result.append(item)
+        for device_id in self._devices:
+            item = self.device_snapshot(device_id)
+            if item is not None:
+                result.append(item)
         return result
+
+    def device_snapshot(self, device_id: str) -> dict[str, Any] | None:
+        """Snapshot one live device without serializing the rest of the fleet."""
+        session = self._devices.get(device_id)
+        if session is None or session.info is None:
+            return None
+        item = session.info.as_dict()
+        links = self._links.get(device_id, {})
+        for role in ("control", "data"):
+            peer = links.get(role)
+            item[f"{role}_link"] = (
+                peer.info.as_dict() if peer is not None and peer.info is not None else None
+            )
+        item["data_available"] = "data" in links
+        item["console_available"] = bool(getattr(links.get("control"), "console_available", False))
+        state = self._endpoint_states.get(session.link.endpoint, {})
+        item["firmware_mode"] = state.get("firmware_mode", "unknown")
+        item["transport_name"] = {
+            Transport.USB: "USB Highspeed",
+            Transport.TCP: "TCP",
+            Transport.USB_SERIAL_JTAG: "USB Serial/JTAG",
+            Transport.UART: "UART",
+        }.get(Transport(session.info.transport), "Unknown")
+        return item
 
     def list_endpoints(self) -> list[dict[str, Any]]:
         remembered = {} if self.ownership is None else {
@@ -1063,10 +1123,16 @@ class IrisHub:
         offset: int = 0,
         length: int | None = None,
     ) -> AsyncIterator[bytes]:
-        async for chunk in self.get(device_id).files.read_chunks(
+        chunks = self.get(device_id).files.read_chunks(
             volume, path, offset=offset, length=length
-        ):
-            yield chunk
+        )
+        try:
+            async for chunk in chunks:
+                yield chunk
+        finally:
+            close = getattr(chunks, "aclose", None)
+            if close is not None:
+                await close()
 
     async def file_upload(
         self,
@@ -1407,13 +1473,8 @@ class IrisHub:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._discovery_task
             self._discovery_task = None
-        tasks = list(self._endpoint_tasks.values())
-        for task in tasks:
-            task.cancel()
-        for task in tasks:
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
-        self._endpoint_tasks.clear()
+        await asyncio.gather(*(self._stop_supervisor(endpoint)
+                               for endpoint in list(self._endpoint_tasks)))
         self._endpoint_configs.clear()
         self._host_endpoints.clear()
         self._mirror_states.clear()

@@ -14,7 +14,7 @@ COLORS = {"bg": "#000000", "card": "#181818", "text": "#ECECE8", "muted": "#9999
 
 
 def generate():
-    scene = json.loads((UI / "core.json").read_text())
+    scene = json.loads((UI / "core.json").read_text(encoding="utf-8"))
     objects = scene["objects"]
     named = {o.get("name"): o for o in objects if o.get("name")}
 
@@ -151,18 +151,30 @@ def generate():
     boot = page("boot_tip", "ROM Download Mode")
     label(boot, "boot_note", "Hold Boot and double-press Power.\nThe chip will enter ROM Download Mode.\nVibe Mode does not run in that mode.", y=120, h=160)
 
-    from vibe_design import apply
+    from vibe_design import FONT, apply
     apply(scene)
 
     # Conditional controls share visibility gates between device and simulator.
-    gates = ["button_toggle_open_confirm", "button_cancel_download", "button_result_open",
-             "button_undo_delete", "button_start_idea", "button_check_idea", "button_update_idea", "button_accept_idea", "button_shared_reveal", "button_shared_delete"]
+    gates = ["button_format_nand", "button_toggle_open_confirm", "button_cancel_download", "button_result_open", "button_result_library", "button_result_done",
+             "button_undo_delete", "button_local_delete", "button_start_idea", "button_check_idea", "button_update_idea", "button_accept_idea", "button_shared_reveal", "button_shared_delete"]
     gates += ["cell_icon_" + str(i) for i in range(6)]
     gates += ["button_cell_" + str(i) for i in range(6)]
     for name in gates:
         obj = next(o for o in objects if o.get("name") == name)
         obj["parent"] = add("layer", obj["parent"], 0, 0, 480, 480,
                             name=name + "_gate", bind=name + "_visible", bind_target="visible")
+    # Keep cell update badges, add overlays, and empty state on top of gated cell icons/buttons.
+    grid_overlays = [f"cell_update_{i}" for i in range(6)] + [f"cell_add_{i}" for i in range(6)] + ["grid_empty"]
+    for name in grid_overlays:
+        idx = next(i for i, o in enumerate(objects) if o.get("name") == name)
+        objects.append(objects.pop(idx))
+        new_idx = len(objects) - 1
+        for o in objects:
+            p = o.get("parent", -1)
+            if p == idx:
+                o["parent"] = new_idx
+            elif p > idx:
+                o["parent"] = p - 1
     for obj in objects:
         if obj.get("name", "").startswith(("cell_current_", "cell_default_")):
             obj.update(bind=obj["name"] + "_visible", bind_target="visible")
@@ -178,12 +190,13 @@ def generate():
     installing = add("layer", -1, 0, 0, 480, 480, name="firmware_progress", bind="firmware_progress_visible", bind_target="visible", hidden=True)
     label(installing, "firmware_progress_title", "Updating firmware", y=36, size=24, align="center")
     label(installing, "firmware_phase", "", y=132, align="center")
-    label(installing, "firmware_percent", "", y=196, size=32, align="center")
+    percent = label(installing, "firmware_percent", "", y=196, size=32, align="center")
+    objects[percent]["font"] = FONT["doto"]
     label(installing, "firmware_power_warning", "Do not unplug or power off.", y=268, color=COLORS["red"], align="center")
     failed = add("layer", installing, 0, 0, 480, 480, name="firmware_failed", bind="firmware_failed_visible", bind_target="visible", hidden=True)
     button(failed, "firmware_failure_back", "Back", 96, 380, 288, action="home")
 
-    translations = json.loads((UI / "translations.json").read_text())
+    translations = json.loads((UI / "translations.json").read_text(encoding="utf-8"))
     from vibe_design import runtime_charsets
     dynamic_chars = runtime_charsets(ROOT, translations)
     chars = set("".join(translations.values()))
@@ -201,12 +214,20 @@ def generate():
             value = obj.get("text", "")
             obj["font_charset"] = latin + value + translations.get(value, "")
             obj["font_charset"] += dynamic_chars.get(obj.get("bind"), "")
-            if obj.get("name", "").startswith("code_digit_") or obj.get("name") == "update_percent":
+            if obj.get("name", "").startswith("code_digit_") or obj.get("name") in ("update_percent", "firmware_percent"):
                 obj["font_charset"] = "0123456789% -"
-            if obj.get("font") == "fonts/NotoSansSC-Bold.otf":
+            if obj.get("name") == "ai_feedback_chip":
+                obj["font_charset"] = dynamic_chars.get("ai_feedback_chip", "")
+            if obj.get("name") == "home_ideas_count":
+                obj["font_charset"] = "0123456789-"
+            # This fixed Chinese welcome subtitle has no runtime text producer.
+            # Its unique 28px style does not need the dynamic ASCII alphabet.
+            if obj.get("name") in ("welcome_chinese", "welcome_later_zh", "welcome_heading", "welcome_later"):
                 obj["font_charset"] = value
-            if obj.get("font") == "fonts/VibeInter.otf" and obj.get("font_size") == 20:
-                obj["font_size"] = 18
+            if obj.get("name") in ("home_ideas_title", "open_question"):
+                obj["font_charset"] = value + translations.get(value, "")
+            if obj.get("font") == "fonts/ArchivoExtended-Black.ttf" or obj.get("name") == "home_headline":
+                obj["font_charset"] = value
             if obj.get("hidden"):
                 obj["font_size"] = 16
                 obj["font"] = "fonts/VibeInter.otf"
@@ -222,11 +243,11 @@ def generate():
                 continue
             if not obj.get("bind"):
                 obj["bind"] = "static_" + str(i)
-            if obj.get("text"):
+            if obj.get("text") and obj.get("name") not in ("welcome_heading", "welcome_later"):
                 static_labels.append((obj["bind"], obj["text"]))
 
         if obj["type"] == "keyboard": obj["font"] = "fonts/VibeMedium.otf"
-    (UI / "main.json").write_text(json.dumps(scene, indent=2, ensure_ascii=False) + "\n")
+    (UI / "main.json").write_bytes((json.dumps(scene, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
     def c(value): return json.dumps(value, ensure_ascii=False)
     lines = ["// Generated by tools/build_vibe_ui.py; do not edit.",
              "static const struct { const char *en, *zh; } vibe_translations[] = {"]
@@ -234,7 +255,7 @@ def generate():
     lines += ["};", "static const struct { uint16_t bind; const char *text; } vibe_static_labels[] = {"]
     lines += [f"    {{VUI_VIBE_BIND_{name.upper()}, {c(value)}}}," for name, value in static_labels]
     lines += ["};\n"]
-    (ROOT / "components/app_ui/private/vibe_locale.inc").write_text("\n".join(lines))
+    (ROOT / "components/app_ui/private/vibe_locale.inc").write_bytes("\n".join(lines).encode("utf-8"))
 
 
 def prepare_font(source):

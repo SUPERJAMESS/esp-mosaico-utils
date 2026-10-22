@@ -52,6 +52,7 @@ def test_windows_fallback_topology_and_unrelated_ports(monkeypatch):
 def test_windows_registry_reads_function_devnodes_and_rejects_reused_com(monkeypatch):
     import sys
 
+    monkeypatch.setattr(usb_descriptors, "sys", SimpleNamespace(platform="win32"))
     base = r"SYSTEM\CurrentControlSet\Enum\USB\VID_303A&PID_4002&MI_"
     tree = {
         base + "00": {"a": {"LocationInformation": "pci.8.1", "Device Parameters": {"PortName": "COM43"}},
@@ -90,3 +91,9 @@ def test_windows_registry_reads_function_devnodes_and_rejects_reused_com(monkeyp
     assert descriptors["COM54"]["number"] == 2
     assert descriptors["COM43"]["location"] == descriptors["COM54"]["location"]
     assert "COM99" not in descriptors
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin"])
+def test_windows_registry_is_not_accessed_on_other_platforms(monkeypatch, platform):
+    monkeypatch.setattr(usb_descriptors, "sys", SimpleNamespace(platform=platform))
+    assert usb_descriptors._windows_interfaces() == {}

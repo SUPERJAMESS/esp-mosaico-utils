@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ideas_internal.h"
+#include "factory_system_update.h"
 
 esp_err_t ideas_check_space(uint64_t bytes)
 {
@@ -30,11 +31,25 @@ esp_err_t ideas_commit_download(void *argument)
 }
 esp_err_t ideas_delete(ideas_context_t *ctx, const char *code)
 {
+    esp_err_t err = factory_system_update_read_acquire();
+    if (err != ESP_OK) return err;
     boot_record_t boot;
-    if (ideas_boot_record(&boot, true) && !strcmp(boot.code, code))
-        return ESP_ERR_INVALID_STATE;
-    esp_err_t err = ideas_store_delete(ROOT, code);
-    (void)ideas_scan(ctx, false);
+    err = ideas_read_boot_record(&boot);
+    if (err == ESP_ERR_NOT_FOUND) err = ESP_OK;
+    else if (err == ESP_OK && !strcmp(boot.code, code)) {
+        err = ideas_flash_hash(0x8000, 4096, boot.layout);
+        if (err == ESP_OK) err = ideas_flash_hash(boot.offset, boot.size, boot.image);
+        if (err == ESP_OK) err = ESP_ERR_INVALID_STATE;
+        else if (err == ESP_ERR_INVALID_CRC) {
+            ctx->boot_verified = false;
+            err = ESP_OK; /* A proven stale boot record does not protect an old copy. */
+        }
+    }
+    if (err == ESP_OK) {
+        err = ideas_store_delete(ROOT, code);
+        (void)ideas_scan(ctx, false);
+    }
+    factory_system_update_read_release();
     if (err == ESP_OK) ideas_message(ctx, "Idea deleted", "Removed from this device");
     return err;
 }
@@ -57,6 +72,11 @@ esp_err_t ideas_update_all(ideas_context_t *ctx, job_t *job)
         job_t item = {.command = IDEAS_CHECK, .owner = ctx, .metadata_only = job->command == IDEAS_REFRESH_UPDATES};
         strcpy(item.code, codes[i]);
         xSemaphoreTake(ctx->lock, portMAX_DELAY);
+        if (ctx->cancel_requested) {
+            xSemaphoreGive(ctx->lock);
+            err = ESP_ERR_INVALID_STATE;
+            break;
+        }
         if (++ctx->request_id == 0) ++ctx->request_id;
         ctx->state->preview_id = item.request_id = ctx->request_id;
         ctx->state->cancellable = true;

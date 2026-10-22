@@ -20,6 +20,7 @@ typedef int esp_err_t;
 #define pdTRUE 1
 #define pdPASS 1
 #define portMAX_DELAY UINT32_MAX
+#define pdMS_TO_TICKS(ms) (ms)
 typedef unsigned nvs_handle_t;
 typedef int nvs_open_mode_t;
 typedef unsigned *nvs_iterator_t;
@@ -31,6 +32,7 @@ int xSemaphoreTake(SemaphoreHandle_t mutex, uint32_t timeout);
 void xSemaphoreGive(SemaphoreHandle_t mutex);
 BaseType_t xTaskCreate(void (*task)(void *), const char *, unsigned, void *, unsigned, void *);
 void vTaskDelete(void *);
+void vTaskDelay(unsigned ticks);
 esp_err_t nvs_flash_init_partition(const char *partition);
 esp_err_t nvs_open_from_partition(const char *, const char *, nvs_open_mode_t, nvs_handle_t *);
 esp_err_t nvs_get_str(nvs_handle_t, const char *, char *, size_t *);

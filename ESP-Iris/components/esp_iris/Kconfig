@@ -325,6 +325,30 @@ config ESP_IRIS_LOG_RING_BYTES
         the host remain available as crash evidence until overwritten by newer
         records.
 
+config ESP_IRIS_USB_EARLY_LOGS
+    bool "Capture application startup logs before app_main"
+    depends on ESP_IRIS_TRANSPORT_USB && ESP_IRIS_REDIRECT_STDIO
+    default y
+    help
+        Install the bounded stdout/stderr log tap before calling app_main.
+        esp_iris_start() later starts USB and sends the pending text to an
+        ordinary serial monitor without requiring an Iris handshake. Native
+        console output is preserved. This does not capture ROM, bootloader,
+        constructors or system initialization before app_main. Disable when
+        another component owns the app_main linker wrapper.
+
+config ESP_IRIS_USB_CONSOLE_HOST_WAIT_MS
+    int "Wait for a USB console host during Iris start (ms)"
+    depends on ESP_IRIS_TRANSPORT_USB && ESP_IRIS_REDIRECT_STDIO
+    range 0 5000
+    default 1500
+    help
+        After starting the USB transport and worker, wait at most this long
+        for a terminal to open CDC0 before returning from esp_iris_start().
+        Timeout is not an error; the application continues and the bounded
+        log ring retains pending output until a host connects. Set to zero
+        to start immediately. Already started instances do not wait again.
+
 choice ESP_IRIS_LOG_RING_STORAGE
     prompt "stdout/stderr log ring storage"
     default ESP_IRIS_LOG_RING_STORAGE_PSRAM if SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY

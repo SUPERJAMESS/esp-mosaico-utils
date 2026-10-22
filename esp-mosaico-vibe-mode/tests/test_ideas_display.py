@@ -62,6 +62,9 @@ def core(tmp_path_factory):
     lib.ideas_presentation_render.argtypes = [C.POINTER(Display), C.c_uint, C.c_uint16, C.c_uint16,
                                               C.POINTER(C.c_uint16), C.c_size_t]
     lib.ideas_presentation_render.restype = C.c_bool
+    lib.ideas_presentation_title.argtypes = [C.POINTER(Display), C.c_uint16, C.c_uint16,
+        C.POINTER(C.c_uint16), C.c_size_t, C.POINTER(C.c_uint), C.POINTER(C.c_uint)]
+    lib.ideas_presentation_title.restype = C.c_bool
     return lib
 
 
@@ -151,8 +154,10 @@ def publisher():
 
 @pytest.mark.parametrize("locale,name,description,font_path", [
     ("en", "Weather", "Clear skies today.\nTomorrow: 24 C.", RECOVERY / "ui/fonts/DejaVuSans.ttf"),
+    ("en", "Weather forecast for the coming week", "Clear skies.", RECOVERY / "ui/fonts/DejaVuSans.ttf"),
     ("ar", "مرحبا بالعالم", "وصف التطبيق باللغة العربية", RECOVERY / "ui/fonts/DejaVuSans.ttf"),
     ("zh-CN", "天气预报", "查看今天的天气。", Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")),
+    ("zh-CN", "TimeTiles：多功能的陪伴式像素时钟", "像素时钟", Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")),
 ])
 def test_publisher_roundtrip_without_ui_framework(core, publisher, tmp_path, locale, name, description, font_path):
     if not font_path.exists(): pytest.skip("Publication font unavailable")
@@ -174,6 +179,11 @@ def test_publisher_roundtrip_without_ui_framework(core, publisher, tmp_path, loc
     pixels = (C.c_uint16 * (328*84))()
     assert core.ideas_presentation_render(C.byref(display), 0, 0xffff, 0, pixels, len(pixels))
     assert sum(p != 0 for p in pixels) > 50
+    native_ink = sum(p != 0 for p in pixels)
+    width, height = C.c_uint(), C.c_uint()
+    assert core.ideas_presentation_title(C.byref(display), 0xffff, 0, pixels, len(pixels), C.byref(width), C.byref(height))
+    assert sum(pixels[i] != 0 for i in range(width.value * height.value)) == native_ink
+    assert height.value <= 40  # Original glyph height, not a squeezed multiline box.
     if locale == "ar":
         import freetype
         face = freetype.Face(str(font_path))
@@ -197,3 +207,22 @@ def test_empty_description_and_newline_only_text(publisher, core):
     assert core.ideas_font_open(font.encode(), len(font.encode()), C.byref(Font()))
     with pytest.raises(ValueError, match="Nonempty"):
         font.layout("\n", 416, 176)
+
+
+@pytest.mark.parametrize("multiline", [False, True])
+def test_single_line_title_preserves_shaped_pixels_and_bounds(core, multiline):
+    doc = document()
+    if multiline:
+        doc["name"]["glyphs"].append([42, 0, 27])
+    ok, display, sources = parse(core, doc)
+    assert ok
+    pixels = (C.c_uint16 * (328*84))()
+    width, height = C.c_uint(), C.c_uint()
+    assert core.ideas_presentation_title(C.byref(display), 0xffff, 0, pixels, len(pixels), C.byref(width), C.byref(height))
+    assert height.value == 3
+    assert width.value == (10 if multiline else 2)
+    assert sum(v != 0 for v in pixels) == (8 if multiline else 4)
+    for x in ([0, 8] if multiline else [0]):
+        assert pixels[x] == 0xffff and pixels[x+1] not in (0, 0xffff)
+        assert pixels[width.value+x] == 0 and pixels[width.value+x+1] == 0xffff
+    assert not core.ideas_presentation_title(C.byref(display), 0xffff, 0, pixels, 1, C.byref(width), C.byref(height))

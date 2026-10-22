@@ -18,22 +18,25 @@ UI = Path(__file__).resolve().parents[1] / "ui"
 
 
 def build(cjk_source):
-    cjk = TTFont(cjk_source, fontNumber=2 if str(cjk_source).endswith('.ttc') else -1)
-    translations = json.loads((UI / 'translations.json').read_text())
+    cjk_dir = cjk_source if Path(cjk_source).is_dir() else None
+    cjk = None if cjk_dir else TTFont(cjk_source, fontNumber=2 if str(cjk_source).endswith('.ttc') else -1)
+    translations = json.loads((UI / 'translations.json').read_text(encoding="utf-8"))
     chars = set(''.join(translations.keys()) + ''.join(translations.values()))
     chars.update(chr(i) for i in range(32, 127))
     chars.update('‹›•↑↓°·×–—…简体中文')
     # The generated scene also includes backend literals that are not entries
     # in translations.json (for example an already-localized failure detail).
-    scene = json.loads((UI / 'main.json').read_text())
+    scene = json.loads((UI / 'main.json').read_text(encoding="utf-8"))
     for obj in scene['objects']:
         chars.update(obj.get('text', '') + obj.get('font_charset', ''))
     for source, name in [('Inter-Regular.ttf', 'VibeInter'),
                          ('ArchivoExtended-Medium.ttf', 'VibeMedium'),
                          ('ArchivoExtended-SemiBold.ttf', 'VibeDisplay')]:
         latin = TTFont(UI / 'fonts' / source)
+        existing = TTFont(UI / 'fonts' / (name + '.otf'))
         weight = {'VibeInter': 'Regular', 'VibeMedium': 'Medium', 'VibeDisplay': 'Bold'}[name]
         reference_cjk = TTFont(UI / 'fonts' / ('NotoSansSC-' + weight + '.otf'))
+        extra_cjk = TTFont(Path(cjk_dir) / ('NotoSansSC-' + weight + '.subset.otf')) if cjk_dir else cjk
         glyphs, metrics, cmap = {}, {}, {}
         order = ['.notdef']
         pen = T2CharStringPen(500, None)
@@ -41,7 +44,10 @@ def build(cjk_source):
         metrics['.notdef'] = (500, 0)
         for char in sorted(chars):
             code = ord(char)
-            font = latin if code in latin.getBestCmap() else reference_cjk if code in reference_cjk.getBestCmap() else cjk
+            font = (latin if code in latin.getBestCmap()
+                    else reference_cjk if code in reference_cjk.getBestCmap()
+                    else existing if code in existing.getBestCmap()
+                    else extra_cjk)
             original = font.getBestCmap().get(code)
             if original is None:
                 if char in '\r\n\t':

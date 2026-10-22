@@ -24,7 +24,12 @@ function send(x,y,p){queue=queue.then(()=>fetch('/pointer',{method:'POST',header
 function sample(e,p){let r=c.getBoundingClientRect();send(Math.max(0,Math.min(479,Math.round((e.clientX-r.left)*480/r.width))),Math.max(0,Math.min(479,Math.round((e.clientY-r.top)*480/r.height))),p);}
 c.onpointerdown=e=>{pressed=true;c.setPointerCapture(e.pointerId);sample(e,true)};c.onpointermove=e=>{if(pressed)sample(e,true)};c.onpointerup=e=>{sample(e,false);pressed=false};c.onpointercancel=e=>{sample(e,false);pressed=false};
 async function frame(){try{let r=await fetch('/frame.png',{cache:'no-store'});let b=await createImageBitmap(await r.blob());ctx.drawImage(b,0,0);b.close()}catch(e){}setTimeout(frame,50)}frame();
-document.querySelectorAll('button').forEach(b=>b.onclick=()=>fetch('/control',{method:'POST',body:b.dataset.command}));</script></html>"""
+function control(command){queue=queue.then(()=>fetch('/control',{method:'POST',body:command}));}
+document.querySelectorAll('button').forEach(b=>{if(b.dataset.command==='boot'){
+b.onpointerdown=e=>{b.setPointerCapture(e.pointerId);control('boot')};b.onpointerup=b.onpointercancel=()=>control('boot-release');
+b.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.repeat){e.preventDefault();control('boot')}};
+b.onkeyup=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();control('boot-release')}};
+}else b.onclick=()=>control(b.dataset.command)});</script></html>"""
 
 
 class NativeUI:
@@ -51,6 +56,9 @@ class NativeUI:
             ctypes.c_int,
             ctypes.c_bool,
         ]
+        self.lib.vui_pointer_at.argtypes = [*self.lib.vui_pointer.argtypes, ctypes.c_uint64]
+        self.lib.vui_now_ms.argtypes = [pointer]
+        self.lib.vui_now_ms.restype = ctypes.c_uint64
         self.ui = pointer()
         if self.lib.vui_create(ctypes.byref(self.ui)):
             raise RuntimeError("Unable to load UI assets")
@@ -75,11 +83,25 @@ class NativeUI:
                 if self.lib.vui_render(self.ui, self.pixels):
                     self.image = None
 
-    def pointer(self, x, y, pressed):
+    def pointer(self, x, y, pressed, time_ms=None):
         with self.lock:
-            self.lib.vui_pointer(self.ui, int(x), int(y), bool(pressed))
+            if time_ms is None:
+                self.lib.vui_pointer(self.ui, int(x), int(y), bool(pressed))
+            else:
+                self.lib.vui_pointer_at(self.ui, int(x), int(y), bool(pressed), int(time_ms))
             if self.lib.vui_render(self.ui, self.pixels):
                 self.image = None
+
+    def pointers(self, samples):
+        # Acquisition times stay independent of RPC/render scheduling, just
+        # like timestamped samples queued by the device input adapter.
+        with self.lock:
+            start_ms = self.lib.vui_now_ms(self.ui)
+            for sample in samples:
+                values = dict(sample)
+                if "offset_ms" in values:
+                    values["time_ms"] = start_ms + int(values.pop("offset_ms"))
+                self.pointer(**values)
 
     def frame(self):
         with self.lock:
@@ -122,11 +144,7 @@ class RPC(socketserver.StreamRequestHandler):
                 if method == "feed_pointer":
                     self.server.ui.pointer(**params)
                 elif method == "feed_pointers":
-                    # Replay samples at one UI clock instant. Rapid-input
-                    # tests must not depend on host rendering/RPC latency.
-                    with self.server.ui.lock:
-                        for sample in params["samples"]:
-                            self.server.ui.pointer(**sample)
+                    self.server.ui.pointers(params["samples"])
                 elif method == "wait":
                     time.sleep(min(10, params.get("frames", 1) * 0.01))
                 elif method == "screenshot":
@@ -179,7 +197,7 @@ class HTTP(BaseHTTPRequestHandler):
                 self.send_error(400)
                 return
         elif self.path == "/control":
-            if body not in (b"ai", b"boot"):
+            if body not in (b"ai", b"boot", b"boot-release"):
                 self.send_error(400)
                 return
             path = Path(os.environ["VIBE_SIM_CONTROL_FILE"])

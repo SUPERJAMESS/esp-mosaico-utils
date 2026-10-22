@@ -162,6 +162,10 @@ class DemoHub:
     def list_devices(self) -> list[dict[str, Any]]:
         return [boot_id_text(device) for device in self._devices.values() if device["connected"]]
 
+    def device_snapshot(self, device_id: str) -> dict[str, Any] | None:
+        device = self._devices.get(device_id)
+        return boot_id_text(device) if device is not None and device["connected"] else None
+
     def list_endpoints(self) -> list[dict[str, Any]]:
         return [
             {

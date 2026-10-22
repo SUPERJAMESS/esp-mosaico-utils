@@ -331,3 +331,7 @@ td small, td code { margin-top: 4px; color: var(--faint); font-size: 10px; }
 .export-job code { display: block; margin-top: 6px; overflow-wrap: anywhere; font-size: 10px; }
 .export-job .settings-actions { padding: 0; align-self: center; flex-wrap: wrap; }
 @media (max-width: 600px) { .export-form { grid-template-columns: 1fr; } }
+
+.operation-progress { grid-column: 1 / -1; display: grid; gap: 6px; }
+.operation-phase { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.operation-phase span { color: var(--muted); }

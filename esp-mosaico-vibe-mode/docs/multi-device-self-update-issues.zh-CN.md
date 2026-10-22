@@ -1,0 +1,250 @@
+# ESP-Mosaico 九设备自更新问题记录
+
+2026 年 10 月 20 日，从 utils `33383d620d13ba2e62f010d71575e79de9ed426f` 源码构建 Vibe Mode，以单台和九台并发方式测试自更新。单台 10 次全部通过；九台并发首轮 8 台通过，D06 在上传提交阶段被 Gateway 拒绝。用户手动让 D06 进入 Vibe Mode 后续跑至第 9 轮，发现 D09 崩溃计数增加，随后按用户要求停止测试。
+
+## 停止时结果
+
+单台 10 次和九台并发 9 轮共 91 次计划提交，其中 44 次通过完整验收、46 次被主机 HTTP 429 拒绝、1 次设备独立验收失败。九台并发第 10 至第 20 轮和普通应用更新测试未执行。停止时 Gateway 活动操作和主机写入器数量均为 0；仅结束本任务的前台保活客户端，保留设备固件和现场记录。
+
+第 9 轮九台均已接纳更新，D09 的操作 `3a6a39e0-11e2-48f5-8ab5-7b2e1d2d67eb` 报告 `succeeded`、healthy 和目标 ELF 正确，但独立 live 检查发现 `crash_count` 从 0 变为 1、`reset_reason=7`，失败镜像摘要指向 V-A，失败分区为 `0x20000`。该轮按设备验收失败保留，不能算作稳定更新成功。具体崩溃原因尚未定位；停止后没有继续复现或解码。
+
+此前由 Gateway 归档的 Core Dump 已复制到证据目录，其归档发生在第 9 轮写入前，不能未经解码便认定为本次新增崩溃的 Core Dump。设备上的后续崩溃证据未作清除或恢复操作。
+
+## 构建和现场
+
+- ESP-IDF revision：`7b9cc1ac79f865983f59bb8ff3ff43eb74ff1dbe`，源码版本 6.2.0，目标 ESP32-S31。
+- Vibe Mode 版本保持 `0.2.0`。两个样本使用同一源码和配置，通过重新编译应用描述的构建时间产生不同 ELF SHA，交替安装以避免相同镜像跳过实际写入。
+- 源镜像均为 1,667,600 字节，约占固定槽的 90.9%；包内组件依产品契约补齐至 1,835,008 字节。
+- 包仅含 `recovery` 组件，写入范围 `0x20000` 至 `0x1e0000`。使用消费应用分区 CSV 重新生成表文件，其摘要与九台实时读取值一致；该表只作为前置条件，没有放入写入组件。
+- 测试使用消费工作区的独立 `mosaico.py` launcher 和配置，工具、Gateway 与被编译的 Iris 均来自上述 utils revision。未修改消费工作区原配置和其已有 utils 工作树。
+
+| 样本 | ELF SHA256 |
+| --- | --- |
+| V-A | `e70cbc020c294c09b384135ed31675206d52be405295868906e6f67cec2ed17f` |
+| V-B | `ad05e570b83112bb0eb937efa9cafc0097755333a0b69f7309b5b4362c3d7798` |
+
+## 已确认的上传限流和错误分类问题
+
+北京时间 16:11:36，九台同时发起 V-A 自更新。D06（USB serial `30eda0f4595e`）在约 3.65 秒后返回 CLI 错误，原始子进程输出为：
+
+```text
+HTTP 429
+code: resource_limit
+message: large_requests capacity is 2; retry after active work completes
+resource: large_requests
+limit: 2
+```
+
+产品 CLI 最终输出 `error=outcome_unknown`、退出码 5，`details.result={}`，没有 operation ID，也没有自动排队或重试。其余八台在约 40.8 至 42.2 秒内完成更新，通过操作结果、目标 ELF SHA、healthy、新 Boot ID 和 5 秒稳定性复查。
+
+源码和现场证据表明，本次 D06 请求在 HTTP 接纳阶段被拒绝：
+
+1. [Gateway 大请求预算](../../ESP-Iris/components/esp_iris/tools/iris_gateway/resource_limits.py)默认 `large_requests=2`。
+2. [HTTP 资源中间件](../../ESP-Iris/components/esp_iris/tools/iris_gateway/gateway.py)在调用 System Update handler 前检查预算；超限返回 429 和 `Retry-After: 1`。该预算作用于 HTTP 大请求处理阶段，已接纳的设备更新操作可继续并发执行。
+3. [Iris CLI HTTP 错误处理](../../ESP-Iris/components/esp_iris/tools/iris_gateway/cli.py)把错误作为文本异常输出；[产品 CLI 操作等待逻辑](../../mosaico-tools/tools/mosaico_cli/gateway.py)只从 stdout 解码结果，遇到非零返回且无状态时分类为 `outcome_unknown`，丢失了结构化的接纳拒绝原因。
+4. 首次失败后，D06 的 Boot ID、旧固件 ELF SHA、设备更新 receipt 均保持原值，队列为空，设备仍可实时查询。
+
+因此，本次需要重新发起命令的直接原因已定位到主机上传接纳和错误分类。这个结果不能作为设备 Flash 写入失败、死机或 USB 硬件故障的证据，也不足以解释客户报告的所有不稳定场景。
+
+## 手动介入与继续测试
+
+用户确认在首次现场保存后，手动让 D06 进入 Vibe Mode。随后观察到 D06 Boot ID 改变、`reset_reason=1`；这一变化按用户报告归入手动介入，不计为自发复位。D06 仍运行旧 Vibe Mode，原更新 receipt 未改变。
+
+继续测试前，九台均重新核对为 live Vibe Mode，具备 OTA 和 System Update 能力，队列为空、崩溃计数为 0。从第 2 轮接续，不重放第 1 轮，也不把首次失败改记为成功。
+
+续跑期间，对原始日志明确显示 HTTP 429 `large_requests` 的请求记录“提交前拒绝”，继续下一轮；对无法确认结果的请求仍冻结后续写入并核对原操作。不自动重试本轮被拒绝的命令。每台后续目标根据实际运行镜像在 V-A/V-B 之间交替，避免把未写入后的相同镜像提交当作一次实际烧写。
+
+前八轮中，多轮仅接纳两至三台更新，无法形成完整的九台设备写入压力。北京时间 16:22:25，测试工作区的独立 launcher 增加实验用上传排队：只对向 Gateway 提交 `.irisfw` 的子命令持有文件锁，收到接纳回执就释放；设备传输、Flash 提交、重启和健康验证继续并发。该变化只影响随后启动的 CLI 子进程；生效边界、完整 launcher 和原始版本保存在运行目录。后续统计须分别报告原始提交方式与排队提交方式，并用实际操作时间证明写入重叠，不能仅凭九个 worker 宣称九路写入。当时产品工具和固件源码没有修改。
+
+## 设备侧观察
+
+首轮结束后的九台 live 快照均可读取，崩溃计数为 0、无 crash loop、`invalid_frames=0`，bootloader 和分区表摘要保持原值。八台成功设备的内部堆最低余量约 74 KiB，PSRAM 最低余量超过 11 MB；快照没有显示内存耗尽。这些是有限时间窗口内的观察，不能替代长时间运行或电气测量。
+
+另保存两类待核对的设备日志：
+
+| 观察 | 设备与证据 | 当前判断 |
+| --- | --- | --- |
+| LittleFS 目录元数据读取报错 | D03，`Corrupted dir pair at {0x0, 0x1}`，新 Vibe Mode 启动约 2530 ms 时出现 | 需要区分既有文件系统状态、几何参数和驱动读取差异。当前正常挂载路径先执行只读卷几何探测，失败即返回，并关闭自动格式化；没有进行修复或格式化。自更新 healthy 不代表 NAND 可用。 |
+| 触摸报文与 I2C 超时 | 多台出现 `Malformed report header: first=0xab marker=0xab`，部分出现 `Report read failed: ESP_ERR_TIMEOUT`；旧固件启动日志也有异常报文 | 需要单独验证物理触摸和报文解析。目前没有建立它与 D06 上传拒绝之间的关联。 |
+
+首轮未覆盖普通应用的大镜像、分区布局往返和多资源组件更新，不能将本轮自更新结果外推到这些场景。
+
+## 后续原因分析与源码修复
+
+用户随后要求分析并修复上一轮问题，恢复了本次定向回归。原始停止时统计保持不变。
+
+### 主机提交前拒绝
+
+根因是九个 CLI 同时上传与 Gateway 的两个大请求预算发生冲突，加上 CLI 丢失结构化 HTTP 错误，导致明确的提交前拒绝被误报为结果未知。保留原预算，避免通过提高并发上限放大内存占用；System Update 提交仅针对 `429/resource_limit/large_requests` 按 `Retry-After` 有界重试，使用同一个 operation intent ID 和同一份冻结包。收到接纳回执后不重发，连接中断、5xx 和其他资源错误不自动重试。超过接纳等待预算时，保留 HTTP 状态、资源原因以及 `write_started=false`。
+
+相关实现：[Iris 提交处理](../../ESP-Iris/components/esp_iris/tools/iris_gateway/update_submission.py)、[产品 CLI 错误分类](../../mosaico-tools/tools/mosaico_cli/gateway.py)。新增九客户端真实 HTTP 中间件回归，验证每个 intent 只进入更新 handler 一次，以及不确定连接失败不重放。
+
+### D09 看门狗复位与错误验收
+
+已确认两次 `reset_reason=7` 的现场：原第 9 轮，以及从旧 V-B 首次安装修复版的迁移操作 `4ec9d429-6383-4e04-8520-6ac2adbd87d0`。后一次目标镜像和提交 receipt 匹配，但新启动记录再次出现崩溃计数 1；新验收逻辑正确返回失败。两次退出时运行的均为旧固件。设备保留的 Core Dump 为更早镜像 `4b8e057ec6e179cb8b8abd4dd032312649984cd64ca49d78c4329855aa89fa5b`，不匹配本次样本，因此不能用于推断这两次看门狗复位的调用栈。
+
+源码发现两条独立重启路径：设备提交成功后创建 1800 ms 延迟任务直接调用 `esp_restart()`，Gateway 收到提交响应后又请求 Iris 在 250 ms 后重启。两条路径没有共同的重启状态；SDK 在关闭调度器前运行 shutdown handlers，存在重入关机过程的竞争窗口。修复将设备提交后的延迟重启接入已有的 `esp_iris_schedule_restart()`，与主机请求共享单一截止时间和执行路径，取消私有重启任务。协议、ABI、固件版本以及 Bridge、延迟提交的职责保持原契约。
+
+这是已消除的重启竞争风险；现有日志没有当次有效调用栈，尚不能唯一证明它就是原看门狗事件的底层触发点，也不能排除启动早期的问题。须将源码判断和后续复现结果分别记录。
+
+另一个已确认缺陷是 Gateway 只检查 HEALTHY、身份和目标摘要，没有检查崩溃状态，导致原第 9 轮报告成功。更新验收和只读结果核对现均检查崩溃计数、crash loop、recovery pending 和状态读取错误。只读核对不会把带有异常崩溃状态的启动提升为成功，也不会重放写入。
+
+相关实现：[提交后重启](../firmware/vibe-mode/components/app_system_update/src/update_flash.c)、[验收](../../ESP-Iris/components/esp_iris/tools/iris_gateway/update_acceptance.py)、[只读核对](../../ESP-Iris/components/esp_iris/tools/iris_gateway/reconciliation.py)。
+
+### 修复版实机回归
+
+使用同一固定 ESP-IDF checkout，从上述修改后的源码构建两个新样本，版本仍为 `0.2.0`，镜像均为 1,667,584 字节。未使用或替换发布目录的预编译固件。新工作区 launcher 直接导入正式工具源码，没有上一轮实验用文件锁补丁。
+
+| 修复样本 | ELF SHA256 |
+| --- | --- |
+| Fix-A | `368b618bb9c5a9f88c1c21b771053c7b6c104e83f217ad54b5463e61d1cef14f` |
+| Fix-B | `27ba8645ab8624568717bc00ab35385051b5ec7b5669d4f164765eef8e032241` |
+
+| 阶段 | 结果 |
+| --- | --- |
+| D09 旧 V-B → Fix-A | 目标和 receipt 匹配，但再次发生看门狗复位；新验收正确判失败。作为迁移诊断单独保留，不计入通过数。 |
+| D09 首次由修复版执行更新 | Fix-A → Fix-B，通过，正常软件复位、崩溃计数 0。 |
+| D09 单台三轮 | 3/3 通过，另外八台 Boot ID 不变。 |
+| 九台并发第一轮 | 9/9 通过，其中八台从旧固件迁移；D09 已运行修复版。 |
+| 九台均运行修复版后再并发五轮 | 45/45 通过。 |
+
+正式定向回归合计 57/57 通过；加上修复版首次诊断更新，共 58 次完整验收通过。另保留上述 1 次旧固件迁移失败，整个过程没有新增人工介入。每次均在两个不同摘要间切换，核对 operation、目标 ELF、HEALTHY、新 Boot ID、持久化 receipt、未变化的 bootloader/分区表摘要，并在 5 秒后复查。全部 57 份回归重启后快照为 `reset_reason=3`、`crash_count=0`、`crash_state_error=0`。
+
+六轮九台提交阶段的共同重叠窗口分别为 13.243、11.954、13.038、11.962、11.240、11.746 秒，来源是操作进度时间戳。该证据表明九台更新操作的提交阶段重叠；它不是电气层面 Flash 总线时序的测量。最终九台均完成实时检查，队列为空，仍在修复版 Vibe Mode；结束本任务的前台保活客户端时活动设备操作和主机写入器均为 0。
+
+本次未重跑普通应用、多资源和分区布局往返，不能将自更新结果外推到这些场景。D03 文件系统和触摸/I2C 观察仍分别保留，不以本次通过结果宣称已经修复。
+
+### 软件验证与使用边界
+
+- ESP-Iris Python 全量：796 passed、1 skipped。首次广测有一项 takeover 时序测试失败，单独复跑及最终全量均通过。
+- `mosaico-tools/tests` 与 `esp-mosaico-vibe-mode/tests` 联合全量：914 passed、146 skipped、120 subtests passed；5 项显示资源发布测试因本机缺少 `libraqm` 失败，错误均指向未修改的 `shared/ideas/font.py` 依赖检查，未将它们记为通过。
+- macOS 下补齐隔离 OpenSSL 头文件与静态库后，直接编译执行实际 System Update 原生 C 后端 fixture，通过重启调度、Bridge 和延迟提交检查。Iris 全量同时包含已有的重复重启截止时间合并和发送刷新检查。
+- 两次 ESP32-S31 源码构建、产物摘要和包内布局/大小检查通过；`git diff --check` 通过，修改后的 Iris 模块通过 Python 3.8 语法解析检查。
+
+修复保存在当前 utils 工作树，九台已安装本次源码构建版本。消费工作区原有 launcher、配置和其已有 utils 引用未修改；此次验证使用证据目录中的独立 launcher。通过原消费 launcher 使用主机修复时，也需要同步这些 utils 源码修改。
+
+### 提交后继续测试
+
+用户要求提交修复并继续后续测试。修复已提交为 `c0fa866`；源码构建的应用压力夹具提交为 `3fdbcb9`。后续运行目录为 `.codex-runs/flash-repro/20261020T085849Z-continued-tests`，仍位于消费工作区。
+
+九台自更新补跑第 7 至第 20 轮，126/126 次通过；与前六轮合计，完整接纳的九台自更新达到 20 轮、180/180 次通过，无新增介入。前述旧固件迁移异常和原始限流失败继续单独保留，不修改历史结果。
+
+普通应用测试使用源码构建的 A、A2、B、C 四个冻结样本。A/A2 镜像分别为 388,992 和 389,008 字节；B 为 12,181,376 字节，占 `main_app` 的 89.79%；C 为 389,440 字节，另含两个各 1,048,576 字节的资源镜像。L1 沿用现场布局；L2 将 `main_app` 从 `0xcf0000` 缩为 `0xaf0000`，在原应用区内增加 `stress_a@0xd00000` 和 `stress_b@0xe00000`，保持 `ui_apps@0xf00000` 不变。所有包均不包含 NVS、`ui_apps`、bootloader 或 Vibe Mode 写入组件。
+
+夹具在报告 HEALTHY 前验证编译进镜像的载荷和完整资源摘要；只读 RPC 返回样本身份及摘要，主机逐次比较原 `ui_apps` 摘要。B 构建中的槽位警告是该大应用不能装入较小的 `vibe_mode` 槽；实际包只定位 `main_app@0x210000`，并已通过其容量校验。原发布预编译固件未替换。
+
+普通应用最初按单台 10 循环/40 次、九台并发 20 循环/720 次启动。用户随后要求改为批量优先：批量失败再回退到故障设备单台定位；批量通过后仅做一轮单台四步验证。调整前已通过一轮四步及第二轮前两步，共 6 次单台更新，另有 1 次初始化；正在进行的写入完成后才切换调度，未中断 Flash 写入。上述历史结果单独保留。新调度运行目录为 `.codex-runs/flash-repro/20261020T092620Z-batch-priority`，计划九台 20 循环/720 次及通过后单台 1 循环/4 次；实际结果以该目录的 `app-progress.json`、`app-ledger.jsonl`、`app-summary.json` 为准。
+
+### 批量优先测试：D05 首次应用更新失败，转单台
+
+九台同时初始化到源码应用 A 时，8 台完整验收通过，D05（MAC `30:ed:a0:f4:53:94`）失败。操作 `e65bb9d4-6157-4db2-9449-40a46b7225d3` 已接收全部 393,088 字节，持久化 receipt 为该操作且 `last_result=0`，但目标角色应为 normal，实际仍为 recovery。写入器 ELF 为 Fix-B `27ba8645…032241`，失败后仍是同一 Vibe Mode 镜像；实时状态为 `reset_reason=7`、`crash_count=1`，失败地址 `0x20000`，失败 Boot ID 与写入器 Boot ID `2574886067860866340` 匹配。主机正确判定失败，未将 receipt 成功等同于整次更新成功。
+
+保存的 29,504 字节 Core Dump 摘要为 `46c7f4785c81c564add8ff3a892d2293802fe83fc476e5dcf55d773778d830d4`，内含 ELF `10af6e0d…afc037c`，与本次 Fix-B 不匹配；同一 Core 在此次写入前已被保存。因此，其中的 TLSF double-free 断言不能作为本次看门狗复位的根因证据。现有日志未给出本次匹配栈，根因继续待定位；前述自更新通过不能证明普通应用切换不存在问题。
+
+运行目录 `.codex-runs/flash-repro/20261020T092620Z-batch-priority` 保留原始失败、状态、日志、Core 和八台通过记录。按用户要求冻结后续批量，转 D05 单台：保留原崩溃状态后重测相同 A，再执行 A2→B→C→A；单台结果独立记入 `fallback-ledger.jsonl`，不覆盖批量失败。计划中的 720 次普通应用并发尚未执行，不计为完成。
+
+D05 单台重测相同 A 再次失败，操作 `888545d3-59c5-44d1-a650-df047dfe5e4c`；同样收齐 393,088 字节、receipt 成功，但 `reset_reason=7`，重新进入 Fix-B Vibe Mode，`crash_count=1`。该记录证明单台也会发生此现象，不能仅归因于九台主机并发。随后仅执行一次独立软件重启（`b7802fe6-8be8-41f6-a72f-d3c0a6d2bc80`），正常 `reset_reason=3`、新 Boot ID，既有崩溃状态保留；未再次写应用。普通重启成功也不足以排除更新后的重启/启动路径问题。
+
+后续 A2/B/C/A 单台循环因 A 初始化重复失败未启动，后续批量不再继续写入，以保留复现现场。最终汇总为 `batch-fallback-conclusion.json`，九台只读结束快照为 `batch-fallback-final-states.json`。诊断脚本的首个尝试因证据目录命名冲突在提交前退出，0 次设备写入；第二次的失败记录对 operation ID 的继承错误以追加更正保留，原始命令输出和实际 terminal operation 分别存在，不修改原批量台账。
+
+### 待定位：大固件更新速率下降
+
+用户在后续测试中反馈：此前更新速率约 **300k**，当前大固件更新仅 **60k+**。按用户原始表述记录；具体单位、统计窗口、历史固件/工具版本及接线条件留待定位时核对，不把两个数字直接当作相同口径的测量。
+
+当前关联样本为 B，应用镜像 12,181,376 字节；D01 操作 `04e07cc3-91eb-4c5b-ae3b-37c7e180e143` 完整验收耗时 243.673 秒，折算约 50,000 字节/秒。该时间包含模式切换、重启、校验和 5 秒稳定性复查，不能等同于纯传输速率。包、ELF、配置、操作进度时间戳、原始日志和逐次结果均保存在后续测试运行目录；另记入 `performance-issues.jsonl`。
+
+此问题独立于更新成功率和先前 HTTP 接纳限流记录。本轮继续执行用户调整后的批量优先顺序，不更改窗口、分块、超时、日志或 USB 参数。后续定位再对照相同包和统计口径区分上传接纳、实际传输、Flash 写入/读回及重启验收耗时；当前不推断根因。
+
+### 第二轮定位：传输拥塞、完整帧调度与数据接口就绪
+
+后续运行目录为 `.codex-runs/flash-repro/20261020T094237Z-two-issue-fix`。本轮先保留原始样本和失败记录，再在相同固定 SDK 上源码构建诊断版与正式版；未替换发布预编译目录，未更新现场 bootloader。
+
+确认并修复的四条路径：
+
+1. 主机默认线程池在这台 10 核电脑上只有 14 个工作线程，九台设备的 18 个 CDC 接口却各自长期执行阻塞读，挤占写入、取消读取和关闭端口所需的线程。每个串口现使用独立、单线程的读取执行器；写入仍保留原锁，取消/关闭先排空读操作，调用上下文保持不变。有限线程池下多串口读写/关闭的回归测试在旧实现上失败，修复后通过。
+2. 固件原来按墙上时间计算 20 ms 连续运行预算，把等待 USB/服务通知的时间也算进去；现在累计实际处理区间，连续流量、发送受阻和密集通知仍必须给低优先级任务运行机会。另外，原先每轮只读 8×256 字节，约 4 KB 的 DATA 帧会在中途结束本轮；现按最大完整控制台记录计算有限读取轮数，避免把完整且已缓冲的帧拆成两轮调度，不增加生产接收缓冲区、分块大小或协议窗口。新增完整帧测试在旧实现断言失败；修改后原生运行时 57 项通过，覆盖 100/1000 Hz 调度配置。
+3. 九台验证时 D09 操作 `163b39f3-4c78-4e30-9852-be8ea12385af` 在进入 Vibe Mode 后、发送 BEGIN 前失败：控制接口已就绪，独立数据接口尚未完成握手。OTA/System Update 入口现在有期限地等待同设备、同 Boot ID、同归属的数据握手；绑定改变或超时会在写入前退出，不重放更新。D09 随后单台 A2 更新通过；原始失败继续单列。
+4. 多设备日志队列连续溢出时，后一次丢失区间覆盖前一次尚未消费的区间；若两次溢出之间有已接纳的原始串口块，存储器会误判其偏移存在未知缺口，日志写入线程永久停止。现合并尚未消费的丢失范围，并在每个接纳块前仅记录实际缺失区间，保留中间正常块及后续更新验收证据；未知偏移缺口仍拒绝。确定性回归在旧实现中触发同一 ValueError，修复后事件存储相关 20 项通过。新进程的实机采样正常落盘，队列排空、无写入错误。此前丢失的日志不能恢复，原始降级 health 和失败采样保留，不能视为完整证据。
+
+第一次正式构建（ELF `e2cb73ce…f2082b0`）完成九台 54 次更新及 D05 单台四步 4 次更新，58/58 完整验收通过，包括 12,181,376 字节的大应用、两个完整资源分区、布局切换及 `ui_apps` 保留校验。单台其余八台 Boot ID 不变。完整帧构建随后完成九台 27 次及 D05 单台 B→A 两次，29/29 完整验收通过。
+
+**吞吐统计更正及对照结论：** 初步计算的 58/150/153.6 kB/s 从分区表传输开始计时，混入其后大应用分区约 30 秒的擦除，不能标为纯传输速率。最终统一使用 `stage=transferring, component_id=2` 的首末不同进度点，排除擦除、读回、重启和稳定性检查。旧主机仅连接两台时，同一 B 镜像为 247,006 B/s；旧主机九台连接时为 67,134 B/s；修复后九台连接时，多次单台 B 测量为 240,982–246,486 B/s，恢复到本机对照基线。历史“约 300k”尚无相同版本和条件的原始记录，不宣称已测得 300 kB/s。结果及原始时间点保存在 `same-component-transfer-rates.json`。设备端临时汇总采样中，3,070 个 DATA 调用共 49.48 秒，其中实际处理 36.67 秒、执行器排队 3.06 秒、结果入队 0.20 秒，其余为传输往返等间隔；汇总日志与主机连续进度吻合，无需猜测 UI 优先级。临时计时代码已撤销，最终源码重建与完整帧冻结样本一致。
+
+**历史 D05 看门狗仍待确定根因。** 新、旧主机代码对照中，D05 使用旧 Fix-B 也可以成功更新；本轮未再次得到原来两次看门狗现象，不能将它归因于线程池或把本轮通过称为根治。原来的 receipt 成功和读回校验把失败区间指向提交后的复位/启动验收阶段。`crash_failed_app_address`、失败 ELF 和 Boot ID 来自 Iris 持久化的上次启动身份；若下一应用在早期探测之前复位，这些字段仍可能指向 Vibe Mode，不能当作故障 PC。旧 Core 与该次运行 ELF 不匹配，不能据其 TLSF 断言诊断本次复位。已请求 D05 UART0 串口信息，以捕获 USB 重新枚举之前的 ROM、bootloader 和应用早期启动日志。
+
+最终完整帧构建的 ELF 为 `542b122d4405026836c176d53a8268f8936be1227fdb29e3a70e5aa7cbf6e8ea`；其额外批量与单台吞吐结果保存在 `full-record-validation-results.json`、`full-record-single-results.json`。未执行的原 720 次矩阵不计为完成。
+
+日志写入修复后，按批量优先顺序完成最终九台 Vibe Mode→B→C→A，**36/36 次完整验收通过**；其中八台的 Vibe Mode 镜像已相同，按产品逻辑跳过受保护镜像的重复写入，D05 则实际替换临时计时版。随后仅执行 D05 一轮 A2→B→C→A，**4/4 通过**，其余八台 Boot ID 不变。最后一次单台 B 的连续传输为 245,976 B/s。每次检查镜像、角色、新 Boot ID、receipt、崩溃状态、资源和原 `ui_apps` 摘要；40 次与目标 Boot ID 匹配的 HEALTHY 证据均在数据库中持久化。结束时九台均为正常 A 应用、崩溃计数为零、设备队列为空，bootloader 摘要未变。日志写入器本次累计丢弃 518 条事件，缺失区间保留为缺口；最终无存储错误、队列已排空，未再次永久停止。
+
+最终记录为 `final-validation-results.json`、`final-other-boot-ids.json`、`final-device-states.json`、`final-durable-healthy-evidence.json` 和 `final-host-health.json`。当前 utils 源码供独立测试 launcher 使用；消费工程原有工具引用未修改，日常使用主机修复前需要同步这些 utils 提交。
+
+软件检查记录：Iris 最终全量 **804 passed、1 skipped**，包括完整帧修改后的原生 57 项、串口线程上下文和日志队列溢出回归。修改的 Python 文件通过 Ruff 检查（保留 Python 3.8 所需的既有 UP006/UP035/UP041 写法）及 Python 3.8 语法解析。产品测试首次因本机 CMake 路径和 OpenSSL 头文件缺失失败；使用既有隔离依赖重跑 146 项通过，剩余 5 项均为此前已存在的 `libraqm` 显示资源依赖失败。合并这两次产品结果为 911 passed、149 skipped、5 failed、120 subtests passed。原始两份日志都保留，不将缺失依赖项记为通过。四个普通应用样本均按修改后的源码重新构建，旧 ELF/map/sdkconfig 另存供故障归档。
+
+最后还以完整帧源码重新编译 A/A2/B/C，四个 ESP32-S31 构建及包检查均通过，另存于 `final-app-build/`；未覆盖此前实机验收使用的冻结包及其调试产物。这四个末次重建包当时仅完成编译回归，随后实机补验见下节。
+
+### 正常消费入口与末次应用构建实机补验
+
+用户要求完成上述两项补验，运行目录为消费工程 `.codex-runs/flash-repro/20261020T113930Z-consumer-app-validation`。使用 `final-app-build/` 中冻结的四个源码构建包，逐包重新校验包 SHA、应用 ELF、布局、组件范围及固定 SDK revision，并归档匹配的 ELF/bin/map/配置；未使用发布预编译固件。
+
+消费工程 utils 从 `0c56456` 快进到 `cee63c9`，版本引用单独提交为消费工程 `6fd4cfe`。原有未提交工作保留；旧 macOS USB 识别补丁与新版实现重叠的部分采用已有 `usb_descriptors` 入口，原始补丁及文件另行备份，旧本地测试按新版 CDC 函数键适配。本地模板及 `operation-status --reconcile` 改动继续保留。消费副本的相关主机测试为 Iris 63 项、Tools 32 项，**95/95 通过**；首次测试的目录导入问题和旧端点断言失败日志亦保留。
+
+所有设备操作直接运行消费工程原 `/Users/ts/lsh/esp-mosaico-vibe/mosaico.py`，工作目录选定既有 `projects/hello_world`，使用 `system-update --bundle` 安装；未修改 launcher、`.mosaico.json`、默认工程或应用源码，未使用独立 launcher 或路径覆盖。运行中 Gateway 源码指纹与消费 utils 工作树一致，修复核心文件与 `cee63c9` 对应源码相同。
+
+先九台并发 A2→B→C→A，**36/36 完整验收通过**；随后仅 D05 一轮相同四步，**4/4 通过**，其余八台 Boot ID 不变。四个末次构建包均实际安装于九台设备，验证正常应用/Vibe Mode 切换、目标 ELF、新 Boot ID、健康状态、完整载荷及资源摘要、L1/L2 往返、原 `ui_apps` 和 bootloader 保留。最终九台均为新构建 A（ELF `7c0a231c…f6c2e88d`）、崩溃计数为零、设备队列为空；经正常 CLI 再次查询的 40 条持久化操作均为成功，40 条目标 Boot ID 的 HEALTHY 证据也已持久化。正常入口单台大固件的连续传输为 **244,979 B/s**，不含擦除、校验和重启；本轮日志写入器无错误、丢弃计数为零、队列已排空。
+
+释放本次唯一前台客户端后，正常 `iris status --all` 确认 Gateway 已空闲退出；随后不指定 endpoint，直接由正常入口按 D05 Device ID 执行 `device-status --inventory`，自动重建 Gateway 并重新连接，仍为相同 Boot ID、新 A 镜像及正常崩溃状态，未额外重启或写入设备。
+
+证据包括 `validated-package-plans.json`、`application-debug-artifacts/`、`normal-entry-source-verification.json`、`merge-preservation.json`、`validation-results.json`、`final-device-states.json`、`persisted-operation-checks.json`、`durable-healthy-evidence.json`、`normal-idle-restart-verification.json` 和完整 CLI 原始输出。本轮闭环末次应用包实机与正常消费入口两项；不替代原 720 次压力矩阵，也不将未再次复现的历史 D05 看门狗判为根治。
+
+### 大固件传输前的等待与进度反馈
+
+本轮运行目录为 `.codex-runs/flash-repro/20261020T120720Z-prepare-progress`，实现提交 `fc22a36`。APP/DATA 的 `COMPONENT_BEGIN` 原来同步擦除目标 Flash 后才返回，设备本地状态却在返回前没有更新；12 MB 大应用约 30 秒的擦除因此沿用上一组件的显示。APP 只擦除镜像向上对齐到 4 KiB 的范围，DATA 仍准备整个声明的目标分区；分区表等保护组件先暂存，提交时再按原有保护流程写入。
+
+完整更新还包含主机包解析/摘要检查、保存旧诊断记录、正常应用切入 Vibe Mode、USB 重枚举及双接口握手、现场布局和更新计划校验。数据传输时同步写 Flash；传输结束后还有读回摘要、镜像检查、提交、重启及目标 HEALTHY 验收。不能把这些耗时全部称为“传输”或“擦除”。
+
+设备既有中英文更新页增加“正在准备写入空间”，以实际完成的准备字节显示组件进度，期间不显示接收速率。PC Workbench 在发送 COMPONENT_BEGIN 前即发布准备状态，并显示组件序号、阶段及已等待秒数；现有协议没有擦除字节遥测，所以 PC 此阶段使用不定进度，数据传输后恢复实际传输计数。校验和提交阶段同样明确显示，阶段改变不会再被相同百分比的节流规则吞掉。Recovery ABI、协议枚举和保护分区合同未改变。
+
+速度优化为：按绝对 64 KiB 边界逐块检查 Flash **原始字节**，只有整块全为 `0xff` 才跳过物理擦除，非空块仍走 SDK 擦除。SDK 本来就支持对齐的 64 KiB block erase，此改动不是“启用原先关闭的块擦除”，也没有改为大量 4 KiB 擦除、关闭看门狗或略过后续校验。已空区域受益；反复烧录且目标区非空时仍受 Flash 擦除速度限制，不保证所有大固件等待都消失。主机 C 事务夹具覆盖全空、混合、非对齐边界、读失败、擦除失败及进度状态清理。
+
+设备模拟器已检查中英文准备进度从 0→25→75%，以及随后恢复接收计数和速率。Workbench 单元/构建通过，新浏览器流程验证准备状态、不定进度和计时显示，再切回真实传输值；完整 E2E 为 21 passed、4 skipped、1 failed，唯一失败是控制台输入框/按钮纵向差值恰为 5 px、断言要求小于 5，使用修改前 `88d2cf8` 的原 dist 独立重跑得到相同失败。Iris 全量 804 passed、1 skipped；Tools 208 passed、26 skipped、51 subtests passed。Vibe 非 UI/字体合同套件为 616 passed、121 skipped、69 subtests passed、5 failed，五项仍是已记录的 `libraqm` 缺失；另有本次三个原生 UI 流程和 macOS 直接运行的 C 后端事务夹具通过。消费入口新增相关测试 66/66 通过。
+
+本次仍使用原消费工程 launcher，消费 utils 快进同步实现，原有工作区增删内容保留。Vibe Mode 按固定 SDK 从源码重建、冻结镜像/ELF/map/配置及自更新包，ELF `fed410d6…55d9f36e`；发布预编译目录未替换。实机擦除期间两次通过正常 CLI 指定 control 路径截图均返回设备 `0x103`：现有服务执行器忙碌时拒绝截图，未放宽此并发保护。模拟器图片不能当作实机画面，设备准备页的实机视觉采集仍有该限制。CLI 新增可选 `screenshot --path auto|control|data`，保持原默认路径，并有真实客户端到 API 夹具的路径传递测试。
+
+实机先九台并发源码 Vibe Mode 自更新，再九台 B→C→A，共 **36/36 通过**；随后仅 D05 一轮 A2→B→C→A，**4/4 通过**，其余八台 Boot ID 不变。九台最终均为原源码样本 A、正常角色、新 Boot ID、零崩溃计数、空队列；逐次检查 ELF、布局、receipt、载荷/资源摘要、bootloader 及原 `ui_apps`。40 条操作经正常 CLI 再查询均为持久化成功和 HEALTHY/validated。最终主机存储和事件写入器正常，事件无丢弃、队列排空。未扩大到历史 720 次矩阵，也未据此将历史 D05 看门狗判为已根治。
+
+D05 大应用操作 `fd3669d7-8f07-431f-91ae-c45b97346581` 的主机准备阶段发布至首个 DATA ACK 为 **29.644 秒**，该口径包括准备检查、擦除和首个 DATA 往返，并非纯 Flash 计时。独立使用 APP 组件首末实际传输进度时间戳，采样跨度 47.504 秒、差值 11,749,248 字节，为 **247,332 B/s**，与上一轮正常入口 244,979 B/s 接近；擦除、校验、提交和重启均未混入。此次目标已被此前反复写入，准备等待没有显著缩短；空白跳过优化不能被表述为非空 Flash 擦除整体提速。原构建默认 WARN 级别，准备函数 INFO 汇总未启用，因此本轮不报告未经测量的实机跳过字节数。
+
+证据为 `samples.json`、冻结 `inputs/preparation/`、`build-logs/`、`validation-results.json`、`persisted-operation-checks.json`、`final-device-states.json`、`other-boot-ids.json`、`single-B-progress-samples.json`、`large-update-timing.json`、`final-host-health.json`、完整 CLI 原始输出、中英文模拟器图及 Workbench 浏览器图片。实机 PC 图为传输阶段 `workbench-live-transfer.png`；准备阶段的浏览器图来自明确标记 DEMO 的自动化夹具，不冒充实机截图。
+
+## 证据位置
+
+消费工作区运行目录：
+
+```text
+/Users/ts/lsh/esp-mosaico-vibe/.codex-runs/flash-repro/20261020T075456Z-vibe-selfupdate
+```
+
+- `samples.json`、`inputs/`、`build-logs/`：源构建产物、包校验计划、完整编译日志和摘要。
+- `first-round-issues.json`、`interventions.jsonl`：首轮问题与用户手动介入记录。
+- `selfupdate-ledger.jsonl`：逐次原始结果；首次失败保留为失败。
+- `selfupdate-parallel-summary.json.first-failure`：首轮冻结结果，8 成功、1 失败。
+- `evidence/self-parallel-001-D06-update/`：失败调用、stdout/stderr 和返回码；关联原始日志为 `mosaico/20261020T081138Z-system-update-2/raw.log`，HTTP 429 位于第 23 行。
+- `device-side-analysis.json`、`device-log-analysis.json`、`evidence/D*-final-frozen-*/`：首轮现场的实时状态、内存和日志。
+- `resume-preflight.json`：用户介入后、继续第 2 轮前的九台身份和固件核对。
+- `experiment-changes.jsonl`、`mosaico.py.before-upload-queue`、`mosaico.py`：上传提交条件的变化和两种 launcher。
+
+运行目录内的继续测试摘要与逐次台账记录后续结果；本记录中的首轮结论不随续跑覆盖。
+
+修复与定向回归运行目录：
+
+```text
+/Users/ts/lsh/esp-mosaico-vibe/.codex-runs/flash-repro/20261020T083043Z-fix-analysis
+```
+
+- `fix-validation-summary.json`、`selfupdate-ledger.jsonl`：定向回归汇总和逐次结果，诊断迁移失败单独记录。
+- `samples.json`、`inputs/`、`build-logs/`：修复版源码构建样本、ELF/map、布局校验和完整日志。
+- `source-state.json`、`source-snapshot/`、`source.patch`：源码 revision、工作树修改摘要和快照；补丁文件外的新文件也独立保存。
+- `operation-stage-evidence.json`：每个操作的阶段时间边界，用于核对并发重叠。
+- `D09-retained-core.bin`、`evidence/bootstrap-D09-*`、`evidence/fixed-runtime-D09-*`：旧 Core Dump、迁移异常和首次修复版执行更新的现场。
+- `final-device-states.json`、`final-host-health.json`：最终九台实时状态和关闭任务保活客户端前的主机状态。
+- `iris-tests.log`、`product-tests.log`：最终软件全量结果，包含上述五项环境依赖失败。`evidence/host-after-release/` 确认 Gateway 已退出。

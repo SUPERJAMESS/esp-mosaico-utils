@@ -9,6 +9,7 @@ import { api, formatBootId, formatBytes, formatTime } from "./api";
 import LogsPanel from "./LogsPanel";
 import ConsoleInput from "./ConsoleInput";
 import AudioControls from "./AudioControls";
+import OperationProgress from "./OperationProgress";
 import { firmwareModeLabel } from "./Shell";
 import type { Device, DeviceStatus, GatewayEvent, Operation } from "./types";
 
@@ -449,12 +450,7 @@ export default function Workspace({
             <em className={`op-status ${activeOperation.status}`}>
               {activeOperation.status}
             </em>
-            {activeOperation.progress && (
-              <progress
-                max={1000}
-                value={activeOperation.progress.progress_permille}
-              />
-            )}
+            <OperationProgress operation={activeOperation} />
           </div>
         )}
         <DeviceScreen device={device} mode={mode} events={events} />

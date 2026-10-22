@@ -13,6 +13,7 @@ from .operations import OperationManager, OperationOutcomeUnknown
 from .reconciliation import health_timeout
 from .recovery_transition import enter_recovery
 from .system_update import SystemUpdateBundle, SystemUpdateComponentKind
+from .transfer_progress import TransferProgress
 from .update_acceptance import validate_updated_contract
 
 PreserveCoreDump = Callable[[str], Awaitable[Optional[Dict[str, Any]]]]
@@ -98,17 +99,19 @@ async def run_system_update(
         wire_operation_id = uuid.UUID(operation_id).bytes
     except ValueError:
         wire_operation_id = uuid.uuid5(uuid.NAMESPACE_URL, operation_id).bytes
-    last_progress = -10
+    progress_updates = TransferProgress()
 
     async def report_progress(progress: dict[str, Any]) -> None:
-        nonlocal last_progress
-        device_progress = int(progress.get("progress_permille", 0))
-        if device_progress < last_progress + 10 and device_progress < 950:
+        if not progress_updates.accept(progress):
             return
-        last_progress = device_progress
+        device_progress = int(progress.get("progress_permille", 0))
+        stage = str(progress.get("stage", "transferring"))
         await operations.progress(
             operation_id,
-            stage=str(progress.get("stage", "transferring")),
+            stage=stage,
+            phase_indeterminate=bool(progress.get("phase_indeterminate", False)),
+            component_index=progress.get("component_index"),
+            component_count=progress.get("component_count"),
             progress_permille=50 + device_progress * 800 // 1000,
             device_progress_permille=device_progress,
             component_id=progress.get("component_id"),

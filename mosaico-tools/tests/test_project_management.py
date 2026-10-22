@@ -265,7 +265,9 @@ def test_project_sim_forwards_explicit_scene_after_options(workspace, monkeypatc
     monkeypatch.setattr("mosaico_cli.app_commands.subprocess.call", lambda command: calls.append(command) or 0)
     assert main(["--workspace", str(workspace.root), "project", "sim", "--project", str(project),
                  "--headless", "--frames", "2", "--scene", "components/app_ui/ui/main.json"]) == 0
-    assert calls[0][2:] == ["--project", str(project), "--headless", "--frames", "2", "components/app_ui/ui/main.json"]
+    assert calls[0][2] == "--project"
+    assert Path(calls[0][3]).resolve() == project.resolve()
+    assert calls[0][4:] == ["--headless", "--frames", "2", "components/app_ui/ui/main.json"]
 
 
 def test_missing_shared_checker_fails_before_writing(workspace, monkeypatch):

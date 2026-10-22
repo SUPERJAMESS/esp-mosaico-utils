@@ -446,6 +446,11 @@ def build_parser() -> argparse.ArgumentParser:
             child.add_argument("--device-id", help="Device ID; omit for automatic project device selection")
         if name == "screenshot":
             child.add_argument("output", type=Path, help="Local destination for the device image")
+            child.add_argument("--path", choices=("auto", "control", "data"), default="auto",
+                               help="Capture link; use control while the data link is updating firmware")
+        if name == "device-status":
+            child.add_argument("--inventory", action="store_true",
+                               help="Include live bootloader and partition-table hashes")
         leaves.append(child)
 
     memory_parser = command(

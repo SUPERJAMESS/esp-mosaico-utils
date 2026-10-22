@@ -2,6 +2,7 @@
 #include "vibe_settings.h"
 #include "factory_locale.h"
 #include "factory_network.h"
+#include "factory_network_credentials.h"
 #include "factory_system_metadata.h"
 #include "mosaico_boot.h"
 #include "factory_system_update.h"
@@ -39,8 +40,14 @@ bool vibe_shared_key_valid(const char *key)
 }
 bool vibe_shared_key_secret(const char *key)
 {
-    return key && (strstr(key, "key") || strstr(key, "token") || strstr(key, "secret") ||
-                   strstr(key, "pass") || strstr(key, "pwd"));
+    if (!key) return false;
+    char lower[64];
+    size_t i = 0;
+    for (; key[i] && i + 1 < sizeof(lower); ++i)
+        lower[i] = (key[i] >= 'A' && key[i] <= 'Z') ? (char)(key[i] - 'A' + 'a') : key[i];
+    lower[i] = 0;
+    return strstr(lower, "key") || strstr(lower, "token") || strstr(lower, "secret") ||
+           strstr(lower, "pass") || strstr(lower, "pwd");
 }
 static esp_err_t open_namespace(const char *name, nvs_open_mode_t mode, nvs_handle_t *handle)
 {
@@ -110,19 +117,22 @@ static void load(vibe_settings_snapshot_t *out)
 {
     memset(out, 0, sizeof(*out));
     out->brightness = 80;
-    out->screen_off_seconds = 180;
-    out->auto_rotate = out->haptics = out->open_confirm = true;
+    out->screen_off_seconds = 0;
+    out->auto_rotate = false;
+    out->haptics = out->open_confirm = true;
     nvs_handle_t h;
     if (open_namespace("vibe_prefs", NVS_READONLY, &h) == ESP_OK) {
         out->language = read_number(h, "lang", 0);
         if (out->language > 2) out->language = 0;
         out->brightness = read_number(h, "brightness", 80);
         if (out->brightness < 20 || out->brightness > 100) out->brightness = 80;
-        out->screen_off_seconds = read_number(h, "timeout", 180);
-        if (out->screen_off_seconds > 600) out->screen_off_seconds = 180;
-        out->auto_rotate = read_number(h, "rotate", 1) != 0;
+        out->screen_off_seconds = read_number(h, "timeout", 0);
+        if (out->screen_off_seconds > 600) out->screen_off_seconds = 0;
+        out->auto_rotate = read_number(h, "rotate", 0) != 0;
         out->haptics = read_number(h, "haptics", 1) != 0;
-        out->open_confirm = read_number(h, "open_confirm", 1) != 0;
+        out->open_confirm_count = read_number(h, "confirm_cnt", 0);
+        if (out->open_confirm_count > 3) out->open_confirm_count = 3;
+        out->open_confirm = read_number(h, "open_confirm", 1) != 0 && out->open_confirm_count < 3;
         nvs_close(h);
     }
     /* Adopt main's earlier language preference until the user saves a
@@ -167,7 +177,15 @@ static esp_err_t apply(const request_t *request)
         if (err == ESP_OK) err = factory_network_suspend(true);
         if (err == ESP_OK) err = factory_network_forget();
         if (err == ESP_OK) err = clear_preferences();
-        if (err == ESP_OK) esp_restart();
+        if (err == ESP_OK) {
+            /* Publish success while the old language and panel are still live.
+             * Keep the reset worker and storage leases active until reboot. */
+            xSemaphoreTake(s_lock, portMAX_DELAY);
+            s_settings.reset_phase = VIBE_RESET_RESTARTING;
+            xSemaphoreGive(s_lock);
+            vTaskDelay(pdMS_TO_TICKS(1800));
+            esp_restart();
+        }
         factory_system_update_read_release();
         app_storage_release();
         if (err != ESP_OK) (void)factory_network_suspend(false);
@@ -178,10 +196,33 @@ static esp_err_t apply(const request_t *request)
     esp_err_t err = open_namespace(shared ? "shared" : "vibe_prefs", NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
     if (shared) {
-        err = request->command == VIBE_SETTINGS_SHARED_DELETE
-                  ? nvs_erase_key(h, request->key) : nvs_set_str(h, request->key, request->value);
-        if (err == ESP_ERR_NVS_NOT_FOUND && request->command == VIBE_SETTINGS_SHARED_DELETE)
-            err = ESP_OK;
+        if (request->command == VIBE_SETTINGS_SHARED_RENAME) {
+            if (!strcmp(request->key, request->value)) {
+                err = ESP_OK;
+            } else {
+                char current[VIBE_SHARED_VALUE_BYTES] = "";
+                size_t len = sizeof(current);
+                err = nvs_get_str(h, request->key, current, &len);
+                if (err == ESP_OK) err = nvs_set_str(h, request->value, current);
+                if (err == ESP_OK) err = nvs_erase_key(h, request->key);
+            }
+        } else {
+            err = request->command == VIBE_SETTINGS_SHARED_DELETE
+                      ? nvs_erase_key(h, request->key) : nvs_set_str(h, request->key, request->value);
+            if (err == ESP_ERR_NVS_NOT_FOUND && request->command == VIBE_SETTINGS_SHARED_DELETE)
+                err = ESP_OK;
+        }
+    } else if (request->command == VIBE_SETTINGS_OPEN_CONFIRM) {
+        uint32_t mode = (uint32_t)strtoul(request->value, NULL, 10);
+        if (mode == 2) {
+            unsigned cnt = read_number(h, "confirm_cnt", 0);
+            if (cnt < 3) ++cnt;
+            err = nvs_set_u32(h, "confirm_cnt", cnt);
+            if (err == ESP_OK && cnt >= 3) err = nvs_set_u32(h, "open_confirm", 0);
+        } else {
+            err = nvs_set_u32(h, "open_confirm", mode ? 1 : 0);
+            if (err == ESP_OK) err = nvs_set_u32(h, "confirm_cnt", mode ? 0 : 3);
+        }
     } else {
         static const char *const keys[] = {"lang", "brightness", "timeout", "rotate", "haptics", "open_confirm"};
         err = nvs_set_u32(h, keys[request->command], (uint32_t)strtoul(request->value, NULL, 10));
@@ -214,9 +255,18 @@ esp_err_t vibe_settings_request(vibe_settings_command_t command, const char *key
 {
     if (!s_lock || command < VIBE_SETTINGS_LANGUAGE || command > VIBE_SETTINGS_RESET)
         return ESP_ERR_INVALID_ARG;
-    if (command == VIBE_SETTINGS_SHARED_SET || command == VIBE_SETTINGS_SHARED_DELETE) {
+    if (command == VIBE_SETTINGS_SHARED_SET || command == VIBE_SETTINGS_SHARED_DELETE ||
+        command == VIBE_SETTINGS_SHARED_RENAME) {
         if (!vibe_shared_key_valid(key) || (command == VIBE_SETTINGS_SHARED_SET &&
             (!value || strlen(value) >= VIBE_SHARED_VALUE_BYTES))) return ESP_ERR_INVALID_ARG;
+        if (command == VIBE_SETTINGS_SHARED_RENAME &&
+            (!vibe_shared_key_valid(value) || !strcmp(key, "wifi_ssid") || !strcmp(key, "wifi_password") ||
+             !strcmp(value, "wifi_ssid") || !strcmp(value, "wifi_password")))
+            return ESP_ERR_INVALID_ARG;
+        if (command == VIBE_SETTINGS_SHARED_SET &&
+            ((!strcmp(key, "wifi_ssid") && !factory_network_ssid_valid(value)) ||
+             (!strcmp(key, "wifi_password") && !factory_network_password_valid(value))))
+            return ESP_ERR_INVALID_ARG;
     } else if (command != VIBE_SETTINGS_RESET) {
         if (!value || !*value || strlen(value) > 3 || strspn(value, "0123456789") != strlen(value))
             return ESP_ERR_INVALID_ARG;
@@ -224,7 +274,7 @@ esp_err_t vibe_settings_request(vibe_settings_command_t command, const char *key
         if ((command == VIBE_SETTINGS_LANGUAGE && (n < 1 || n > 2)) ||
             (command == VIBE_SETTINGS_BRIGHTNESS && (n < 20 || n > 100 || n % 20)) ||
             (command == VIBE_SETTINGS_TIMEOUT && n != 0 && n != 60 && n != 180 && n != 300 && n != 600) ||
-            (command >= VIBE_SETTINGS_ROTATE && n > 1)) return ESP_ERR_INVALID_ARG;
+            (command == VIBE_SETTINGS_OPEN_CONFIRM ? n > 2 : command >= VIBE_SETTINGS_ROTATE && n > 1)) return ESP_ERR_INVALID_ARG;
     }
     request_t *request = calloc(1, sizeof(*request));
     if (!request) return ESP_ERR_NO_MEM;
@@ -245,8 +295,9 @@ esp_err_t vibe_settings_request(vibe_settings_command_t command, const char *key
         return full ? ESP_ERR_NO_MEM : ESP_ERR_INVALID_STATE;
     }
     s_settings.busy = true;
+    s_settings.reset_phase = command == VIBE_SETTINGS_RESET ? VIBE_RESET_CLEARING : VIBE_RESET_IDLE;
     BaseType_t started = xTaskCreate(worker, "vibe_settings", 4096, request, 3, NULL);
-    if (started != pdPASS) s_settings.busy = false;
+    if (started != pdPASS) { s_settings.busy = false; s_settings.reset_phase = VIBE_RESET_IDLE; }
     xSemaphoreGive(s_lock);
     if (started != pdPASS) { memset(request, 0, sizeof(*request)); free(request); return ESP_ERR_NO_MEM; }
     return ESP_OK;

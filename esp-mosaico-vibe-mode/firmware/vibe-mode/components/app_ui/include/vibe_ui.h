@@ -27,6 +27,8 @@ typedef enum {
     VIBE_OPEN_CONFIRM, VIBE_SLEEP, VIBE_BOOT_TIP, VIBE_DELETE_CONFIRM,
     VIBE_HELP, VIBE_GUIDE,
     VIBE_FIRMWARE_NOTICE, VIBE_FIRMWARE_PROGRESS,
+    VIBE_LICENSES, VIBE_SHARED_HELP, VIBE_SHARED_DETAIL, VIBE_UPDATE_CONFIRM,
+    VIBE_FORMAT_NAND_CONFIRM,
     VIBE_PAGE_COUNT
 } vibe_page_t;
 typedef enum {
@@ -55,7 +57,7 @@ typedef enum {
     VIBE_CANCEL_IDEA,
     VIBE_SET_LANGUAGE,
     VIBE_OPEN_IDEA, VIBE_DELETE_IDEA, VIBE_SAVE_DEVELOPMENT, VIBE_UPDATE_ALL, VIBE_RUN_DEVELOPMENT,
-    VIBE_STORAGE_INFO
+    VIBE_STORAGE_INFO, VIBE_FORMAT_NAND
 } vibe_command_t;
 typedef struct {
     char ssid[33];
@@ -93,7 +95,7 @@ typedef struct {
     unsigned bridge_seconds;
     int bridge_error;
     uint32_t nand_generation;
-    bool nand_scanning;
+    bool nand_scanning, nand_needs_format;
     int nand_error;
     size_t bundle_count, invalid_bundles;
     vibe_bundle_t bundles[VIBE_BUNDLE_MAX];
@@ -115,7 +117,7 @@ typedef struct {
     int (*command)(void *ctx, vibe_command_t command, const char *first, const char *second);
     void *(*icon)(void *ctx, const char *code, size_t *size);
     void *(*title)(void *ctx, const char *code, size_t *size);
-    /* malloc-owned copies: title/body RGB565, then encoded icon PNG. */
+    /* malloc-owned copies: single-line title QOI, body RGB565, then encoded icon PNG. */
     void *(*preview)(void *ctx, uint32_t request, unsigned slot, size_t *size);
     int (*setting)(void *ctx, vibe_settings_command_t command, const char *key, const char *value);
     void (*device_policy)(void *ctx, bool asleep, bool rotation_allowed);

@@ -58,6 +58,57 @@ esp_err_t update_hash_memory(const uint8_t *data, size_t size, uint8_t output[32
                : ESP_FAIL;
 }
 
+/* Keep 64 KiB block alignment so the SDK can use block erase. Chunking at
+ * sector size would make large images substantially slower. Raw reads are
+ * required: decrypted 0xff data does not establish that NOR is erased. */
+static esp_err_t update_erase_partition(update_context_t *ctx,
+                                         const esp_iris_system_update_component_t *component,
+                                         size_t size)
+{
+    const esp_partition_t *partition = ctx->transaction.active_partition;
+    update_status_component(ctx, component->id, 0, component->size,
+                            ESP_IRIS_SYSTEM_UPDATE_PHASE_PREPARED);
+    taskENTER_CRITICAL(&ctx->lock);
+    ctx->status.erasing = true;
+    ctx->status.erase_done = 0;
+    ctx->status.erase_total = (uint32_t)size;
+    taskEXIT_CRITICAL(&ctx->lock);
+    const int64_t started = factory_io_now();
+    size_t skipped = 0;
+    esp_err_t err = ESP_OK;
+    uint8_t buffer[FACTORY_SYSTEM_HASH_CHUNK_BYTES];
+    for (size_t offset = 0; offset < size;) {
+        size_t chunk = FACTORY_SYSTEM_ERASE_CHUNK_BYTES -
+            (partition->address + offset) % FACTORY_SYSTEM_ERASE_CHUNK_BYTES;
+        if (chunk > size - offset) chunk = size - offset;
+        bool blank = true;
+        for (size_t checked = 0; blank && checked < chunk;) {
+            size_t count = chunk - checked;
+            if (count > sizeof(buffer)) count = sizeof(buffer);
+            err = esp_partition_read_raw(partition, offset + checked, buffer, count);
+            if (err != ESP_OK) break;
+            for (size_t i = 0; i < count; ++i) {
+                if (buffer[i] != 0xff) { blank = false; break; }
+            }
+            checked += count;
+        }
+        if (err != ESP_OK) break;
+        if (blank) skipped += chunk;
+        else err = esp_partition_erase_range(partition, offset, chunk);
+        if (err != ESP_OK) break;
+        offset += chunk;
+        taskENTER_CRITICAL(&ctx->lock);
+        ctx->status.erase_done = (uint32_t)offset;
+        taskEXIT_CRITICAL(&ctx->lock);
+    }
+    taskENTER_CRITICAL(&ctx->lock);
+    ctx->status.erasing = false;
+    taskEXIT_CRITICAL(&ctx->lock);
+    ESP_LOGI(TAG, "preparation complete: bytes=%u blank_skipped=%u elapsed_us=%lld result=0x%x",
+             (unsigned)size, (unsigned)skipped, (long long)(factory_io_now() - started), (unsigned)err);
+    return err;
+}
+
 esp_err_t update_begin_component(const esp_iris_system_update_component_t *component,
                                  void *user_ctx)
 {
@@ -80,7 +131,7 @@ esp_err_t update_begin_component(const esp_iris_system_update_component_t *compo
         ESP_LOGI(TAG, "erasing application before receive: offset=0x%08" PRIx32 " size=%u",
                  ctx->transaction.active_partition->address, (unsigned)erase_size);
         ESP_RETURN_ON_ERROR(
-            esp_partition_erase_range(ctx->transaction.active_partition, 0, erase_size), TAG,
+            update_erase_partition(ctx, component, erase_size), TAG,
             "erase application");
         ESP_LOGI(TAG, "application erase complete");
     } else if (component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_DATA) {
@@ -93,8 +144,7 @@ esp_err_t update_begin_component(const esp_iris_system_update_component_t *compo
                  ctx->transaction.active_partition->label,
                  ctx->transaction.active_partition->address,
                  ctx->transaction.active_partition->size);
-        ESP_RETURN_ON_ERROR(esp_partition_erase_range(ctx->transaction.active_partition, 0,
-                                                      ctx->transaction.active_partition->size),
+        ESP_RETURN_ON_ERROR(update_erase_partition(ctx, component, ctx->transaction.active_partition->size),
                             TAG, "erase data partition");
         ESP_LOGI(TAG, "data partition erase complete: label=%s",
                  ctx->transaction.active_partition->label);
@@ -127,11 +177,16 @@ esp_err_t update_write_component(const esp_iris_system_update_component_t *compo
     update_context_t *ctx = user_ctx;
 
     if (component == NULL || data == NULL || size == 0 || ctx->transaction.active_index < 0 ||
-        offset != ctx->transaction.received ||
-        component->id != ctx->transaction.plan[ctx->transaction.active_index].descriptor.id ||
-        size > component->size - offset) {
+        offset != ctx->transaction.received) {
         return ESP_ERR_INVALID_SIZE;
     }
+    if (update_find_plan_component(ctx, component) != ctx->transaction.active_index)
+        return ESP_ERR_INVALID_ARG;
+    /* Allocation and target permissions came from the accepted plan. Never
+     * use a caller's changed size/kind/offset to write or validate a component. */
+    component = &ctx->transaction.plan[ctx->transaction.active_index].descriptor;
+    if (offset > component->size || size > component->size - offset)
+        return ESP_ERR_INVALID_SIZE;
     esp_err_t err = ESP_OK;
     if (component->kind == ESP_IRIS_SYSTEM_UPDATE_COMPONENT_APPLICATION) {
         err = ctx->transaction.active_partition != NULL
@@ -170,12 +225,15 @@ esp_err_t update_end_component(const esp_iris_system_update_component_t *compone
     update_context_t *ctx = user_ctx;
 
     ESP_RETURN_ON_FALSE(component != NULL && actual_sha256 != NULL &&
-                            ctx->transaction.active_index >= 0 &&
-                            ctx->transaction.received == component->size,
+                            ctx->transaction.active_index >= 0,
                         ESP_ERR_INVALID_STATE, TAG, "component end state");
+    ESP_RETURN_ON_FALSE(update_find_plan_component(ctx, component) == ctx->transaction.active_index,
+                        ESP_ERR_INVALID_ARG, TAG, "component descriptor does not match plan");
     factory_update_plan_component_t *plan = &ctx->transaction.plan[ctx->transaction.active_index];
-    ESP_RETURN_ON_FALSE(component->id == plan->descriptor.id &&
-                            update_bytes_equal(actual_sha256, plan->descriptor.sha256, 32),
+    component = &plan->descriptor;
+    ESP_RETURN_ON_FALSE(ctx->transaction.received == component->size,
+                        ESP_ERR_INVALID_STATE, TAG, "component end size");
+    ESP_RETURN_ON_FALSE(update_bytes_equal(actual_sha256, plan->descriptor.sha256, 32),
                         ESP_ERR_INVALID_CRC, TAG, "component digest does not match plan");
 
     esp_err_t ret = ESP_OK;
@@ -317,13 +375,6 @@ update_plan_for_kind(update_context_t *ctx, esp_iris_system_update_component_kin
     return NULL;
 }
 
-void update_restart_task(void *arg)
-{
-    (void)arg;
-    vTaskDelay(pdMS_TO_TICKS(FACTORY_SYSTEM_RESTART_DELAY_MS));
-    esp_restart();
-}
-
 esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES],
                                void *user_ctx)
 {
@@ -456,10 +507,13 @@ esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERAT
     }
     ESP_RETURN_ON_ERROR(update_persist_result(operation_id, ESP_OK), TAG,
                         "persist system update result");
-    ESP_RETURN_ON_FALSE(
-        ctx->transaction.remote_bridge || ctx->transaction.defer_restart ||
-            xTaskCreate(update_restart_task, "factory_restart", 2048, NULL, 5, NULL) == pdPASS,
-        ESP_ERR_NO_MEM, TAG, "schedule restart");
+    if (!ctx->transaction.remote_bridge && !ctx->transaction.defer_restart) {
+        /* The host may also request a restart after receiving the commit receipt.
+         * Share Iris's single deadline so both requests cannot enter esp_restart()
+         * concurrently while shutdown handlers are still running. */
+        ESP_RETURN_ON_ERROR(esp_iris_schedule_restart(FACTORY_SYSTEM_RESTART_DELAY_MS),
+                            TAG, "schedule restart");
+    }
     update_status_finish(ctx, ESP_IRIS_SYSTEM_UPDATE_PHASE_COMMITTED, ESP_OK);
     ESP_LOGI(TAG, "system update committed; restart %s",
              ctx->transaction.defer_restart ? "deferred" : "scheduled");

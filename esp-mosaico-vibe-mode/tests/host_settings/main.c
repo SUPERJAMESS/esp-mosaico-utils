@@ -17,6 +17,8 @@ static unsigned wifi_revision;
 unsigned factory_network_credentials_revision(void) { return wifi_revision; }
 static void (*task)(void *);
 static void *task_arg;
+static void (*reset_feedback_hook)(void);
+static unsigned reset_feedbacks;
 static entry_t *entry(nvs_handle_t h, const char *key, bool staged, bool create)
 {
     entry_t *list = staged ? namespaces[h - 1].staged : namespaces[h - 1].values;
@@ -96,10 +98,17 @@ esp_err_t factory_system_update_read_acquire(void) { if (writer_busy) return ESP
 void factory_system_update_read_release(void) { assert(read_lease); read_lease = false; }
 esp_err_t app_storage_reserve(void) { assert(!storage_lease); storage_lease = true; return ESP_OK; }
 void app_storage_release(void) { assert(storage_lease); storage_lease = false; }
-void esp_restart(void) { assert(recovery && suspended && read_lease && storage_lease); ++restarts; }
+void vTaskDelay(unsigned ticks) {
+    assert(ticks == 1800 && s_settings.busy && s_settings.reset_phase == VIBE_RESET_RESTARTING);
+    assert(recovery && suspended && read_lease && storage_lease);
+    ++reset_feedbacks;
+    if (reset_feedback_hook) reset_feedback_hook();
+}
+void esp_restart(void) { assert(recovery && suspended && read_lease && storage_lease && reset_feedbacks == restarts + 1); ++restarts; }
 static void execute(vibe_settings_command_t c, const char *k, const char *v)
 {
     assert(vibe_settings_request(c, k, v) == ESP_OK);
+    if (c == VIBE_SETTINGS_RESET) assert(s_settings.reset_phase == VIBE_RESET_CLEARING);
     assert(vibe_settings_request(c, k, v) == ESP_ERR_INVALID_STATE);
     void (*f)(void *) = task; task = NULL; f(task_arg);
     assert(!s_settings.busy && !read_lease && !storage_lease);
@@ -194,5 +203,39 @@ int main(void)
     assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "overflow", "v") == ESP_ERR_NO_MEM);
     execute(VIBE_SETTINGS_SHARED_SET, "wifi_password", "new-password");
     assert(!mosaico_shared_get("wifi_password", value, sizeof(value)) && !strcmp(value, "new-password"));
+    /* Reserved shared keys obey the same bounds as ordinary provisioning;
+     * invalid edits must leave the last usable credentials intact. */
+    char ssid[34], password[66];
+    memset(ssid, 's', 33); ssid[33] = 0;
+    memset(password, 'a', 65); password[65] = 0;
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_ssid", ssid) == ESP_ERR_INVALID_ARG);
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_ssid", "") == ESP_ERR_INVALID_ARG);
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_password", password) == ESP_ERR_INVALID_ARG);
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_password", "short") == ESP_ERR_INVALID_ARG);
+    password[64] = 0; password[0] = 'z';
+    assert(vibe_settings_request(VIBE_SETTINGS_SHARED_SET, "wifi_password", password) == ESP_ERR_INVALID_ARG);
+    assert(!mosaico_shared_get("wifi_password", value, sizeof(value)) && !strcmp(value, "new-password"));
+    ssid[32] = 0; password[0] = 'a';
+    execute(VIBE_SETTINGS_SHARED_SET, "wifi_ssid", ssid);
+    execute(VIBE_SETTINGS_SHARED_SET, "wifi_password", password);
+    char loaded_ssid[33], loaded_password[65];
+    assert(!mosaico_shared_get("wifi_ssid", loaded_ssid, sizeof(loaded_ssid)) && strlen(loaded_ssid) == 32);
+    assert(!mosaico_shared_get("wifi_password", loaded_password, sizeof(loaded_password)) && strlen(loaded_password) == 64);
+    execute(VIBE_SETTINGS_SHARED_SET, "wifi_password", ""); /* Open network. */
+    memset(value, 'v', sizeof(value) - 1); value[sizeof(value) - 1] = 0;
+    execute(VIBE_SETTINGS_SHARED_SET, "custom0", value); /* Ordinary values retain 256 bytes. */
+    assert(s_settings.open_confirm && s_settings.open_confirm_count == 0);
+    execute(VIBE_SETTINGS_OPEN_CONFIRM, NULL, "2");
+    assert(s_settings.open_confirm && s_settings.open_confirm_count == 1);
+    execute(VIBE_SETTINGS_OPEN_CONFIRM, NULL, "2");
+    assert(s_settings.open_confirm && s_settings.open_confirm_count == 2);
+    execute(VIBE_SETTINGS_OPEN_CONFIRM, NULL, "2");
+    assert(!s_settings.open_confirm && s_settings.open_confirm_count == 3);
+    reboot();
+    assert(!s_settings.open_confirm && s_settings.open_confirm_count == 3);
+    execute(VIBE_SETTINGS_OPEN_CONFIRM, NULL, "1");
+    assert(s_settings.open_confirm && s_settings.open_confirm_count == 0);
+    assert(vibe_shared_key_secret("API_KEY") && vibe_shared_key_secret("MyToken"));
     puts("preferences, shared application API and interrupted reset passed");
+    return 0;
 }

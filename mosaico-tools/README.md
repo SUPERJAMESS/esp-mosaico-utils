@@ -85,6 +85,8 @@ reported separately. `--all` and `--project` are mutually exclusive.
 For live device evidence, use `iris device-status --json`; it verifies Device ID,
 Boot ID and `stale=false` through the selected project's Gateway. Unlike host
 `iris status`, this command can acquire the project's device and query it live.
+Add `--inventory` to include live bootloader and partition-table hashes; the
+command rejects evidence if the device reboots during the read.
 Use `iris screenshot device.png --json` to save the device image directly, with
 image metadata, operation ID and the verified device/boot identity. A reboot during
 capture fails verification. Inspect the saved image itself rather than a screenshot
@@ -150,6 +152,9 @@ python3 /path/to/esp-mosaico-utils/mosaico-tools/mosaico.py \
 `iris app-update` updates only the application OTA partition. `iris system-update` builds
 and submits the workspace's atomic application, partition table, and declared resource
 bundle by default; use `--skip-build` or `--bundle PATH` to reuse artifacts.
+When only a control link is connected, local System Update waits up to five
+seconds for its data link to complete its identity handshake before submission.
+A missing data link or a changed Boot ID ends preparation with a diagnostic.
 `iris test enter-recovery` asks a reachable normal application to boot the retained
 Vibe Mode firmware without building or installing firmware. It waits for the same
 Device ID to reconnect in Vibe Mode with a new Boot ID; use `--device-id` when

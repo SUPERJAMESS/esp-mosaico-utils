@@ -22,7 +22,7 @@ def test_queued_inventory_is_shared_within_the_byte_budget(tmp_path, monkeypatch
         service = GatewayService(store, instance_id="shared-snapshot",
                                  limits=GatewayLimits(writer_items=16, writer_bytes=8192))
         info = {"device_id": "device", "metadata": "x" * 4096, "app_version": "old"}
-        service.attach_hub(SimpleNamespace(list_devices=lambda: [dict(info)]))
+        service.attach_hub(SimpleNamespace(device_snapshot=lambda _: dict(info)))
         entered, release = threading.Event(), threading.Event()
         append = EventSegments.append
 
@@ -104,7 +104,9 @@ def test_sqlite_contention_preserves_batch_and_listings_do_not_write(tmp_path):
         store = GatewayStore(tmp_path)
         service = GatewayService(store, instance_id="contention")
         devices = [{"device_id": f"device-{index}", "session_id": index} for index in range(9)]
-        service.attach_hub(SimpleNamespace(list_devices=lambda: devices, active_mirrors=lambda _: [], list_endpoints=list))
+        service.attach_hub(SimpleNamespace(list_devices=lambda: devices,
+                                          device_snapshot=lambda key: next(d for d in devices if d["device_id"] == key),
+                                          active_mirrors=lambda _: [], list_endpoints=list))
         # Initialize the worker before holding an independent state writer.
         await service.on_device_event({"kind": "log", "text": "ready"})
         await service.flush_events()
@@ -141,7 +143,7 @@ def test_slow_disk_does_not_block_loop_and_batches_coalesce_devices(tmp_path, mo
     async def scenario():
         store = GatewayStore(tmp_path)
         service = GatewayService(store, instance_id="batch")
-        service.attach_hub(SimpleNamespace(list_devices=lambda: [{"device_id": "device", "session_id": 1}]))
+        service.attach_hub(SimpleNamespace(device_snapshot=lambda _: {"device_id": "device", "session_id": 1}))
         entered, release = threading.Event(), threading.Event()
         append = EventSegments.append
 
@@ -267,4 +269,64 @@ asyncio.run(run())
         assert store.get_setting("events.writer_active") is False
         store.close()
 
+    asyncio.run(scenario())
+
+
+def test_interleaved_console_overflow_recovers_and_preserves_healthy(tmp_path, monkeypatch):
+    async def scenario():
+        store = GatewayStore(tmp_path)
+        store.create_operation({"operation_id": "update", "device_id": "device", "actor_type": "local",
+                                "actor_name": "test", "action": "firmware.system_update",
+                                "status": "outcome_unknown", "created_ns": 1})
+        service = GatewayService(store, instance_id="interleaved",
+                                 limits=GatewayLimits(writer_items=2, writer_bytes=16 * 1024))
+        entered = [threading.Event(), threading.Event()]
+        release = [threading.Event(), threading.Event()]
+        append = EventSegments.append
+        calls = 0
+        def delayed(self, rows):
+            nonlocal calls
+            index = calls
+            calls += 1
+            if index < 2:
+                entered[index].set()
+                assert release[index].wait(timeout=5)
+            return append(self, rows)
+        monkeypatch.setattr(EventSegments, "append", delayed)
+        raw = {"kind": "console_raw", "capture_id": "b" * 32, "endpoint": "uart:test",
+               "data_base64": base64.b64encode(b"data").decode()}
+        async def send(offset):
+            await service.on_device_event({**raw, "offset": offset})
+        async def wait_entered(index):
+            for _ in range(1000):
+                if entered[index].is_set():
+                    return
+                await asyncio.sleep(0.001)
+            raise AssertionError("writer did not enter the expected batch")
+        try:
+            await send(0)
+            await wait_entered(0)
+            for offset in [4, 8, 12]:
+                await send(offset)  # 12 is dropped while 4 and 8 are queued.
+            release[0].set()
+            await wait_entered(1)
+            for offset in [16, 20, 24]:
+                await send(offset)  # Accepted bytes separate two lost ranges.
+            release[1].set()
+            await service.flush_events()
+            assert service._event_writer.snapshot()["status"] == "ok"
+            await send(28)
+            await service.on_device_event({"kind": "device_event", "device_id": "device",
+                                           "event_name": "healthy", "boot_id": 7})
+            await service.flush_events()
+            history = store.latest_events()
+            assert [e["offset"] for e in history if e["kind"] == "console_raw"] == [0, 4, 8, 16, 20, 28]
+            assert [(e["offset"], e["end_offset"]) for e in history if e["kind"] == "console_gap"] == [(12, 16), (24, 28)]
+            assert store.healthy_evidence("update", 7)["boot_id"] == 7
+            assert service._event_writer.snapshot()["dropped_events"] == 2
+        finally:
+            for gate in release:
+                gate.set()
+            await service.close_events()
+            store.close()
     asyncio.run(scenario())

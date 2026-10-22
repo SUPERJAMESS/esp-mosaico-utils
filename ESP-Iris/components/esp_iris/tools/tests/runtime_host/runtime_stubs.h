@@ -28,7 +28,25 @@ esp_err_t iris_log_vfs_init(iris_runtime_t *r) { return ESP_OK; }
 esp_err_t iris_log_vfs_deinit(void) { return ESP_OK; }
 esp_err_t iris_log_redirect_stdio(void) { return ESP_OK; }
 esp_err_t iris_log_restore_stdio(void) { return ESP_OK; }
-bool iris_log_pop(iris_runtime_t *r, size_t n, iris_log_record_t *o) { return false; }
+static unsigned log_capture_starts, usb_console_waits;
+esp_err_t iris_log_capture_start(iris_runtime_t *r) {
+    if (!r->stdio_redirected) ++log_capture_starts;
+    r->stdio_redirected = r->vfs_registered = true;
+    return ESP_OK;
+}
+esp_err_t iris_log_capture_stop(iris_runtime_t *r) {
+    r->stdio_redirected = r->vfs_registered = false;
+    return ESP_OK;
+}
+void iris_usb_console_wait(void) { ++usb_console_waits; }
+static unsigned pending_test_logs;
+bool iris_log_pop(iris_runtime_t *r, size_t n, iris_log_record_t *o) {
+    if (!pending_test_logs) return false;
+    --pending_test_logs;
+    *o = (iris_log_record_t){.length = 5};
+    memcpy(o->data, "boot\n", 5);
+    return true;
+}
 void iris_crash_probe(iris_runtime_t *r) { }
 void iris_crash_context_prepare(iris_runtime_t *r) { }
 esp_err_t iris_crash_recovery_probe(iris_runtime_t *r) {
@@ -73,7 +91,8 @@ uint32_t iris_system_update_static_bytes(void) { return 0; }
 esp_err_t esp_iris_platform_mark_planned_restart(void) { return ESP_OK; }
 esp_err_t esp_iris_platform_mark_healthy(void) { return ESP_OK; }
 
-static uint8_t incoming[256], outgoing[1024];
+static uint8_t incoming[ESP_IRIS_MAX_WIRE_FRAME_SIZE * 2],
+               outgoing[ESP_IRIS_MAX_WIRE_FRAME_SIZE * 2];
 static size_t incoming_size, incoming_offset, read_limit = 256;
 static size_t outgoing_size, write_limit = 1024;
 static bool candidate;

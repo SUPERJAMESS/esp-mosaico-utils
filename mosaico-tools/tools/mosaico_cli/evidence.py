@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from .errors import DeviceError, OperationError, OutcomeUnknownError
-from .gateway import connected_devices, ensure_gateway, gateway_json, select_device
+from .gateway import connected_devices, ensure_gateway, gateway_json, select_device, system_inventory
 from .runtime import RunContext
 
 
@@ -59,6 +59,13 @@ def collect_evidence(arguments: Any, context: RunContext) -> dict[str, Any]:
     before = _live_status(context, session, device_id)
     result.update(device_id=device_id, boot_id=before["boot_id"], device=before)
     if command == "device-status":
+        if getattr(arguments, "inventory", False):
+            inventory = system_inventory(context, session, device_id)
+            after = _live_status(context, session, device_id)
+            if after["boot_id"] != before["boot_id"]:
+                raise DeviceError("The device rebooted while reading system inventory.",
+                                  details={"before": before, "after": after})
+            result.update(device=after, inventory=inventory)
         return result
 
     if command == "restart":
@@ -81,7 +88,8 @@ def collect_evidence(arguments: Any, context: RunContext) -> dict[str, Any]:
                 "operation": operation, "restart": restart}
 
     output = arguments.output.expanduser().resolve()
-    capture = gateway_json(context, session, "screenshot", device_id, str(output), timeout=60)
+    capture = gateway_json(context, session, "screenshot", device_id, str(output),
+                           "--path", arguments.path, timeout=60)
     if (not isinstance(capture, dict) or capture.get("device_id") != device_id
             or capture.get("path") != str(output) or not capture.get("operation_id")
             or capture.get("content_type") not in {"image/png", "image/jpeg"}):

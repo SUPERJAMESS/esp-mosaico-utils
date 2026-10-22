@@ -70,6 +70,8 @@ esp_err_t esp_partition_table_verify(const esp_partition_info_t *entries, bool c
                                      int *count);
 esp_err_t esp_partition_erase_range(const esp_partition_t *p, uint32_t offset,
                                     size_t size);
+esp_err_t esp_partition_read_raw(const esp_partition_t *p, uint32_t offset,
+                                 void *data, size_t size);
 esp_err_t esp_partition_write(const esp_partition_t *p, uint32_t offset,
                               const void *data, size_t size);
 esp_err_t esp_flash_set_dangerous_write_protection(void *chip, bool enabled);
@@ -81,6 +83,7 @@ esp_err_t esp_image_verify_bootloader(uint32_t *size);
 const esp_partition_t *esp_ota_get_boot_partition(void);
 esp_err_t esp_iris_crash_loop_reset(void);
 esp_err_t esp_iris_mark_planned_restart(void);
+esp_err_t esp_iris_schedule_restart(uint32_t delay_ms);
 
 typedef struct { bool active; } esp_iris_ota_status_t;
 esp_err_t esp_iris_ota_get_status(esp_iris_ota_status_t *status);

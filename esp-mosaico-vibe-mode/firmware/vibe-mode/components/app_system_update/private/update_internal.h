@@ -43,6 +43,7 @@
 #define FACTORY_SYSTEM_RESTART_DELAY_MS 1800U
 #define FACTORY_SYSTEM_ESP32S31_CHIP_ID 0x20U
 #define FACTORY_SYSTEM_FLASH_SECTOR_BYTES 0x1000U
+#define FACTORY_SYSTEM_ERASE_CHUNK_BYTES 0x10000U
 #define FACTORY_SYSTEM_RECOVERY_OFFSET 0x20000U
 #define FACTORY_SYSTEM_RECOVERY_SIZE 0x1c0000U
 
@@ -160,7 +161,6 @@ esp_err_t update_persist_result(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERA
 esp_err_t update_commit_protected_image(update_context_t *ctx, const factory_update_plan_component_t *plan, const uint8_t *image);
 const factory_update_plan_component_t *
 update_plan_for_kind(update_context_t *ctx, esp_iris_system_update_component_kind_t kind);
-void update_restart_task(void *arg);
 esp_err_t update_commit_update(const uint8_t operation_id[ESP_IRIS_SYSTEM_OPERATION_ID_BYTES],
                                void *user_ctx);
 void update_abort_update_owned(update_context_t *ctx,

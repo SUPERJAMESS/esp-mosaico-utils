@@ -58,7 +58,9 @@ esp_err_t factory_ideas_cancel(void) {
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(ctx->lock, portMAX_DELAY);
     uint32_t ready = ctx->state->preview_ready ? ctx->state->preview_id : 0;
-    if (ctx->state->busy && ctx->state->cancellable) {
+    /* A batch may finish its current atomic commit before stopping. Latch
+     * cancellation for the next item even while that commit is closed. */
+    if (ctx->state->busy && (ctx->state->cancellable || ctx->state->batch)) {
         ctx->cancel_requested = true;
         ctx->state->cancellable = false;
         snprintf(ctx->state->title, sizeof(ctx->state->title), "Cancelling...");
@@ -80,8 +82,8 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     ideas_context_t *ctx = &s_ideas;
     if (!atomic_load(&ctx->initialized))
         return ESP_ERR_INVALID_STATE;
-    bool no_code = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL || command == IDEAS_RUN_DEVELOPMENT || command == IDEAS_REFRESH_UPDATES || command == IDEAS_STORAGE_INFO;
-    if (command < IDEAS_SCAN || command > IDEAS_STORAGE_INFO || command == IDEAS_DOWNLOAD ||
+    bool no_code = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL || command == IDEAS_RUN_DEVELOPMENT || command == IDEAS_REFRESH_UPDATES || command == IDEAS_STORAGE_INFO || command == IDEAS_FORMAT_NAND;
+    if (command < IDEAS_SCAN || command > IDEAS_FORMAT_NAND || command == IDEAS_DOWNLOAD ||
         command == IDEAS_DISMISS || command == IDEAS_ROW || (!no_code && !ideas_local_code_valid(code)) ||
         ((command == IDEAS_CHECK || command == IDEAS_RESOLVE) && !ideas_code_valid(code)))
         return ESP_ERR_INVALID_ARG;
@@ -111,7 +113,7 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
     ctx->state->busy = true;
     ctx->state->command = command;
     ctx->cancel_requested = false;
-    ctx->state->cancellable = command == IDEAS_OPEN;
+    ctx->state->cancellable = command == IDEAS_OPEN || command == IDEAS_SAVE_DEVELOPMENT || command == IDEAS_UPDATE_ALL;
     ctx->state->batch = command == IDEAS_UPDATE_ALL;
     ctx->state->scanning = command == IDEAS_SCAN || command == IDEAS_RELOCALIZE;
     if (command == IDEAS_RESOLVE || command == IDEAS_CHECK || command == IDEAS_PREVIEW) {
@@ -132,6 +134,7 @@ esp_err_t factory_ideas_request(factory_ideas_command_t command, const char *cod
         ctx->state->phase = IDEAS_PHASE_NONE;
         ctx->state->files_verified = ctx->state->file_count = 0;
         snprintf(ctx->state->title, sizeof(ctx->state->title), "%s",
+                 command == IDEAS_FORMAT_NAND ? "Formatting NAND" :
                  command == IDEAS_INSTALL || command == IDEAS_OPEN ? "Setting boot application" : "Loading app information");
         snprintf(ctx->state->detail, sizeof(ctx->state->detail), "Please wait");
         ++ctx->state->revision;
@@ -154,6 +157,7 @@ esp_err_t factory_ideas_snapshot(factory_ideas_snapshot_t *out) {
     if (xSemaphoreTake(ctx->lock, 0) != pdTRUE)
         return ESP_ERR_TIMEOUT;
     *out = (*ctx->state);
+    out->storage_error = app_storage_error();
     xSemaphoreGive(ctx->lock);
     return ESP_OK;
 }
@@ -236,6 +240,7 @@ void *factory_ideas_copy_title(const char *code, size_t *size) {
         job_t *job = known ? calloc(1, sizeof(*job)) : NULL;
         if (job) {
             job->command = IDEAS_ROW;
+            job->title_language = language;
             strcpy(job->code, code);
             job->request_id = ctx->state->preview_id;
             ctx->state->busy = true;

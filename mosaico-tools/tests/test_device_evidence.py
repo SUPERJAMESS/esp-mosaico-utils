@@ -36,6 +36,8 @@ def gateway(tmp_path, monkeypatch):
                         "evidence": {"status": {"device_id": DEVICE_ID, "boot_id": 43,
                                                "firmware_mode": "recovery", "app_version": "0.2.0"}}},
         capture_error=False,
+        capture_body=None,
+        inventory={"layout_version": 5, "partition_table_sha256": "ab" * 32},
     )
 
     class Handler(BaseHTTPRequestHandler):
@@ -59,12 +61,16 @@ def gateway(tmp_path, monkeypatch):
                 self.reply({"device": status})
             elif self.path == f"/v2/operations/{OPERATION_ID}":
                 self.reply({"operation": state.operation})
+            elif self.path == "/v2/health":
+                self.reply({"capabilities": ["system-inventory/v1"]})
+            elif self.path == f"/v2/devices/{DEVICE_ID}/system-inventory":
+                self.reply({"inventory": state.inventory})
             else:
                 self.reply({"error": "unexpected route"}, 404)
 
         def do_POST(self):
             state.requests.append(("POST", self.path))
-            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
             if self.path == f"/v2/operations/{OPERATION_ID}/reconcile":
                 return self.reply(state.reconciliation, 201)
             if self.path == f"/v2/devices/{DEVICE_ID}/restart":
@@ -75,6 +81,7 @@ def gateway(tmp_path, monkeypatch):
                 return self.reply({"error": "unexpected route"}, 404)
             if state.capture_error:
                 return self.reply({"error": "capture unavailable"}, 503)
+            state.capture_body = json.loads(body)
             self.send_response(200)
             self.send_header("Content-Type", "image/png")
             self.send_header("Content-Length", str(len(PNG)))
@@ -128,6 +135,14 @@ def test_screenshot_saves_device_bytes_and_correlated_evidence(gateway, tmp_path
     assert gateway.ensure.call_args.kwargs == {"select": True}
 
 
+def test_screenshot_can_use_control_while_firmware_owns_data_link(gateway, tmp_path, capsys):
+    output = tmp_path / "preparation.png"
+    assert main(["iris", "screenshot", str(output), "--path", "control", "--json"]) == 0
+    assert output.read_bytes() == PNG
+    assert gateway.capture_body["path"] == "control"
+    assert json.loads(capsys.readouterr().out)["boot_id"] == 42
+
+
 @pytest.mark.parametrize("change", [{"stale": True}, {"device_id": "other"}, {"boot_id": None}])
 def test_invalid_live_status_never_starts_capture(gateway, tmp_path, capsys, change):
     gateway.statuses[0].update(change)
@@ -170,6 +185,30 @@ def test_device_status_reports_live_fields(gateway, capsys, json_output):
     assert result["device"]["stale"] is False
     assert result["device"]["firmware_mode"] == "normal"
     assert result["boot_id"] == 42
+
+
+def test_inventory_is_read_only_and_correlated_with_current_boot(gateway, capsys):
+    assert main(["iris", "device-status", "--inventory", "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["inventory"] == gateway.inventory
+    assert result["boot_id"] == 42
+    assert all(method == "GET" for method, _ in gateway.requests)
+
+
+def test_inventory_across_reboot_is_rejected(gateway, capsys):
+    gateway.statuses.append({**gateway.statuses[0], "boot_id": 43})
+    assert main(["iris", "device-status", "--inventory", "--json"]) == 4
+    error = json.loads(capsys.readouterr().err)
+    assert error["details"]["before"]["boot_id"] == 42
+    assert error["details"]["after"]["boot_id"] == 43
+    assert all(method == "GET" for method, _ in gateway.requests)
+
+
+def test_inventory_rejects_invalid_partition_digest(gateway, capsys):
+    gateway.inventory["partition_table_sha256"] = "invalid"
+    assert main(["iris", "device-status", "--inventory", "--json"]) == 4
+    assert json.loads(capsys.readouterr().err)["ok"] is False
+    assert all(method == "GET" for method, _ in gateway.requests)
 
 
 @pytest.mark.parametrize("status", ["running", "failed", "outcome_unknown", "succeeded"])

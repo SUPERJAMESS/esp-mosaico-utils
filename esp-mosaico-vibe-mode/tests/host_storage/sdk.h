@@ -12,11 +12,13 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_ARG 0x102
 #define ESP_ERR_NO_MEM 0x101
 #define ESP_ERR_NOT_SUPPORTED 0x106
+#define ESP_ERR_INVALID_SIZE 0x104
 #define MALLOC_CAP_INTERNAL 1
 #define MALLOC_CAP_SPIRAM 2
 #define MALLOC_CAP_8BIT 4
 #define ESP_LOGI(...) ((void)0)
 #define ESP_LOGW(...) ((void)0)
+#define ESP_LOGE(...) ((void)0)
 #define portMAX_DELAY 0
 extern int fail_allocation;
 static inline void *heap_caps_calloc(size_t n,size_t z,unsigned caps){if(fail_allocation && --fail_allocation==0)return NULL;return calloc(n,z);}

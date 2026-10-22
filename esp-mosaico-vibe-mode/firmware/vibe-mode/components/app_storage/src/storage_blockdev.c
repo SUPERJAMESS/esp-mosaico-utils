@@ -6,8 +6,13 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+
+static atomic_int s_read_error;
+esp_err_t storage_blockdev_read_error(void) { return atomic_load(&s_read_error); }
+void storage_blockdev_clear_error(void) { atomic_store(&s_read_error, ESP_OK); }
 
 typedef struct { uint64_t address, age; } cache_entry_t;
 typedef struct {
@@ -24,12 +29,15 @@ static void invalidate(storage_blockdev_t *s) {
     if (s->entries) memset(s->entries, 0, s->count * sizeof(*s->entries));
     s->clock = 0;
 }
+static bool valid_range(esp_blockdev_handle_t dev, uint64_t address, size_t size) {
+    const storage_blockdev_t *s = dev->ctx;
+    return address <= dev->geometry.disk_size && size <= dev->geometry.disk_size - address &&
+           address % s->page_size == 0 && size % s->page_size == 0;
+}
 static esp_err_t read_pages(esp_blockdev_handle_t dev, uint8_t *dst, size_t capacity,
                             uint64_t address, size_t size) {
     storage_blockdev_t *s = dev->ctx;
-    if (!dst || capacity < size || address > dev->geometry.disk_size ||
-        size > dev->geometry.disk_size - address ||
-        address % s->page_size || size % s->page_size) return ESP_ERR_INVALID_ARG;
+    if (!dst || capacity < size || !valid_range(dev, address, size)) return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(s->lock, portMAX_DELAY);
     const int64_t started = esp_timer_get_time();
     esp_err_t err = ESP_OK;
@@ -57,6 +65,7 @@ static esp_err_t read_pages(esp_blockdev_handle_t dev, uint8_t *dst, size_t capa
         if (s->count) s->entries[victim].age = 0;
         err = s->source->ops->read(s->source, buffer, s->page_size, address + offset, s->page_size);
         if (err != ESP_OK) {
+            atomic_store(&s_read_error, err);
             storage_metrics_add(STORAGE_IO_ERRORS, 1);
             invalidate(s);
             break;
@@ -75,6 +84,7 @@ static esp_err_t read_pages(esp_blockdev_handle_t dev, uint8_t *dst, size_t capa
  * starts with fresh media reads. No write result is inserted into this cache. */
 static esp_err_t write_pages(esp_blockdev_handle_t dev, const uint8_t *src, uint64_t address, size_t size) {
     storage_blockdev_t *s = dev->ctx;
+    if (!src || !valid_range(dev, address, size)) return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(s->lock, portMAX_DELAY);
     invalidate(s);
     esp_err_t err = s->source->ops->write ? s->source->ops->write(s->source, src, address, size) : ESP_ERR_NOT_SUPPORTED;
@@ -83,6 +93,7 @@ static esp_err_t write_pages(esp_blockdev_handle_t dev, const uint8_t *src, uint
 }
 static esp_err_t erase_pages(esp_blockdev_handle_t dev, uint64_t address, size_t size) {
     storage_blockdev_t *s = dev->ctx;
+    if (!valid_range(dev, address, size)) return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(s->lock, portMAX_DELAY);
     invalidate(s);
     esp_err_t err = s->source->ops->erase ? s->source->ops->erase(s->source, address, size) : ESP_ERR_NOT_SUPPORTED;

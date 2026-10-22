@@ -7,6 +7,7 @@ import sqlite3
 import threading
 import time
 import weakref
+from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any
 
@@ -27,10 +28,14 @@ _SCHEMA = """
 
 
 class EventSegments:
+    CAPTURE_RANGE_LIMIT = 1024
+
     def __init__(self, state: StateStore) -> None:
         self.state, self.db = state, state.db
         self.root = state.root / "events"
         self.root.mkdir(exist_ok=True)
+        self._capture_ranges: OrderedDict[str, tuple[int, int, int, int, int, int]] = OrderedDict()
+        self._capture_sequence: int | None = None
         with _LOCKS_GUARD:
             key = str(self.root.resolve())
             self.lock = _LOCKS.get(key)
@@ -84,6 +89,8 @@ class EventSegments:
         if sequence is None:
             old = self.db.execute("SELECT seq FROM sqlite_sequence WHERE name='events'").fetchone()
             sequence = int(old[0]) if old else 0
+        if sequence != self._capture_sequence:
+            self._capture_ranges.clear()
         first = int(sequence) + 1
         start = current["start_id"] if current else first
         path = self.path(start)
@@ -114,7 +121,43 @@ class EventSegments:
             db.commit()
         # The reservation remains until the next write/recovery, so a crash
         # between the two commits is detectable without per-event acknowledgement.
+        for row, item in zip(rows, result):
+            capture = item.get("capture_id")
+            if capture and row[2] is None:
+                event_id, host_ns = item["event_id"], item["host_receive_ns"]
+                # A continued capture after restart/eviction may have older
+                # retained rows. Only byte offset zero proves its beginning.
+                if capture not in self._capture_ranges and not (
+                    item.get("kind") == "console_raw" and item.get("offset") == 0
+                ):
+                    continue
+                previous = self._capture_ranges.get(capture, (event_id, host_ns, start, event_id, host_ns, start))
+                self._capture_ranges[capture] = (previous[0], previous[1], previous[2], event_id, host_ns, start)
+                self._capture_ranges.move_to_end(capture)
+        while len(self._capture_ranges) > self.CAPTURE_RANGE_LIMIT:
+            self._capture_ranges.popitem(last=False)
+        self._capture_sequence = last
         return result
+
+    def capture_range(self, capture_id: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        """Find committed capture bounds without scanning old files on each HELLO."""
+        with self.lock:
+            if int(self.state.get_setting("events.sequence", 0)) != self._capture_sequence:
+                self._capture_ranges.clear()
+            binding = self.db.execute("SELECT device_id FROM console_captures WHERE capture_id=?", (capture_id,)).fetchone()
+            if binding is not None and binding[0] is not None:
+                self._capture_ranges.pop(capture_id, None)
+                return None, None
+            cached = self._capture_ranges.get(capture_id)
+            pruned = int(self.state.get_setting("events.pruned_through", 0))
+            if (cached and cached[0] > pruned
+                    and self.path(cached[2]).exists() and self.path(cached[5]).exists()):
+                self._capture_ranges.move_to_end(capture_id)
+                return ({"event_id": cached[0], "host_receive_ns": cached[1]},
+                        {"event_id": cached[3], "host_receive_ns": cached[4]})
+            first, _ = self.query(capture_id=capture_id, limit=1, unresolved=True)
+            last, _ = self.query(capture_id=capture_id, descending=True, limit=1, unresolved=True)
+            return first[0] if first else None, last[-1] if last else None
 
     def query(self, *, cursor: int = 0, descending: bool = False, device_id: str | None = None,
               categories: Iterable[str] | None = None, capture_id: str | None = None,

@@ -1,9 +1,11 @@
 # ESP-Mosaico Vibe Mode
 
 The [0.2 software specification (中文)](docs/esp-mosaico-vibe-mode-software-spec-zh.md)
-defines the architecture. The reviewed base bundle is now 0.2.0, with Recovery
-ABI 2 and QIO. See the [0.2 validation record (中文)](docs/validation-0.2.md)
-for tested devices, artifacts and remaining validation limits.
+defines the architecture. The reviewed base bundle is now 0.2.1, with Recovery
+ABI 2 and QIO. The [Linux nine-device validation record](docs/vibe-0.2.1-nine-device-validation-20261021.json)
+records 162/162 parallel updates across three rounds, release image hashes,
+timings and remaining validation limits. Earlier architecture checks remain in
+the [0.2 validation record (中文)](docs/validation-0.2.md).
 
 Vibe Mode is the ESP-Mosaico application installation and device maintenance mode.
 It runs ESP-Iris; ROM Download Mode is the chip flashing path without ESP-Iris.
@@ -20,6 +22,10 @@ The product CLI and build runner now live in [mosaico-tools](../mosaico-tools/RE
 The old local launcher, Python forwarding package and build-runner entrypoint
 have been removed. Consumers use `mosaico-tools`.
 Integration and firmware tests remain under `tests/`.
+See the [nine-device flashing reproduction plan (中文)](docs/multi-device-flash-reproduction-plan.zh-CN.md)
+for large-image, layout-switching and repeated-update hardware experiments.
+The [source-built self-update issue record (中文)](docs/multi-device-self-update-issues.zh-CN.md)
+preserves the first concurrent failure and device-side observations.
 
 To add Vibe Mode and Iris to an existing application, follow the
 [0.2 migration and boot contract (中文)](docs/migration-0.2.md).

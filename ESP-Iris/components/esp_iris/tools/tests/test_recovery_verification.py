@@ -82,7 +82,8 @@ def test_reconcile_survives_restart_and_never_replays(tmp_path, write_result, or
         store = GatewayStore(tmp_path)
         service = GatewayService(store, instance_id="restarted")
         # No flash, reset or subprocess interface exists on this test hub.
-        service.hub = SimpleNamespace(list_devices=lambda: [STATUS], status=AsyncMock(return_value=STATUS))
+        service.hub = SimpleNamespace(list_devices=lambda: [STATUS], device_snapshot=lambda _: dict(STATUS),
+                                      status=AsyncMock(return_value=STATUS))
         client = TestClient(TestServer(create_app(service)))
         await client.start_server()
         try:

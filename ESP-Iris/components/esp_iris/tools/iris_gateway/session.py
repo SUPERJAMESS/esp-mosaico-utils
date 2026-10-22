@@ -373,17 +373,24 @@ class DeviceSession:
         return data
 
     async def _wait_data_link(self, timeout: float) -> DeviceSession:
+        """Wait for this boot's independent data handshake before a write."""
+        info = await self.wait_ready(timeout)
+        identity = (info.device_id, info.boot_id, self.owner_id)
         deadline = asyncio.get_running_loop().time() + timeout
         while True:
             if self._closed:
-                raise ConnectionError("ESP-Iris control session closed before data admission")
+                raise ConnectionError("ESP-Iris control session closed before data handshake")
+            if self.info is None or (
+                self.info.device_id, self.info.boot_id, self.owner_id
+            ) != identity:
+                raise ProtocolError("control identity changed before data handshake")
             data = self.data_session
             if data is not None and data.info is not None and not data._closed and data._ready.is_set():
                 return self._require_data_link()
             remaining = deadline - asyncio.get_running_loop().time()
             if remaining <= 0:
-                raise TimeoutError("independent Iris 0.2 data link did not become ready")
-            await asyncio.sleep(min(0.05, remaining))
+                raise TimeoutError("independent Iris data link did not become ready")
+            await asyncio.sleep(min(0.02, remaining))
 
     async def _request(
         self,

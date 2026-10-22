@@ -58,6 +58,7 @@ typedef struct {
     uint32_t request_id;
     pending_t *pending;
     bool up_to_date, metadata_only, startup;
+    unsigned title_language;
     ideas_context_t *owner;
 } job_t;
 typedef struct {
@@ -67,7 +68,7 @@ typedef struct {
 struct ideas_context {
     boot_record_t verified_boot;
     char development_release_id[65];
-    bool boot_verified, cancel_requested;
+    bool boot_verified, cancel_requested, library_loaded;
     atomic_bool initialized;
     SemaphoreHandle_t lock;
     QueueHandle_t jobs;
@@ -95,9 +96,14 @@ void ideas_hex(const uint8_t digest[32], char out[65]);
 esp_err_t ideas_verify_file(const ideas_file_t *file, const char *path, void *ctx);
 esp_err_t ideas_flash_hash(uint32_t offset, uint32_t size, const char *expected);
 esp_err_t ideas_verify_installed(const ideas_package_t *package, ideas_context_t *ctx);
+/* Optional identity projection may use the boolean helper. Mutation guards
+ * must retain operational errors from the record reader and NOR verifier. */
 bool ideas_boot_record(boot_record_t *record, bool verify);
+esp_err_t ideas_read_boot_record(boot_record_t *record);
 esp_err_t ideas_save_boot(void *ctx);
 esp_err_t ideas_scan(ideas_context_t *ctx, bool refresh_development);
+/* Caller holds the NAND lease. Lazy startup must not bypass save admission. */
+esp_err_t ideas_load_library(ideas_context_t *ctx);
 esp_err_t ideas_fetch_preview(ideas_context_t *ctx, const job_t *job, pending_t *pending);
 esp_err_t ideas_fetch_file(const ideas_file_t *file, const char *path, void *argument);
 bool ideas_ascii_text(const char *text);

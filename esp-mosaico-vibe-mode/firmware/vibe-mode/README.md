@@ -23,12 +23,14 @@ ROM 身份不符、端口不唯一或重枚举超时会停止，不尝试其它�
 当前源码使用 ESP-Iris 0.2、Recovery ABI 2 和 `mosaico-retained-test-2m-v2`
 布局。`vibe_mode` 为 `app/test`，`main_app` 为 `app/ota_0`。固件工程名为
 `vibe-mode`，新构建产物为 `vibe-mode.bin`、`vibe-mode.elf`，候选包的
-manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 已于 2026-10-16 更新为
-源码提交 `ca0ecf7` 的 `vibe-mode.bin`，版本保持 0.2.0，镜像大小为 1,488,608 字节。
-默认 Ideas 地址为 `https://mosaico.ai`，包含固件清单尾部 JSON
-空白解析修复及“打开失败”提示。主程序与 ESP32-S31 实机自更新、重启后 ELF 哈希
-核对及用户手动验收通过的镜像字节一致；bootloader、分区表及初始 OTA 数据保持原评审包
-字节不变。完整包通过 manifest、布局、大小和 SHA-256 校验，S31 产品统一使用 QIO。
+manifest 使用 `project: vibe-mode`。`prebuilt/recovery` 已于 2026-10-21 更新为
+经过 Linux 九机实测的 0.2.1，`vibe-mode.bin` 大小为 1,713,168 字节。
+默认 Ideas 地址为 `https://mosaico.ai`。三轮六场景并发更新 162/162 通过，
+包含单台对照、准备和最终回写共 187 次实际更新通过；38 次自更新均更换 ELF。
+固件和 bootloader 直接取自受测冻结候选，未在验收后重新构建；分区表及初始 OTA
+数据保持原评审包字节不变。完整包通过 manifest、布局、大小和 SHA-256 校验，
+S31 产品统一使用 QIO。源码状态、镜像摘要、时间/速率、准备阶段接口认领问题及
+验收边界见 [九机验证记录](../../docs/vibe-0.2.1-nine-device-validation-20261021.json)。
 
 目录改名后须使用新的构建目录重新配置，避免复用包含旧绝对路径的 CMake 缓存。
 `recover` launcher 已使用新的 `build-mosaico-vibe-mode` 构建目录。
@@ -196,6 +198,9 @@ recovery_version、当前系统 locale，以及 `Accept: multipart/related`。�
 这些已校验的缓存资源与固件一并保存到 NAND，不重复解析版本或下载资源。
 离线 View info 使用同一解析器，只提供返回操作，关闭时释放预览资源。
 云端 Idea 的列表和详情标题复用已下载的字形像素，中文名称无需将整套字体编入固件。
+标题在设备侧生成保持字形比例的单行缓存；短标题静止，超出区域的标题以 28 px/s
+往返滚动，两端各停留 1.2 秒。离开页面后停止滚动，再次进入从开头显示；
+滚动裁剪在标题框内，不移动返回按钮、版本信息或底部操作。原 display/1 资源无需重新发布。
 本地开发副本使用内置字体；完整云端名称和描述可在信息页查看。
 
 展示资源生成实现位于仓库的 `shared/ideas/`，本目录的脚本只处理参数和输出文件。
@@ -264,6 +269,11 @@ panic/watchdog 跳过正常 shutdown 的路径；Iris 在正常软件重启前�
 控制器。锁定 SDK 仅复位 CPU 时会保留旧 DMA 地址，旧应用的 SETUP 缓冲区
 可能与新应用代码重叠。Vibe Mode 的 panic 处理器放入内部 RAM，以保留
 Flash/cache 故障的诊断能力。USB Serial/JTAG 控制器不受此处理影响。
+
+振动服务在启用前注册统一的软件重启清理回调，覆盖打开应用、OTA 和显式重启。
+回调同步停止振动定时器、关闭电机，并锁住后续脉冲；已排队的 UI 请求或定时器回调
+不能在退出期间重新开启电机，避免软件重启保留 PWM 输出而持续振动。
+清理回调注册失败时保持振动不可用，其他外设与维护功能继续运行。
 
 构建使用锁定 ESP-IDF 和 Vibe 自有轻量 UI，不再需要 GSP/GSPC。`recovery-current-bundle`
 仅生成未评审候选；完成设备身份、各启动入口、更新、回退及原生工具实测前，
@@ -506,7 +516,12 @@ ESP-Mosaico 的板载 NAND 与 `esp-mosaico-claw` 一致，使用 SPI NAND、wea
 block device 和 LittleFS，挂载点为 `/nand`。Vibe Mode 读写挂载已有文件系统，并将
 整个挂载点注册为 ESP-Iris 文件卷 `nand`；可通过 Gateway 列目录、读取、写入、删除、
 建目录和重命名。写入先落到同目录临时文件，校验 SHA-256 后再原子替换目标文件。
-挂载失败时不会格式化 NAND，也不会阻止 Vibe Mode USB 维护服务启动。将解包后的
+挂载失败时不会自动格式化 NAND，也不会阻止 Vibe Mode USB 维护服务启动。NAND 初始化
+或底层读取失败后，界面会询问是否初始化，并明确说明格式化会清除 NAND 上全部文件和
+已保存的 Ideas。取消不修改 NAND；Manage 页仍可重新打开格式化确认。确认后后台执行
+格式化与重新挂载，期间暂停 Iris 文件访问，结束后恢复服务并显示成功或失败结果。
+成功后可以重新下载 Ideas；失败可以重试。NOR 应用、身份、Wi-Fi 和设置不受影响。
+将解包后的
 bundle 放到同一目录，例如：
 
 ```text
@@ -628,6 +643,30 @@ ABI 2 和布局版本 5 不变。固件及原生模拟器使用同一套 C 控�
   绘制、排版、输入均由 Vibe 实现。旋转先等待在途显示完成，再同步显示与触摸坐标。
 - Iris 请求通过队列进入渲染任务，USB 注入触摸走同一路径；截图继续观察 RGB565 提交。
 
+普通触觉反馈在有效控件按下、松开时各发出一个 10 ms 脉冲；滑动仍取消点击与长按业务。
+可滚动区域延迟 80 ms 显示按压反馈；移动超过 12 px 后，本次接触永久取消点击与长按，
+移回起点也不会重新启用。长按删除/重置仍需新的、未发生滑动的完整接触。
+`cmake/touch_report_validity.cmake` 为锁定 CST9220 驱动生成局部修正副本，
+将 ACK-only/无效报文作为无效采样，而非松手；有效松手报文仍正常处理。
+升级驱动时匹配失败会停止配置，需重新审查该修正，下载目录保持不变。
+
+本轮界面参考 [v0.3-ui-20261018-handoff（f0b53c0）](https://glab.espressif.cn/intern-projects/esp-mosaico-vibecoding/vibe-mode-0.3/-/tree/v0.3-ui-20261018-handoff)：
+首页、Ideas 网格/管理/详情、开发、下载及结果、Wi-Fi/密码、设置、语言、显示与触感、
+共享信息、关于/帮助、确认和休眠页采用该版本的字体、图标和布局。
+保留现有服务、单网络配置、应用顺序、共享信息存储和 AI/电源键行为；
+不导入参考版的多 Wi-Fi、应用置顶或共享默认条目。
+开发页的 USB/Agent 状态、保存入口以及首页 Ideas 数量均来自设备快照，
+共享条目详情/帮助和许可证摘要提供独立返回路径。
+
+首页使用参考版小创客动画，首轮入场后循环汽车、火箭和风车故事。
+点阵区域捕获完整触摸手势，离开首页暂停，返回继续；区域外仍可滑动到 Ideas。
+`tools/build_maker_story.py` 生成去重的帧/姿势表，
+`vibe_motion.c` / `vibe_home_motion.c` 在渲染任务中推进可见时间。
+修改故事生成器后先重新运行该脚本；无需把参考版的 GSP 引擎或模拟数据加入固件。
+2026-10-18 的界面迁移当时未替换已评审预编译包；该阶段已完成 S31 自更新、设备帧截图、
+USB 指针交互及原应用往返启动验证，见 [端侧验证记录](../../docs/ui-handoff-device-validation.md)。
+人工触摸体感、物理按键、旋转与面板显示效果仍需现场验收。
+
 页面结构保存在 `ui/main.json`，由 `tools/build_vibe_ui.py` 从作者布局生成。
 `tools/compile_vui.py` 将原版字体、图标、动画和页面编译为固定节点、预烘焙字形、
 RGB565+A8 图片，并无损压缩到 `components/app_ui/light/vui_assets.bin`。
@@ -640,9 +679,13 @@ python tools/build_vibe_ui.py
 python tools/compile_vui.py
 ```
 
-内置字体保持 Inter/Archivo 与 Noto Sans SC 字形，许可证见 `ui/fonts/OFL-*.txt`。
+内置字体保持 Inter/Archivo 与 Noto Sans SC 字形，进度百分比使用设计稿的 Doto Black 点阵字体，许可证见 `ui/fonts/OFL-*.txt`。
 下载的 MIFF 字形和 PNG 图标仍通过原公开展示契约进入固定页面，不接收远端布局或动作。
-键盘支持大小写、符号、删除、确认、64 字节 Wi-Fi 密码上限和显示切换；离开页面清除密码。
+应用网格的可打印 ASCII 名称直接显示，其他名称复用本地包的 MIFF 标题缓存；
+短标题居中，长标题保持字形比例并横向滚动。后台标题未就绪时显示省略号，
+只有元数据缺少名称才回退 Ideas 编号。分页清理旧标题，已显示的标题不在每次轮询中重复解码。
+标题缓存按编号和语言区分，库重新扫描时失效；异步标题任务固定使用入队时的语言，避免切换语言后错误标记缓存。
+键盘支持大小写、两页符号、按键预览、滑出取消、删除、确认、64 字节 Wi-Fi 密码上限和显示切换；离开页面清除密码。
 恢复出厂设置保留 NAND、设备身份和当前应用。下载先写 NAND，用户明确打开后才写 NOR 并重启。
 
 在此固件目录启动模拟器（主机需 C 编译器、CMake、zlib 开发库与 Pillow）：

@@ -13,12 +13,16 @@
 typedef struct {
     char key[VIBE_SHARED_KEY_BYTES], value[VIBE_SHARED_VALUE_BYTES];
 } vibe_shared_entry_t;
+typedef enum {
+    VIBE_RESET_IDLE, VIBE_RESET_CLEARING, VIBE_RESET_RESTARTING
+} vibe_reset_phase_t;
 typedef struct {
     /* 1 = English (persisted default), 2 = Simplified Chinese. */
-    unsigned language, brightness, screen_off_seconds;
+    unsigned language, brightness, screen_off_seconds, open_confirm_count;
     bool auto_rotate, haptics, open_confirm;
     uint32_t revision;
     bool busy;
+    vibe_reset_phase_t reset_phase;
     int error;
     size_t shared_count;
     vibe_shared_entry_t shared[VIBE_SHARED_MAX];
@@ -26,5 +30,6 @@ typedef struct {
 typedef enum {
     VIBE_SETTINGS_LANGUAGE, VIBE_SETTINGS_BRIGHTNESS, VIBE_SETTINGS_TIMEOUT,
     VIBE_SETTINGS_ROTATE, VIBE_SETTINGS_HAPTICS, VIBE_SETTINGS_OPEN_CONFIRM,
-    VIBE_SETTINGS_SHARED_SET, VIBE_SETTINGS_SHARED_DELETE, VIBE_SETTINGS_RESET
+    VIBE_SETTINGS_SHARED_SET, VIBE_SETTINGS_SHARED_DELETE, VIBE_SETTINGS_SHARED_RENAME,
+    VIBE_SETTINGS_RESET
 } vibe_settings_command_t;

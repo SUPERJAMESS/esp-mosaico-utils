@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import pathlib
 import re
@@ -149,12 +150,43 @@ def register_file_routes(app: web.Application, service: Any) -> None:
         response = web.StreamResponse(
             status=206 if partial else 200, headers=headers
         )
-        await response.prepare(request)
-        async for chunk in service.hub.file_download(
+        chunks = service.hub.file_download(
             device_id, volume, path, offset=offset, length=length
-        ):
-            await response.write(chunk)
-        await response.write_eof()
+        ).__aiter__()
+        try:
+            # OPEN and the first READ can fail with BUSY. Resolve them before
+            # committing HTTP headers so the error remains an HTTP response.
+            try:
+                pending = await chunks.__anext__()
+            except StopAsyncIteration:
+                pending = None
+            await response.prepare(request)
+            sent = 0
+            # Complete device CLOSE before satisfying HTTP Content-Length.
+            async for chunk in chunks:
+                if pending is not None:
+                    await response.write(pending)
+                    sent += len(pending)
+                pending = chunk
+            if sent + (len(pending) if pending is not None else 0) != length:
+                raise RuntimeError("file length changed during download")
+            if pending is not None:
+                await response.write(pending)
+            await response.write_eof()
+        except BaseException:
+            if response.prepared:
+                # Once streaming started, a second error response would become
+                # bytes in the declared file body. Abort instead of fabricating
+                # a successful download containing HTTP headers or JSON.
+                response.force_close()
+                if request.transport is not None:
+                    request.transport.close()
+            raise
+        finally:
+            close = getattr(chunks, "aclose", None)
+            if close is not None:
+                with contextlib.suppress(Exception):
+                    await close()
         actor = request_actor(request)
         service.store.add_audit(
             actor.kind,
