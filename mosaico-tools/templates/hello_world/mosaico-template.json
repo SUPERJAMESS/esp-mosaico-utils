@@ -103,7 +103,46 @@
       "source": "components/app_hello/ui/fonts/DejaVuSans.ttf"
     },
     {
+      "source": "components/app_hello/ui/fonts/NotoSansSC-Regular.ttf"
+    },
+    {
+      "source": "components/app_hello/ui/fonts/OFL-NotoSansSC.txt"
+    },
+    {
       "source": "components/app_hello/ui/fonts/LICENSE"
+    },
+    {
+      "source": "components/app_hello/ui/assets/icons/wifi-38-cream.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/icons/display-38-cream.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/icons/globe-38-cream.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/icons/haptic-38-cream.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/icons/rotate-38-cream.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/wells/well-000.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/wells/well-020.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/wells/well-040.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/wells/well-060.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/wells/well-080.png"
+    },
+    {
+      "source": "components/app_hello/ui/assets/wells/well-100.png"
     },
     {
       "source": "components/app_hello/ui/main.json"
@@ -131,6 +170,24 @@
     },
     {
       "source": "components/app_hello/include/app_hello.h"
+    },
+    {
+      "source": "components/app_vibe_settings/CMakeLists.txt"
+    },
+    {
+      "source": "components/app_vibe_settings/README.md"
+    },
+    {
+      "source": "components/app_vibe_settings/app_vibe_settings.c"
+    },
+    {
+      "source": "components/app_vibe_settings/app_wifi.c"
+    },
+    {
+      "source": "components/app_vibe_settings/include/app_vibe_settings.h"
+    },
+    {
+      "source": "components/app_vibe_settings/include/app_wifi.h"
     },
     {
       "source": "tools/quality/policy.json"

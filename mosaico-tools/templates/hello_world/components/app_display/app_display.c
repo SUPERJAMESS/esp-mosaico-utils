@@ -2,12 +2,21 @@
 
 #include "app_display.h"
 
+#include <stdint.h>
+
+#include "bsp/display.h"
 #include "bsp/esp_mosaico.h"
 #include "esp_check.h"
+#include "esp_display_present.h"
+#include "esp_lcd_touch.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
 
 static const char *TAG = "gsp_board";
+static esp_display_presenter_t *s_presenter;
+static esp_lcd_touch_handle_t s_touch;
+static esp_gsp_handle_t s_ui;
+static unsigned s_degrees;
 
 static esp_err_t board_display_init(esp_display_present_target_config_t *out_target)
 {
@@ -79,6 +88,100 @@ esp_err_t app_display_init(esp_gsp_esp_lcd_config_t *out_config)
     };
     ESP_RETURN_ON_ERROR(board_display_init(&config.display), TAG, "display initialization");
     ESP_RETURN_ON_ERROR(board_touch_init(&config.touch), TAG, "touch initialization");
+    const esp_display_presenter_config_t presenter = {
+        .width = BSP_LCD_H_RES,
+        .height = BSP_LCD_V_RES,
+        .pixel_format = ESP_DISPLAY_PRESENT_PIXEL_FORMAT_RGB565,
+        .max_damage_areas = 32,
+        .target = config.display,
+    };
+    ESP_RETURN_ON_ERROR(esp_display_presenter_create(&presenter, &s_presenter), TAG,
+                        "presenter");
+    config.presenter = s_presenter;
+    s_touch = config.touch;
     *out_config = config;
     return ESP_OK;
+}
+
+void app_display_attach(esp_gsp_handle_t ui)
+{
+    s_ui = ui;
+}
+
+static esp_err_t with_presenter_paused(esp_err_t (*work)(void *ctx), void *ctx)
+{
+    if (!s_ui) {
+        return work(ctx);
+    }
+    esp_gsp_esp_lcd_pause_t *pause = NULL;
+    esp_err_t err = esp_gsp_esp_lcd_pause(s_ui, 500, &pause);
+    if (err != ESP_OK) {
+        return err;
+    }
+    err = work(ctx);
+    esp_gsp_handle_t ui = NULL;
+    const esp_err_t resumed = esp_gsp_esp_lcd_resume_paused(pause, &ui);
+    return err != ESP_OK ? err : resumed;
+}
+
+static esp_err_t write_brightness(void *ctx)
+{
+    return bsp_display_brightness_set((int)(uintptr_t)ctx);
+}
+
+esp_err_t app_display_set_brightness(unsigned percent)
+{
+    if (percent > 100) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return with_presenter_paused(write_brightness, (void *)(uintptr_t)percent);
+}
+
+static void touch_for_rotation(unsigned degrees)
+{
+    bool swap = false;
+    bool mirror_x = false;
+    bool mirror_y = false;
+    if (!s_touch) {
+        return;
+    }
+    if (degrees == 90) {
+        swap = true;
+        mirror_y = true;
+    } else if (degrees == 180) {
+        mirror_x = true;
+        mirror_y = true;
+    } else if (degrees == 270) {
+        swap = true;
+        mirror_x = true;
+    }
+    (void)esp_lcd_touch_set_swap_xy(s_touch, swap);
+    (void)esp_lcd_touch_set_mirror_x(s_touch, mirror_x);
+    (void)esp_lcd_touch_set_mirror_y(s_touch, mirror_y);
+}
+
+static esp_err_t write_rotation(void *ctx)
+{
+    const unsigned degrees = (unsigned)(uintptr_t)ctx;
+    if (!s_presenter) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    const esp_err_t err = esp_display_presenter_set_rotation(
+        s_presenter, (esp_display_present_rotation_t)degrees);
+    if (err == ESP_OK) {
+        touch_for_rotation(degrees);
+        s_degrees = degrees;
+    }
+    return err;
+}
+
+esp_err_t app_display_set_rotation(unsigned degrees)
+{
+    if (degrees != 0 && degrees != 90 && degrees != 180 && degrees != 270) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (degrees == s_degrees) {
+        return ESP_OK;
+    }
+    return with_presenter_paused(write_rotation, (void *)(uintptr_t)degrees);
 }

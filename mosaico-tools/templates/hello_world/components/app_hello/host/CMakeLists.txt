@@ -22,5 +22,5 @@ endif()
 add_subdirectory("${ESP_GSP_COMPONENT_DIR}/tools/sim_bridge" sim_bridge)
 gsp_add_backend(hello_backend
     SOURCES ../app_hello.c platform_pc.c
-    INCLUDE_DIRECTORIES ../include
+    INCLUDE_DIRECTORIES ../include ../../app_vibe_settings/include
     SCENES ../ui/main.json)

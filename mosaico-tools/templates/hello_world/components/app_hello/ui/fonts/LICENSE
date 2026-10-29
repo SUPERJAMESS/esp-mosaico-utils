@@ -4,7 +4,7 @@ Upstream-Author: Stepan Roh <src@users.sourceforge.net> (original author),
                   see /usr/share/doc/fonts-dejavu-core/AUTHORS for full list
 Source: https://dejavu-fonts.github.io/
 
-Files: *
+Files: DejaVuSans.ttf DejaVuSans-Bold.ttf
 Copyright: Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved.
  Bitstream Vera is a trademark of Bitstream, Inc.
  DejaVu changes are in public domain.

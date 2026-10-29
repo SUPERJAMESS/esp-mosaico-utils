@@ -17,8 +17,9 @@ only for code changes with an identical full partition table and resources.
 
 Application components:
 
-- `components/app_hello`: portable UI behavior and private controller state.
-- `components/app_display`: BSP-to-GSP display and optional touch policy.
+- `components/app_hello`: portable UI behavior, the hello counter, and the settings scene.
+- `components/app_display`: BSP-to-GSP display, brightness and presenter rotation.
+- `components/app_vibe_settings`: shared `sysmeta` preferences, Wi-Fi and the settings worker.
 - `main`: device startup and dependency composition only.
 - `components/app_hello/host`: desktop adapter and its separate CMake build,
   reusing the same controller and public header; excluded from the ESP32 build.
@@ -29,9 +30,11 @@ older root `ui/main.json`). With multiple scenes, select one using `--scene PATH
 relative to the project. This previews only that scene; omit `--scene` to run the
 PC backend and its compiled application behavior.
 
-Dependency direction is `main -> app_hello -> ESP-GSP` and
-`main -> app_display -> BSP/ESP-GSP`. Neither application component depends on
-`main` or on its sibling. Public headers live in `include/`; private state stays
+Dependency direction is `main -> app_hello -> ESP-GSP`,
+`main -> app_hello -> app_vibe_settings`, and
+`main -> app_display -> BSP/ESP-GSP`. `app_vibe_settings` does not call
+`app_hello` or `app_display`; `main` connects their callbacks. Neither
+component depends on `main`. Public headers live in `include/`; private state stays
 in implementation files. Each component README includes its contract and usage.
 
 When adding behavior, keep `main` as a composition root. Add cohesive `app_*`
