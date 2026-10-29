@@ -20,7 +20,8 @@ void app_display_attach(esp_gsp_handle_t ui);
 /** Pause GSP, then set the backlight to 0..100 percent. */
 esp_err_t app_display_set_brightness(unsigned percent);
 
-/** Pause GSP and rotate the presenter plus touch. degrees is 0, 90, 180 or 270. */
+/** Pause GSP and rotate the presenter. degrees is 0, 90, 180 or 270.
+ * Touch stays in panel coordinates; GSP maps it to this orientation. */
 esp_err_t app_display_set_rotation(unsigned degrees);
 
 #ifdef __cplusplus

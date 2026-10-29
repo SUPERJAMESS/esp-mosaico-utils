@@ -62,39 +62,6 @@ static esp_err_t board_display_init(esp_display_present_target_config_t *out_tar
     return ESP_OK;
 }
 
-/* Presenter rotation moves logical pixels onto the panel. Touch reports panel
- * pixels, so this is the inverse from esp_display_present_geometry. */
-static void map_panel_touch(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t *y,
-                            uint16_t *strength, uint8_t *point_num,
-                            uint8_t max_point_num)
-{
-    (void)strength;
-    const unsigned degrees = s_degrees;
-    if (degrees == 0 || tp == NULL || x == NULL || y == NULL || point_num == NULL) {
-        return;
-    }
-    uint8_t count = *point_num;
-    if (count > max_point_num) {
-        count = max_point_num;
-    }
-    const uint16_t x_max = tp->config.x_max;
-    const uint16_t y_max = tp->config.y_max;
-    for (uint8_t i = 0; i < count; ++i) {
-        const uint16_t px = x[i];
-        const uint16_t py = y[i];
-        if (degrees == 90) {
-            x[i] = py;
-            y[i] = (uint16_t)(y_max - px);
-        } else if (degrees == 180) {
-            x[i] = (uint16_t)(x_max - px);
-            y[i] = (uint16_t)(y_max - py);
-        } else if (degrees == 270) {
-            x[i] = (uint16_t)(x_max - py);
-            y[i] = px;
-        }
-    }
-}
-
 static esp_err_t board_touch_init(esp_lcd_touch_handle_t *out_touch)
 {
     ESP_RETURN_ON_FALSE(out_touch != NULL, ESP_ERR_INVALID_ARG, TAG,
@@ -106,8 +73,6 @@ static esp_err_t board_touch_init(esp_lcd_touch_handle_t *out_touch)
         *out_touch = NULL;
         return ESP_OK;
     }
-    /* Keep driver swap/mirror off. map_panel_touch is the only rotation step. */
-    (*out_touch)->config.process_coordinates = map_panel_touch;
     return ESP_OK;
 }
 
@@ -178,8 +143,8 @@ static void touch_for_rotation(unsigned degrees)
     if (!s_touch) {
         return;
     }
-    /* Driver flags also rewrite coordinates. Leave them off so map_panel_touch
-     * is not applied a second time. */
+    /* GSP maps panel samples through esp_display_presenter_map_point. Driver
+     * swap/mirror would rotate that sample a second time. */
     (void)esp_lcd_touch_set_swap_xy(s_touch, false);
     (void)esp_lcd_touch_set_mirror_x(s_touch, false);
     (void)esp_lcd_touch_set_mirror_y(s_touch, false);
