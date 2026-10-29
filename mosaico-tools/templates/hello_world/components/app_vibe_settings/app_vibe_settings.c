@@ -300,7 +300,7 @@ static unsigned held_orientation(void)
 
 static void track_orientation(int64_t now)
 {
-    unsigned wanted = s_rotate ? held_orientation() : 0;
+    unsigned wanted = s_rotate ? held_orientation() : s_orientation;
     if (wanted != s_candidate) {
         s_candidate = wanted;
         s_candidate_us = now;
@@ -395,7 +395,7 @@ static void apply_command(const pref_cmd_t *cmd)
         s_timeout_s = (uint16_t)value;
     } else if (kind == APP_VIBE_CMD_ROTATE) {
         s_rotate = value == 1;
-        s_candidate = s_rotate ? s_orientation : 0;
+        s_candidate = s_orientation;
         s_candidate_us = esp_timer_get_time() - 300000;
     } else if (kind == APP_VIBE_CMD_HAPTICS) {
         s_haptics = value == 1;
