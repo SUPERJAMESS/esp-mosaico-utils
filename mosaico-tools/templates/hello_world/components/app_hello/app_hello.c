@@ -213,7 +213,6 @@ static void paint_settings(struct app_hello *state)
          state->settings.timeout_s == 300 ? tr(state, "5 minutes", "5 分钟") :
                                              tr(state, "10 minutes", "10 分钟"));
     text(state, GSP_HELLO_OBJ_KEY_DISP_TITLE, tr(state, "Screen off", "息屏"));
-    text(state, GSP_HELLO_OBJ_KEY_SET_SLEEP, tr(state, "Choose when the screen sleeps", "息屏 分钟"));
     text(state, GSP_HELLO_OBJ_KEY_TO0_TEXT, tr(state, "Never", "永不"));
     text(state, GSP_HELLO_OBJ_KEY_TO60_TEXT, tr(state, "1 minute", "1 分钟"));
     text(state, GSP_HELLO_OBJ_KEY_TO180_TEXT, tr(state, "3 minutes", "3 分钟"));

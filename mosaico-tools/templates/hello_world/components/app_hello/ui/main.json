@@ -2530,7 +2530,8 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz*-_.设置配网显示亮度息屏永不分钟自动旋转开关音量马达语言英文简体中文关闭返回扫描忘记连接密码未已保存开放长按退出网络正在失败请选择下方可用加密输入检查后再试",
       "name": "set_sleep",
       "bind": "set_sleep",
-      "bind_target": "text"
+      "bind_target": "text",
+      "hidden": true
     },
     {
       "type": "button",
